@@ -201,6 +201,31 @@ Approved:
 13. `AIUsageMonitor.Desktop` is an **unpackaged** WinUI 3 app (`WindowsPackageType=None`, self-contained Windows App SDK), not MSIX-packaged. This was the only way to get a build/launch-verified WinUI 3 shell in an environment without a Windows SDK install or WindowsAppSDK VS workload; MSIX packaging can be introduced in Session 19 if the BRD's "packaged release" scope requires it.
 14. `Desktop` does not yet reference `Infrastructure`. AGENTS.md permits `Desktop → Infrastructure` only through the composition root where actually required; Infrastructure has no services to compose yet, so the reference was deliberately omitted to avoid a meaningless dependency. Add it when Infrastructure gains registrable services (expected Session 03).
 15. Governance-file path corrections (`BRD v1.0.md` → `docs/BRD v1.0.md`, `IMPLEMENTATION_PLAN.md` → `docs/IMPLEMENTATION_PLAN.md`, `SESSION_PROMPTS.md` → `docs/SESSION_PROMPTS.md`) were applied across `AGENTS.md`, `CLAUDE.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/SESSION_PROMPTS.md`. `.ai/CURRENT_STATE.md` and `AGENTS.md`/`CLAUDE.md` themselves were left at their required root-level/`.ai/` locations, unchanged, per instruction.
+16. **V1 Cross-Windows Compatibility Baseline (approved, permanent):**
+
+    ```text
+    Minimum OS:
+    Windows 10 version 1809 / build 17763
+
+    Supported OS:
+    Windows 10 1809+
+    Windows 11
+
+    Architectures:
+    x86
+    x64
+    ARM64
+
+    Primary development validation:
+    x64
+
+    UI principle:
+    Modern where available; compatible fallback everywhere supported.
+
+    Core functionality must not depend on Windows 11-only APIs or modern hardware acceleration.
+    ```
+
+    This baseline is now the permanent contract in `AGENTS.md` §3A (inherited automatically by every Session 02+ executor/reviewer), reflected in `docs/BRD v1.0.md` §1A, `CLAUDE.md` §3A, `docs/IMPLEMENTATION_PLAN.md` §2A + relevant phase sections, and reminded at the top of every Session 02–20 prompt and review gate in `docs/SESSION_PROMPTS.md`. No application feature implementation occurred as part of establishing it — this was a governance/documentation-only update.
 
 Add only material decisions.
 
@@ -215,9 +240,10 @@ None. Session 01 is COMPLETE with no unresolved blockers.
 ## 8. Known Limitations
 
 - No local Windows SDK / WindowsAppSDK Visual Studio workload is installed on this machine; the Desktop project builds and runs entirely off NuGet-restored build tools (`Microsoft.Windows.SDK.BuildTools`). This is sufficient for CLI build/test/launch but should be re-verified if Visual Studio F5 debugging or MSIX packaging is attempted in a later session.
-- `AIUsageMonitor.Desktop` currently only builds/runs for the `x86` platform in this environment via plain `dotnet build`/`dotnet run` (no `-p:Platform` was needed — MSBuild picked `x86` by default for the multi-platform WinUI project). `x64`/`ARM64` were not individually validated this session.
+- `AIUsageMonitor.Desktop` currently only builds/runs for the `x86` platform in this environment via plain `dotnet build`/`dotnet run` (no `-p:Platform` was needed — MSBuild picked `x86` by default for the multi-platform WinUI project). `x64`/`ARM64` were not individually validated this session; an explicit `-p:Platform=x64`/`-p:Platform=ARM64` build/launch pass on real or emulated hardware remains outstanding and is expected no later than Session 18/19 per the Cross-Windows Compatibility Baseline (decision 16).
 - Actual provider collection methods have not yet been verified against the user's installed/authenticated environment — expected to be resolved/classified during Session 04 (unchanged from planning handoff).
 - `.github/workflows/` was not created this session (no CI pipeline exists yet); deferred to Session 19 per the BRD.
+- **Resolved this update:** `AIUsageMonitor.sln`'s `SolutionConfigurationPlatforms`/`ProjectConfigurationPlatforms` previously exposed only `x64`/`x86` even though the Desktop project already declared `Platforms=x86;x64;ARM64` and `TargetPlatformMinVersion=10.0.17763.0`. Added `Debug|ARM64`/`Release|ARM64` solution configurations, mapped to native `ARM64` for the Desktop project and to `Any CPU` for the six library/test projects (mirroring the existing `x64` mapping). Rebuilt (0 warnings/errors) and re-ran both test projects (2/2 passed) to confirm the change is safe. An actual ARM64 hardware/emulator build+launch pass is still outstanding (see the `x64`/`ARM64` validation item above).
 
 ---
 
@@ -234,6 +260,24 @@ Performed 08 August 2026, all commands actually executed (not assumed):
 | Launch | Ran `AIUsageMonitor.Desktop.exe` directly (x86, Debug) | SUCCESS — process stayed alive, `MainWindowTitle` = "AI Usage Monitor", `Responding = True`; Serilog wrote a structured startup line to `logs/aiusagemonitor-YYYYMMDD.log` next to the exe; process was then stopped cleanly |
 | Secrets | `git diff --cached` scanned for password/token/key/PEM patterns | No secrets found — all matches were governance-document prose *about* not storing secrets |
 | Build artifacts | Verified `git status`/staged diff contains no `bin/`, `obj/`, `.vs/` paths | Confirmed `.gitignore` is effective |
+
+---
+
+## 9A. Governance Update — Cross-Windows Compatibility (08 August 2026)
+
+Performed as a mandatory pre-Session-02 governance/documentation update. No application feature implementation occurred.
+
+| Step | Command | Result |
+|---|---|---|
+| Build (post-.sln ARM64 fix) | `dotnet build AIUsageMonitor.sln -c Debug` | SUCCESS — 0 Warning(s), 0 Error(s), all 7 projects |
+| Test | `dotnet test tests/AIUsageMonitor.Domain.Tests/...csproj` | SUCCESS — 1/1 passed |
+| Test | `dotnet test tests/AIUsageMonitor.Provider.Tests/...csproj` | SUCCESS — 1/1 passed |
+| Documentation consistency | Repo-wide search for `Windows 11 only`, `Windows 11+`, `minimum Windows 11`, `x64 only`, `x86 only`, `modern Windows only`, `Windows 7`, `Windows 8`, `Windows 8.1` across `*.md` | No conflicting compatibility claims found; only rule statements (prohibiting Windows-11-only dependencies) and explicit non-support statements for Windows 7/8.1 |
+| Secrets check | Reviewed diff of all governance-file edits and the `.sln` change | No secrets found — all changes are documentation/text and solution-configuration entries |
+
+Updated: `docs/BRD v1.0.md` (§1A new), `AGENTS.md` (§3A new), `CLAUDE.md` (§3A new), `docs/IMPLEMENTATION_PLAN.md` (§2A new + phase/gate notes), `docs/SESSION_PROMPTS.md` (reminder added to all 19 Session 02–20 prompts + all 4 review gates, verified by count), `AIUsageMonitor.sln` (ARM64 solution/project configuration added), `.ai/CURRENT_STATE.md` (this file).
+
+Session 02 was **not** started or executed as part of this update.
 
 ---
 
@@ -268,6 +312,12 @@ Do not start provider coding or persistence (Sessions 03/04+).
 ---
 
 ## 12. Recent Handoff
+
+### 08 August 2026 — Cross-Windows Compatibility governance update complete
+
+Established the permanent V1 Cross-Windows Desktop Compatibility baseline (decision 16, §6) across all governance documents ahead of Session 02, per planner instruction. Minimum OS Windows 10 1809/build 17763, supported OS Windows 10 1809+ and Windows 11, architectures x86/x64/ARM64, x64 primary validation. Also corrected the known Session 01 ARM64 solution-configuration gap in `AIUsageMonitor.sln` (safe, mechanical, build/test-validated — see §9A). No business/domain/provider logic was implemented; Session 02 remains next and was not started.
+
+Branch `docs/cross-windows-compatibility` created from `main`, changes committed, pushed, merged into `main`, and `origin/main` verified. See git log for exact commit.
 
 ### 08 August 2026 — Session 01 complete
 

@@ -76,6 +76,17 @@ Prioritize:
 
 ---
 
+# 3A. Cross-Windows Compatibility (Claude-Specific)
+
+`AGENTS.md` §3A "Cross-Windows Compatibility Contract" is the primary source and applies in full. This is a reminder, not a duplicate:
+
+- Sonnet executor mode must implement every change so it obeys the contract's minimum OS (Windows 10 1809 / build 17763) and architecture (x86/x64/ARM64) baseline, guarding any Windows 11-only API/feature behind capability detection with a working fallback.
+- Opus reviewer mode must treat a violation of the minimum OS/architecture contract — including a hard dependency that silently raises it — as a classified review finding, not a stylistic note.
+- Optional modern UI features (Mica, Acrylic, newer backdrops/effects) require a graceful, functionally-equivalent fallback; visual effects must never gate functionality.
+- Claude models must not silently raise the minimum supported OS by adopting a dependency that requires it — escalate to the planner instead, per `AGENTS.md` §3A.
+
+---
+
 # 4. Provider Discipline
 
 For Codex, Claude, Kimi, Copilot, and Antigravity:

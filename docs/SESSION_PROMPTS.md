@@ -131,6 +131,12 @@ Use the AGENTS.md executor completion format.
 ```text
 EXECUTE SESSION 02 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+
 Read AGENTS.md, docs/BRD v1.0.md, .ai/CURRENT_STATE.md, docs/IMPLEMENTATION_PLAN.md, this prompt, relevant Session 01 code, then inspect git status.
 
 OBJECTIVE:
@@ -221,6 +227,12 @@ STOP.
 ```text
 EXECUTE SESSION 03 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+
 Read mandatory governance/state and inspect git status.
 
 OBJECTIVE:
@@ -289,6 +301,13 @@ STOP.
 
 ```text
 EXECUTE SESSION 04 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Provider detection must not assume Windows 11-only paths/registry/shell behavior unless the provider itself requires that OS; distinguish a provider limitation from an AI Usage Monitor limitation.
 
 THIS IS AN EVIDENCE SESSION, NOT A MASS PROVIDER IMPLEMENTATION SESSION.
 
@@ -365,6 +384,9 @@ You are Opus 5 acting as principal architect and adversarial reviewer.
 
 REVIEW GATE A ONLY.
 
+CROSS-WINDOWS COMPATIBILITY REVIEW:
+Check target framework, minimum OS, architecture configuration, OS-independent domain/application design, and any dependency that could raise the minimum OS above build 17763 (AGENTS.md §3A). Classify violations as findings, not stylistic notes.
+
 Read:
 AGENTS.md
 docs/BRD v1.0.md
@@ -417,6 +439,13 @@ Do not implement features.
 
 ```text
 EXECUTE SESSION 05 ONLY after Gate A approval/remediation.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Mica/Acrylic/modern backdrop usage must be capability checked and have a compatible fallback; the design must remain attractive even when advanced effects are unavailable.
 
 OBJECTIVE:
 Create the reusable WinUI 3 design system.
@@ -474,6 +503,12 @@ STOP.
 ```text
 EXECUTE SESSION 06 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+
 OBJECTIVE:
 Implement the main dashboard bound to provider-independent view models/services.
 
@@ -514,6 +549,13 @@ STOP.
 
 ```text
 EXECUTE SESSION 07 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Verify tray/window behavior does not unnecessarily depend on Windows 11-only APIs.
 
 OBJECTIVE:
 Make monitoring continuously useful while working.
@@ -560,6 +602,13 @@ STOP.
 
 ```text
 EXECUTE SESSION 08 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Provider detection must not assume Windows 11-only paths/registry/shell behavior unless Codex itself requires that OS.
 
 Read Codex evidence in .ai/CURRENT_STATE.md first.
 
@@ -613,6 +662,13 @@ STOP.
 ```text
 EXECUTE SESSION 09 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Provider detection must not assume Windows 11-only paths/registry/shell behavior unless Claude itself requires that OS.
+
 Use VERIFIED Session 04 Claude mechanisms.
 
 TARGET WHEN VERIFIED:
@@ -655,6 +711,13 @@ STOP.
 ```text
 EXECUTE SESSION 10 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Provider detection must not assume Windows 11-only paths/registry/shell behavior unless Kimi itself requires that OS.
+
 Use VERIFIED Session 04 Kimi mechanisms.
 
 TARGET WHEN VERIFIED:
@@ -689,6 +752,13 @@ STOP.
 
 ```text
 EXECUTE SESSION 11 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Provider detection must not assume Windows 11-only paths/registry/shell behavior unless Copilot itself requires that OS.
 
 Use the GitHub-supported authentication approach verified during Session 04.
 
@@ -726,6 +796,13 @@ STOP.
 ```text
 EXECUTE SESSION 12 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Provider detection must not assume Windows 11-only paths/registry/shell behavior unless Antigravity itself requires that OS.
+
 Use only VERIFIED safe mechanisms from Session 04.
 
 TARGET WHEN VERIFIED:
@@ -761,6 +838,9 @@ STOP.
 
 ```text
 You are Opus 5 performing provider-integrity review.
+
+CROSS-WINDOWS COMPATIBILITY REVIEW:
+Check provider detection compatibility, Windows-specific assumptions, and that provider-specific OS requirements are correctly isolated from the rest of the app (AGENTS.md §3A). Classify violations as findings, not stylistic notes.
 
 Review Sessions 08–12 against Session 04 evidence.
 
@@ -804,6 +884,12 @@ REJECTED — BLOCKERS LISTED
 ```text
 EXECUTE SESSION 13 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+
 OBJECTIVE:
 Implement clear subscription and billing-period management.
 
@@ -846,6 +932,12 @@ STOP.
 ```text
 EXECUTE SESSION 14 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+
 OBJECTIVE:
 Implement accurate usage history and analytics.
 
@@ -885,6 +977,12 @@ STOP.
 
 ```text
 EXECUTE SESSION 15 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
 
 OBJECTIVE:
 Implement deterministic provider capacity scoring.
@@ -944,6 +1042,13 @@ STOP.
 ```text
 EXECUTE SESSION 16 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Require low idle CPU, reasonable memory usage, no aggressive polling, no unnecessary high-frequency timers.
+
 OBJECTIVE:
 Implement reliable low-overhead background monitoring.
 
@@ -992,6 +1097,13 @@ STOP.
 ```text
 EXECUTE SESSION 17 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+OS capability detection and resilience must be reviewed: any post-17763 API/feature use must be guarded with a working fallback, never a crash.
+
 OBJECTIVE:
 Finish configuration and production hardening.
 
@@ -1038,6 +1150,13 @@ STOP.
 
 ```text
 EXECUTE SESSION 18 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Explicitly validate reduced/no visual effects, older supported Windows behavior, x64 primary build, x86 build, ARM64 build where the environment permits, hardware-independent functionality, and high-DPI/normal-DPI behavior.
 
 NO NEW FEATURES.
 
@@ -1090,6 +1209,9 @@ STOP.
 ```text
 You are Opus 5 performing the pre-release review.
 
+CROSS-WINDOWS COMPATIBILITY REVIEW:
+Check UI graceful degradation, older-system resource usage, API capability checks, background performance, and architecture outputs across the supported OS/architecture matrix (AGENTS.md §3A). Classify violations as findings, not stylistic notes.
+
 Read all governance/state plus implementation through Session 18.
 
 REVIEW:
@@ -1137,6 +1259,13 @@ REJECTED — BLOCKERS LISTED
 ```text
 EXECUTE SESSION 19 ONLY.
 
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Explicitly require release consideration for win-x86, win-x64, win-arm64, and verify no packaging decision silently raises the minimum OS beyond build 17763.
+
 OBJECTIVE:
 Create repeatable personal installation/release.
 
@@ -1180,6 +1309,13 @@ STOP.
 
 ```text
 EXECUTE SESSION 20 ONLY.
+
+CROSS-WINDOWS COMPATIBILITY:
+The Cross-Windows Compatibility Contract in AGENTS.md is mandatory for this session.
+Minimum OS: Windows 10 1809 / build 17763. Supported architectures: x86, x64, ARM64. x64 is the primary validation target.
+Do not introduce Windows 11-only dependencies without a compatible runtime fallback.
+Do not introduce dependencies that raise the approved minimum OS without planner approval.
+Add final acceptance validation for the Windows 10 1809 compatibility contract, later Windows 10 releases, Windows 11, x86, x64, ARM64, and modern-effects-unavailable fallback. Testing may use real hardware, VMs, build validation, compatibility guards, or a justified combination of what is realistically available — do not claim hardware/OS execution that was not actually performed.
 
 THIS IS FINAL IMPLEMENTATION.
 NO NEW FEATURES.
@@ -1239,6 +1375,9 @@ STOP.
 
 ```text
 You are Opus 5, final independent reviewer for AI Usage Monitor v1.0.
+
+CROSS-WINDOWS COMPATIBILITY REVIEW:
+The compatibility verdict must explicitly cover Windows 10 1809+, Windows 11, x86, x64, ARM64, fallback behavior when modern effects are unavailable, and the absence of accidental Windows 11-only core dependencies (AGENTS.md §3A). A release-blocking compatibility regression must be classified per severity like any other finding.
 
 Treat the implementation as a release candidate.
 
