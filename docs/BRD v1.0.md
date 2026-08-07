@@ -11,7 +11,7 @@
 **Reviewer:** Opus 5
 **Source Control:** GitHub
 **Project Management:** Repository-driven; no Jira
-**Target Platform:** Windows 11 primarily; Windows 10 1809+ compatible where supported
+**Target Platform:** Windows 10 version 1809 (build 17763)+ and Windows 11; x86, x64, ARM64 — see [§1A Cross-Windows Desktop Compatibility](#1a-cross-windows-desktop-compatibility)
 
 ---
 
@@ -56,6 +56,52 @@ Primary information displayed includes:
 * Recommended provider based on remaining capacity
 
 The application will be local-first, privacy-conscious, resilient to individual provider failures, and designed so provider integrations can change without requiring major modifications to the application.
+
+---
+
+# 1A. Cross-Windows Desktop Compatibility
+
+This is a mandatory V1 baseline. Every session from Session 02 onward inherits it automatically.
+
+## Compatibility Baseline
+
+* **Minimum OS:** Windows 10 version 1809 / build 17763
+* **Supported OS:** Windows 10 1809+ and Windows 11
+* **Supported architectures:** x86, x64, ARM64
+* **Primary validation architecture:** x64 (secondary: x86, then ARM64)
+
+V1 is **not** Windows 11-only. It must remain functional and usable on older/lower-spec Windows 10 desktop and laptop hardware that meets the minimum OS requirement.
+
+Design principle:
+
+> **Modern where available. Compatible everywhere supported.**
+
+## Mandatory Rules
+
+1. **Windows API compatibility** — No Windows 11-only API, Windows App SDK feature, or OS feature introduced after build 17763 may be used without runtime capability/version detection. An unavailable modern feature must never crash the application.
+2. **Core functionality independence** — Domain, Application, Provider engine, quota calculation, subscription handling, history, analytics, recommendation engine, monitoring, persistence, and alert evaluation must not depend on Windows 11-specific functionality.
+3. **UI graceful degradation** — Mica, Acrylic, advanced backdrops, and other modern visual features must degrade to a compatible solid/default surface when unavailable, with identical functionality. Visual effects must never determine whether the application works.
+4. **Hardware compatibility** — AVX/AVX2, a dedicated/recent GPU, TPM, NPU, an AI accelerator, or a recent-generation CPU must never be mandatory prerequisites.
+5. **Performance compatibility** — Background operation must stay lightweight: low idle CPU, reasonable memory, no aggressive timers/polling/rendering. The monitor must not noticeably degrade the IDE or other running applications.
+6. **Functional compatibility** — Provider monitoring, LocalDB persistence, quota display/calculation, subscription information, history, alerts, notifications, tray, Focus HUD, analytics, and the recommendation engine must all work without modern GPU functionality. Only optional visual effects may degrade.
+
+## Architecture Targets
+
+```text
+win-x86
+win-x64
+win-arm64
+```
+
+x64 is the normal primary desktop development target. x86 remains supported for older/32-bit machines. ARM64 remains a supported release architecture.
+
+## Known Tracked Item
+
+The Desktop project (Session 01) already declares `Platforms=x86;x64;ARM64` and `TargetPlatformMinVersion=10.0.17763.0`, but the solution configuration did not originally expose ARM64 consistently. This is tracked as an approved compatibility item, correctable at or before the packaging/release phase (Session 19), and safe/trivial corrections may be applied earlier without expanding session scope.
+
+## Non-Goals
+
+V1 does not claim support for Windows 7 or Windows 8.1.
 
 ---
 

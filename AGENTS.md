@@ -71,6 +71,38 @@ Do not silently override a higher authority.
 
 ---
 
+# 3A. Cross-Windows Compatibility Contract
+
+This section is permanent and mandatory. **Every executor and reviewer session from Session 02 onward inherits it automatically**, even when the individual session prompt does not repeat it in full.
+
+## Baseline
+
+- Minimum OS: Windows 10 version 1809 / build 17763
+- Supported OS: Windows 10 1809+ and Windows 11
+- Supported architectures: x86, x64, ARM64
+- Primary validation architecture: x64 (secondary: x86, then ARM64)
+
+Design principle: **Modern where available. Compatible everywhere supported.**
+
+## Mandatory Rules
+
+1. **API guarding** — No Windows 11-only API, Windows App SDK feature, or post-17763 OS feature may be used without runtime capability/version detection. An unavailable modern feature must never crash the app.
+2. **Core independence** — Domain, Application, Provider engine, quota calculation, subscription handling, history, analytics, recommendation engine, monitoring, persistence, and alert evaluation must not depend on Windows 11-only functionality.
+3. **UI graceful degradation** — Mica/Acrylic/advanced backdrops/newer windowing or animation effects must fall back to a compatible solid/default surface with identical functionality when unavailable. Visual effects never gate functionality.
+4. **No modern hardware prerequisites** — AVX/AVX2, a dedicated/recent GPU, TPM, NPU, an AI accelerator, or a recent-generation CPU must never be mandatory.
+5. **Lightweight background operation** — low idle CPU, reasonable memory, no aggressive timers/polling/rendering; must not noticeably degrade the IDE or other running applications.
+6. **Functional parity** — provider monitoring, LocalDB persistence, quota display/calculation, subscription info, history, alerts, notifications, tray, Focus HUD, analytics, and recommendations must all work without modern GPU functionality. Only optional visual effects may degrade.
+
+## Dependency Rule
+
+Before adopting any new package, framework dependency, Windows API, or native component beginning with Session 02: check it against the build-17763 minimum. If it would raise the minimum supported OS, do not silently accept it — identify the incompatibility, look for a compatible alternative, record the issue in `.ai/CURRENT_STATE.md`, and escalate to the planner. The executor does not have authority to silently raise the minimum Windows version.
+
+## Review Responsibility
+
+Reviewers (Gate A, Gate B, Gate C, Final Review) must treat a violation of this contract — an unguarded Windows 11-only dependency, a hard hardware-acceleration requirement, or a crash on unavailable modern features — as a classified finding (BLOCKER/HIGH/MEDIUM/LOW per §23), not a stylistic note.
+
+---
+
 # 4. Frozen V1 Stack
 
 - C#

@@ -80,6 +80,33 @@ Source-of-truth files:
 
 ---
 
+## 2A. Cross-Windows Compatibility Baseline
+
+Frozen alongside the V1 architecture. Full contract: `AGENTS.md` §3A. Full requirement: `docs/BRD v1.0.md` §1A.
+
+```text
+Minimum OS:
+Windows 10 1809 / Build 17763
+
+Supported:
+Windows 10 1809+
+Windows 11
+
+Architectures:
+x86
+x64
+ARM64
+
+Primary development/validation architecture:
+x64
+```
+
+Design principle: **Modern where available. Compatible everywhere supported.** Optional modern UI effects (Mica/Acrylic/newer backdrops) require capability detection and a functionally-equivalent fallback. Core layers (Domain, Application, Providers, persistence, monitoring, analytics, recommendation engine) must not depend on Windows 11-only APIs or modern hardware acceleration (no mandatory AVX/AVX2, dedicated GPU, TPM, or NPU).
+
+Every session from Session 02 onward inherits this baseline automatically, even where not repeated verbatim below.
+
+---
+
 ## 3. Authority Order
 
 If instructions conflict, follow:
@@ -437,6 +464,7 @@ Implement provider-independent domain models and contracts.
 - no fixed quota schema
 - important invariants covered by targeted tests
 - project boundaries remain correct
+- domain/application architecture remains OS-independent wherever possible (Cross-Windows Compatibility Baseline, §2A)
 
 ---
 
@@ -517,6 +545,7 @@ Focus:
 - security
 - complexity
 - future maintainability
+- target framework, minimum OS, architecture configuration; OS-independent domain/application design; dependencies that could raise the minimum OS (§2A)
 
 Gate verdict:
 
@@ -552,6 +581,8 @@ Visual direction:
 **modern developer command center**
 
 Polished but restrained.
+
+Mica/Acrylic/modern backdrop usage must be capability checked and have a compatible fallback (§2A). The design must remain attractive on older supported Windows 10 devices where advanced effects are unavailable.
 
 ---
 
@@ -597,6 +628,8 @@ Build:
 
 The HUD must remain comfortable beside VS Code/another IDE.
 
+Tray/window/HUD behavior must not unnecessarily depend on Windows 11-only APIs (§2A) and must respect the supported OS range.
+
 ---
 
 # 14. Phase 2 — Provider Integrations
@@ -604,6 +637,8 @@ The HUD must remain comfortable beside VS Code/another IDE.
 All Sessions 08–12 consume verified Session 04 findings.
 
 If provider behavior changed, re-verify before implementation.
+
+Provider detection must not assume Windows 11-only paths, registry structures, or shell behavior unless the provider itself officially requires that OS (§2A). Distinguish a **provider limitation** from an **AI Usage Monitor limitation** — the rest of the application must keep functioning either way.
 
 ## Session 08 — Codex
 Implement only verified detection/auth/usage/quota/reset/plan/subscription sources and manual fallbacks.
@@ -652,6 +687,7 @@ Audit all provider implementations for:
 - duplicate snapshots
 - aggressive polling
 - UI/provider coupling
+- provider detection compatibility, Windows-specific assumptions, provider-specific OS requirements correctly isolated from the rest of the app (§2A)
 
 BLOCKER/HIGH findings must be resolved before Phase 3.
 
@@ -754,6 +790,8 @@ Alerts:
 
 Implement notification deduplication/cooldown.
 
+Background monitoring must remain lightweight on older/lower-spec supported hardware: low idle CPU, reasonable memory, no aggressive/high-frequency timers (§2A).
+
 ---
 
 # 17. Phase 4 — Production Hardening
@@ -791,6 +829,8 @@ Security:
 - credential disconnect/delete
 - no secrets in DB/config
 
+OS capability detection and resilience must be reviewed: any post-17763 API/feature use must be guarded with a working fallback, never a crash (§2A).
+
 ---
 
 ## Session 18 — UX & Performance Polish
@@ -817,6 +857,8 @@ Review:
 - chart history performance
 - cancellation/disposal
 
+Performance and compatibility validation must include older/lower-resource supported environments, not only the primary development machine: reduced/no visual effects, x64 primary build, x86 build, ARM64 build where feasible, hardware-independent functionality, and both high-DPI and normal-DPI behavior (§2A).
+
 ---
 
 # 18. Review Gate C — Opus 5
@@ -835,6 +877,7 @@ Pre-release audit:
 - recommendation logic
 - monitoring
 - notifications
+- UI graceful degradation, older-system resource usage, API capability checks, background performance, architecture outputs across the supported OS/architecture matrix (§2A)
 
 Resolve release blockers before Session 19.
 
@@ -853,6 +896,8 @@ Build:
 - safe migration on upgrade
 - release artifact
 - concise README install/update instructions
+
+Release consideration must cover win-x86, win-x64, and win-arm64 (§2A). No packaging decision may silently raise the minimum OS beyond build 17763.
 
 No cloud infrastructure.
 
@@ -888,6 +933,8 @@ Validate full V1 against BRD:
 - Windows startup
 - packaged installation/update
 
+Final acceptance validation must cover the Windows 10 1809 compatibility contract, later Windows 10 releases, Windows 11, x86, x64, ARM64, and modern-effects-unavailable fallback (§2A), using real hardware, VMs, build validation, compatibility guards, or a justified combination of what is realistically available. Do not claim hardware/OS execution that was not actually performed.
+
 Resolve all BLOCKER/HIGH defects.
 
 Set `.ai/CURRENT_STATE.md` to `RELEASE CANDIDATE`.
@@ -902,6 +949,8 @@ Every BRD requirement:
 - PARTIAL
 - FAIL
 - NOT APPLICABLE
+
+The compatibility verdict must explicitly cover Windows 10 1809+, Windows 11, x86, x64, ARM64, fallback behavior when modern effects are unavailable, and the absence of accidental Windows 11-only core dependencies (§2A). A release-blocking compatibility regression must be classified per severity like any other finding.
 
 Final verdict exactly:
 
