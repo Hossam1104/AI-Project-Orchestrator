@@ -1,0 +1,58 @@
+# Build artifacts
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# Test results
+TestResults/
+[Cc]overage/
+*.trx
+*.coverage
+*.coveragexml
+
+# Rider / JetBrains
+.idea/
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+
+# WinUI / MSIX packaging output
+AppPackages/
+BundleArtifacts/
+Package.StoreAssociation.xml
+*_TemporaryKey.pfx
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+.nuget/
+
+# EF Core local database files
+*.mdf
+*.ldf
+*.ndf
+
+# User-specific local settings
+appsettings.*.local.json
+*.local.json
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Rider/VS temp
+*.tmp
+*.bak
