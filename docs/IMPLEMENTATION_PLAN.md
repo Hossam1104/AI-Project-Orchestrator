@@ -337,6 +337,10 @@ Rules:
 - never commit credentials
 - review final diff before completion
 
+### Git Delivery Contract (default for Sessions 02–20)
+
+Full contract: `AGENTS.md` §6A. Every completed implementation/remediation session must, by default, commit, push its session branch, merge into `main`, push `main`, and verify `origin/main` before stopping — a session is not `COMPLETE` until remote `main` contains the validated work (documented external restrictions, e.g. branch protection requiring a PR, are the only exception, and must be recorded in `.ai/CURRENT_STATE.md`). Never leave validated work only local or only on an un-integrated remote branch, and never ask the project owner whether to commit/push — that is already answered permanently: yes. Reviewer-only Opus gates are exempt unless explicitly asked to modify repository files.
+
 Suggested commit prefixes:
 
 - `feat:`
@@ -976,9 +980,15 @@ A session is Done only when:
 6. no secrets are present
 7. final Git diff was reviewed
 8. `.ai/CURRENT_STATE.md` was updated
-9. limitations/blockers are documented
-10. next session is identified
-11. executor stops
+9. changes are committed (Git Delivery Contract, `AGENTS.md` §6A)
+10. the session branch is pushed
+11. the session branch is merged into `main`
+12. `main` is pushed to `origin`
+13. `origin/main` is verified to contain the merged work
+14. the working tree is clean
+15. limitations/blockers are documented
+16. next session is identified
+17. executor stops
 
 ---
 

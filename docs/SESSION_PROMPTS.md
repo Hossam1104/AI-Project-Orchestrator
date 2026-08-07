@@ -217,6 +217,21 @@ build, targeted tests, project references, git diff, secrets.
 UPDATE CURRENT_STATE:
 Session 02 status, actual decisions, validation, next Session 03.
 
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -292,6 +307,22 @@ VALIDATE:
 Do not implement providers/dashboard.
 
 Update CURRENT_STATE with migration/database/build status and next Session 04.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -371,6 +402,21 @@ You may create tiny investigation utilities if necessary, but remove credential-
 Build the solution before stopping.
 
 Do not execute Sessions 08–12.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
 
 STOP.
 ```
@@ -493,6 +539,22 @@ themes, resizing, keyboard, DPI/text scaling where possible, readability.
 Build.
 Review diff.
 Update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -540,6 +602,22 @@ No provider payload parsing in UI.
 Validate compact/normal/large windows and high DPI.
 Build.
 Update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -593,6 +671,22 @@ Keep it readable beside VS Code/IDE and non-intrusive.
 
 Build/manual validate.
 Update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -652,6 +746,22 @@ MANUALLY COMPARE monitor values with the real Codex usage surface.
 Do NOT force a 5h+weekly layout if the actual account exposes different windows.
 
 Build/test/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -701,6 +811,22 @@ Compare with Claude's own usage display.
 Verify timezone/reset carefully.
 
 Build/test/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -743,6 +869,22 @@ Integrate dashboard/HUD.
 Compare with Kimi's own usage surface.
 
 Build/test/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -786,6 +928,22 @@ Add focused tests.
 Manually compare with GitHub's own usage/billing view.
 
 Build/test/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -829,6 +987,22 @@ Normalize/persist data.
 Add sanitized parser tests where a machine-readable source exists.
 Integrate UI/HUD.
 Build/test/manual verify/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -922,6 +1096,22 @@ Implement service, persistence and UI.
 No payment processing.
 
 Build/test/manual validate/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -968,6 +1158,22 @@ Create readable performant charts.
 Add high-value math tests.
 
 Build/test/manual validate/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -1032,6 +1238,22 @@ ties
 Integrate dashboard + Focus HUD.
 
 Build/test/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -1087,6 +1309,22 @@ Persist alert events as appropriate.
 Use Windows notifications.
 
 Build/test/manual validate/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -1141,6 +1379,22 @@ RESILIENCE:
 One provider failure must not break other refreshes.
 
 Build/test/manual validate/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -1199,6 +1453,22 @@ Keep animations restrained.
 Do not redesign core architecture unless fixing a real problem.
 
 Build/test/manual regression/update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -1300,6 +1570,22 @@ Validate:
 - no secrets
 
 Update CURRENT_STATE.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
+
 STOP.
 ```
 
@@ -1365,6 +1651,21 @@ Update .ai/CURRENT_STATE.md:
 - remaining MEDIUM/LOW known issues
 - Release State = RELEASE CANDIDATE if appropriate
 - Next = Final Opus Review
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
 
 STOP.
 ```
@@ -1477,6 +1778,21 @@ For each finding:
 Build/test.
 Review diff.
 Update .ai/CURRENT_STATE.md with each finding's resolution status.
+
+GIT DELIVERY:
+The Git Delivery Contract in AGENTS.md is mandatory.
+
+Before stopping:
+- update .ai/CURRENT_STATE.md
+- commit session changes
+- push the session branch
+- merge into main
+- push main
+- verify origin/main
+- leave the working tree clean
+
+Do not ask whether completed session work should be committed or merged.
+Do not execute the next session.
 
 Stop and return the project to the same Opus review gate.
 ```

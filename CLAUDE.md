@@ -87,6 +87,15 @@ Prioritize:
 
 ---
 
+# 3B. Git Delivery (Claude-Specific)
+
+`AGENTS.md` §6A "Git Delivery Contract" is the primary source and applies in full. This is a reminder, not a duplicate:
+
+- Sonnet executor mode: implementation completion includes commit/push/merge/verify. Never stop after local validation with uncommitted changes. Never ask whether completed, validated session work should be committed or pushed — the Git Delivery Contract already answers that permanently. Obey `AGENTS.md` §6A end to end (branch → commit → push → merge → push main → verify `origin/main` → clean working tree) before reporting a session `COMPLETE`.
+- Opus reviewer mode: review work itself does not need code changes or commits unless explicitly requested. If a remediation executor is used to fix findings, that remediation must obey the Git Delivery Contract in `AGENTS.md` §6A the same as any other implementation session.
+
+---
+
 # 4. Provider Discipline
 
 For Codex, Claude, Kimi, Copilot, and Antigravity:
