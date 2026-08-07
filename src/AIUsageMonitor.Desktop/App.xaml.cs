@@ -5,7 +5,7 @@ using Serilog;
 
 namespace AIUsageMonitor.Desktop;
 
-public partial class App : Application
+public partial class App : Microsoft.UI.Xaml.Application
 {
     private readonly IHost _host;
     private Window? _window;
