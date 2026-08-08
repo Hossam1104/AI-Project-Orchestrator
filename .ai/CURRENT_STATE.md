@@ -752,6 +752,21 @@ Session 04 was not executed during Session 03R or Session 03R-F.
 
 ## 12. Recent Handoff
 
+### 08 August 2026 - Planner correction: full Session 04 task and owner pause
+
+The post-Session-03R-F planner correction is complete. `AGENTS.md` now permanently requires Luna
+to copy the full next approved prompt, including applicable common inheritance, from
+`docs/SESSION_PROMPTS.md` into the root `TASK.md`, deliver it through Git, and stop without
+executing it. The root `TASK.md` contains the complete common inheritance and approved Session 04
+Provider Feasibility Investigation prompt, with no Gate A or later-session prompt copied into it.
+
+The project is `PAUSED BY OWNER` after Session 03R-F because the owner is prioritizing other
+projects/quota usage. Session 04 remains `NOT STARTED`, and Gate A remains `NOT STARTED`. No Session
+04 or Gate A work was executed.
+
+The remediation was committed, pushed on its session branch, merged into `main`, pushed to
+`origin`, and verified with a clean working tree.
+
 ### 08 August 2026 - Portable Consumer Architecture Governance Rebaseline
 
 Approved planner decision: V1 is a general-consumer, local-first Windows desktop application targeting WPF + .NET 10, JSON/JSONL persistence, secure external credential storage, and self-contained release artifacts. The documentation update preserved Session 03 as a completed historical EF Core + SQL Server LocalDB implementation while marking it architecturally superseded. Session 03R has now removed that active runtime architecture and validated the WPF/file-backed foundation.
