@@ -16,29 +16,27 @@ public partial class App : System.Windows.Application
     public App()
     {
         InitializeComponent();
-
-        _paths = ApplicationDataPaths.CreateDefault();
-        _paths.EnsureDirectories();
-
-        Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
-            .Enrich.FromLogContext()
-            .WriteTo.Debug()
-            .WriteTo.File(
-                Path.Combine(_paths.LogsDirectory, "aiusagemonitor-.log"),
-                rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 14)
-            .CreateLogger();
     }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        var storage = StorageStartup.TryInitialize();
+        if (!storage.IsAvailable)
+        {
+            ConfigureFallbackLogging();
+            Log.Error(
+                storage.Failure,
+                "LocalAppData storage is unavailable; starting in degraded no-persistence mode");
+            ShowShell(persistenceAvailable: false);
+            return;
+        }
+
         try
         {
-            _paths ??= ApplicationDataPaths.CreateDefault();
-            _paths.EnsureDirectories();
+            _paths = storage.Paths!;
+            ConfigureLogging(_paths);
 
             _host = Host.CreateDefaultBuilder()
                 .UseSerilog()
@@ -51,16 +49,63 @@ public partial class App : System.Windows.Application
 
             await _host.StartAsync();
             Log.Information("AI Usage Monitor started using LocalAppData at {RootDirectory}", _paths.RootDirectory);
-
-            MainWindow = _host.Services.GetRequiredService<MainWindow>();
-            MainWindow.Show();
+            ShowShell(persistenceAvailable: true);
         }
         catch (Exception exception)
         {
-            // Optional state and provider failures must not prevent the empty shell from opening.
-            Log.Error(exception, "Application startup completed with a recoverable infrastructure error");
-            MainWindow = new MainWindow();
-            MainWindow.Show();
+            ConfigureFallbackLogging();
+            Log.Error(exception, "Application startup completed in degraded no-persistence mode");
+            ShowShell(persistenceAvailable: false);
+        }
+    }
+
+    private void ShowShell(bool persistenceAvailable)
+    {
+        MainWindow = persistenceAvailable && _host is not null
+            ? _host.Services.GetService<MainWindow>() ?? new MainWindow()
+            : new MainWindow();
+        ((MainWindow)MainWindow).SetPersistenceAvailability(persistenceAvailable);
+        MainWindow.Show();
+    }
+
+    private static void ConfigureLogging(ApplicationDataPaths paths)
+    {
+        try
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .Enrich.FromLogContext()
+                .WriteTo.Debug()
+                .WriteTo.File(
+                    Path.Combine(paths.LogsDirectory, "aiusagemonitor-.log"),
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: 14)
+                .CreateLogger();
+        }
+        catch (Exception exception)
+        {
+            ConfigureFallbackLogging(exception);
+        }
+    }
+
+    private static void ConfigureFallbackLogging(Exception? exception = null)
+    {
+        try
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .Enrich.FromLogContext()
+                .WriteTo.Debug()
+                .CreateLogger();
+        }
+        catch
+        {
+            Log.Logger = new LoggerConfiguration().CreateLogger();
+        }
+
+        if (exception is not null)
+        {
+            Log.Warning(exception, "File logging is unavailable; debug logging remains active");
         }
     }
 

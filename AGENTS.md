@@ -63,12 +63,30 @@ The repository is the source of truth.
 
 # Active TASK.md Contract
 
-The root `TASK.md` is the active execution assignment for the current session. It may add
-planner-approved scope and completion requirements, but it cannot override the BRD or this
-contract. Executors must read it before modifying files, execute only its named session, update
-it to a concise completion handoff when the session is delivered, and stop before the next
-session. Historical status belongs in `.ai/CURRENT_STATE.md`; `TASK.md` records only the active
-assignment and its final handoff.
+From this remediation onward, the root `TASK.md` is the active executable task, not a historical
+execution log. It may add planner-approved scope and completion requirements, but it cannot
+override the BRD or this contract.
+
+1. Root `TASK.md` contains the current executable session/task.
+2. Every executor must read it during mandatory startup.
+3. Execute only the task defined in `TASK.md`.
+4. `TASK.md` cannot override higher-authority BRD/governance decisions.
+5. `.ai/CURRENT_STATE.md` remains the authoritative factual project history/status.
+6. `docs/SESSION_PROMPTS.md` remains the permanent detailed session specification library.
+7. After a session completes successfully and is delivered to `main`, Luna determines the next
+   planned session from the approved implementation plan/current state.
+8. Luna replaces root `TASK.md` with the complete executable prompt for that next session.
+9. The next `TASK.md` must be self-contained enough for a fresh Luna Max chat.
+10. Applicable common inheritance/governance rules should be included or referenced according to
+    the repository's normal task format.
+11. Updating `TASK.md` does not authorize executing it.
+12. Luna must stop after preparing and pushing the next `TASK.md`.
+13. Every new task requires a new explicit user instruction such as:
+    `Execute the current root TASK.md through completion.`
+14. If the current task is PARTIAL or BLOCKED, do not advance `TASK.md` to the next normal
+    session. Keep or create an appropriate remediation/recovery task instead.
+15. Do not use `TASK.md` as a historical execution log; historical execution results belong in
+    `.ai/CURRENT_STATE.md`.
 
 ---
 

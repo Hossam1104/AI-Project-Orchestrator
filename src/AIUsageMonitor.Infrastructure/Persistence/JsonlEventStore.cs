@@ -41,11 +41,20 @@ public sealed class JsonlEventStore<TRecord>
             Directory.CreateDirectory(directory);
             await using var stream = new FileStream(
                 path,
-                FileMode.Append,
-                FileAccess.Write,
+                FileMode.OpenOrCreate,
+                FileAccess.ReadWrite,
                 FileShare.Read,
                 bufferSize: 16 * 1024,
                 options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+            stream.Position = stream.Length;
+            if (HasUnterminatedTail(stream))
+            {
+                _logger.LogWarning(
+                    "Isolating an unterminated JSONL tail before appending to {FilePath}",
+                    path);
+                await stream.WriteAsync("\n"u8.ToArray(), cancellationToken).ConfigureAwait(false);
+            }
 
             var line = JsonSerializer.Serialize(record, JsonFileStore.JsonlSerializerOptions);
             await stream.WriteAsync(System.Text.Encoding.UTF8.GetBytes(line), cancellationToken)
@@ -54,6 +63,57 @@ public sealed class JsonlEventStore<TRecord>
             await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             stream.Flush(flushToDisk: true);
         }, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<TResult?> ReadLatestAsync<TResult>(
+        string directory,
+        Func<TRecord, DateTimeOffset> timestampSelector,
+        Func<TRecord, TResult?> map,
+        Func<TResult, DateTimeOffset> mappedTimestampSelector,
+        CancellationToken cancellationToken = default)
+        where TResult : class
+    {
+        ArgumentNullException.ThrowIfNull(timestampSelector);
+        ArgumentNullException.ThrowIfNull(map);
+        ArgumentNullException.ThrowIfNull(mappedTimestampSelector);
+
+        if (!Directory.Exists(directory))
+        {
+            return null;
+        }
+
+        foreach (var path in EnumerateMonthlyPathsDescending(directory))
+        {
+            var records = await ReadFileAsync(path, timestampSelector, cancellationToken)
+                .ConfigureAwait(false);
+            TResult? latest = null;
+            DateTimeOffset latestTimestamp = default;
+
+            foreach (var record in records)
+            {
+                var mapped = map(record);
+                if (mapped is null)
+                {
+                    continue;
+                }
+
+                var candidateTimestamp = mappedTimestampSelector(mapped);
+                if (latest is null || candidateTimestamp >= latestTimestamp)
+                {
+                    latest = mapped;
+                    latestTimestamp = candidateTimestamp;
+                }
+            }
+
+            // JSONL partitions are named by the UTC month of the captured event. Once a valid
+            // matching value exists in the newest partition, older partitions cannot supersede it.
+            if (latest is not null)
+            {
+                return latest;
+            }
+        }
+
+        return null;
     }
 
     public async IAsyncEnumerable<TRecord> ReadRangeAsync(
@@ -111,6 +171,19 @@ public sealed class JsonlEventStore<TRecord>
             path,
             () => ReadFileCoreAsync(path, timestampSelector, cancellationToken),
             cancellationToken);
+
+    private static bool HasUnterminatedTail(FileStream stream)
+    {
+        if (stream.Length == 0)
+        {
+            return false;
+        }
+
+        stream.Position = stream.Length - 1;
+        var lastByte = stream.ReadByte();
+        stream.Position = stream.Length;
+        return lastByte != '\n';
+    }
 
     private async Task<IReadOnlyList<TRecord>> ReadFileCoreAsync(
         string path,
@@ -187,6 +260,12 @@ public sealed class JsonlEventStore<TRecord>
 
         return records;
     }
+
+    private static IEnumerable<string> EnumerateMonthlyPathsDescending(string directory) =>
+        Directory.EnumerateFiles(directory, "*.jsonl", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(
+                static path => Path.GetFileName(path),
+                StringComparer.OrdinalIgnoreCase);
 
     private static IEnumerable<string> EnumerateMonthlyPaths(string directory, DateTimeOffset from, DateTimeOffset to)
     {

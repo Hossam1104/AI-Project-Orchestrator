@@ -44,6 +44,12 @@ public sealed class ApplicationDataPaths
     public static ApplicationDataPaths CreateDefault()
     {
         var localApplicationData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localApplicationData))
+        {
+            throw new InvalidOperationException(
+                "The Windows LocalApplicationData location is unavailable; persistent storage cannot be resolved safely.");
+        }
+
         var root = Path.Combine(localApplicationData, ApplicationDirectoryName);
         return new ApplicationDataPaths(root);
     }

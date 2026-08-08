@@ -107,6 +107,36 @@ public sealed class JsonlHistoryPersistenceTests
     }
 
     [Fact]
+    public async Task UsageSnapshots_LatestLookup_StopsAtNewestMatchingPartition()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var providerId = Guid.NewGuid();
+        var quotaDefinitionId = Guid.NewGuid();
+        var capturedAt = new DateTimeOffset(2026, 8, 8, 10, 5, 0, TimeSpan.Zero);
+        var latest = CreateSnapshot(
+            providerId,
+            quotaDefinitionId,
+            64,
+            capturedAt,
+            capturedAt.AddMinutes(-5),
+            capturedAt.AddHours(5));
+
+        var olderIrrelevantPartition = store.Paths.GetMonthlyPartition(
+            store.Paths.HistoryDirectory,
+            capturedAt.AddMonths(-1));
+        await File.WriteAllTextAsync(olderIrrelevantPartition, "{ this older partition is corrupt\n");
+
+        await repository.AddAsync(latest);
+
+        var loaded = await repository.GetLatestAsync(providerId, quotaDefinitionId);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(latest.Id, loaded!.Id);
+        Assert.Equal(latest.Quota.CapturedAt, loaded.CapturedAt);
+    }
+
+    [Fact]
     public async Task CorruptJsonlRecord_IsolatedFromValidRecords()
     {
         using var store = new TemporaryStore();
@@ -134,6 +164,60 @@ public sealed class JsonlHistoryPersistenceTests
 
         Assert.Single(history);
         Assert.Equal(valid.Id, history[0].Id);
+    }
+
+    [Fact]
+    public async Task JsonlAppend_IsolatesInterruptedTailBeforeNewRecord()
+    {
+        using var store = new TemporaryStore();
+        var events = new JsonlEventStore<UsageSnapshotRecord>(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonlEventStore<UsageSnapshotRecord>>.Instance);
+        var providerId = Guid.NewGuid();
+        var quotaDefinitionId = Guid.NewGuid();
+        var capturedAt = new DateTimeOffset(2026, 8, 8, 10, 5, 0, TimeSpan.Zero);
+        var valid = CreateSnapshot(
+            providerId,
+            quotaDefinitionId,
+            40,
+            capturedAt,
+            capturedAt.AddMinutes(-5),
+            capturedAt.AddHours(5));
+        var appended = CreateSnapshot(
+            providerId,
+            quotaDefinitionId,
+            45,
+            capturedAt.AddMinutes(5),
+            capturedAt.AddMinutes(-5),
+            capturedAt.AddHours(5));
+        var partition = store.Paths.GetMonthlyPartition(store.Paths.HistoryDirectory, capturedAt);
+        var validLine = System.Text.Json.JsonSerializer.Serialize(
+            UsageSnapshotRecord.FromDomain(valid),
+            JsonFileStore.JsonlSerializerOptions);
+        const string partialTail = "{\"schemaVersion\":1,\"recordType\":\"usage-snapshot\"";
+        await File.WriteAllTextAsync(partition, $"{validLine}\n{partialTail}");
+
+        await events.AppendAsync(
+            store.Paths.HistoryDirectory,
+            appended.CapturedAt,
+            UsageSnapshotRecord.FromDomain(appended));
+
+        var records = new List<UsageSnapshotRecord>();
+        await foreach (var record in events.ReadAllAsync(
+                           store.Paths.HistoryDirectory,
+                           static value => value.CapturedAt))
+        {
+            records.Add(record);
+        }
+
+        Assert.Equal(2, records.Count);
+        Assert.Equal(valid.Id, records[0].Id);
+        Assert.Equal(appended.Id, records[1].Id);
+
+        var persisted = await File.ReadAllTextAsync(partition);
+        Assert.Contains($"{partialTail}\n", persisted, StringComparison.Ordinal);
+        Assert.Contains($"{partialTail}\n{System.Text.Json.JsonSerializer.Serialize(UsageSnapshotRecord.FromDomain(appended), JsonFileStore.JsonlSerializerOptions)}\n", persisted, StringComparison.Ordinal);
     }
 
     private static JsonUsageSnapshotRepository CreateRepository(TemporaryStore store)
