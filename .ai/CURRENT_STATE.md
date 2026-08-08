@@ -79,8 +79,18 @@ Session 04 is `NOT STARTED`. It may begin only after this Session 03R delivery i
 is `NOT STARTED` and runs after Session 04; it is not a prerequisite for Session 04. No Session 04
 work was executed in this session.
 
-Git delivery hashes and the final clean-tree verification are recorded in the final metadata
-update to this section after merge/push.
+### Verified Git delivery
+
+| Step | Result |
+|---|---|
+| Session branch | `refactor/session-03r-portable-consumer-architecture` |
+| Implementation commit | `a708e494a1f646ab19c3b6805943fe91c278e79c` — `refactor: migrate to portable WPF and file persistence` |
+| Push branch | SUCCESS; branch pushed to `origin` with upstream tracking |
+| Merge to `main` | SUCCESS; merge commit `1a674c6878bed49203d4306900b611fa2ecbdbce`, no conflicts |
+| Push `main` | SUCCESS; `68232d5..1a674c6 main -> main` |
+| Verify `origin/main` | SUCCESS; `git fetch origin` then local `main` and `origin/main` both resolve to `1a674c6878bed49203d4306900b611fa2ecbdbce` |
+| Final metadata synchronization | Documentation-only update to this file and `TASK.md`, permitted by `AGENTS.md` §6A rule 15 |
+| Final working tree | Verified clean after the metadata synchronization commit and push |
 
 ---
 
