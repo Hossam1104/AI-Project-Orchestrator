@@ -6,8 +6,8 @@
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Current Phase:** Phase 0 — Foundation  
-**Last Completed Session:** Session 01 — Repository & Solution Foundation (Session 02 implementation/validation done; Git integration in progress — see §3, §9C)  
-**Next Session:** Session 03 — SQL Server LocalDB Persistence (after Session 02 Git integration completes)  
+**Last Completed Session:** Session 02 — Domain & Application Architecture  
+**Next Session:** Session 03 — SQL Server LocalDB Persistence  
 **Release State:** NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -73,7 +73,7 @@ Providers:
 | Session | Scope | Status | Validation |
 |---|---|---|---|
 | 01 | Repository & solution foundation | COMPLETE | restore/build/test/launch all verified |
-| 02 | Domain/application architecture | IN PROGRESS | implementation/build (default + explicit x64)/tests verified; Git integration (branch/commit/push/merge/verify) in progress — see §9C |
+| 02 | Domain/application architecture | COMPLETE | build (default + explicit x64)/tests verified; merged to `main` and `origin/main` verified — see §9C |
 | 03 | EF Core + LocalDB | NOT STARTED | — |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
@@ -332,19 +332,20 @@ Not validated this session (out of scope): ARM64 build/launch, WinUI launch/manu
 
 The project owner established a permanent Git Delivery Contract: every completed executor implementation/remediation session must commit, push its branch, merge into `main`, push `main`, and verify `origin/main` before stopping, without asking each time. This is now documented as `AGENTS.md` §6A (authoritative), with concise references in `CLAUDE.md` §3B, `docs/IMPLEMENTATION_PLAN.md` (Definition of Done + Git Workflow section), and a `GIT DELIVERY:` reminder block appended to every executor prompt in `docs/SESSION_PROMPTS.md` (Sessions 02–20 and the Opus remediation handoff prompt). Session 01 and the Opus-only review gates (A, B, C, Final Release Review) were intentionally left unchanged — reviewer gates stay review-only unless a reviewer is explicitly asked to modify repository files.
 
-This section is updated in place as the Session 02 Git integration itself proceeds (branch → commit → push → merge → push `main` → verify `origin/main`); see the final state recorded below once complete.
-
-**Git integration progress:**
+**Git integration — COMPLETE:**
 
 | Step | Result |
 |---|---|
 | Branch | `feature/session-02-domain-application`, created from `main` (which was clean and up to date with `origin/main` at session start) |
 | Implementation commit | `b23c076ce8a79c4a63e5b4232382396ccabc26d2` — "feat: establish domain and application architecture" |
-| Governance commit | this commit — "docs: enforce automatic session git delivery" (includes this file) |
-| Push branch | pending |
-| Merge to `main` | pending |
-| Push `main` | pending |
-| Verify `origin/main` | pending |
+| Governance commit | `6c341534f29b3b83f22db5428f2c1a9d959b12ce` — "docs: enforce automatic session git delivery" |
+| Push branch | `feature/session-02-domain-application` pushed to `origin`, upstream tracking set |
+| Post-merge build | `dotnet build AIUsageMonitor.sln -c Debug -p:Platform=x64` on `main` after merge — SUCCESS, 0 warnings/errors (merge was clean/fast, no manual conflict resolution needed, so full test re-run was not required per the Session 02 Git-delivery instructions; build re-verification was performed) |
+| Merge to `main` | `git merge --no-ff feature/session-02-domain-application` — merge commit `ad8b6c97aebaeb650fcba1b92cd5bd6d1e6c65ab`, no conflicts |
+| Push `main` | `git push origin main` — `64dd7bd..ad8b6c9 main -> main`, SUCCESS (no branch protection encountered) |
+| Verify `origin/main` | `git fetch origin` + `git log -1 origin/main` — `ad8b6c97aebaeb650fcba1b92cd5bd6d1e6c65ab`, matches local `main` exactly |
+| Working tree | clean (`git status` on `main` after push: "nothing to commit, working tree clean") |
+| Current branch | `main` |
 
 ---
 
@@ -392,7 +393,13 @@ Per the Session 02 prompt's cross-Windows-compatibility addendum: built the full
 
 Added 17 new targeted xUnit tests to `AIUsageMonitor.Domain.Tests` (19/19 total pass) covering quota percentage normalization/validation, used/remaining consistency, arbitrary/mixed quota-type collections, `DateTimeOffset` offset preservation and start/reset ordering, and other important invalid-state guards. No persistence, provider parsing, or UI work was done — all deferred per scope.
 
-`git status` was clean at session start (`main`, up to date with `origin/main`). All Session 02 changes are currently uncommitted working-tree changes — additive new files under `src/AIUsageMonitor.Domain`, `src/AIUsageMonitor.Application`, and `tests/AIUsageMonitor.Domain.Tests`, plus the one-line `App.xaml.cs` fix — pending an explicit user decision on branching/commit (a `feature/session-02-domain-application` branch, per `docs/IMPLEMENTATION_PLAN.md` §9's suggested pattern, has not been created).
+`git status` was clean at session start (`main`, up to date with `origin/main`).
+
+### 08 August 2026 — Session 02 Git delivery + permanent Git Delivery Contract established
+
+Per explicit project-owner instruction, established a permanent Git Delivery Contract (`AGENTS.md` §6A, referenced from `CLAUDE.md` §3B, `docs/IMPLEMENTATION_PLAN.md`'s Definition of Done/Git Workflow, and a `GIT DELIVERY:` reminder appended to every executor prompt in `docs/SESSION_PROMPTS.md` for Sessions 02–20 and the Opus remediation handoff): every completed executor session must now commit, push its branch, merge to `main`, push `main`, and verify `origin/main` before stopping, by default and without asking each time. Review-only Opus gates (A, B, C, Final Release Review) and Session 01 were left unchanged.
+
+Completed Session 02's own Git integration under that contract: created `feature/session-02-domain-application` from `main`, two commits (`b23c076` implementation, `6c34153` governance), pushed the branch, merged to `main` (`ad8b6c9`, no conflicts), pushed `main`, and verified `origin/main` matches exactly. Working tree is clean on `main`. Full detail in §9C.
 
 Next action is Session 03 — SQL Server LocalDB Persistence.
 
