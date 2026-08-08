@@ -142,4 +142,67 @@ public class QuotaWindowTests
             null, null, null, null, null, null, null,
             DataSource.Manual, ConfidenceLevel.Manual, CapturedAt));
     }
+
+    [Fact]
+    public void Create_WithUsedValueExceedingLimit_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => QuotaWindow.Create(
+            "credits", QuotaType.Credits, QuotaUnit.Credits,
+            usedValue: 120, remainingValue: null, limitValue: 100,
+            null, null, null, null,
+            DataSource.OfficialApi, ConfidenceLevel.Official, CapturedAt));
+    }
+
+    [Fact]
+    public void Create_WithRemainingValueExceedingLimit_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => QuotaWindow.Create(
+            "credits", QuotaType.Credits, QuotaUnit.Credits,
+            usedValue: null, remainingValue: 120, limitValue: 100,
+            null, null, null, null,
+            DataSource.OfficialApi, ConfidenceLevel.Official, CapturedAt));
+    }
+
+    [Fact]
+    public void Create_WithUsedPlusRemainingNotMatchingLimit_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => QuotaWindow.Create(
+            "credits", QuotaType.Credits, QuotaUnit.Credits,
+            usedValue: 70, remainingValue: 50, limitValue: 100,
+            null, null, null, null,
+            DataSource.OfficialApi, ConfidenceLevel.Official, CapturedAt));
+    }
+
+    [Fact]
+    public void Create_WithUsedPlusRemainingMatchingLimit_Succeeds()
+    {
+        var window = QuotaWindow.Create(
+            "credits", QuotaType.Credits, QuotaUnit.Credits,
+            usedValue: 70, remainingValue: 30, limitValue: 100,
+            null, null, null, null,
+            DataSource.OfficialApi, ConfidenceLevel.Official, CapturedAt);
+
+        Assert.Equal(70, window.UsedPercentage);
+        Assert.Equal(30, window.RemainingPercentage);
+    }
+
+    [Fact]
+    public void Create_WithAbsoluteValuesContradictingExplicitUsedPercentage_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => QuotaWindow.Create(
+            "credits", QuotaType.Credits, QuotaUnit.Credits,
+            usedValue: 80, remainingValue: null, limitValue: 100,
+            usedPercentage: 20, remainingPercentage: null,
+            null, null, DataSource.OfficialApi, ConfidenceLevel.Official, CapturedAt));
+    }
+
+    [Fact]
+    public void Create_WithAbsoluteValuesContradictingExplicitRemainingPercentage_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => QuotaWindow.Create(
+            "credits", QuotaType.Credits, QuotaUnit.Credits,
+            usedValue: null, remainingValue: 80, limitValue: 100,
+            usedPercentage: null, remainingPercentage: 50,
+            null, null, DataSource.OfficialApi, ConfidenceLevel.Official, CapturedAt));
+    }
 }

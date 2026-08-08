@@ -6,9 +6,12 @@ namespace AIUsageMonitor.Application.Providers;
 
 /// <summary>
 /// The single normalized result shape every <see cref="IAiUsageProvider"/> refresh returns.
-/// Factory methods correspond 1:1 to <see cref="ProviderRefreshOutcome"/> so a caller cannot
-/// construct an inconsistent combination (e.g. Success with no data, or an error that drops
-/// the last known quota windows — AGENTS.md §20 requires retaining last-known-good values).
+/// Factory methods keep construction to known-safe combinations so a caller cannot build an
+/// inconsistent result (e.g. Success with no data, or a failure that silently drops last-known
+/// quota windows — AGENTS.md §20 requires retaining last-known-good values). <see cref="Failed"/>
+/// is the one factory whose outcome depends on its arguments: it resolves to
+/// <see cref="ProviderRefreshOutcome.Stale"/> when last-known data is supplied, otherwise
+/// <see cref="ProviderRefreshOutcome.ProviderError"/>.
 /// </summary>
 public sealed class ProviderRefreshResult
 {
@@ -66,7 +69,28 @@ public sealed class ProviderRefreshResult
         new(code, ProviderRefreshOutcome.Stale, lastKnownAccount, lastKnownSubscription, lastKnownQuotaWindows, null,
             "Refresh did not complete; showing last known data.", completedAt);
 
-    public static ProviderRefreshResult Error(
-        ProviderCode code, string errorCode, string errorMessage, DateTimeOffset completedAt) =>
-        new(code, ProviderRefreshOutcome.ProviderError, null, null, Array.Empty<QuotaWindow>(), errorCode, errorMessage, completedAt);
+    /// <summary>
+    /// A refresh attempt that failed. If any last-known account/subscription/quota data is
+    /// supplied, it is retained and the outcome is <see cref="ProviderRefreshOutcome.Stale"/>
+    /// (a failed-but-recoverable refresh over known-good data). If nothing is supplied, the
+    /// outcome is <see cref="ProviderRefreshOutcome.ProviderError"/> with no data — never
+    /// fabricated. <paramref name="errorCode"/>/<paramref name="errorMessage"/> are retained
+    /// either way, which is what distinguishes this from a plain <see cref="Stale"/> result
+    /// (which has no error code).
+    /// </summary>
+    public static ProviderRefreshResult Failed(
+        ProviderCode code,
+        string errorCode,
+        string errorMessage,
+        DateTimeOffset completedAt,
+        ProviderAccount? lastKnownAccount = null,
+        Subscription? lastKnownSubscription = null,
+        IReadOnlyList<QuotaWindow>? lastKnownQuotaWindows = null)
+    {
+        var quotaWindows = lastKnownQuotaWindows ?? Array.Empty<QuotaWindow>();
+        var hasLastKnownData = lastKnownAccount is not null || lastKnownSubscription is not null || quotaWindows.Count > 0;
+        var outcome = hasLastKnownData ? ProviderRefreshOutcome.Stale : ProviderRefreshOutcome.ProviderError;
+
+        return new(code, outcome, lastKnownAccount, lastKnownSubscription, quotaWindows, errorCode, errorMessage, completedAt);
+    }
 }

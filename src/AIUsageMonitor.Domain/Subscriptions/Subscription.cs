@@ -22,6 +22,7 @@ public sealed class Subscription
     public string? Currency { get; }
     public BillingCadence? Cadence { get; }
     public DataSource Source { get; }
+    public ConfidenceLevel Confidence { get; }
     public DateTimeOffset? LastVerifiedAt { get; }
 
     public Subscription(
@@ -38,6 +39,7 @@ public sealed class Subscription
         string? currency,
         BillingCadence? cadence,
         DataSource source,
+        ConfidenceLevel confidence,
         DateTimeOffset? lastVerifiedAt)
     {
         if (id == Guid.Empty)
@@ -78,6 +80,7 @@ public sealed class Subscription
         Currency = currency;
         Cadence = cadence;
         Source = source;
+        Confidence = confidence;
         LastVerifiedAt = lastVerifiedAt;
     }
 }

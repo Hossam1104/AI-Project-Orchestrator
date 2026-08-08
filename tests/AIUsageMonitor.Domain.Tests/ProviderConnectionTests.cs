@@ -14,4 +14,22 @@ public class ProviderConnectionTests
             Guid.NewGuid(), Guid.NewGuid(), ProviderConnectionType.OfficialApi, ProviderConnectionStatus.Connected,
             null, lastSuccessfulSync: success, lastAttempt: attempt, null, null));
     }
+
+    [Fact]
+    public void Constructor_RetainsCredentialReference()
+    {
+        var connection = new ProviderConnection(
+            Guid.NewGuid(), Guid.NewGuid(), ProviderConnectionType.OAuth, ProviderConnectionStatus.Connected,
+            null, null, null, null, null, credentialReference: "GitHub:Copilot:Primary");
+
+        Assert.Equal("GitHub:Copilot:Primary", connection.CredentialReference);
+    }
+
+    [Fact]
+    public void Constructor_WithWhitespaceOnlyCredentialReference_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => new ProviderConnection(
+            Guid.NewGuid(), Guid.NewGuid(), ProviderConnectionType.OAuth, ProviderConnectionStatus.Connected,
+            null, null, null, null, null, credentialReference: "   "));
+    }
 }

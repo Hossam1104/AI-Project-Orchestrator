@@ -12,6 +12,14 @@ public sealed class ProviderConnection
     public string? LastErrorCode { get; }
     public string? LastErrorMessage { get; }
 
+    /// <summary>
+    /// An opaque lookup key into secure storage (e.g. "GitHub:Copilot:Primary"), resolved
+    /// through <c>ISecureCredentialStore</c>. This must NEVER contain the actual secret —
+    /// no password, token, cookie, or OAuth secret. Actual credential storage/retrieval is
+    /// implemented against Windows Credential Manager in a later session (BRD §31).
+    /// </summary>
+    public string? CredentialReference { get; }
+
     public ProviderConnection(
         Guid id,
         Guid providerId,
@@ -21,7 +29,8 @@ public sealed class ProviderConnection
         DateTimeOffset? lastSuccessfulSync,
         DateTimeOffset? lastAttempt,
         string? lastErrorCode,
-        string? lastErrorMessage)
+        string? lastErrorMessage,
+        string? credentialReference = null)
     {
         if (id == Guid.Empty)
         {
@@ -38,6 +47,11 @@ public sealed class ProviderConnection
             throw new ArgumentException("Last successful sync cannot be later than the last attempt.", nameof(lastSuccessfulSync));
         }
 
+        if (credentialReference is not null && string.IsNullOrWhiteSpace(credentialReference))
+        {
+            throw new ArgumentException("Credential reference cannot be whitespace-only.", nameof(credentialReference));
+        }
+
         Id = id;
         ProviderId = providerId;
         ConnectionType = connectionType;
@@ -47,5 +61,6 @@ public sealed class ProviderConnection
         LastAttempt = lastAttempt;
         LastErrorCode = lastErrorCode;
         LastErrorMessage = lastErrorMessage;
+        CredentialReference = credentialReference;
     }
 }
