@@ -28,8 +28,10 @@ Source-of-truth files, in authority order, are:
 6. `CLAUDE.md` - Claude/Sonnet/Opus adapter behavior.
 
 The architecture rebaseline is an approved planner decision. It does not rewrite Git history. The
-active root `TASK.md` is the current session assignment and completion handoff; it must be read
-before implementation work and cannot override the BRD or `AGENTS.md`.
+active root `TASK.md` is the current executable session assignment; it must be read before
+implementation work and cannot override the BRD or `AGENTS.md`. After successful delivery, it is
+replaced with the complete executable prompt for the next planned session; factual execution
+history remains in `.ai/CURRENT_STATE.md`.
 
 ---
 
@@ -49,7 +51,8 @@ Session 03 was a valid implementation of the architecture approved at that time.
 The active plan begins with the architecture correction:
 
 ```text
-03R Portable Consumer Desktop Architecture Migration NEXT
+03R Portable Consumer Desktop Architecture Migration        COMPLETE
+03R-F Portable Foundation Resilience Remediation            COMPLETE (pending planner review)
 04  Provider Feasibility Investigation                NOT STARTED
 Gate A                                                NOT STARTED
 05  WPF Modern Design System                          NOT STARTED
@@ -74,7 +77,7 @@ Final Gate                                            NOT STARTED
 ```
 
 Do not reuse the plain `Session 03` label for the migration. Do not start Session 04 until Session
-03R is complete, merged into `main`, `origin/main` is verified, and no unresolved planner blocker
+03R-F is complete, merged into `main`, `origin/main` is verified, and no unresolved planner blocker
 prevents the feasibility work. The planner checkpoint occurs before Session 04; Gate A follows
 Session 04 and is not a prerequisite for it.
 
@@ -273,7 +276,8 @@ Historical Phase 0
   03 EF Core + SQL Server LocalDB        COMPLETE - SUPERSEDED
 
 Active Phase 0 - Architecture Correction
-  03R Portable Consumer Migration        COMPLETE (pending planner review)
+  03R Portable Consumer Migration        COMPLETE
+  03R-F Foundation Resilience             COMPLETE (pending planner review)
   Planner checkpoint                     REQUIRED BEFORE 04
   04 Provider Feasibility                NOT STARTED
   Gate A                                 NOT STARTED (after 04)
@@ -307,7 +311,7 @@ Active Phase 4 - Hardening and Release
 ```
 
 Sessions execute sequentially. Do not implement Sessions 08-12 before Session 04 evidence and
-Gate A approval. Session 04 follows the completed/merged Session 03R and planner checkpoint;
+Gate A approval. Session 04 follows the completed/merged Session 03R-F and planner checkpoint;
 Gate A is scheduled after Session 04 and is not a Session 04 prerequisite.
 
 ---
@@ -342,7 +346,7 @@ Session 03R must not implement provider adapters, the dashboard, tray/HUD polish
 
 # 13. Session 04 - Provider Feasibility Investigation
 
-Prerequisites: Session 03R is complete and merged into `main`, `origin/main` is verified, and the
+Prerequisites: Session 03R-F is complete and merged into `main`, `origin/main` is verified, and the
 planner has confirmed there is no unresolved blocker. Gate A has not yet run and is not a
 prerequisite for this session.
 

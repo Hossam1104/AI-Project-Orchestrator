@@ -35,9 +35,22 @@ Every active prompt below inherits these rules from `AGENTS.md`:
 
 Completed implementation sessions must also follow the Git Delivery Contract: commit, push the session branch, merge into `main`, push `main`, fetch/verify `origin/main`, and leave the tree clean. Reviewer-only gates do not modify or deliver code unless explicitly instructed.
 
-The active root `TASK.md` is the current session assignment and completion handoff. Read it before
-acting, execute only its named session, update it when the session is delivered, and stop before
-the next session.
+The active root `TASK.md` is the current or next executable session assignment. Read it before
+acting, execute only its named session, and stop after a successful delivery has prepared the next
+task without executing it. If the session is partial or blocked, keep a remediation task.
+
+The task-file relationship is:
+
+~~~
+docs/SESSION_PROMPTS.md
+    = permanent approved session library
+
+TASK.md
+    = current/next executable session
+
+.ai/CURRENT_STATE.md
+    = factual execution history and live project state
+~~~
 
 ---
 
@@ -344,9 +357,9 @@ EVIDENCE/FEASIBILITY SESSION - DO NOT IMPLEMENT PROVIDER ADAPTERS.
 ```
 
 Inherit the active WPF/JSONL/zero-prerequisite/Cross-Windows/Git rules above. Confirm Session
-03R is complete and merged into `main`, `origin/main` is verified, and no unresolved planner
-blocker prevents feasibility work. Gate A follows Session 04 and is not a prerequisite. Stop
-before Gate A.
+03R remains complete, Session 03R-F is complete and merged into `main`, `origin/main` is verified,
+and no unresolved planner blocker prevents feasibility work. Gate A follows Session 04 and is not a
+prerequisite. Stop before Gate A.
 
 Investigate Codex, Claude, Kimi, GitHub Copilot, and Google Antigravity using official documentation, safe local inspection, and approved account workflows. For each provider determine:
 

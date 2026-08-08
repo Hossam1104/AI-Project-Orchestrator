@@ -32,9 +32,10 @@ Before any work:
 
 Do not rely on old Claude chat context. Repository state wins.
 
-The root `TASK.md` is the current executor assignment and completion handoff. Follow it for the
-named session only, keep factual project status in `.ai/CURRENT_STATE.md`, and stop before the
-next session.
+The root `TASK.md` is the current executable assignment. Follow it for the named session only.
+After successful delivery, replace it with the complete executable prompt for the next planned
+session; if work is partial or blocked, keep an appropriate remediation task. Keep factual project
+status in `.ai/CURRENT_STATE.md`, and stop after preparing the next task without executing it.
 
 ---
 

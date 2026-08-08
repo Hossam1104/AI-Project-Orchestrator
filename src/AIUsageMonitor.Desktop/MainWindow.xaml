@@ -18,6 +18,7 @@
                 FontWeight="SemiBold"
                 HorizontalAlignment="Center" />
             <TextBlock
+                x:Name="StatusText"
                 Margin="0,12,0,0"
                 Text="No providers connected yet. Your local workspace is ready."
                 Foreground="#FFB5C0D0"

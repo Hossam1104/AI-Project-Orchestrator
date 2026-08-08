@@ -98,27 +98,16 @@ public sealed class JsonUsageSnapshotRepository : IUsageSnapshotRepository
         Guid quotaDefinitionId,
         CancellationToken cancellationToken = default)
     {
-        UsageSnapshot? latest = null;
-        await foreach (var record in _snapshots.ReadAllAsync(
-                           _paths.HistoryDirectory,
-                           static value => value.CapturedAt,
-                           cancellationToken).ConfigureAwait(false))
-        {
-            if (record.ProviderId != providerId || record.QuotaDefinitionId != quotaDefinitionId)
-            {
-                continue;
-            }
-
-            var candidate = TryMap(record);
-            if (candidate is not null &&
-                (latest is null || candidate.CapturedAt > latest.CapturedAt ||
-                 (candidate.CapturedAt == latest.CapturedAt && candidate.Id != latest.Id)))
-            {
-                latest = candidate;
-            }
-        }
-
-        return latest;
+        return await _snapshots.ReadLatestAsync(
+                _paths.HistoryDirectory,
+                static value => value.CapturedAt,
+                record => record.ProviderId == providerId &&
+                          record.QuotaDefinitionId == quotaDefinitionId
+                    ? TryMap(record)
+                    : null,
+                static value => value.CapturedAt,
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private UsageSnapshot? TryMap(UsageSnapshotRecord record)

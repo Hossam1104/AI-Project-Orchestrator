@@ -6,8 +6,8 @@
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Current Phase:** Portable Consumer Architecture / Phase 0
-**Last Completed Session:** Session 03R — Portable Consumer Desktop Architecture Migration
-**Next Session:** Session 04 — Provider Feasibility Investigation (after planner checkpoint)
+**Last Completed Session:** Session 03R-F — Portable Foundation Resilience Remediation
+**Next Session:** Session 04 — Provider Feasibility Investigation (after remediation/planner checkpoint)
 **Release State:** FOUNDATION VALIDATED; consumer release NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -17,10 +17,74 @@
 
 ---
 
-## Current Handoff — Session 03R (08 August 2026)
+## Current Handoff — Session 03R-F (08 August 2026)
 
 **Status:** COMPLETE — `AWAITING PLANNER REVIEW`
-**Root assignment:** `TASK.md` (converted to the completion handoff after delivery)
+**Parent session:** Session 03R remains COMPLETE — Portable Consumer Desktop Architecture Migration.
+**Planner checkpoint findings:** Startup could fail during `App` construction before the guarded
+fallback; usage latest lookup scanned all JSONL history; and interrupted JSONL tails could be
+concatenated with the next append.
+**Scope:** Resilience remediation only. No provider, dashboard, Session 04, or later-session work
+was executed.
+
+### Remediation result
+
+- Storage initialization now runs inside the guarded startup flow through an explicit
+  `StorageInitializationResult`. The `App` constructor no longer resolves or creates
+  LocalAppData storage.
+- Unavailable LocalAppData or file logging falls back to debug/no-sink logging and opens the
+  existing WPF smoke shell in an explicit degraded no-persistence mode. No random permanent-data
+  fallback path is used.
+- `GetLatestAsync` now searches JSONL partitions newest-first and stops after the newest valid
+  matching partition, while range queries retain relevant-month selection and ordering.
+- JSONL append checks the final byte under the existing per-file lock. An unterminated tail is
+  preserved as a skipped corrupt line and separated from the next valid record by a newline.
+- The task lifecycle is now next-executable-task based: `docs/SESSION_PROMPTS.md` is the permanent
+  prompt library, `TASK.md` is the current/next executable prompt, and
+  `.ai/CURRENT_STATE.md` is the factual history/live state.
+
+### Session 03R-F validation
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| Debug x64 solution build | SUCCESS, 0 warnings/errors |
+| Full focused tests | SUCCESS, 50/50 (`28` Domain, `7` Provider, `15` Infrastructure) |
+| Release x86 solution build | SUCCESS, 0 warnings/errors |
+| Release ARM64 solution build | SUCCESS, 0 warnings/errors |
+| x64 self-contained publish | SUCCESS using existing `win-x64` profile |
+| x64 WPF launch | SUCCESS; published shell remained alive with visible `AI Usage Monitor` window |
+| Legacy dependency scan | No active EF Core, SQL Server, LocalDB, WinUI, or Windows App SDK matches |
+| Secret/artifact/diff review | No credential-shaped literals; no tracked publish output; `git diff --check` clean |
+
+### Session 03R-F limitations
+
+- No clean-machine installation test, all-Windows-edition matrix, x86/ARM64 live launch, ARM64
+  hardware/emulator execution, code signing, or MSIX packaging was performed.
+- Provider feasibility and provider adapters remain unimplemented by design.
+- The x64 launch harness restored the standard `windir` environment variable from
+  `SystemRoot`; this is not a clean-machine launch claim.
+
+### Next execution and gate sequencing
+
+Session 04 is `NOT STARTED`. It will be prepared as the next executable root `TASK.md` during
+finalization, but may begin
+only after this Session 03R-F delivery is merged to `main`, `origin/main` is verified, and the
+planner checkpoint finds no unresolved blocker. Gate A remains `NOT STARTED` and runs after Session
+04; it is not a prerequisite for Session 04.
+
+### Git delivery
+
+Branch implementation and merge/push metadata will be recorded in the permitted final
+documentation-only synchronization after this validated remediation is integrated.
+
+---
+
+## Historical Handoff — Session 03R (08 August 2026)
+
+**Status:** COMPLETE — `AWAITING PLANNER REVIEW`
+**Root assignment at that time:** `TASK.md` (converted to a completion handoff before the
+next-executable-task lifecycle was adopted)
 **Scope:** WPF shell and local JSON/JSONL persistence migration only. No provider, dashboard,
 Session 04, or later-session work was executed.
 
@@ -171,6 +235,7 @@ Providers:
 | 03 | EF Core + LocalDB | COMPLETE - HISTORICAL / SUPERSEDED | build/migration/round-trip/duplicate-prevention/full solution tests verified; merged to `main` and `origin/main` verified — see §9E |
 | Rebaseline | Portable Consumer Architecture | COMPLETE | documentation/governance only; no source code changed |
 | 03R | Portable Consumer Desktop Architecture Migration | COMPLETE - AWAITING PLANNER REVIEW | restore/build/test/publish/launch; see Current Handoff |
+| 03R-F | Portable Foundation Resilience Remediation | COMPLETE - AWAITING PLANNER REVIEW | restore/build/test/publish/launch; see Current Handoff |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
 | 05 | WPF modern design system | NOT STARTED | — |
@@ -650,13 +715,15 @@ No review yet.
 
 ## 11. Next Execution
 
-Session 03R is complete and awaits planner review. The next executable session is **Session 04 —
-Provider Feasibility Investigation**, but it must not start until the Session 03R branch has been
-merged into `main`, `origin/main` has been verified, and the planner checkpoint finds no unresolved
-blocker. Use the exact Session 04 prompt in `docs/SESSION_PROMPTS.md`.
+Session 03R remains complete and Session 03R-F is now complete, with the resilience findings
+corrected and validated. The next planned session is **Session 04 — Provider Feasibility
+Investigation**, but it must not start until the Session 03R-F branch has been merged into `main`,
+`origin/main` has been verified, and the planner checkpoint finds no unresolved blocker. The root
+`TASK.md` will be prepared as the complete executable Session 04 prompt during finalization. Use
+the permanent prompt library in `docs/SESSION_PROMPTS.md` as the source.
 
 Gate A remains `NOT STARTED` and follows Session 04; it is not a prerequisite for Session 04.
-Session 04 was not executed during Session 03R.
+Session 04 was not executed during Session 03R or Session 03R-F.
 
 ---
 
@@ -670,6 +737,20 @@ Updated governance, source, tests, README, implementation plan, session prompts,
 instructions, and this handoff. Session 04 and Gate A were not executed.
 
 Git delivery for this rebaseline: branch `docs/portable-consumer-architecture-rebaseline` was committed as `7f552860c0d5457ce7adeae7599181083a693452`, pushed, merged into `main` as `47b8e3598f2c3eb5012a0f49c300ac622de7c3bd`, and pushed. `origin/main` matched the merge commit after verification. The final handoff metadata synchronization is documentation-only and follows AGENTS.md section 6A.15.
+
+### 08 August 2026 — Session 03R-F Portable Foundation Resilience Remediation
+
+The post-Session-03R planner checkpoint identified three resilience findings: LocalAppData and
+file-log setup occurred before the guarded WPF startup fallback; usage latest lookup scanned all
+JSONL history; and an interrupted final JSONL line could be joined to the next append. Session
+03R-F corrected these without changing the WPF/JSON/JSONL/no-database architecture. It also
+replaced the completion-handoff TASK lifecycle with a next-executable-task lifecycle; the root
+`TASK.md` will be prepared for Session 04 during finalization without executing Session 04.
+
+Focused coverage now includes guarded storage initialization/degraded results, newest-partition
+latest lookup, material-change duplicate suppression, JSONL interrupted-tail recovery, and the
+existing JSON/JSONL persistence cases. Full validation and final Git delivery are recorded in the
+current handoff above.
 
 ### 08 August 2026 — Session 03 (EF Core 10 + SQL Server LocalDB Persistence) complete, merged to main
 
