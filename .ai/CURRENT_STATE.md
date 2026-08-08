@@ -7,7 +7,7 @@
 **Default Branch:** `main`  
 **Current Phase:** Portable Consumer Architecture / Phase 0
 **Last Completed Session:** Session 03R-F — Portable Foundation Resilience Remediation
-**Next Session:** Session 04 — Provider Feasibility Investigation (after remediation/planner checkpoint)
+**Next Session:** Session 04 — Provider Feasibility Investigation (NOT STARTED; paused by owner)
 **Release State:** FOUNDATION VALIDATED; consumer release NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -15,11 +15,27 @@
 > Every implementation session must update it before stopping.
 > Keep it concise and factual.
 
+## Project execution state
+
+**Project execution state:** PAUSED BY OWNER after Session 03R-F
+
+**Reason:** Owner is prioritizing other projects/quota usage.
+
+**Next approved implementation:** Session 04 — Provider Feasibility Investigation
+
+**Session 04 status:** NOT STARTED
+
+**TASK.md:** Prepared with the complete Session 04 executable prompt copied from
+`docs/SESSION_PROMPTS.md`; ready for direct execution.
+
+**Resume procedure:** Start a fresh Luna Max/Codex context and instruct:
+`Execute the current root TASK.md through completion.`
+
 ---
 
 ## Current Handoff — Session 03R-F (08 August 2026)
 
-**Status:** COMPLETE — `AWAITING PLANNER REVIEW`
+**Status:** COMPLETE
 **Parent session:** Session 03R remains COMPLETE — Portable Consumer Desktop Architecture Migration.
 **Planner checkpoint findings:** Startup could fail during `App` construction before the guarded
 fallback; usage latest lookup scanned all JSONL history; and interrupted JSONL tails could be
@@ -67,10 +83,10 @@ was executed.
 
 ### Next execution and gate sequencing
 
-Session 04 is `NOT STARTED`. It is prepared as the next executable root `TASK.md`, but may begin
-only after this Session 03R-F delivery is merged to `main`, `origin/main` is verified, and the
-planner checkpoint finds no unresolved blocker. Gate A remains `NOT STARTED` and runs after Session
-04; it is not a prerequisite for Session 04.
+Session 04 is `NOT STARTED`. The complete executable prompt is prepared in the root `TASK.md`,
+but project execution is `PAUSED BY OWNER` after Session 03R-F. When resumed, it may begin only
+after the planner checkpoint finds no unresolved blocker; Gate A remains `NOT STARTED` and runs
+after Session 04, not as a prerequisite for Session 04.
 
 ### Git delivery
 
@@ -90,7 +106,7 @@ planner checkpoint finds no unresolved blocker. Gate A remains `NOT STARTED` and
 
 ## Historical Handoff — Session 03R (08 August 2026)
 
-**Status:** COMPLETE — `AWAITING PLANNER REVIEW`
+**Status:** COMPLETE
 **Root assignment at that time:** `TASK.md` (converted to a completion handoff before the
 next-executable-task lifecycle was adopted)
 **Scope:** WPF shell and local JSON/JSONL persistence migration only. No provider, dashboard,
@@ -242,8 +258,8 @@ Providers:
 | 02R | Domain integrity remediation | COMPLETE | build (x64)/tests verified (28/28, 7/7); merged to `main` and `origin/main` verified — see §9D |
 | 03 | EF Core + LocalDB | COMPLETE - HISTORICAL / SUPERSEDED | build/migration/round-trip/duplicate-prevention/full solution tests verified; merged to `main` and `origin/main` verified — see §9E |
 | Rebaseline | Portable Consumer Architecture | COMPLETE | documentation/governance only; no source code changed |
-| 03R | Portable Consumer Desktop Architecture Migration | COMPLETE - AWAITING PLANNER REVIEW | restore/build/test/publish/launch; see Current Handoff |
-| 03R-F | Portable Foundation Resilience Remediation | COMPLETE - AWAITING PLANNER REVIEW | restore/build/test/publish/launch; see Current Handoff |
+| 03R | Portable Consumer Desktop Architecture Migration | COMPLETE | restore/build/test/publish/launch; see Current Handoff |
+| 03R-F | Portable Foundation Resilience Remediation | COMPLETE | restore/build/test/publish/launch; see Current Handoff |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
 | 05 | WPF modern design system | NOT STARTED | — |
@@ -723,12 +739,11 @@ No review yet.
 
 ## 11. Next Execution
 
-Session 03R remains complete and Session 03R-F is now complete, with the resilience findings
-corrected and validated. The next planned session is **Session 04 — Provider Feasibility
-Investigation**, but it must not start until the Session 03R-F branch has been merged into `main`,
-`origin/main` has been verified, and the planner checkpoint finds no unresolved blocker. The root
-`TASK.md` is the complete executable Session 04 prompt. Use the permanent prompt library in
-`docs/SESSION_PROMPTS.md` as the source.
+Session 03R and Session 03R-F are complete, with the resilience findings corrected and validated.
+The next approved implementation is **Session 04 — Provider Feasibility Investigation**, which
+is `NOT STARTED` because project execution is `PAUSED BY OWNER` after Session 03R-F. The root
+`TASK.md` contains the complete Session 04 executable prompt copied from
+`docs/SESSION_PROMPTS.md` and is ready for direct execution after the owner resumes work.
 
 Gate A remains `NOT STARTED` and follows Session 04; it is not a prerequisite for Session 04.
 Session 04 was not executed during Session 03R or Session 03R-F.
