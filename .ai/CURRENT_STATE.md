@@ -5,9 +5,9 @@
 **Local Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`  
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
-**Current Phase:** Phase 0 — Foundation  
-**Last Completed Session:** Session 03 — EF Core 10 + SQL Server LocalDB Persistence  
-**Next Session:** Session 04 — Provider Feasibility  
+**Current Phase:** Portable Consumer Architecture Rebaseline / Phase 0
+**Last Completed Session:** Session 03 — EF Core 10 + SQL Server LocalDB Persistence (historical, superseded)
+**Next Session:** Session 03R — Portable Consumer Desktop Architecture Migration
 **Release State:** NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -19,21 +19,36 @@
 
 ## 1. Frozen Baseline
 
-Approved V1:
+Approved active V1 target:
 
 - .NET 10
 - C#
-- WinUI 3
-- Windows App SDK
+- WPF
 - MVVM
-- EF Core 10
-- Microsoft SQL Server LocalDB
+- JSON + JSONL
+- System.Text.Json
+- no database engine
+- no ORM
+- self-contained Windows release artifacts
+- Windows Credential Manager / approved secure credential storage
+- HttpClient
+- Microsoft.Extensions.Http.Resilience where materially justified
+- Microsoft.Extensions.DependencyInjection
 - Serilog
 - targeted xUnit tests
 - GitHub / GitHub Actions
 - no Jira
+- no SQLite for V1
 - no Angular in V1
+- no Electron/Node/npm in V1
 - no cloud backend in V1
+
+Historical source state until Session 03R executes:
+
+- WinUI 3 / Windows App SDK desktop shell
+- EF Core 10 / SQL Server LocalDB persistence
+
+The approved target architecture is not the same as the currently implemented source architecture.
 
 Providers:
 
@@ -64,7 +79,7 @@ Providers:
 **Test status:** SUCCESS — 2/2 tests passed (1 per test project, smoke tests)  
 **WinUI launch status:** SUCCESS — verified live (see §9)  
 **Packaged release:** No (not in scope)  
-**LocalDB database:** Created and migrated this session — `(localdb)\MSSQLLocalDB`, database `AIUsageMonitor`, no username/password (trusted connection); see §9E  
+**Historical LocalDB database:** Created and migrated during Session 03 — `(localdb)\MSSQLLocalDB`, database `AIUsageMonitor`, no username/password (trusted connection); see §9E. This is superseded and is not the active V1 persistence architecture.
 
 ---
 
@@ -75,10 +90,12 @@ Providers:
 | 01 | Repository & solution foundation | COMPLETE | restore/build/test/launch all verified |
 | 02 | Domain/application architecture | COMPLETE | build (default + explicit x64)/tests verified; merged to `main` and `origin/main` verified — see §9C |
 | 02R | Domain integrity remediation | COMPLETE | build (x64)/tests verified (28/28, 7/7); merged to `main` and `origin/main` verified — see §9D |
-| 03 | EF Core + LocalDB | COMPLETE | build/migration/round-trip/duplicate-prevention/full solution tests verified; merged to `main` and `origin/main` verified — see §9E |
+| 03 | EF Core + LocalDB | COMPLETE - HISTORICAL / SUPERSEDED | build/migration/round-trip/duplicate-prevention/full solution tests verified; merged to `main` and `origin/main` verified — see §9E |
+| Rebaseline | Portable Consumer Architecture | COMPLETE | documentation/governance only; no source code changed |
+| 03R | Portable Consumer Desktop Architecture Migration | NOT STARTED / NEXT | — |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
-| 05 | WinUI design system | NOT STARTED | — |
+| 05 | WPF modern design system | NOT STARTED | — |
 | 06 | Main dashboard | NOT STARTED | — |
 | 07 | Tray + Focus HUD | NOT STARTED | — |
 | 08 | Codex provider | NOT STARTED | — |
@@ -109,6 +126,13 @@ Allowed status:
 ---
 
 ## 4. Current Implementation
+
+### Target vs current source
+
+Approved target: WPF + .NET 10 self-contained release + JSON/JSONL + no database/ORM.
+Current source before Session 03R: WinUI 3/Windows App SDK desktop + EF Core 10/SQL Server LocalDB Infrastructure.
+
+This file must not report the target as implemented until Session 03R actually performs and validates the migration.
 
 ### Toolchain (verified this session)
 
@@ -310,9 +334,43 @@ Add only material decisions.
 
 ---
 
+## Portable Consumer Architecture Rebaseline
+
+Approved: 08 August 2026
+Planner: GPT-5.6 Sol
+Default executor: Luna Max
+Reviewer: Opus 5
+
+Approved target architecture:
+
+```text
+UI: WPF + MVVM
+Runtime: .NET 10 self-contained release
+Persistence: JSON + JSONL using System.Text.Json
+Database: None
+ORM: None
+Secret storage: Windows Credential Manager / approved secure storage
+Deployment: self-contained win-x64, win-x86, win-arm64 artifacts where validated
+Provider CLI: optional capability only
+Target audience: general individual AI users, not developer-only
+```
+
+End-user .NET installation: Not required.
+End-user SDK: Not required.
+SQL/LocalDB: Superseded and scheduled for removal in Session 03R.
+SQLite: Not approved for V1.
+
+The released application must require no separately installed .NET runtime, SDK, database engine, Node.js runtime, or developer tooling. It must open without connected providers, with empty history, and with missing/corrupt optional local data where safe recovery is possible. Mutable data belongs under per-user LocalAppData. Actual credentials remain outside JSON/JSONL behind `ISecureCredentialStore`.
+
+The approved target is intentionally distinct from the currently implemented source. Until Session 03R executes, the source still contains WinUI/Windows App SDK and EF Core/SQL Server LocalDB from historical Session 03. This documentation update did not implement WPF or JSON persistence and did not delete the historical migrations.
+
+Session 03 history remains factual: the EF Core + LocalDB implementation was completed, validated, committed, pushed, and merged under the earlier approved architecture. It is superseded because the product requirement changed to zero-prerequisite consumer deployment, not because the historical implementation failed its original scope.
+
+Markdown stale-reference audit: remaining WinUI, Windows App SDK, EF Core, SQL Server, and LocalDB references are explicitly historical/superseded records, historical prompt/archive material, or negative requirements describing what must be removed or must not be introduced. SQLite, Angular, Electron, Node, and similar references are exclusions or compatibility checks only. No active requirement in the reviewed Markdown set mandates the superseded stack.
+
 ## 7. Open Blockers
 
-None. Session 01 is COMPLETE with no unresolved blockers.
+No external blocker is recorded for the documentation rebaseline. Session 03R is required before provider feasibility because the current source still contains the superseded WinUI/EF/LocalDB architecture.
 
 ---
 
@@ -508,27 +566,35 @@ No review yet.
 
 Run:
 
-**Session 04 — Provider Feasibility**
+**Session 03R — Portable Consumer Desktop Architecture Migration**
 
-Use the exact Session 04 prompt in `docs/SESSION_PROMPTS.md`.
+Use the exact Session 03R prompt in `docs/SESSION_PROMPTS.md`.
 
-Executor:
-- Terra
-- Luna
-- or Sonnet
+Default executor: Luna Max.
+Branch: `refactor/session-03r-portable-consumer-architecture`.
 
-Session 04 must (per the Provider Discipline rules in `CLAUDE.md` §4 and `AGENTS.md`):
-- investigate real, safe data-acquisition feasibility for Codex, Claude, Kimi, Copilot, and Antigravity
-- never invent endpoint URLs or response fields; never infer billing data as fact; never extract browser cookies; never expose raw tokens; never commit unsanitized account payloads
-- persist any findings using the Session 03 persistence layer's contracts (`IProviderRepository`, `IProviderConnectionRepository`, etc.) — do not bypass EF Core or hand-roll ad hoc storage
-- a provider field that cannot be obtained safely must remain unavailable or use an approved manual fallback, never a fabricated value
-- build + run targeted tests, review diff, update this file
+Session 03R must:
 
-Do not start dashboard/UI work (Session 05+).
+- convert the desktop project to WPF and remove active WinUI/Windows App SDK configuration
+- remove EF Core/SQL Server/LocalDB runtime persistence and migrations
+- implement JSON/JSONL Infrastructure stores under LocalAppData
+- preserve Domain/Application contracts, dynamic quota behavior, DateTimeOffset semantics, and duplicate suppression
+- implement schema versioning, safe writes, synchronization, corruption handling, and streaming history
+- migrate infrastructure tests from database tests to focused file tests
+- establish self-contained publish validation for win-x64/win-x86/win-arm64 where feasible
+- update this file truthfully and stop before Session 04
+
+Session 04 remains NOT STARTED and must not begin during this rebaseline.
 
 ---
 
 ## 12. Recent Handoff
+
+### 08 August 2026 - Portable Consumer Architecture Governance Rebaseline
+
+Approved planner decision: V1 is a general-consumer, local-first Windows desktop application targeting WPF + .NET 10, JSON/JSONL persistence, secure external credential storage, and self-contained release artifacts. The documentation update preserves Session 03 as a completed historical EF Core + SQL Server LocalDB implementation while marking it architecturally superseded. Current source still contains the historical WinUI/EF/LocalDB stack until Session 03R executes.
+
+Updated governance, BRD, implementation plan, session prompts, Claude adapter instructions, README, and this handoff. Created the detailed Session 03R prompt as the next implementation session. No application source/configuration was changed. Sessions 03R and 04 were not executed.
 
 ### 08 August 2026 — Session 03 (EF Core 10 + SQL Server LocalDB Persistence) complete, merged to main
 
@@ -568,7 +634,7 @@ Per explicit project-owner instruction, established a permanent Git Delivery Con
 
 Completed Session 02's own Git integration under that contract: created `feature/session-02-domain-application` from `main`, two commits (`b23c076` implementation, `6c34153` governance), pushed the branch, merged to `main` (`ad8b6c9`, no conflicts), pushed `main`, and verified `origin/main` matches exactly. Working tree is clean on `main`. Full detail in §9C.
 
-Next action is Session 03 — SQL Server LocalDB Persistence.
+At that historical point, the next action was Session 03 — SQL Server LocalDB Persistence. The current next action is Session 03R.
 
 ### 08 August 2026 — Cross-Windows Compatibility governance update complete
 
@@ -584,4 +650,4 @@ Found the working tree already mid-reorganization (governance files moved into `
 
 Branch `feature/session-01-repository-foundation` created from `main`, committed, pushed, merged into `main` via fast-forward/merge (no force-push, no history rewrite), and `origin/main` updated. See §2 for exact git state.
 
-Next action is Session 02 — Domain & Application Architecture.
+At that historical point, the next action was Session 02 — Domain & Application Architecture. The current next action is Session 03R.

@@ -2,12 +2,14 @@
 
 ## Business Requirements Document, Technical Plan & AI Execution Plan
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Date:** 08 August 2026
-**Product Type:** Personal Windows Desktop Utility
+**Rebaseline:** Portable Consumer Architecture Rebaseline - 08 August 2026
+**Product Type:** Local-first Windows Desktop Application for Individual AI Users
 **Owner:** Hossam
 **Planner:** GPT-5.6 Sol
-**Executors:** Luna / Terra / Sonnet
+**Default Executor:** Luna Max
+**Fallback Executors:** Terra / Sonnet only when explicitly assigned
 **Reviewer:** Opus 5
 **Source Control:** GitHub
 **Project Management:** Repository-driven; no Jira
@@ -17,7 +19,9 @@
 
 # 1. Executive Summary
 
-AI Usage Monitor is a personal Windows desktop application for monitoring usage capacity, quota resets, subscription periods, and historical consumption across multiple AI coding subscriptions.
+AI Usage Monitor is a local-first Windows desktop application that gives individuals one clear view of their AI subscription capacity, usage limits, reset windows, credits, renewal information, historical consumption, and available capacity across supported AI services.
+
+It is intended for developers, writers, researchers, content creators, designers, marketers, video creators, students, business users, and other people using AI services. Coding-specific providers may be supported, but the product is not developer-only.
 
 Initial providers:
 
@@ -27,13 +31,17 @@ Initial providers:
 4. GitHub Copilot
 5. Google Antigravity
 
-The application will run locally on the user's PC, detect installed/authenticated AI tools where possible, and use supported provider authentication methods where local detection does not provide sufficient information.
+The application will run locally on the user's PC, use official account/provider mechanisms where available, and provide truthful partial or manual paths where automatic collection is unavailable. A provider CLI is an optional capability, not a whole-application prerequisite.
 
 The application is not intended to become a commercial SaaS product, team platform, or organization-management product.
 
 Its purpose is simple:
 
 > Provide one reliable, visually excellent control center showing how much AI capacity is available before starting or continuing work.
+
+The core product question is:
+
+> Which AI subscription or service has enough available capacity for what I want to do right now?
 
 Primary information displayed includes:
 
@@ -55,7 +63,7 @@ Primary information displayed includes:
 * Provider health
 * Recommended provider based on remaining capacity
 
-The application will be local-first, privacy-conscious, resilient to individual provider failures, and designed so provider integrations can change without requiring major modifications to the application.
+The application will be local-first, privacy-conscious, resilient to individual provider failures, usable without developer tooling, and designed so provider integrations can change without requiring major modifications to the application.
 
 ---
 
@@ -83,7 +91,7 @@ Design principle:
 3. **UI graceful degradation** — Mica, Acrylic, advanced backdrops, and other modern visual features must degrade to a compatible solid/default surface when unavailable, with identical functionality. Visual effects must never determine whether the application works.
 4. **Hardware compatibility** — AVX/AVX2, a dedicated/recent GPU, TPM, NPU, an AI accelerator, or a recent-generation CPU must never be mandatory prerequisites.
 5. **Performance compatibility** — Background operation must stay lightweight: low idle CPU, reasonable memory, no aggressive timers/polling/rendering. The monitor must not noticeably degrade the IDE or other running applications.
-6. **Functional compatibility** — Provider monitoring, LocalDB persistence, quota display/calculation, subscription information, history, alerts, notifications, tray, Focus HUD, analytics, and the recommendation engine must all work without modern GPU functionality. Only optional visual effects may degrade.
+6. **Functional compatibility** — Provider monitoring, local JSON/JSONL persistence, quota display/calculation, subscription information, history, alerts, notifications, tray, Focus HUD, analytics, and the recommendation engine must all work without modern GPU functionality. Only optional visual effects may degrade.
 
 ## Architecture Targets
 
@@ -109,7 +117,7 @@ V1 does not claim support for Windows 7 or Windows 8.1.
 
 The product should answer the following question within approximately two seconds of opening it:
 
-> "Which AI subscription has enough capacity for the work I want to do right now?"
+> "Which AI subscription or service has enough available capacity for the work I want to do right now?"
 
 The user should not need to open:
 
@@ -173,13 +181,16 @@ The application SHALL NOT:
 * store raw account passwords
 * silently upload authentication tokens
 
-Authentication priority:
+Authentication and collection priority:
 
 1. Official provider API
-2. Official OAuth/device authentication
-3. Existing authenticated CLI integration
-4. Stable local provider usage metadata
-5. Manual configuration
+2. Official OAuth/device/account connection
+3. Official authenticated account or usage endpoint
+4. Official CLI if present and useful
+5. Stable verified local provider metadata
+6. Manual configuration/input fallback
+
+A provider CLI is optional. The application must not assume the user is a programmer or has opened a terminal.
 
 ---
 
@@ -193,14 +204,13 @@ The approved technology stack is:
 | ----------------- | ------------------------------------------ |
 | Language          | C#                                         |
 | Runtime           | .NET 10 LTS                                |
-| Desktop UI        | WinUI 3                                    |
-| Windows Framework | Windows App SDK                            |
+| Desktop UI        | WPF                                        |
+| Windows Framework | WPF / supported .NET 10 Windows APIs      |
 | Pattern           | MVVM                                       |
 | Architecture      | Modular Clean Architecture                 |
-| ORM               | EF Core 10                                 |
-| Database          | Microsoft SQL Server LocalDB               |
-| DB Provider       | Microsoft.EntityFrameworkCore.SqlServer    |
-| SQL Driver        | Microsoft.Data.SqlClient                   |
+| ORM               | None                                       |
+| Database          | None                                       |
+| Local persistence  | JSON + JSON Lines (JSONL)                  |
 | JSON              | System.Text.Json                           |
 | HTTP              | HttpClient                                 |
 | Resilience        | Microsoft.Extensions.Http.Resilience       |
@@ -209,12 +219,12 @@ The approved technology stack is:
 | Secret Storage    | Windows Credential Manager / DPAPI         |
 | Source Control    | Git + GitHub                               |
 | CI                | GitHub Actions                             |
-| Packaging         | MSIX / appropriate WinUI packaging         |
+| Packaging         | Self-contained Windows artifacts; single-file evaluated for WPF |
 | Tests             | xUnit for critical domain/provider parsers |
 
-.NET 10 is an active LTS release supported through November 2028.
+.NET 10 is the approved runtime. Exact OS support for the selected .NET 10/WPF release must be verified against current official Microsoft documentation before release claims are made.
 
-Current Microsoft WinUI guidance supports .NET 10 development for WinUI 3 applications.
+The former WinUI 3 / Windows App SDK / EF Core / SQL Server LocalDB selection is a completed historical implementation baseline from Session 03 and is superseded architecturally by the Portable Consumer Architecture Rebaseline.
 
 ---
 
@@ -224,7 +234,7 @@ Current Microsoft WinUI guidance supports .NET 10 development for WinUI 3 applic
 
 V1 shall include:
 
-* Native WinUI 3 desktop application
+* Native WPF desktop application
 * Dashboard
 * Compact monitoring mode
 * Windows tray operation
@@ -247,7 +257,7 @@ V1 shall include:
 * Estimated exhaustion
 * Alerts
 * Provider recommendation
-* SQL Server LocalDB persistence
+* JSON/JSONL local persistence with schema versioning and safe writes
 * Secure credentials
 * Manual refresh
 * automatic refresh
@@ -255,7 +265,7 @@ V1 shall include:
 * local settings
 * logging
 * GitHub CI
-* packaged release
+* self-contained Windows release artifacts for win-x64, win-x86, and win-arm64 where validated
 
 ---
 
@@ -282,17 +292,13 @@ V1 SHALL NOT include:
 * reverse-engineered password capture
 * browser cookie extraction
 
-Angular is intentionally excluded from V1.
-
-Angular may be introduced in a future version only if remote/web access becomes required.
+Angular and Electron/embedded browser runtimes are intentionally excluded from V1. Node.js, npm, SQLite, SQL Server, LocalDB, and other developer/database prerequisites are also excluded from the consumer release.
 
 ---
 
 # 7. User Persona
 
-The application has one primary user:
-
-A developer/QA professional operating several AI coding subscriptions concurrently and needing to allocate demanding tasks according to remaining capacity.
+The application is for an individual AI user. This includes developers/QA professionals operating several AI coding subscriptions, but also writers, researchers, designers, marketers, students, business users, and other people using AI services who need to allocate work according to remaining capacity.
 
 There is no need to design multi-user permissions.
 
@@ -749,13 +755,11 @@ The primary dashboard must answer three questions immediately:
 
 Design theme:
 
-> Modern developer command center.
+> Modern AI command center / AI capacity cockpit.
 
 Use:
 
-* WinUI 3
-* Mica
-* subtle Acrylic where appropriate
+* WPF baseline rendering
 * dark-first design
 * restrained gradients
 * rounded cards
@@ -768,6 +772,8 @@ Use:
 * high contrast percentages
 * progress rings/bars
 * high information density without clutter
+
+The UI must be useful for developers and non-developers. WPF must not be treated as an old-looking default; the design system must deliberately create a modern, premium interface. Optional native effects may enhance the UI only when safely detected and must never determine usability.
 
 Avoid:
 
@@ -1018,163 +1024,102 @@ The monitor must never itself create meaningful quota consumption.
 
 ---
 
-# 29. Database
+# 29. Local File Persistence
 
-Default:
+V1 uses no database engine and no ORM. The released application shall not require SQL Server, SQL Server Express, LocalDB, SQLite installation, migrations, or database configuration.
 
-> Microsoft SQL Server LocalDB.
+Mutable data is stored under:
 
-Database name:
-
+```text
+Environment.SpecialFolder.LocalApplicationData
+approximately %LOCALAPPDATA%\\AIUsageMonitor\\
 ```
-AIUsageMonitor
+
+The conceptual layout is:
+
+```text
+AIUsageMonitor/
+  settings.json
+  providers.json
+  subscriptions.json
+  current-state.json
+  history/YYYY-MM.jsonl
+  alerts/YYYY-MM.jsonl
+  logs/
 ```
 
-LocalDB installation is a deployment prerequisite and must be checked by the installer/application prerequisite flow.
+Use standard JSON for relatively small documents:
 
-No external SQL Server should be required.
+* settings and preferences
+* provider configuration and current state
+* account/subscription information
+* alert rules
+* application metadata
+
+Use JSONL for append-oriented streams:
+
+* usage snapshots
+* synchronization history
+* alert events
+
+All long-lived JSON documents include an explicit `schemaVersion` or equivalent. JSONL records include record/schema metadata sufficient for safe future evolution.
+
+Critical JSON writes use safe semantics:
+
+```text
+serialize -> temporary file -> flush where practical -> replace destination atomically where supported
+```
+
+File writes are synchronized for background refresh, manual refresh, resume, and foreground activation. History is preferably monthly-partitioned. History services stream records, query only relevant files, preserve chronological ordering, support time ranges, and avoid loading all lifetime history at startup.
+
+The existing material-change rule remains mandatory: do not append a repeated UsageSnapshot when values have not materially changed. File persistence must preserve latest-value and range-query behavior, source/confidence data, and `DateTimeOffset` semantics.
+
+Storage must distinguish valid, missing, empty, unsupported-schema, corrupt, I/O-failure, and permission-failure files. One malformed optional file must not prevent the application from opening. The application must report/log the problem and recover, quarantine, or back up safely where possible without silently destroying user data.
+
+Do not write runtime data beside the executable or under Program Files. Do not require administrator privileges.
 
 ---
 
-# 30. Core Tables
+# 30. Portable Consumer Deployment
 
-## Providers
+The released V1 application shall require no separately installed .NET runtime, SDK, database engine, Node.js runtime, or developer tooling.
 
-```
-Id
-Code
-DisplayName
-Enabled
-SortOrder
-CreatedAt
-UpdatedAt
-```
+Development machines may require the .NET SDK. End-user machines must not require the .NET runtime installer, Visual Studio, SQL/LocalDB, SQLite, Node/npm, Angular CLI, provider CLI, or environment-variable setup.
 
-## ProviderConnections
+The release strategy shall use self-contained artifacts. Evaluate:
 
-```
-Id
-ProviderId
-ConnectionType
-Status
-AccountDisplayName
-LastSuccessfulSync
-LastAttempt
-LastErrorCode
-LastErrorMessage
+```text
+SelfContained=true
+PublishSingleFile=true
 ```
 
-No secret value stored here.
+for WPF. Do not blindly enable trimming; reliability is more important than binary size. Release consideration covers:
 
-## Subscriptions
+* `win-x64`
+* `win-x86`
+* `win-arm64`
 
-```
-Id
-ProviderId
-PlanName
-OriginalStartDate
-BillingPeriodStart
-BillingPeriodEnd
-RenewalDate
-CancelledDate
-AutoRenew
-Price
-Currency
-BillingCadence
-Source
-LastVerifiedAt
-```
-
-## QuotaDefinitions
-
-```
-Id
-ProviderId
-ExternalKey
-Name
-Type
-Unit
-SortOrder
-```
-
-## UsageSnapshots
-
-```
-Id
-ProviderId
-QuotaDefinitionId
-UsedValue
-RemainingValue
-LimitValue
-UsedPercentage
-RemainingPercentage
-WindowStart
-ResetAt
-CapturedAt
-Source
-Confidence
-```
-
-## AlertRules
-
-```
-Id
-ProviderId
-QuotaDefinitionId
-WarningThreshold
-CriticalThreshold
-Enabled
-```
-
-## AlertEvents
-
-```
-Id
-AlertRuleId
-TriggeredAt
-ResolvedAt
-Type
-Value
-```
-
-## SyncEvents
-
-```
-Id
-ProviderId
-StartedAt
-CompletedAt
-Success
-DataChanged
-ErrorCode
-ErrorSummary
-```
-
-## Settings
-
-Non-sensitive application preferences only.
+The application must open with no configuration, empty history, no connected provider, an absent provider CLI, or an isolated provider failure. Mutable data belongs in per-user application-data locations.
 
 ---
 
-# 31. Credentials
+# 31. Credentials and Secure Storage
 
-Secrets SHALL NOT be stored in SQL Server.
+Actual authentication secrets SHALL NOT be stored in JSON, JSONL, settings, provider state, history, alerts, logs, source control, SQL Server, or LocalDB. There is no database in active V1 architecture.
 
-Store credential references using:
+Store credentials behind `ISecureCredentialStore`, using Windows Credential Manager or another planner-approved secure Windows mechanism. JSON may store only an opaque reference:
 
-* Windows Credential Manager
-* DPAPI-protected data where required
-
-Database only stores:
-
-```
+```text
 CredentialReference = "GitHub:Copilot:Primary"
 ```
 
-Never:
+Never store:
 
-```
-AccessToken = "ghp_xxxxx"
+```text
+actual token
+actual password
+browser cookie
+refresh token
 ```
 
 ---
@@ -1459,7 +1404,7 @@ Targets, not fabricated guarantees:
 * dashboard navigation feels immediate
 * refresh operations never block UI
 * background refresh consumes minimal CPU
-* no continuous unnecessary database queries
+* no continuous unnecessary file reads or provider queries
 * no aggressive provider polling
 * no significant IDE performance degradation
 
@@ -1491,7 +1436,7 @@ SEC-007:
 No secrets in appsettings.json.
 
 SEC-008:
-No secrets in LocalDB.
+No secrets in JSON, JSONL, settings, provider state, history, logs, or any local persistence file.
 
 SEC-009:
 No telemetry by default.
@@ -1566,16 +1511,16 @@ ai-usage-monitor/
 │
 ├── tests/
 │   ├── AIUsageMonitor.Domain.Tests/
-│   └── AIUsageMonitor.Provider.Tests/
+│   ├── AIUsageMonitor.Provider.Tests/
+│   └── AIUsageMonitor.Infrastructure.Tests/
 │
 ├── docs/
-│   └── BRD.md
+│   ├── BRD v1.0.md
+│   ├── IMPLEMENTATION_PLAN.md
+│   └── SESSION_PROMPTS.md
 │
 ├── .ai/
-│   ├── CURRENT_STATE.md
-│   ├── EXECUTION_PLAN.md
-│   ├── DECISIONS.md
-│   └── PROMPTS.md
+│   └── CURRENT_STATE.md
 │
 ├── .github/
 │   └── workflows/
@@ -1601,10 +1546,10 @@ AGENTS.md is the permanent AI execution contract.
 Every executor must:
 
 1. Read AGENTS.md.
-2. Read docs/BRD.md.
+2. Read docs/BRD v1.0.md.
 3. Read .ai/CURRENT_STATE.md.
-4. Read .ai/EXECUTION_PLAN.md.
-5. Read .ai/DECISIONS.md when relevant.
+4. Read docs/IMPLEMENTATION_PLAN.md.
+5. Read the assigned section of docs/SESSION_PROMPTS.md.
 6. Inspect Git status.
 7. Execute only the assigned session.
 8. Do not redesign approved architecture without documenting a blocking reason.
@@ -1614,9 +1559,8 @@ Every executor must:
 12. Run targeted validation relevant to changed code.
 13. Review its Git diff.
 14. Update CURRENT_STATE.md.
-15. Update DECISIONS.md only for real architectural decisions.
-16. Never commit credentials.
-17. Never mark unverified provider capability as complete.
+15. Never commit credentials.
+16. Never mark unverified provider capability as complete.
 
 ---
 
@@ -1695,8 +1639,16 @@ Required automated coverage:
 * burn-rate calculation
 * recommendation scoring
 * provider parsers
-* database persistence
-* secret redaction
+* JSON serialization/deserialization
+* JSON schema compatibility/version handling
+* JSONL append/read and time-range queries
+* duplicate suppression
+* atomic/safe writes
+* corrupt/missing-file handling
+* settings/subscription/provider-state persistence
+* secret redaction and credential-reference safety
+* self-contained publish smoke validation
+* critical WPF view-model behavior where useful
 
 Do not create thousands of artificial tests.
 
@@ -1728,16 +1680,21 @@ A session is Done only when:
 
 Implementation is divided into controlled sessions.
 
-## Phase 0 — Foundation
+## Historical Phase 0 — Foundation
 
 Session 01 — Repository & solution foundation
 Session 02 — Architecture/domain foundation
-Session 03 — SQL Server LocalDB persistence
+Session 02R — Domain integrity remediation
+Session 03 — EF Core + SQL Server LocalDB persistence (COMPLETE — SUPERSEDED)
+
+## Active Phase 0 — Portable Consumer Foundation
+
+Session 03R — Portable Consumer Desktop Architecture Migration
 Session 04 — Provider feasibility investigation
 
-## Phase 1 — User Experience Foundation
+## Active Phase 1 — User Experience Foundation
 
-Session 05 — WinUI shell and design system
+Session 05 — WPF shell and modern design system
 Session 06 — Dashboard and provider cards
 Session 07 — Tray + Focus HUD
 
@@ -1756,7 +1713,7 @@ Session 14 — History and analytics
 Session 15 — Recommendation engine
 Session 16 — Notifications and monitoring
 
-## Phase 4 — Production Readiness
+## Active Phase 4 — Production Readiness
 
 Session 17 — Settings/security/resilience
 Session 18 — Performance and UX polish
@@ -1775,11 +1732,11 @@ This prevents speculative provider implementation.
 
 ---
 
-# 56. SESSION PROMPTS
+# 56. HISTORICAL EXECUTION PROMPT ARCHIVE - NON-AUTHORITATIVE
 
-The following prompts are intended for Luna, Terra, or Sonnet.
+The prompt excerpts retained below document the original implementation sequence and are preserved for historical context. They are not executable requirements after the Portable Consumer Architecture Rebaseline and must not be used to start a session.
 
-Each executor should work directly inside the repository.
+The authoritative current prompts are in `docs/SESSION_PROMPTS.md`. Active future sessions use WPF, JSON/JSONL, zero-prerequisite consumer deployment, self-contained publishing, optional provider CLIs, and no EF/LocalDB. The old Session 03 prompt is historical and must not be executed again.
 
 ---
 
@@ -1792,8 +1749,8 @@ You are the implementation executor for AI Usage Monitor.
 Read completely before modifying anything:
 
 1. `AGENTS.md` if present.
-2. `docs/BRD.md`.
-3. `.ai/EXECUTION_PLAN.md` if present.
+2. `docs/BRD v1.0.md`.
+3. `docs/IMPLEMENTATION_PLAN.md` if present.
 4. `.ai/CURRENT_STATE.md` if present.
 5. Inspect Git status.
 
@@ -1837,11 +1794,10 @@ Add:
 * appropriate `.gitignore`
 * minimal README
 * `AGENTS.md`
-* `docs/BRD.md` if not already present
+* `docs/BRD v1.0.md`
 * `.ai/CURRENT_STATE.md`
-* `.ai/EXECUTION_PLAN.md`
-* `.ai/DECISIONS.md`
-* `.ai/PROMPTS.md`
+* `docs/IMPLEMENTATION_PLAN.md`
+* `docs/SESSION_PROMPTS.md`
 
 Do not implement business features.
 
@@ -1865,7 +1821,7 @@ Stop after Session 01.
 
 ### Prompt
 
-Read `AGENTS.md`, `docs/BRD.md`, `.ai/CURRENT_STATE.md`, `.ai/EXECUTION_PLAN.md`, relevant decisions, and inspect Git status.
+Read `AGENTS.md`, `docs/BRD v1.0.md`, `.ai/CURRENT_STATE.md`, `docs/IMPLEMENTATION_PLAN.md`, relevant decisions, and inspect Git status.
 
 Execute Session 02 only.
 
@@ -1921,7 +1877,9 @@ Stop.
 
 ---
 
-## SESSION 03 — SQL Server LocalDB
+## HISTORICAL SESSION 03 — EF Core 10 + SQL Server LocalDB
+
+> HISTORICAL - COMPLETED BUT ARCHITECTURALLY SUPERSEDED - DO NOT EXECUTE AGAIN.
 
 ### Prompt
 
@@ -2010,7 +1968,7 @@ Do not commit raw credentials.
 
 If sample provider payloads are useful for future parsers, sanitize them completely before committing fixtures.
 
-Update `.ai/DECISIONS.md` with the verified capability matrix.
+Update the verified capability matrix and evidence notes in `.ai/CURRENT_STATE.md`.
 
 For every field clearly classify:
 
@@ -2044,10 +2002,9 @@ Act as principal architect and adversarial reviewer.
 Read:
 
 * AGENTS.md
-* docs/BRD.md
+* docs/BRD v1.0.md
 * .ai/CURRENT_STATE.md
-* .ai/EXECUTION_PLAN.md
-* .ai/DECISIONS.md
+* docs/IMPLEMENTATION_PLAN.md
 * all source code
 * test code
 * Git history/diff where useful
@@ -2864,8 +2821,8 @@ V1 is accepted only when:
 ### Core
 
 * App launches reliably.
-* SQL LocalDB initializes.
-* Existing history survives restart.
+* Per-user JSON/JSONL storage initializes automatically without a database engine.
+* Existing file-backed history survives restart.
 * UI remains responsive.
 
 ### Providers
@@ -2921,7 +2878,8 @@ V1 is accepted only when:
 
 * Release build succeeds.
 * GitHub CI succeeds.
-* Installation process documented.
+* Self-contained release artifacts are produced for supported target architectures where validated.
+* A clean compatible Windows machine without a separately installed .NET runtime, SDK, SQL, Node, or developer tooling can launch the released application.
 * No BLOCKER/HIGH reviewer findings remain.
 
 ---
@@ -2975,13 +2933,13 @@ This is deliberately excluded from the current architecture.
 
 # 59. Final Architectural Decision
 
-The V1 architecture is frozen as:
+The following diagram records the historical architecture implemented by Session 03. It is superseded and is not the active V1 architecture:
 
 ```
 Windows
    │
    ▼
-WinUI 3
+Historical WinUI 3 (superseded)
    │
    ▼
 Application Layer
@@ -3005,10 +2963,10 @@ Domain        Provider Engine
                  │
           ┌──────┴───────┐
           ▼              ▼
-      EF Core 10      Analytics
+       Historical EF Core 10      Analytics
           │
           ▼
-   SQL Server LocalDB
+   Historical SQL Server LocalDB
 ```
 
 Secrets:
@@ -3049,6 +3007,37 @@ No Angular in V1.
 No unnecessary accounts.
 
 No speculative provider APIs.
+
+The approved active V1 architecture is:
+
+```text
+Windows
+   |
+   v
+WPF desktop shell (self-contained .NET 10 release)
+   |
+   v
+Application services and provider-independent contracts
+   |
+   +-------------------+
+   |                   |
+   v                   v
+Domain           Provider engine
+                       |
+              Codex / Claude / Kimi /
+              Copilot / Antigravity
+                       |
+                       v
+                  Normalizer
+                       |
+                       v
+                 Infrastructure
+             JSON / JSONL / secure storage
+```
+
+Persistence is JSON for state/configuration and JSONL for usage/event history. V1 has no database and no ORM. Release artifacts are self-contained and are evaluated for `win-x64`, `win-x86`, and `win-arm64`; single-file publishing is evaluated for WPF without blind trimming. Provider CLIs are optional.
+
+Session 03's EF Core + SQL Server LocalDB implementation is historical and superseded, not erased from project history. Session 03R is the approved migration before provider development begins.
 
 ---
 
