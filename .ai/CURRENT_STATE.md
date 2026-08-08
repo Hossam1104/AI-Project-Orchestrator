@@ -433,6 +433,7 @@ Executor:
 Session 03 must:
 - implement EF Core 10 + SQL Server LocalDB persistence for the Session 02/02R domain model (Providers, ProviderConnections, Subscriptions, QuotaDefinitions, UsageSnapshots, AlertRules, AlertEvents, SyncEvents, Settings)
 - read §9D's EF Core readiness notes first, especially the required `UsageSnapshot` → `QuotaWindow` owned-type mapping and `Subscription.Price` precision
+- follow the "MANDATORY EF MATERIALIZATION & PERSISTENCE SAFETY ADDENDUM" now embedded in the Session 03 prompt in `docs/SESSION_PROMPTS.md` (added 08 August 2026, not yet executed): `UsageSnapshot` needs an EF-compatible materialization path for the owned `QuotaWindow` navigation (EF cannot constructor-bind it) without adding public setters or weakening the existing public validating constructor; a true persistence round-trip test (fresh `DbContext`, not a change-tracker assertion) is mandatory before the initial migration is finalized; the migration must be manually inspected to confirm no secret-shaped columns (`AccessToken`/`RefreshToken`/`Password`/`Cookie`/`Secret`/`CredentialValue`) exist — record the chosen materialization strategy and round-trip result in this file
 - create migrations and upgrade-safe initialization
 - implement `IUsageSnapshotRepository` (and other Session 02 persistence-facing contracts as appropriate) against LocalDB
 - prevent duplicate `UsageSnapshot` writes when values haven't materially changed
