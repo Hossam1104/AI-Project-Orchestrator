@@ -51,13 +51,24 @@ Before modifying repository files:
 2. Read `docs/BRD v1.0.md`.
 3. Read `.ai/CURRENT_STATE.md`.
 4. Read `docs/IMPLEMENTATION_PLAN.md`.
-5. Read the exact assigned section of `docs/SESSION_PROMPTS.md`.
-6. Inspect `git status`.
-7. Inspect only source/config files relevant to the assigned session.
+5. Read the active root `TASK.md` completely.
+6. Read the exact relevant section of `docs/SESSION_PROMPTS.md` when the task references it.
+7. Inspect `git status`, then inspect only task-relevant source/config files.
 
 Do not depend on previous chat context.
 
 The repository is the source of truth.
+
+---
+
+# Active TASK.md Contract
+
+The root `TASK.md` is the active execution assignment for the current session. It may add
+planner-approved scope and completion requirements, but it cannot override the BRD or this
+contract. Executors must read it before modifying files, execute only its named session, update
+it to a concise completion handoff when the session is delivered, and stop before the next
+session. Historical status belongs in `.ai/CURRENT_STATE.md`; `TASK.md` records only the active
+assignment and its final handoff.
 
 ---
 
@@ -230,7 +241,7 @@ Mandatory rules:
 12. Preserve unrelated user changes.
 13. If branch protection prevents direct merging, use the repository-supported PR/merge workflow and document the restriction in `CURRENT_STATE`.
 14. A session is not `COMPLETE` until remote `main` contains the validated work, unless a documented external GitHub restriction makes integration impossible.
-15. A single post-merge metadata-only commit directly to `main` is permitted solely to synchronize `.ai/CURRENT_STATE.md` with the already completed merge/push/verification. It must not contain source changes, bypass branch protection, or require a recursive session.
+15. A single post-merge metadata-only commit directly to `main` is permitted solely to synchronize `.ai/CURRENT_STATE.md` and `TASK.md` with the already completed merge/push/verification. It must touch no source, product/configuration, or test files, must not bypass branch protection, and must not require a recursive session.
 
 ---
 
@@ -599,6 +610,6 @@ Release -> self-contained .NET 10 Windows artifacts
 Database/ORM -> none in V1
 ```
 
-Session 03 completed the originally approved EF Core + SQL Server LocalDB persistence design successfully. That implementation is a completed historical implementation, not a failure. The later product clarification changed the V1 deployment requirement to zero external prerequisites and general-consumer usability. The LocalDB/EF implementation is therefore superseded and is scheduled for removal/replacement by Session 03R before provider development begins.
+Session 03 completed the originally approved EF Core + SQL Server LocalDB persistence design successfully. That implementation is a completed historical implementation, not a failure. The later product clarification changed the V1 deployment requirement to zero external prerequisites and general-consumer usability. The LocalDB/EF implementation is therefore superseded; Session 03R removed it from the active runtime before provider development begins.
 
 ---

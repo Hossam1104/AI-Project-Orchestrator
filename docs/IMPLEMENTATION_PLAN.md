@@ -27,7 +27,9 @@ Source-of-truth files, in authority order, are:
 5. `docs/SESSION_PROMPTS.md` - exact executor/reviewer instructions.
 6. `CLAUDE.md` - Claude/Sonnet/Opus adapter behavior.
 
-The architecture rebaseline is an approved planner decision. It does not rewrite Git history and does not claim that the source migration has already happened.
+The architecture rebaseline is an approved planner decision. It does not rewrite Git history. The
+active root `TASK.md` is the current session assignment and completion handoff; it must be read
+before implementation work and cannot override the BRD or `AGENTS.md`.
 
 ---
 
@@ -71,7 +73,10 @@ Gate C                                                NOT STARTED
 Final Gate                                            NOT STARTED
 ```
 
-Do not reuse the plain `Session 03` label for the migration. Do not start Session 04 until Session 03R is complete and the required review gate permits it.
+Do not reuse the plain `Session 03` label for the migration. Do not start Session 04 until Session
+03R is complete, merged into `main`, `origin/main` is verified, and no unresolved planner blocker
+prevents the feasibility work. The planner checkpoint occurs before Session 04; Gate A follows
+Session 04 and is not a prerequisite for it.
 
 ---
 
@@ -98,7 +103,7 @@ Do not reuse the plain `Session 03` label for the migration. Do not start Sessio
 | Release | Self-contained Windows artifacts |
 | Source control/CI | Git, GitHub, GitHub Actions |
 
-The V1 architecture must not introduce WinUI 3, Windows App SDK, EF Core, SQL Server LocalDB, SQLite, Angular, Electron, Node.js, npm, or embedded Chromium. The historical source still contains the old stack until Session 03R removes it; that is documented state, not an active target requirement.
+The V1 architecture must not introduce WinUI 3, Windows App SDK, EF Core, SQL Server LocalDB, SQLite, Angular, Electron, Node.js, npm, or embedded Chromium. The historical source no longer contains the old stack in the active runtime after Session 03R; historical commits and records remain for auditability.
 
 ---
 
@@ -268,9 +273,10 @@ Historical Phase 0
   03 EF Core + SQL Server LocalDB        COMPLETE - SUPERSEDED
 
 Active Phase 0 - Architecture Correction
-  03R Portable Consumer Migration        NEXT
+  03R Portable Consumer Migration        COMPLETE (pending planner review)
+  Planner checkpoint                     REQUIRED BEFORE 04
   04 Provider Feasibility                NOT STARTED
-  Gate A                                 NOT STARTED
+  Gate A                                 NOT STARTED (after 04)
 
 Active Phase 1 - Experience
   05 WPF Modern Design System             NOT STARTED
@@ -300,13 +306,15 @@ Active Phase 4 - Hardening and Release
   Final Gate                              NOT STARTED
 ```
 
-Sessions execute sequentially. Do not implement Sessions 08-12 before Session 04 evidence and Gate A approval. Do not execute Session 04 before Session 03R completes.
+Sessions execute sequentially. Do not implement Sessions 08-12 before Session 04 evidence and
+Gate A approval. Session 04 follows the completed/merged Session 03R and planner checkpoint;
+Gate A is scheduled after Session 04 and is not a Session 04 prerequisite.
 
 ---
 
 # 12. Session 03R - Portable Consumer Desktop Architecture Migration
 
-**Status:** NEXT.
+**Status:** COMPLETE - pending planner review.
 **Default executor:** Luna Max.
 **Branch:** `refactor/session-03r-portable-consumer-architecture`.
 
@@ -334,6 +342,10 @@ Session 03R must not implement provider adapters, the dashboard, tray/HUD polish
 
 # 13. Session 04 - Provider Feasibility Investigation
 
+Prerequisites: Session 03R is complete and merged into `main`, `origin/main` is verified, and the
+planner has confirmed there is no unresolved blocker. Gate A has not yet run and is not a
+prerequisite for this session.
+
 Evidence-only session. For each provider investigate official usage API, account usage endpoint, OAuth/device/account auth, browser-based supported workflow, optional CLI, safe local metadata, manual fallback, plan, quota windows, reset timestamp/timezone, subscription/renewal information, source semantics, and authentication failure behavior.
 
 Answer whether a non-developer/browser-only user can connect, whether CLI is required or optional, what is official/verified/inferred/manual, and what must remain unavailable. Do not implement adapters. Save a capability/evidence matrix in `CURRENT_STATE` and preserve privacy/security.
@@ -342,7 +354,7 @@ Answer whether a non-developer/browser-only user can connect, whether CLI is req
 
 # 14. Gate A - Opus 5
 
-Gate A reviews Sessions 01-04 and must inspect:
+Gate A runs after Session 04 and reviews Sessions 01-04. It must inspect:
 
 - WPF is the active desktop foundation
 - Domain/Application separation and dynamic quota correctness

@@ -22,9 +22,9 @@ The approved V1 target architecture is:
 - self-contained Windows release artifacts
 - no database and no ORM
 
-The repository is currently between the historical persistence session and the approved architecture migration. Session 03 successfully implemented the originally approved WinUI/Windows App SDK + EF Core + SQL Server LocalDB design. That implementation is historical and architecturally superseded; the source still contains it until **Session 03R - Portable Consumer Desktop Architecture Migration** executes.
+Session 03R has migrated the active source to the approved WPF and JSON/JSONL architecture. The former WinUI/Windows App SDK and EF Core/LocalDB implementation remains only in Git history. The WPF shell is intentionally an empty connected-provider state until the planner authorizes Session 04; provider integrations and dashboard scope were not added by Session 03R.
 
-Do not read the approved WPF/JSON target as a claim that the migration has already been implemented. See [`.ai/CURRENT_STATE.md`](.ai/CURRENT_STATE.md) for the factual distinction between target and current source.
+See [`.ai/CURRENT_STATE.md`](.ai/CURRENT_STATE.md) for the factual handoff, validation evidence, and the distinction between completed migration work and future product sessions.
 
 ## Consumer release goal
 
@@ -40,11 +40,11 @@ A released application must not require a separately installed .NET runtime, .NE
 
 Release consideration covers `win-x64`, `win-x86`, and `win-arm64`, with compatibility claims limited to environments actually validated.
 
-## Historical/current build note
+## Build and release note
 
-Until Session 03R, the current source is the historical WinUI/EF/LocalDB implementation. Development machines may need the .NET SDK and the current source toolchain. This is not the final consumer installation experience, and the repository is not yet a release-ready WPF application.
+Development machines still need the .NET SDK to build and test the repository. The consumer release contract is different: published artifacts are self-contained and must not require a separately installed .NET runtime, database engine, or developer toolchain.
 
-For the current historical source, contributors can inspect or validate the existing solution with:
+To inspect or validate the current solution:
 
 ```powershell
 dotnet restore AIUsageMonitor.sln
@@ -52,7 +52,7 @@ dotnet build AIUsageMonitor.sln
 dotnet test AIUsageMonitor.sln
 ```
 
-The documentation-only architecture rebaseline does not claim that a WPF build, JSON persistence, or self-contained publish has been validated. Those belong to Session 03R and later sessions.
+Session 03R validates the WPF build, JSON/JSONL persistence, and self-contained publish configuration. Provider collection, dashboard behavior, and release testing on every supported Windows edition remain later-session work.
 
 ## Repository layout
 
@@ -83,7 +83,7 @@ AI Usage Monitor Tool/
 └── tests/
     ├── AIUsageMonitor.Domain.Tests
     ├── AIUsageMonitor.Provider.Tests
-    └── AIUsageMonitor.Infrastructure.Tests  Historical persistence tests; to migrate to file tests in Session 03R
+    └── AIUsageMonitor.Infrastructure.Tests  JSON/JSONL persistence and resilience tests
 ```
 
 ## Product scope

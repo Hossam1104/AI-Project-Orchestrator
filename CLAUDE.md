@@ -14,7 +14,7 @@
 - **Opus 5:** independent reviewer.
 - **Sonnet/Terra:** fallback executors only when explicitly assigned.
 
-The active target architecture is WPF + .NET 10 + MVVM with JSON/JSONL local persistence and self-contained Windows release artifacts. The historical WinUI/Windows App SDK/EF Core/SQL Server LocalDB implementation remains in source until Session 03R executes; it is not the active future architecture.
+The active architecture is WPF + .NET 10 + MVVM with JSON/JSONL local persistence and self-contained Windows release artifacts. The former WinUI/Windows App SDK/EF Core/SQL Server LocalDB implementation is historical and superseded after Session 03R.
 
 ---
 
@@ -26,11 +26,15 @@ Before any work:
 2. Read `docs/BRD v1.0.md`.
 3. Read `.ai/CURRENT_STATE.md`.
 4. Read `docs/IMPLEMENTATION_PLAN.md`.
-5. Read the exact assigned prompt/review gate from `docs/SESSION_PROMPTS.md`.
-6. Inspect Git status.
-7. Inspect only task-relevant source/config files.
+5. Read the active root `TASK.md`.
+6. Read the exact assigned prompt/review gate from `docs/SESSION_PROMPTS.md` when it is referenced.
+7. Inspect Git status, then inspect only task-relevant source/config files.
 
 Do not rely on old Claude chat context. Repository state wins.
+
+The root `TASK.md` is the current executor assignment and completion handoff. Follow it for the
+named session only, keep factual project status in `.ai/CURRENT_STATE.md`, and stop before the
+next session.
 
 ---
 
