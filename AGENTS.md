@@ -225,6 +225,7 @@ stop
 12. Preserve unrelated user changes — never fold unrelated working-tree modifications into a session's commit.
 13. If branch protection prevents direct merging, use the repository-supported PR/merge workflow instead of bypassing protection, and document the restriction in `.ai/CURRENT_STATE.md`.
 14. A session cannot be marked `COMPLETE` until remote `main` contains the validated session work, unless a documented external GitHub restriction makes integration impossible — in which case record the exact blocker and mark the session `BLOCKED` or `PARTIAL` instead of `COMPLETE`.
+15. **Metadata-only finalization exception.** `git log -1 origin/main` cannot be known until after the merge/push it would be recorded in, so a single post-merge, metadata-only commit directly to `main` is permitted when its sole purpose is synchronizing `.ai/CURRENT_STATE.md` (or equivalent session metadata) with an already-completed merge/push/verification. This exception must: apply only to `.ai/CURRENT_STATE.md`/session metadata, never include source-code or feature changes, never bypass branch protection, not require its own feature branch, and not recursively require documenting itself as a further merge. If branch protection prevents a direct commit to `main`, record the feature/implementation merge and its `origin/main` verification, and leave the metadata-only finalization for the next session rather than forcing a workaround.
 
 ---
 

@@ -6,8 +6,8 @@
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Current Phase:** Phase 0 — Foundation  
-**Last Completed Session:** Session 02 — Domain & Application Architecture  
-**Next Session:** Session 03 — SQL Server LocalDB Persistence  
+**Last Completed Session:** Session 02 — Domain & Application Architecture (Session 02R remediation implementation/validation done; Git integration in progress — see §3, §9D)  
+**Next Session:** Session 03 — SQL Server LocalDB Persistence (after Session 02R Git integration completes)  
 **Release State:** NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -74,6 +74,7 @@ Providers:
 |---|---|---|---|
 | 01 | Repository & solution foundation | COMPLETE | restore/build/test/launch all verified |
 | 02 | Domain/application architecture | COMPLETE | build (default + explicit x64)/tests verified; merged to `main` and `origin/main` verified — see §9C |
+| 02R | Domain integrity remediation | IN PROGRESS | implementation/build (x64)/tests verified; Git integration in progress — see §9D |
 | 03 | EF Core + LocalDB | NOT STARTED | — |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
@@ -256,8 +257,18 @@ Approved:
     This baseline is now the permanent contract in `AGENTS.md` §3A (inherited automatically by every Session 02+ executor/reviewer), reflected in `docs/BRD v1.0.md` §1A, `CLAUDE.md` §3A, `docs/IMPLEMENTATION_PLAN.md` §2A + relevant phase sections, and reminded at the top of every Session 02–20 prompt and review gate in `docs/SESSION_PROMPTS.md`. No application feature implementation occurred as part of establishing it — this was a governance/documentation-only update.
 
 17. **`AIUsageMonitor.Application` project namespace collides with `Microsoft.UI.Xaml.Application`.** Once the Application project gained real source files under nested namespaces (e.g. `AIUsageMonitor.Application.Providers`), the sibling namespace `AIUsageMonitor.Application` became resolvable from `AIUsageMonitor.Desktop` (common `AIUsageMonitor` ancestor), and C# name lookup prefers an in-scope namespace over a `using`-imported type — so the unqualified `Application` base class in `App.xaml.cs` (`: Application`) started resolving to the namespace instead of `Microsoft.UI.Xaml.Application`, breaking the build (`CS0118`). Fixed by fully qualifying the base type: `public partial class App : Microsoft.UI.Xaml.Application`. This is a known, common clash in WinUI + Clean Architecture repos that name a layer "Application"; no project/namespace was renamed to avoid it, since the qualified reference is the minimal, standard fix. Any future Desktop-project code should qualify `Microsoft.UI.Xaml.Application` explicitly instead of relying on an unqualified `using Microsoft.UI.Xaml;` import.
-18. **`QuotaWindow` is the single construction point for dynamic quota data.** `UsageSnapshot` composes a `QuotaWindow` rather than re-declaring/re-validating the same used/remaining/limit/percentage fields, so normalization logic exists in exactly one place. `ProviderRefreshResult` (Application layer) is the normalized shape every `IAiUsageProvider.RefreshAsync` returns, with one factory method per `ProviderRefreshOutcome` (Success/Partial/AuthenticationRequired/Unsupported/Stale/ProviderError) so a caller cannot construct an inconsistent combination.
+18. **`QuotaWindow` is the single construction point for dynamic quota data.** `UsageSnapshot` composes a `QuotaWindow` rather than re-declaring/re-validating the same used/remaining/limit/percentage fields, so normalization logic exists in exactly one place. `ProviderRefreshResult` (Application layer) is the normalized shape every `IAiUsageProvider.RefreshAsync` returns; its factory methods keep construction to known-safe combinations (updated by decision 20 — see below).
 19. **ARM64 solution-configuration gap (BRD §1A "Known Tracked Item") resolved before Session 02**, per planner instruction in the Session 02 prompt addendum — see §9A below and the corresponding BRD update. `docs/BRD v1.0.md` §1A now reflects the resolved state.
+
+### Session 02R — Domain Integrity Remediation (08 August 2026)
+
+Planner review of Session 02 raised 5 findings before EF Core turns the domain into a persistent database contract. All 5 were corrected; decisions recorded below.
+
+20. **`ProviderRefreshResult.Error(...)` renamed/redesigned to `ProviderRefreshResult.Failed(...)`.** The old `Error(...)` unconditionally discarded `Account`/`Subscription`/`QuotaWindows` on any failure, contradicting AGENTS.md §20's last-known-data rule. `Failed(...)` now accepts optional `lastKnownAccount`/`lastKnownSubscription`/`lastKnownQuotaWindows`: if any are supplied, they are retained and the outcome resolves to `ProviderRefreshOutcome.Stale`; if none are supplied, the outcome is `ProviderRefreshOutcome.ProviderError` with no data (never fabricated). `ErrorCode`/`ErrorMessage` are retained in both branches — that's what distinguishes a `Failed(...)`-produced `Stale` result (has an error code) from a plain `Stale(...)`-produced one (periodic staleness, no active error, no error code). `Error(...)` had zero call sites anywhere in the repo (no provider exists yet), so this was a clean rename, not a breaking change to real code.
+21. **`QuotaWindow.Create(...)` now validates absolute-value consistency, not just percentages.** Added: `UsedValue`/`RemainingValue` individually cannot exceed `LimitValue` (± a small `ValueTolerance` for provider-side rounding); when all three are supplied, `UsedValue + RemainingValue` must approximately equal `LimitValue`; and when explicit `usedPercentage`/`remainingPercentage` are supplied alongside absolute values, the two must materially agree (e.g. `Limit=100, Used=80, UsedPercentage=20` now throws instead of being silently accepted). Malformed provider input is rejected via `ArgumentException`/`ArgumentOutOfRangeException` rather than hidden behind `Math.Clamp`; `Math.Clamp` is now only a floating-point-rounding safety net after the true value has already passed validation, not a way to paper over a real contradiction.
+22. **`Subscription` gained `ConfidenceLevel Confidence`.** It previously had `DataSource Source` but no confidence dimension, unlike `QuotaWindow`/`ProviderAccount`. Added as a required constructor parameter (not inferred automatically — the caller must state it) so persisted subscription data can distinguish Official/VerifiedLocal/Inferred/Manual before Session 03 gives it a database column.
+23. **`ProviderConnection` gained an optional `string? CredentialReference`.** An opaque lookup key into secure storage (e.g. `"GitHub:Copilot:Primary"`), resolved through `ISecureCredentialStore` — never the secret itself. Rejects a whitespace-only value if one is supplied (via `ArgumentException`), but is otherwise unvalidated content since the actual reference format is provider/Infrastructure-defined. Windows Credential Manager implementation remains deferred to Session 17 per the BRD; this only adds the domain-level place to point at it.
+24. **Git Delivery Contract gained a narrow metadata-only finalization exception (`AGENTS.md` §6A rule 15).** The contract's own `.ai/CURRENT_STATE.md` finalization step needs the merge/push/`origin/main` verification results to already exist, which is impossible to include in the commit that goes *into* that merge — Session 02 worked around this ad hoc with a small follow-up commit directly to `main`. Rule 15 now formally permits exactly that: a single post-merge commit touching only `.ai/CURRENT_STATE.md`/session metadata (never source code), still subject to branch protection (no bypass), requiring no feature branch of its own, and explicitly not requiring recursive documentation of itself.
 
 Add only material decisions.
 
@@ -349,6 +360,52 @@ The project owner established a permanent Git Delivery Contract: every completed
 
 ---
 
+## 9D. Session 02R — Domain Integrity Remediation Validation + EF Core Readiness Notes (08 August 2026)
+
+### Findings corrected
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `ProviderRefreshResult.Error(...)` discarded last-known Account/Subscription/QuotaWindows on failure | Replaced with `ProviderRefreshResult.Failed(...)`: retains any supplied last-known data and resolves to `Stale`; otherwise `ProviderError` with no data. ErrorCode/ErrorMessage always retained. See decision 20. |
+| 2 | `QuotaWindow.Create(...)` only validated percentages, silently clamped contradictory absolute values | Added Used/Remaining ≤ Limit checks, Used+Remaining ≈ Limit check, and explicit-percentage-vs-implied-percentage cross-validation, all via `ArgumentException`/`ArgumentOutOfRangeException` rather than `Math.Clamp`. See decision 21. |
+| 3 | `Subscription` had `DataSource Source` but no `ConfidenceLevel Confidence` | Added as a required constructor parameter. See decision 22. |
+| 4 | `ProviderConnection` had no way to reference a securely stored credential | Added optional `string? CredentialReference` (opaque key only, whitespace-only rejected). See decision 23. |
+| 5 | Git Delivery Contract had no way to record `.ai/CURRENT_STATE.md`'s own merge/push/verify outcome without a recursive merge | Added `AGENTS.md` §6A rule 15, a narrow metadata-only finalization-commit exception. See decision 24. |
+
+### Validation
+
+| Step | Command | Result |
+|---|---|---|
+| Build (x64) | `dotnet build AIUsageMonitor.sln -c Debug -p:Platform=x64` | SUCCESS — 0 Warning(s), 0 Error(s), all 7 projects |
+| Test | `dotnet test tests/AIUsageMonitor.Domain.Tests/...csproj` | SUCCESS — 28/28 passed (19 prior + 9 new: 6 `QuotaWindow` absolute-value/percentage-conflict tests, 1 `Subscription` confidence test, 2 `ProviderConnection` credential-reference tests) |
+| Test | `dotnet test tests/AIUsageMonitor.Provider.Tests/...csproj` | SUCCESS — 7/7 passed (1 prior smoke test + 6 new `ProviderRefreshResult` tests) |
+| Secrets | Reviewed diff of all changed files for password/token/key/PEM patterns | No secrets found — `CredentialReference` is documented as an opaque lookup key only, never a real secret |
+| Scope check | Confirmed no EF Core/persistence code was introduced and no fixed 5-hour/weekly schema was added | Confirmed — this remediation only touched Domain/Application contracts, tests, and governance docs |
+
+### EF Core readiness notes for Session 03
+
+Reviewed all Session 02/02R domain entities against what Session 03 will need to map:
+
+- **`Provider`, `ProviderAccount`, `ProviderConnection`, `QuotaDefinition`, `AlertRule`, `AlertEvent`, `SyncEvent`** — straightforward EF Core aggregate roots: `Guid` key, simple scalar/enum properties, standard FK navigation (note `AlertRule.QuotaDefinitionId` is an *optional* FK — configure `IsRequired(false)`). No structural surprises. Enums (`ProviderCode`, `ProviderConnectionStatus`, `ProviderConnectionType`, `QuotaType`, `QuotaUnit`, `DataSource`, `ConfidenceLevel`, `BillingCadence`, `AlertType`, `AlertSeverity`) map to `int` by default; consider `HasConversion<string>()` for readability in LocalDB browsing, but this is a Session 03 style choice, not a blocker.
+- **`Subscription.Price`** is `decimal?` with no declared precision/scale — SQL Server requires an explicit `HasPrecision(...)` (EF Core's default silently uses `decimal(18,2)` but emits a configuration warning if left implicit); Session 03 should set this explicitly rather than rely on the default.
+- **`UsageSnapshot` → `QuotaWindow` needs an explicit owned-type mapping, not convention.** `QuotaWindow` has no `Id`/independent identity, a `private` constructor, and is only ever produced through its validating `Create(...)` factory — this is intentional (decision 18) and must **not** be weakened (no public parameterless constructor, no public setters) just to make EF's job easier. EF Core 10 supports constructor-binding materialization (matching constructor parameter names to property names) even for `private` constructors, so `QuotaWindow`'s existing shape is EF-compatible as-is. Session 03 must explicitly configure `UsageSnapshot` with `.OwnsOne(s => s.Quota, ...)`, mapping `QuotaWindow`'s properties as inline columns on the `UsageSnapshots` table (matching the BRD §30 flat-column schema) rather than a separate table/FK — relying on EF's default conventions for an owned type without this explicit call risks a modeling error (EF may otherwise try to treat `QuotaWindow` as a required reference navigation with its own key, which it doesn't have).
+- **Duplicate-snapshot prevention (BRD §16 / Session 03 scope)**: a `(ProviderId, QuotaDefinitionId, ExternalKey)`-shaped index is a reasonable candidate for detecting "did this quota's value materially change since the last snapshot," but the actual material-change rule is Session 03's to define and test — no decision made here.
+
+No EF Core code, migrations, or `Microsoft.EntityFrameworkCore.*` package references were added in this remediation.
+
+### Git integration progress
+
+| Step | Result |
+|---|---|
+| Branch | `fix/session-02-domain-integrity`, created from `main` (clean, up to date with `origin/main` at session start) |
+| Implementation commit | `2b70fc6465a85df09733d9a778e0c04529bd5a70` — "fix: strengthen domain integrity before persistence" |
+| Push branch | pending |
+| Merge to `main` | pending |
+| Push `main` | pending |
+| Verify `origin/main` | pending |
+
+---
+
 ## 10. Latest Reviewer Verdict
 
 No review yet.
@@ -369,12 +426,13 @@ Executor:
 - or Sonnet
 
 Session 03 must:
-- implement EF Core 10 + SQL Server LocalDB persistence for the Session 02 domain model (Providers, ProviderConnections, Subscriptions, QuotaDefinitions, UsageSnapshots, AlertRules, AlertEvents, SyncEvents, Settings)
+- implement EF Core 10 + SQL Server LocalDB persistence for the Session 02/02R domain model (Providers, ProviderConnections, Subscriptions, QuotaDefinitions, UsageSnapshots, AlertRules, AlertEvents, SyncEvents, Settings)
+- read §9D's EF Core readiness notes first, especially the required `UsageSnapshot` → `QuotaWindow` owned-type mapping and `Subscription.Price` precision
 - create migrations and upgrade-safe initialization
 - implement `IUsageSnapshotRepository` (and other Session 02 persistence-facing contracts as appropriate) against LocalDB
 - prevent duplicate `UsageSnapshot` writes when values haven't materially changed
 - handle missing/unavailable LocalDB gracefully
-- store no secrets in the database
+- store no secrets in the database (`ProviderConnection.CredentialReference` is an opaque key only — never persist the actual secret)
 - build + run targeted persistence tests, review diff, update this file
 
 Do not start provider coding (Session 04+) or UI work (Session 05+).
@@ -382,6 +440,10 @@ Do not start provider coding (Session 04+) or UI work (Session 05+).
 ---
 
 ## 12. Recent Handoff
+
+### 08 August 2026 — Session 02R (Domain Integrity Remediation) implementation complete, Git integration in progress
+
+Corrected 5 planner-identified findings in the Session 02 domain/application layer before EF Core (Session 03) turns it into a persistent contract: `ProviderRefreshResult.Failed(...)` now retains last-known data on failure instead of discarding it (decision 20); `QuotaWindow.Create(...)` now rejects internally contradictory absolute values instead of silently clamping them (decision 21); `Subscription` gained `ConfidenceLevel Confidence` (decision 22); `ProviderConnection` gained an optional opaque `CredentialReference` (decision 23); and the Git Delivery Contract gained a narrow metadata-only finalization-commit exception (`AGENTS.md` §6A rule 15, decision 24) to resolve the recursive-merge problem Session 02 worked around ad hoc. Added 15 new targeted tests (9 Domain, 6 Provider/Application) — 28/28 and 7/7 respectively pass. Performed the requested EF Core readiness review (§9D) without implementing any EF Core code. `git status` was clean at session start (`main`, up to date with `origin/main`).
 
 ### 08 August 2026 — Session 02 complete
 

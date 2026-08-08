@@ -13,7 +13,7 @@ public class SubscriptionTests
 
         Assert.Throws<ArgumentException>(() => new Subscription(
             Guid.NewGuid(), Guid.NewGuid(), "Pro", null, start, end,
-            null, null, null, null, null, null, DataSource.Manual, null));
+            null, null, null, null, null, null, DataSource.Manual, ConfidenceLevel.Manual, null));
     }
 
     [Fact]
@@ -21,6 +21,16 @@ public class SubscriptionTests
     {
         Assert.Throws<ArgumentException>(() => new Subscription(
             Guid.NewGuid(), Guid.NewGuid(), "Pro", null, null, null,
-            null, null, null, 20m, null, null, DataSource.Manual, null));
+            null, null, null, 20m, null, null, DataSource.Manual, ConfidenceLevel.Manual, null));
+    }
+
+    [Fact]
+    public void Constructor_RetainsConfidence()
+    {
+        var subscription = new Subscription(
+            Guid.NewGuid(), Guid.NewGuid(), "Pro", null, null, null,
+            null, null, null, null, null, null, DataSource.OfficialApi, ConfidenceLevel.Official, null);
+
+        Assert.Equal(ConfidenceLevel.Official, subscription.Confidence);
     }
 }
