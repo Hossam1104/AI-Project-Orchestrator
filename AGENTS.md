@@ -74,19 +74,53 @@ override the BRD or this contract.
 5. `.ai/CURRENT_STATE.md` remains the authoritative factual project history/status.
 6. `docs/SESSION_PROMPTS.md` remains the permanent detailed session specification library.
 7. After a session completes successfully and is delivered to `main`, Luna determines the next
-   planned session from the approved implementation plan/current state.
-8. Luna replaces root `TASK.md` with the complete executable prompt for that next session.
-9. The next `TASK.md` must be self-contained enough for a fresh Luna Max chat.
-10. Applicable common inheritance/governance rules should be included or referenced according to
-    the repository's normal task format.
+   approved session from the implementation plan and current state.
+8. Luna opens `docs/SESSION_PROMPTS.md` and copies the full approved prompt for that next session,
+   including the applicable `COMMON ACTIVE SESSION INHERITANCE` content.
+9. Luna replaces the entire root `TASK.md` with that complete executable prompt. It must contain
+   the actual instructions Luna will execute later, not merely a title or a reference to the
+   permanent prompt library.
+10. The next `TASK.md` must be self-contained enough for a fresh Luna Max chat, and its preparation
+    must be committed, pushed, and verified through the Git Delivery Contract.
 11. Updating `TASK.md` does not authorize executing it.
-12. Luna must stop after preparing and pushing the next `TASK.md`.
+12. Luna must stop after preparing and pushing the next `TASK.md`; Luna must not execute the newly
+    populated task automatically.
 13. Every new task requires a new explicit user instruction such as:
     `Execute the current root TASK.md through completion.`
 14. If the current task is PARTIAL or BLOCKED, do not advance `TASK.md` to the next normal
     session. Keep or create an appropriate remediation/recovery task instead.
 15. Do not use `TASK.md` as a historical execution log; historical execution results belong in
     `.ai/CURRENT_STATE.md`.
+
+## Permanent TASK.md lifecycle
+
+The permanent approved prompt library drives the next executable task:
+
+```text
+docs/SESSION_PROMPTS.md
+        |
+        | contains permanent approved session prompts
+        v
+Luna completes current session
+        |
+        v
+Luna identifies next approved session
+        |
+        v
+Luna COPIES the full next-session prompt from docs/SESSION_PROMPTS.md
+        |
+        v
+root TASK.md is replaced with it
+        |
+        v
+commit / push / verify
+        |
+        v
+STOP
+```
+
+`TASK.md` must always be ready for direct execution in the next fresh context. The project owner
+must not be required to manually populate it, and populating it never authorizes the next session.
 
 ---
 
