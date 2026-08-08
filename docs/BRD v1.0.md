@@ -97,7 +97,7 @@ x64 is the normal primary desktop development target. x86 remains supported for 
 
 ## Known Tracked Item
 
-The Desktop project (Session 01) already declares `Platforms=x86;x64;ARM64` and `TargetPlatformMinVersion=10.0.17763.0`, but the solution configuration did not originally expose ARM64 consistently. This is tracked as an approved compatibility item, correctable at or before the packaging/release phase (Session 19), and safe/trivial corrections may be applied earlier without expanding session scope.
+**Resolved before Session 02.** The Desktop project (Session 01) already declared `Platforms=x86;x64;ARM64` and `TargetPlatformMinVersion=10.0.17763.0`, but the solution configuration did not originally expose ARM64 consistently. `AIUsageMonitor.sln` now includes `Debug|ARM64`/`Release|ARM64` solution configurations, mapped to native `ARM64` for the Desktop project and `Any CPU` for the library/test projects, rebuilt and test-validated (see `.ai/CURRENT_STATE.md` §6 decision 16 and §9A). An actual ARM64 hardware/emulator build+launch pass remains outstanding and is still expected no later than Session 18/19.
 
 ## Non-Goals
 

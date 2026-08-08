@@ -6,8 +6,8 @@
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Current Phase:** Phase 0 — Foundation  
-**Last Completed Session:** Session 01 — Repository & Solution Foundation  
-**Next Session:** Session 02 — Domain & Application Architecture  
+**Last Completed Session:** Session 01 — Repository & Solution Foundation (Session 02 implementation/validation done; Git integration in progress — see §3, §9C)  
+**Next Session:** Session 03 — SQL Server LocalDB Persistence (after Session 02 Git integration completes)  
 **Release State:** NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -73,7 +73,7 @@ Providers:
 | Session | Scope | Status | Validation |
 |---|---|---|---|
 | 01 | Repository & solution foundation | COMPLETE | restore/build/test/launch all verified |
-| 02 | Domain/application architecture | NOT STARTED | — |
+| 02 | Domain/application architecture | IN PROGRESS | implementation/build (default + explicit x64)/tests verified; Git integration (branch/commit/push/merge/verify) in progress — see §9C |
 | 03 | EF Core + LocalDB | NOT STARTED | — |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
@@ -135,6 +135,34 @@ Governance path corrections (see §6) plus:
 - `tests/AIUsageMonitor.Provider.Tests` — xUnit, references Providers + Application + Domain, one smoke test
 
 No business/domain/provider logic was implemented, per Session 01 scope.
+
+### Session 02 additions (08 August 2026)
+
+**`AIUsageMonitor.Domain`** — provider-independent domain models, no dependency on WinUI/EF Core/SQL Server/HTTP:
+
+- `Common/` — `DataSource`, `ConfidenceLevel` enums
+- `Providers/` — `Provider`, `ProviderAccount`, `ProviderConnection`, `ProviderCode`, `ProviderConnectionStatus`, `ProviderConnectionType`
+- `Subscriptions/` — `Subscription`, `BillingCadence`
+- `Quotas/` — `QuotaDefinition`, `QuotaWindow` (dynamic quota state — no fixed 5-hour/weekly properties; supports zero-to-many arbitrary windows per provider), `QuotaType`, `QuotaUnit`
+- `Usage/` — `UsageSnapshot` (composes a `QuotaWindow` rather than duplicating its fields/validation)
+- `Alerts/` — `AlertRule`, `AlertEvent`, `AlertType`, `AlertSeverity`
+- `Sync/` — `SyncEvent`
+
+`QuotaWindow.Create(...)` is the only way to construct a quota window. It normalizes used/remaining percentages exactly once from whatever combination of used/remaining/limit values or explicit percentages is supplied, throws on inconsistent explicit percentages (prevents silent double-inversion per AGENTS.md §8), throws if `ResetAt` precedes `WindowStart`, rejects negative values, and leaves percentages `null` (never fabricated) when there isn't enough data to compute them.
+
+**`AIUsageMonitor.Application`** — provider-independent contracts consumed by Desktop/Infrastructure/Providers:
+
+- `Time/` — `IClock`, `SystemClock`
+- `Providers/` — `IAiUsageProvider`, `IProviderRegistry`, `IProviderDiscoveryService`, `IRefreshOrchestrator`, `ProviderDetectionResult`, `ProviderRefreshOutcome` (Success/Partial/AuthenticationRequired/Unsupported/Stale/ProviderError), `ProviderRefreshResult` (factory methods per outcome; `Stale`/`Partial` retain last-known quota windows rather than replacing them with zero, per AGENTS.md §20)
+- `Usage/` — `IUsageAggregationService`, `ProviderUsageSummary`, `IUsageSnapshotRepository`
+- `Subscriptions/` — `ISubscriptionService`
+- `Alerts/` — `IAlertEvaluator`
+- `Settings/` — `ISettingsService`
+- `Security/` — `ISecureCredentialStore`
+
+No provider-specific parsing, no EF Core/persistence implementation, no UI work — all deferred to later sessions per scope.
+
+`tests/AIUsageMonitor.Domain.Tests/` gained 5 files (`QuotaWindowTests`, `DynamicQuotaCollectionTests`, `AlertRuleTests`, `SubscriptionTests`, `ProviderConnectionTests`) covering percentage normalization/validation, used/remaining consistency (including the "never treat used% as remaining%" invariant from AGENTS.md §8), arbitrary/mixed quota-type collections, `DateTimeOffset` offset preservation and start/reset ordering, and a few other important invalid-state guards (threshold ordering, billing-period ordering, price/currency pairing, sync-time ordering). 19/19 pass.
 
 ---
 
@@ -227,6 +255,10 @@ Approved:
 
     This baseline is now the permanent contract in `AGENTS.md` §3A (inherited automatically by every Session 02+ executor/reviewer), reflected in `docs/BRD v1.0.md` §1A, `CLAUDE.md` §3A, `docs/IMPLEMENTATION_PLAN.md` §2A + relevant phase sections, and reminded at the top of every Session 02–20 prompt and review gate in `docs/SESSION_PROMPTS.md`. No application feature implementation occurred as part of establishing it — this was a governance/documentation-only update.
 
+17. **`AIUsageMonitor.Application` project namespace collides with `Microsoft.UI.Xaml.Application`.** Once the Application project gained real source files under nested namespaces (e.g. `AIUsageMonitor.Application.Providers`), the sibling namespace `AIUsageMonitor.Application` became resolvable from `AIUsageMonitor.Desktop` (common `AIUsageMonitor` ancestor), and C# name lookup prefers an in-scope namespace over a `using`-imported type — so the unqualified `Application` base class in `App.xaml.cs` (`: Application`) started resolving to the namespace instead of `Microsoft.UI.Xaml.Application`, breaking the build (`CS0118`). Fixed by fully qualifying the base type: `public partial class App : Microsoft.UI.Xaml.Application`. This is a known, common clash in WinUI + Clean Architecture repos that name a layer "Application"; no project/namespace was renamed to avoid it, since the qualified reference is the minimal, standard fix. Any future Desktop-project code should qualify `Microsoft.UI.Xaml.Application` explicitly instead of relying on an unqualified `using Microsoft.UI.Xaml;` import.
+18. **`QuotaWindow` is the single construction point for dynamic quota data.** `UsageSnapshot` composes a `QuotaWindow` rather than re-declaring/re-validating the same used/remaining/limit/percentage fields, so normalization logic exists in exactly one place. `ProviderRefreshResult` (Application layer) is the normalized shape every `IAiUsageProvider.RefreshAsync` returns, with one factory method per `ProviderRefreshOutcome` (Success/Partial/AuthenticationRequired/Unsupported/Stale/ProviderError) so a caller cannot construct an inconsistent combination.
+19. **ARM64 solution-configuration gap (BRD §1A "Known Tracked Item") resolved before Session 02**, per planner instruction in the Session 02 prompt addendum — see §9A below and the corresponding BRD update. `docs/BRD v1.0.md` §1A now reflects the resolved state.
+
 Add only material decisions.
 
 ---
@@ -240,7 +272,7 @@ None. Session 01 is COMPLETE with no unresolved blockers.
 ## 8. Known Limitations
 
 - No local Windows SDK / WindowsAppSDK Visual Studio workload is installed on this machine; the Desktop project builds and runs entirely off NuGet-restored build tools (`Microsoft.Windows.SDK.BuildTools`). This is sufficient for CLI build/test/launch but should be re-verified if Visual Studio F5 debugging or MSIX packaging is attempted in a later session.
-- `AIUsageMonitor.Desktop` currently only builds/runs for the `x86` platform in this environment via plain `dotnet build`/`dotnet run` (no `-p:Platform` was needed — MSBuild picked `x86` by default for the multi-platform WinUI project). `x64`/`ARM64` were not individually validated this session; an explicit `-p:Platform=x64`/`-p:Platform=ARM64` build/launch pass on real or emulated hardware remains outstanding and is expected no later than Session 18/19 per the Cross-Windows Compatibility Baseline (decision 16).
+- `AIUsageMonitor.Desktop` builds for `x86` via plain `dotnet build` (MSBuild's default pick for this multi-platform WinUI project) and, as of Session 02, was also explicitly build-verified for `x64` via `dotnet build AIUsageMonitor.sln -c Debug -p:Platform=x64` (0 warnings/errors, all 7 projects — see §9B). `ARM64` was not built/launched this session (solution-configuration support exists per decision 16/19, but no actual ARM64 build/launch pass, hardware or emulated, has been performed yet); that remains outstanding and is expected no later than Session 18/19 per the Cross-Windows Compatibility Baseline. No platform was launched (only built) this session — Session 01's x86 launch verification is the most recent live-launch evidence.
 - Actual provider collection methods have not yet been verified against the user's installed/authenticated environment — expected to be resolved/classified during Session 04 (unchanged from planning handoff).
 - `.github/workflows/` was not created this session (no CI pipeline exists yet); deferred to Session 19 per the BRD.
 - **Resolved this update:** `AIUsageMonitor.sln`'s `SolutionConfigurationPlatforms`/`ProjectConfigurationPlatforms` previously exposed only `x64`/`x86` even though the Desktop project already declared `Platforms=x86;x64;ARM64` and `TargetPlatformMinVersion=10.0.17763.0`. Added `Debug|ARM64`/`Release|ARM64` solution configurations, mapped to native `ARM64` for the Desktop project and to `Any CPU` for the six library/test projects (mirroring the existing `x64` mapping). Rebuilt (0 warnings/errors) and re-ran both test projects (2/2 passed) to confirm the change is safe. An actual ARM64 hardware/emulator build+launch pass is still outstanding (see the `x64`/`ARM64` validation item above).
@@ -281,6 +313,41 @@ Session 02 was **not** started or executed as part of this update.
 
 ---
 
+## 9B. Session 02 Validation (08 August 2026)
+
+| Step | Command | Result |
+|---|---|---|
+| Build (default) | `dotnet build AIUsageMonitor.sln -c Debug` | SUCCESS — 0 Warning(s), 0 Error(s), all 7 projects (Desktop built `x86`, MSBuild's default) |
+| Build (explicit x64, per Session 02 addendum) | `dotnet build AIUsageMonitor.sln -c Debug -p:Platform=x64` | SUCCESS — 0 Warning(s), 0 Error(s), all 7 projects (Desktop built native `x64`) |
+| Test | `dotnet test tests/AIUsageMonitor.Domain.Tests/...csproj` | SUCCESS — 19/19 passed (17 new Session 02 domain-invariant tests + 2 pre-existing smoke/foundation tests) |
+| Test | `dotnet test tests/AIUsageMonitor.Provider.Tests/...csproj` | SUCCESS — 1/1 passed (unchanged smoke test; Providers project intentionally untouched this session) |
+| Secrets | Reviewed `git status --porcelain -uall` (excluding `bin`/`obj`) and `git diff` of all new/changed files for password/token/key/PEM/connection-string patterns | No secrets found — all new files are plain domain/application C# with no external I/O |
+| Build artifacts | Confirmed no `bin/`, `obj/`, `.vs/` paths appear in the changed-file list | `.gitignore` remains effective |
+
+Not validated this session (out of scope): ARM64 build/launch, WinUI launch/manual verification (no UI changes), EF Core/LocalDB (Session 03), any provider behavior (Session 04+).
+
+---
+
+## 9C. Git Delivery Contract Governance Update + Session 02 Integration (08 August 2026)
+
+The project owner established a permanent Git Delivery Contract: every completed executor implementation/remediation session must commit, push its branch, merge into `main`, push `main`, and verify `origin/main` before stopping, without asking each time. This is now documented as `AGENTS.md` §6A (authoritative), with concise references in `CLAUDE.md` §3B, `docs/IMPLEMENTATION_PLAN.md` (Definition of Done + Git Workflow section), and a `GIT DELIVERY:` reminder block appended to every executor prompt in `docs/SESSION_PROMPTS.md` (Sessions 02–20 and the Opus remediation handoff prompt). Session 01 and the Opus-only review gates (A, B, C, Final Release Review) were intentionally left unchanged — reviewer gates stay review-only unless a reviewer is explicitly asked to modify repository files.
+
+This section is updated in place as the Session 02 Git integration itself proceeds (branch → commit → push → merge → push `main` → verify `origin/main`); see the final state recorded below once complete.
+
+**Git integration progress:**
+
+| Step | Result |
+|---|---|
+| Branch | `feature/session-02-domain-application`, created from `main` (which was clean and up to date with `origin/main` at session start) |
+| Implementation commit | `b23c076ce8a79c4a63e5b4232382396ccabc26d2` — "feat: establish domain and application architecture" |
+| Governance commit | this commit — "docs: enforce automatic session git delivery" (includes this file) |
+| Push branch | pending |
+| Merge to `main` | pending |
+| Push `main` | pending |
+| Verify `origin/main` | pending |
+
+---
+
 ## 10. Latest Reviewer Verdict
 
 No review yet.
@@ -291,27 +358,43 @@ No review yet.
 
 Run:
 
-**Session 02 — Domain & Application Architecture**
+**Session 03 — SQL Server LocalDB Persistence**
 
-Use the exact Session 02 prompt in `docs/SESSION_PROMPTS.md`.
+Use the exact Session 03 prompt in `docs/SESSION_PROMPTS.md`.
 
 Executor:
 - Terra
 - Luna
 - or Sonnet
 
-Session 02 must:
-- implement provider-independent domain models (Provider, ProviderAccount, ProviderConnection, Subscription, QuotaDefinition, QuotaWindow, UsageSnapshot, AlertRule, AlertEvent, SyncEvent) in `AIUsageMonitor.Domain`
-- implement application-level contracts in `AIUsageMonitor.Application`
-- support arbitrary/dynamic quota windows — no fixed 5-hour/weekly columns
-- add targeted xUnit tests for domain invariants/normalization
-- build + run tests, review diff, update this file
+Session 03 must:
+- implement EF Core 10 + SQL Server LocalDB persistence for the Session 02 domain model (Providers, ProviderConnections, Subscriptions, QuotaDefinitions, UsageSnapshots, AlertRules, AlertEvents, SyncEvents, Settings)
+- create migrations and upgrade-safe initialization
+- implement `IUsageSnapshotRepository` (and other Session 02 persistence-facing contracts as appropriate) against LocalDB
+- prevent duplicate `UsageSnapshot` writes when values haven't materially changed
+- handle missing/unavailable LocalDB gracefully
+- store no secrets in the database
+- build + run targeted persistence tests, review diff, update this file
 
-Do not start provider coding or persistence (Sessions 03/04+).
+Do not start provider coding (Session 04+) or UI work (Session 05+).
 
 ---
 
 ## 12. Recent Handoff
+
+### 08 August 2026 — Session 02 complete
+
+Implemented the provider-independent domain model in `AIUsageMonitor.Domain` (Provider, ProviderAccount, ProviderConnection, Subscription, QuotaDefinition, QuotaWindow, UsageSnapshot, AlertRule, AlertEvent, SyncEvent, plus supporting enums) and the application-level contracts in `AIUsageMonitor.Application` (`IAiUsageProvider`, provider registry/discovery, refresh orchestration, `ProviderRefreshResult`, usage aggregation, subscription service, snapshot repository, settings, secure credential store, alert evaluator, clock). `QuotaWindow` supports a genuinely arbitrary, unbounded set of quota windows per provider with no fixed 5-hour/weekly schema, and normalizes used/remaining percentages exactly once with explicit invalid-state guards (see §4 and decision 18).
+
+Hit and fixed one real build break: the new `AIUsageMonitor.Application` namespace collided with `Microsoft.UI.Xaml.Application` in the Desktop project's `App.xaml.cs` (see decision 17) — fixed with a fully-qualified base type reference, no renaming.
+
+Per the Session 02 prompt's cross-Windows-compatibility addendum: built the full solution explicitly with `-p:Platform=x64` (success, see §9B) and updated `docs/BRD v1.0.md` §1A's "Known Tracked Item" wording to record that the ARM64 solution-configuration gap was resolved before Session 02 (it was fixed as part of the pre-Session-02 governance update, §9A) — an actual ARM64 build/launch pass is still outstanding for a later session.
+
+Added 17 new targeted xUnit tests to `AIUsageMonitor.Domain.Tests` (19/19 total pass) covering quota percentage normalization/validation, used/remaining consistency, arbitrary/mixed quota-type collections, `DateTimeOffset` offset preservation and start/reset ordering, and other important invalid-state guards. No persistence, provider parsing, or UI work was done — all deferred per scope.
+
+`git status` was clean at session start (`main`, up to date with `origin/main`). All Session 02 changes are currently uncommitted working-tree changes — additive new files under `src/AIUsageMonitor.Domain`, `src/AIUsageMonitor.Application`, and `tests/AIUsageMonitor.Domain.Tests`, plus the one-line `App.xaml.cs` fix — pending an explicit user decision on branching/commit (a `feature/session-02-domain-application` branch, per `docs/IMPLEMENTATION_PLAN.md` §9's suggested pattern, has not been created).
+
+Next action is Session 03 — SQL Server LocalDB Persistence.
 
 ### 08 August 2026 — Cross-Windows Compatibility governance update complete
 

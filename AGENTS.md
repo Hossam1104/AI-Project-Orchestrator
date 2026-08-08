@@ -161,8 +161,70 @@ At session end:
 3. review Git diff
 4. check for secrets
 5. update CURRENT_STATE
-6. report status
-7. stop
+6. commit, push, merge, and verify per the Git Delivery Contract (§6A)
+7. report status
+8. stop
+
+---
+
+# 6A. Git Delivery Contract
+
+This section is permanent and mandatory. **Every executor implementation/remediation session from Session 02 onward inherits it automatically**, even when the individual session prompt does not repeat it in full.
+
+Reviewer-only Opus gates are exempt unless a reviewer is explicitly instructed to modify repository files, in which case any resulting change follows this same contract.
+
+## Requirement
+
+> Every completed executor session must commit, push, merge into `main`, push `main`, verify `origin/main`, and leave the working tree clean before stopping.
+
+This applies to Sonnet, Luna, Terra, and any future executor model, for all implementation/remediation sessions.
+
+## Workflow
+
+```text
+main
+  ↓
+session feature/fix branch
+  ↓
+implement
+  ↓
+validate
+  ↓
+update .ai/CURRENT_STATE.md
+  ↓
+review diff
+  ↓
+commit
+  ↓
+push branch
+  ↓
+merge into main
+  ↓
+push main
+  ↓
+verify origin/main
+  ↓
+clean working tree
+  ↓
+stop
+```
+
+## Mandatory Rules
+
+1. Every executor session uses an appropriately named branch (`feature/session-XX-description` or `fix/...`) unless there is a documented technical reason not to.
+2. Every completed implementation session must be committed.
+3. Every session branch must be pushed.
+4. Every completed session must be integrated into `main`.
+5. `main` must be pushed to `origin`.
+6. `origin/main` must be verified after push (e.g. `git fetch origin` + compare `git log -1 origin/main` against the merge commit).
+7. The final working tree must be clean.
+8. Never leave completed, validated work only uncommitted, only on a local branch, or only on a pushed remote feature branch without integration into `main`.
+9. Never ask the project owner whether completed, validated session work should be committed or pushed. The answer is already permanently **yes**.
+10. Do not automatically proceed into the next implementation session after merging. Stop and report.
+11. Never use `git push --force`, `git reset --hard`, or `git clean -fd` unless explicitly instructed by the project owner for that specific action.
+12. Preserve unrelated user changes — never fold unrelated working-tree modifications into a session's commit.
+13. If branch protection prevents direct merging, use the repository-supported PR/merge workflow instead of bypassing protection, and document the restriction in `.ai/CURRENT_STATE.md`.
+14. A session cannot be marked `COMPLETE` until remote `main` contains the validated session work, unless a documented external GitHub restriction makes integration impossible — in which case record the exact blocker and mark the session `BLOCKED` or `PARTIAL` instead of `COMPLETE`.
 
 ---
 
