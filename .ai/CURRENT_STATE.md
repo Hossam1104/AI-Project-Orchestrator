@@ -6,8 +6,8 @@
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Current Phase:** Phase 0 — Foundation  
-**Last Completed Session:** Session 02 — Domain & Application Architecture (Session 02R remediation implementation/validation done; Git integration in progress — see §3, §9D)  
-**Next Session:** Session 03 — SQL Server LocalDB Persistence (after Session 02R Git integration completes)  
+**Last Completed Session:** Session 02R — Domain Integrity Remediation  
+**Next Session:** Session 03 — SQL Server LocalDB Persistence  
 **Release State:** NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -74,7 +74,7 @@ Providers:
 |---|---|---|---|
 | 01 | Repository & solution foundation | COMPLETE | restore/build/test/launch all verified |
 | 02 | Domain/application architecture | COMPLETE | build (default + explicit x64)/tests verified; merged to `main` and `origin/main` verified — see §9C |
-| 02R | Domain integrity remediation | IN PROGRESS | implementation/build (x64)/tests verified; Git integration in progress — see §9D |
+| 02R | Domain integrity remediation | COMPLETE | build (x64)/tests verified (28/28, 7/7); merged to `main` and `origin/main` verified — see §9D |
 | 03 | EF Core + LocalDB | NOT STARTED | — |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
@@ -393,16 +393,21 @@ Reviewed all Session 02/02R domain entities against what Session 03 will need to
 
 No EF Core code, migrations, or `Microsoft.EntityFrameworkCore.*` package references were added in this remediation.
 
-### Git integration progress
+### Git integration — COMPLETE
 
 | Step | Result |
 |---|---|
 | Branch | `fix/session-02-domain-integrity`, created from `main` (clean, up to date with `origin/main` at session start) |
 | Implementation commit | `2b70fc6465a85df09733d9a778e0c04529bd5a70` — "fix: strengthen domain integrity before persistence" |
-| Push branch | pending |
-| Merge to `main` | pending |
-| Push `main` | pending |
-| Verify `origin/main` | pending |
+| Governance/state commit | `e6c43e686d3e104faac4059a82c9c1af16e7b2e2` — "docs: record Session 02R findings and validation in CURRENT_STATE" |
+| Push branch | `fix/session-02-domain-integrity` pushed to `origin`, upstream tracking set |
+| Merge to `main` | `git merge --no-ff fix/session-02-domain-integrity` — merge commit `f2194f2447f3acc4b316ae553a272c45c2f53ef3`, no conflicts |
+| Post-merge build | `dotnet build AIUsageMonitor.sln -c Debug -p:Platform=x64` on `main` after merge — SUCCESS, 0 warnings/errors (merge was clean/fast, no manual conflict resolution) |
+| Push `main` | `git push origin main` — `44a38af..f2194f2 main -> main`, SUCCESS (transient network error on first attempt, succeeded on retry; no branch protection encountered) |
+| Verify `origin/main` | `git fetch origin` + `git log -1 origin/main` — `f2194f2447f3acc4b316ae553a272c45c2f53ef3`, matches local `main` exactly |
+| Working tree | clean (`git status` on `main` after push: "nothing to commit, working tree clean") |
+| Current branch | `main` |
+| Finalization commit | this commit, applying `AGENTS.md` §6A rule 15 (metadata-only, `.ai/CURRENT_STATE.md` only, no source changes) |
 
 ---
 
@@ -441,9 +446,11 @@ Do not start provider coding (Session 04+) or UI work (Session 05+).
 
 ## 12. Recent Handoff
 
-### 08 August 2026 — Session 02R (Domain Integrity Remediation) implementation complete, Git integration in progress
+### 08 August 2026 — Session 02R (Domain Integrity Remediation) complete, merged to main
 
-Corrected 5 planner-identified findings in the Session 02 domain/application layer before EF Core (Session 03) turns it into a persistent contract: `ProviderRefreshResult.Failed(...)` now retains last-known data on failure instead of discarding it (decision 20); `QuotaWindow.Create(...)` now rejects internally contradictory absolute values instead of silently clamping them (decision 21); `Subscription` gained `ConfidenceLevel Confidence` (decision 22); `ProviderConnection` gained an optional opaque `CredentialReference` (decision 23); and the Git Delivery Contract gained a narrow metadata-only finalization-commit exception (`AGENTS.md` §6A rule 15, decision 24) to resolve the recursive-merge problem Session 02 worked around ad hoc. Added 15 new targeted tests (9 Domain, 6 Provider/Application) — 28/28 and 7/7 respectively pass. Performed the requested EF Core readiness review (§9D) without implementing any EF Core code. `git status` was clean at session start (`main`, up to date with `origin/main`).
+Corrected 5 planner-identified findings in the Session 02 domain/application layer before EF Core (Session 03) turns it into a persistent contract: `ProviderRefreshResult.Failed(...)` now retains last-known data on failure instead of discarding it (decision 20); `QuotaWindow.Create(...)` now rejects internally contradictory absolute values instead of silently clamping them (decision 21); `Subscription` gained `ConfidenceLevel Confidence` (decision 22); `ProviderConnection` gained an optional opaque `CredentialReference` (decision 23); and the Git Delivery Contract gained a narrow metadata-only finalization-commit exception (`AGENTS.md` §6A rule 15, decision 24) to resolve the recursive-merge problem Session 02 worked around ad hoc — this very handoff entry is the first real use of that exception. Added 15 new targeted tests (9 Domain, 6 Provider/Application) — 28/28 and 7/7 respectively pass. Performed the requested EF Core readiness review (§9D) without implementing any EF Core code. `git status` was clean at session start (`main`, up to date with `origin/main`).
+
+Branch `fix/session-02-domain-integrity` created from `main`, two commits, pushed, merged to `main` (`f2194f2`, no conflicts), pushed, and `origin/main` verified to match exactly. Working tree clean on `main`. Full detail in §9D.
 
 ### 08 August 2026 — Session 02 complete
 
