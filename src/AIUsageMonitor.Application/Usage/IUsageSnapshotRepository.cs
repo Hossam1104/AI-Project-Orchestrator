@@ -3,8 +3,8 @@ using AIUsageMonitor.Domain.Usage;
 namespace AIUsageMonitor.Application.Usage;
 
 /// <summary>
-/// Persistence abstraction for usage history. Implemented against EF Core/LocalDB in Session 03;
-/// the Application layer must not know that.
+/// Persistence abstraction for usage history. The Application layer does not know whether the
+/// Infrastructure implementation uses JSONL or another approved local store.
 /// </summary>
 public interface IUsageSnapshotRepository
 {

@@ -3,8 +3,8 @@ using AIUsageMonitor.Domain.Providers;
 namespace AIUsageMonitor.Application.Providers;
 
 /// <summary>
-/// Persistence for the fixed V1 <see cref="Provider"/> catalog (BRD §30). Implemented against
-/// EF Core/LocalDB in Session 03; the Application layer must not know that.
+/// Persistence for the fixed V1 <see cref="Provider"/> catalog (BRD §30).
+/// Storage details remain in Infrastructure.
 /// </summary>
 public interface IProviderRepository
 {

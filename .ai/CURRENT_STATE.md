@@ -5,15 +5,82 @@
 **Local Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`  
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
-**Current Phase:** Portable Consumer Architecture Rebaseline / Phase 0
-**Last Completed Session:** Session 03 — EF Core 10 + SQL Server LocalDB Persistence (historical, superseded)
-**Next Session:** Session 03R — Portable Consumer Desktop Architecture Migration
-**Release State:** NOT STARTED
+**Current Phase:** Portable Consumer Architecture / Phase 0
+**Last Completed Session:** Session 03R — Portable Consumer Desktop Architecture Migration
+**Next Session:** Session 04 — Provider Feasibility Investigation (after planner checkpoint)
+**Release State:** FOUNDATION VALIDATED; consumer release NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
 > Every executor/reviewer must read this file.
 > Every implementation session must update it before stopping.
 > Keep it concise and factual.
+
+---
+
+## Current Handoff — Session 03R (08 August 2026)
+
+**Status:** COMPLETE — `AWAITING PLANNER REVIEW`
+**Root assignment:** `TASK.md` (converted to the completion handoff after delivery)
+**Scope:** WPF shell and local JSON/JSONL persistence migration only. No provider, dashboard,
+Session 04, or later-session work was executed.
+
+### Current source
+
+- `AIUsageMonitor.Desktop` is an unpackaged WPF .NET 10 application targeting the build-17763
+  Windows baseline, with DI/hosting at the composition root.
+- `Infrastructure` uses versioned `System.Text.Json` documents and monthly JSONL partitions under
+  `%LOCALAPPDATA%\AIUsageMonitor\`; critical JSON writes are temporary-file + flush + replace,
+  and in-process per-path synchronization is used.
+- Active EF Core, SQL Server, LocalDB, WinUI, and Windows App SDK runtime files/packages were
+  removed. Historical commits and the Session 03 record below remain intact.
+- Domain/Application contracts remain provider-independent. The obsolete EF-only
+  `UsageSnapshot` materialization constructor/setters were removed; the public validating model
+  and `UsageSnapshotChangeDetector` remain.
+- The shell opens an empty state with no connected providers. Actual credentials remain outside
+  JSON/JSONL behind the secure credential abstraction; no provider connection flow was added.
+
+### Official .NET 10 Windows compatibility check
+
+Microsoft's official [.NET on Windows support matrix](https://learn.microsoft.com/en-us/dotnet/core/install/windows)
+was checked on 08 August 2026. It lists .NET 10 support entries for Windows 10 21H2, 1809, and
+1607 LTSC/Enterprise editions, and Windows 11 entries, across x86, x64, and Arm64. The same page
+states that Windows 10 support is limited to LTSC and Enterprise editions. The repository keeps
+the approved build-17763/x86/x64/ARM64 engineering target, but broad Windows 10 1809+ claims
+beyond that official matrix are technical-compatibility/best-effort claims pending planner/release
+validation; no runtime target was silently changed.
+
+### Session 03R validation
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| Debug x64 solution build | SUCCESS, 0 warnings/errors |
+| Full tests | SUCCESS, 45/45 (`28` Domain, `7` Provider, `10` Infrastructure) |
+| Release x86 solution build | SUCCESS, 0 warnings/errors |
+| Release ARM64 solution build | SUCCESS, 0 warnings/errors |
+| Self-contained single-file publish | SUCCESS for `win-x64`, `win-x86`, `win-arm64`; trimming disabled; each output contains the single application executable and no runtimeconfig/deps file |
+| WPF shell launch | SUCCESS for the x64 published shell with a visible `AI Usage Monitor` window. The agent host lacked the normal lowercase `windir` environment variable; the launch harness restored it from `SystemRoot` because WPF's font cache reads that standard Windows variable. This is not a clean-machine or ARM64 launch claim. |
+| Source-scope and secret review | No active provider/dashboard/Session 04 implementation; no active EF/SQL/LocalDB/WinUI runtime references; no secrets or generated publish artifacts are tracked |
+
+### Known limitations
+
+- Provider feasibility and provider adapters remain unimplemented by design; Session 04 is still
+  `NOT STARTED`.
+- The current shell is a migration smoke shell, not the final dashboard/design system.
+- x86 and ARM64 builds/publishes were validated, but no x86/ARM64 live launch was performed.
+- No clean-machine installation test, all-Windows-edition matrix, or hardware/emulator ARM64 run
+  was performed. The .NET official support distinction above must be retained in release claims.
+- The secure credential adapter and provider connection UX remain later-session work.
+
+### Next execution and gate sequencing
+
+Session 04 is `NOT STARTED`. It may begin only after this Session 03R delivery is merged to
+`main`, `origin/main` is verified, and the planner checkpoint finds no unresolved blocker. Gate A
+is `NOT STARTED` and runs after Session 04; it is not a prerequisite for Session 04. No Session 04
+work was executed in this session.
+
+Git delivery hashes and the final clean-tree verification are recorded in the final metadata
+update to this section after merge/push.
 
 ---
 
@@ -43,12 +110,13 @@ Approved active V1 target:
 - no Electron/Node/npm in V1
 - no cloud backend in V1
 
-Historical source state until Session 03R executes:
+Historical source state before Session 03R:
 
 - WinUI 3 / Windows App SDK desktop shell
 - EF Core 10 / SQL Server LocalDB persistence
 
-The approved target architecture is not the same as the currently implemented source architecture.
+The approved target architecture is now the active source architecture; historical Session 03
+source details are retained below for auditability.
 
 Providers:
 
@@ -68,17 +136,17 @@ Providers:
 **Repository verified:** Yes  
 **Local Git initialized:** Yes (pre-existing)  
 **Origin configured:** Yes — matched required remote, unchanged  
-**Session branch used:** `feature/session-01-repository-foundation`  
+**Session branch used:** `refactor/session-03r-portable-consumer-architecture`
 **Merged to main:** Yes  
 **origin/main updated:** Yes  
 
 **Pre-existing state found at session start:** The working tree already contained an uncommitted governance-file reorganization (root `BRD v1.0.md` deleted, `docs/BRD v1.0.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/SESSION_PROMPTS.md`, `AGENTS.md`, `CLAUDE.md`, `README.md` (empty), `.ai/CURRENT_STATE.md` untracked/modified) on top of one prior commit on `main` ("Implement feature X to enhance user experience and optimize performance"). This session committed that reorganization together with the Session 01 foundation as one coherent scope; nothing was discarded.
 
 **Solution created:** Yes — `AIUsageMonitor.sln` (classic `.sln` format; `dotnet new sln` in this SDK defaults to `.slnx`, explicitly overridden with `--format sln` to match the BRD-specified filename)  
-**Build status:** SUCCESS — 0 warnings, 0 errors, all 7 projects  
-**Test status:** SUCCESS — 2/2 tests passed (1 per test project, smoke tests)  
-**WinUI launch status:** SUCCESS — verified live (see §9)  
-**Packaged release:** No (not in scope)  
+**Build status:** SUCCESS — current Debug x64 build 0 warnings/errors; Release x86/ARM64 builds also verified
+**Test status:** SUCCESS — 45/45 focused/full tests passed
+**WPF launch status:** SUCCESS — x64 published shell launched with visible window; see Current Handoff
+**Packaged release:** Self-contained single-file foundation validated for win-x64/win-x86/win-arm64; final release not started
 **Historical LocalDB database:** Created and migrated during Session 03 — `(localdb)\MSSQLLocalDB`, database `AIUsageMonitor`, no username/password (trusted connection); see §9E. This is superseded and is not the active V1 persistence architecture.
 
 ---
@@ -92,7 +160,7 @@ Providers:
 | 02R | Domain integrity remediation | COMPLETE | build (x64)/tests verified (28/28, 7/7); merged to `main` and `origin/main` verified — see §9D |
 | 03 | EF Core + LocalDB | COMPLETE - HISTORICAL / SUPERSEDED | build/migration/round-trip/duplicate-prevention/full solution tests verified; merged to `main` and `origin/main` verified — see §9E |
 | Rebaseline | Portable Consumer Architecture | COMPLETE | documentation/governance only; no source code changed |
-| 03R | Portable Consumer Desktop Architecture Migration | NOT STARTED / NEXT | — |
+| 03R | Portable Consumer Desktop Architecture Migration | COMPLETE - AWAITING PLANNER REVIEW | restore/build/test/publish/launch; see Current Handoff |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
 | 05 | WPF modern design system | NOT STARTED | — |
@@ -130,11 +198,11 @@ Allowed status:
 ### Target vs current source
 
 Approved target: WPF + .NET 10 self-contained release + JSON/JSONL + no database/ORM.
-Current source before Session 03R: WinUI 3/Windows App SDK desktop + EF Core 10/SQL Server LocalDB Infrastructure.
+Current source after Session 03R: WPF desktop shell + JSON/JSONL Infrastructure; no active database
+engine/ORM or WinUI runtime dependency. The migration is validated as a foundation, not as a
+complete provider-enabled consumer release.
 
-This file must not report the target as implemented until Session 03R actually performs and validates the migration.
-
-### Toolchain (verified this session)
+### Historical toolchain record (Session 01; retained for audit)
 
 - Git: 2.55.0.windows.3
 - .NET SDKs installed: 7.0.410, 8.0.423, 9.0.316, 10.0.110, **10.0.302 (active)**
@@ -142,7 +210,7 @@ This file must not report the target as implemented until Session 03R actually p
 - No official `dotnet new` WinUI 3 templates available (`Microsoft.WindowsAppSDK.ProjectTemplates` does not exist as an installable `dotnet new` package) — the Desktop project was hand-authored as an **unpackaged** WinUI 3 app (`WindowsPackageType=None`, `UseWinUI=true`, `net10.0-windows10.0.19041.0`)
 - Despite no local Windows SDK install, `dotnet restore`/`build` succeeded: `Microsoft.WindowsAppSDK` 2.3.1 and `Microsoft.Windows.SDK.BuildTools` 10.0.26100.6901 (restored from nuget.org, confirmed reachable) bundle the XAML compiler/rc.exe/makepri.exe needed to build WinUI without a system-wide Windows SDK
 
-### Files/areas created
+### Historical files/areas created (Session 01)
 
 Governance path corrections (see §6) plus:
 
@@ -161,7 +229,7 @@ Governance path corrections (see §6) plus:
 
 No business/domain/provider logic was implemented, per Session 01 scope.
 
-### Session 02 additions (08 August 2026)
+### Historical Session 02 additions (08 August 2026)
 
 **`AIUsageMonitor.Domain`** — provider-independent domain models, no dependency on WinUI/EF Core/SQL Server/HTTP:
 
@@ -189,7 +257,7 @@ No provider-specific parsing, no EF Core/persistence implementation, no UI work 
 
 `tests/AIUsageMonitor.Domain.Tests/` gained 5 files (`QuotaWindowTests`, `DynamicQuotaCollectionTests`, `AlertRuleTests`, `SubscriptionTests`, `ProviderConnectionTests`) covering percentage normalization/validation, used/remaining consistency (including the "never treat used% as remaining%" invariant from AGENTS.md §8), arbitrary/mixed quota-type collections, `DateTimeOffset` offset preservation and start/reset ordering, and a few other important invalid-state guards (threshold ordering, billing-period ordering, price/currency pairing, sync-time ordering). 19/19 pass.
 
-### Session 03 additions (08 August 2026)
+### Historical Session 03 additions (08 August 2026)
 
 **`AIUsageMonitor.Domain`** — one materialization-only change (see decision 25): `UsageSnapshot`'s four properties became `{ get; private set; }` and a `private UsageSnapshot(Guid id, Guid providerId, Guid quotaDefinitionId)` constructor was added for EF Core to bind. The public validating constructor is unchanged; no public setters were added; no EF Core package reference was added to Domain.
 
@@ -357,12 +425,15 @@ Target audience: general individual AI users, not developer-only
 
 End-user .NET installation: Not required.
 End-user SDK: Not required.
-SQL/LocalDB: Superseded and scheduled for removal in Session 03R.
+SQL/LocalDB: Superseded and removed from the active runtime by Session 03R; historical commits remain.
 SQLite: Not approved for V1.
 
 The released application must require no separately installed .NET runtime, SDK, database engine, Node.js runtime, or developer tooling. It must open without connected providers, with empty history, and with missing/corrupt optional local data where safe recovery is possible. Mutable data belongs under per-user LocalAppData. Actual credentials remain outside JSON/JSONL behind `ISecureCredentialStore`.
 
-The approved target is intentionally distinct from the currently implemented source. Until Session 03R executes, the source still contains WinUI/Windows App SDK and EF Core/SQL Server LocalDB from historical Session 03. This documentation update did not implement WPF or JSON persistence and did not delete the historical migrations.
+The approved target is now the active source after Session 03R: WPF/JSON/JSONL is implemented and
+validated as the foundation. The historical WinUI/Windows App SDK and EF Core/SQL Server LocalDB
+implementation remains in Git history and in the historical Session 03 record; it is not active
+runtime code.
 
 Session 03 history remains factual: the EF Core + LocalDB implementation was completed, validated, committed, pushed, and merged under the earlier approved architecture. It is superseded because the product requirement changed to zero-prerequisite consumer deployment, not because the historical implementation failed its original scope.
 
@@ -370,21 +441,26 @@ Markdown stale-reference audit: remaining WinUI, Windows App SDK, EF Core, SQL S
 
 ## 7. Open Blockers
 
-No external blocker is recorded for the documentation rebaseline. Session 03R is required before provider feasibility because the current source still contains the superseded WinUI/EF/LocalDB architecture.
+No unresolved technical blocker is recorded for Session 03R. Provider feasibility remains the next
+planner-gated session because Session 03R intentionally did not investigate providers.
 
 ---
 
 ## 8. Known Limitations
 
-- No local Windows SDK / WindowsAppSDK Visual Studio workload is installed on this machine; the Desktop project builds and runs entirely off NuGet-restored build tools (`Microsoft.Windows.SDK.BuildTools`). This is sufficient for CLI build/test/launch but should be re-verified if Visual Studio F5 debugging or MSIX packaging is attempted in a later session.
-- `AIUsageMonitor.Desktop` builds for `x86` via plain `dotnet build` (MSBuild's default pick for this multi-platform WinUI project) and, as of Session 02, was also explicitly build-verified for `x64` via `dotnet build AIUsageMonitor.sln -c Debug -p:Platform=x64` (0 warnings/errors, all 7 projects — see §9B). `ARM64` was not built/launched this session (solution-configuration support exists per decision 16/19, but no actual ARM64 build/launch pass, hardware or emulated, has been performed yet); that remains outstanding and is expected no later than Session 18/19 per the Cross-Windows Compatibility Baseline. No platform was launched (only built) this session — Session 01's x86 launch verification is the most recent live-launch evidence.
+- The current WPF shell does not require the Windows App SDK or a Visual Studio workload. MSIX packaging,
+  clean-machine installation, and final release signing remain out of scope.
+- `AIUsageMonitor.Desktop` built successfully for x86, x64, and ARM64 and published self-contained
+  single-file artifacts for all three RIDs. Only the x64 published shell was live-launched; no
+  x86/ARM64 live launch or ARM64 hardware/emulator pass was performed.
 - Actual provider collection methods have not yet been verified against the user's installed/authenticated environment — expected to be resolved/classified during Session 04 (unchanged from planning handoff).
 - `.github/workflows/` was not created this session (no CI pipeline exists yet); deferred to Session 19 per the BRD.
-- **Resolved this update:** `AIUsageMonitor.sln`'s `SolutionConfigurationPlatforms`/`ProjectConfigurationPlatforms` previously exposed only `x64`/`x86` even though the Desktop project already declared `Platforms=x86;x64;ARM64` and `TargetPlatformMinVersion=10.0.17763.0`. Added `Debug|ARM64`/`Release|ARM64` solution configurations, mapped to native `ARM64` for the Desktop project and to `Any CPU` for the six library/test projects (mirroring the existing `x64` mapping). Rebuilt (0 warnings/errors) and re-ran both test projects (2/2 passed) to confirm the change is safe. An actual ARM64 hardware/emulator build+launch pass is still outstanding (see the `x64`/`ARM64` validation item above).
+- **Resolved in earlier governance:** the solution exposes explicit x86/x64/ARM64 configurations. Session 03R
+  build/publish validation covers all three RIDs; live launch remains x64-only as recorded above.
 
 ---
 
-## 9. Last Validation
+## 9. Historical Last Validation (before Session 03R)
 
 Performed 08 August 2026, all commands actually executed (not assumed):
 
@@ -564,27 +640,13 @@ No review yet.
 
 ## 11. Next Execution
 
-Run:
+Session 03R is complete and awaits planner review. The next executable session is **Session 04 —
+Provider Feasibility Investigation**, but it must not start until the Session 03R branch has been
+merged into `main`, `origin/main` has been verified, and the planner checkpoint finds no unresolved
+blocker. Use the exact Session 04 prompt in `docs/SESSION_PROMPTS.md`.
 
-**Session 03R — Portable Consumer Desktop Architecture Migration**
-
-Use the exact Session 03R prompt in `docs/SESSION_PROMPTS.md`.
-
-Default executor: Luna Max.
-Branch: `refactor/session-03r-portable-consumer-architecture`.
-
-Session 03R must:
-
-- convert the desktop project to WPF and remove active WinUI/Windows App SDK configuration
-- remove EF Core/SQL Server/LocalDB runtime persistence and migrations
-- implement JSON/JSONL Infrastructure stores under LocalAppData
-- preserve Domain/Application contracts, dynamic quota behavior, DateTimeOffset semantics, and duplicate suppression
-- implement schema versioning, safe writes, synchronization, corruption handling, and streaming history
-- migrate infrastructure tests from database tests to focused file tests
-- establish self-contained publish validation for win-x64/win-x86/win-arm64 where feasible
-- update this file truthfully and stop before Session 04
-
-Session 04 remains NOT STARTED and must not begin during this rebaseline.
+Gate A remains `NOT STARTED` and follows Session 04; it is not a prerequisite for Session 04.
+Session 04 was not executed during Session 03R.
 
 ---
 
@@ -592,9 +654,10 @@ Session 04 remains NOT STARTED and must not begin during this rebaseline.
 
 ### 08 August 2026 - Portable Consumer Architecture Governance Rebaseline
 
-Approved planner decision: V1 is a general-consumer, local-first Windows desktop application targeting WPF + .NET 10, JSON/JSONL persistence, secure external credential storage, and self-contained release artifacts. The documentation update preserves Session 03 as a completed historical EF Core + SQL Server LocalDB implementation while marking it architecturally superseded. Current source still contains the historical WinUI/EF/LocalDB stack until Session 03R executes.
+Approved planner decision: V1 is a general-consumer, local-first Windows desktop application targeting WPF + .NET 10, JSON/JSONL persistence, secure external credential storage, and self-contained release artifacts. The documentation update preserved Session 03 as a completed historical EF Core + SQL Server LocalDB implementation while marking it architecturally superseded. Session 03R has now removed that active runtime architecture and validated the WPF/file-backed foundation.
 
-Updated governance, BRD, implementation plan, session prompts, Claude adapter instructions, README, and this handoff. Created the detailed Session 03R prompt as the next implementation session. No application source/configuration was changed. Sessions 03R and 04 were not executed.
+Updated governance, source, tests, README, implementation plan, session prompts, Claude adapter
+instructions, and this handoff. Session 04 and Gate A were not executed.
 
 Git delivery for this rebaseline: branch `docs/portable-consumer-architecture-rebaseline` was committed as `7f552860c0d5457ce7adeae7599181083a693452`, pushed, merged into `main` as `47b8e3598f2c3eb5012a0f49c300ac622de7c3bd`, and pushed. `origin/main` matched the merge commit after verification. The final handoff metadata synchronization is documentation-only and follows AGENTS.md section 6A.15.
 

@@ -35,6 +35,10 @@ Every active prompt below inherits these rules from `AGENTS.md`:
 
 Completed implementation sessions must also follow the Git Delivery Contract: commit, push the session branch, merge into `main`, push `main`, fetch/verify `origin/main`, and leave the tree clean. Reviewer-only gates do not modify or deliver code unless explicitly instructed.
 
+The active root `TASK.md` is the current session assignment and completion handoff. Read it before
+acting, execute only its named session, update it when the session is delivered, and stop before
+the next session.
+
 ---
 
 # HISTORICAL PROMPTS - COMPLETED AND NOT THE NEXT EXECUTION
@@ -68,7 +72,7 @@ DO NOT EXECUTE AGAIN
 
 Session 03 successfully implemented the originally approved EF Core 10 + SQL Server LocalDB persistence design, including `DbContext`, explicit entity configuration, migrations, SQL repositories, LocalDB initialization, material-change duplicate suppression, and real LocalDB round-trip/integration tests. It was built, tested, committed, pushed, merged, and recorded in `CURRENT_STATE`.
 
-The implementation was valid for the earlier architecture. A later product clarification changed V1 to a zero-prerequisite consumer application usable by general AI subscribers. The LocalDB/EF implementation is therefore superseded and will be removed/replaced by Session 03R. Do not rewrite this history as a failure and do not use the old prompt to execute Session 03 again.
+The implementation was valid for the earlier architecture. A later product clarification changed V1 to a zero-prerequisite consumer application usable by general AI subscribers. The LocalDB/EF implementation is therefore superseded and was removed/replaced by the completed Session 03R migration. Do not rewrite this history as a failure and do not use the old prompt to execute Session 03 again.
 
 ---
 
@@ -80,11 +84,12 @@ DEFAULT EXECUTOR: Luna Max.
 BRANCH: refactor/session-03r-portable-consumer-architecture
 SUGGESTED COMMIT: refactor: migrate to portable WPF and file persistence
 STOP BEFORE SESSION 04.
+STATUS: COMPLETE - AWAITING PLANNER REVIEW.
 ```
 
 ## Why this session exists
 
-The current source still contains the historical WinUI 3 / Windows App SDK / EF Core / SQL Server LocalDB implementation from Session 03. The approved V1 product is now a simple local-first consumer desktop application usable by developers and non-developers without Visual Studio, a .NET runtime installer, SQL Server, LocalDB, SQLite installation, Node/npm, Angular, migrations, environment setup, or developer command-line tools.
+Before Session 03R, the source contained the historical WinUI 3 / Windows App SDK / EF Core / SQL Server LocalDB implementation from Session 03. The approved V1 product is now a simple local-first consumer desktop application usable by developers and non-developers without Visual Studio, a .NET runtime installer, SQL Server, LocalDB, SQLite installation, Node/npm, Angular, migrations, environment setup, or developer command-line tools.
 
 The approved target is WPF + .NET 10 + MVVM, JSON/JSONL local persistence, secure Windows credential storage, and self-contained Windows release artifacts. This is an implementation migration, not a history rewrite. Preserve the completed Domain/Application work and retain the historical Session 03 evidence in `CURRENT_STATE`.
 
@@ -338,7 +343,10 @@ EXECUTE SESSION 04 ONLY.
 EVIDENCE/FEASIBILITY SESSION - DO NOT IMPLEMENT PROVIDER ADAPTERS.
 ```
 
-Inherit the active WPF/JSONL/zero-prerequisite/Cross-Windows/Git rules above. Confirm Session 03R and Gate A are complete before starting.
+Inherit the active WPF/JSONL/zero-prerequisite/Cross-Windows/Git rules above. Confirm Session
+03R is complete and merged into `main`, `origin/main` is verified, and no unresolved planner
+blocker prevents feasibility work. Gate A follows Session 04 and is not a prerequisite. Stop
+before Gate A.
 
 Investigate Codex, Claude, Kimi, GitHub Copilot, and Google Antigravity using official documentation, safe local inspection, and approved account workflows. For each provider determine:
 

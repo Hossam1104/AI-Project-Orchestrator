@@ -4,6 +4,7 @@
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+artifacts/
 
 # Visual Studio
 .vs/
@@ -26,7 +27,7 @@ TestResults/
 .vscode/*
 !.vscode/extensions.json
 
-# WinUI / MSIX packaging output
+# Packaging output
 AppPackages/
 BundleArtifacts/
 Package.StoreAssociation.xml
@@ -39,7 +40,7 @@ Package.StoreAssociation.xml
 !**/[Pp]ackages/build/
 .nuget/
 
-# EF Core local database files
+# Historical/local database files
 *.mdf
 *.ldf
 *.ndf

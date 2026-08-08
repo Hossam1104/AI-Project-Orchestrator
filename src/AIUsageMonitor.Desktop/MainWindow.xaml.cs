@@ -1,12 +1,11 @@
-using Microsoft.UI.Xaml;
+using System.Windows;
 
 namespace AIUsageMonitor.Desktop;
 
-public sealed partial class MainWindow : Window
+public partial class MainWindow : Window
 {
     public MainWindow()
     {
         InitializeComponent();
-        Title = "AI Usage Monitor";
     }
 }
