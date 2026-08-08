@@ -292,21 +292,65 @@ LOCALDB MISSING:
 Return a user-readable prerequisite/error result.
 Do not crash the app.
 
+MANDATORY EF MATERIALIZATION & PERSISTENCE SAFETY ADDENDUM:
+
+Before creating the initial migration, validate that the current domain model can
+actually be materialized by EF Core.
+
+UsageSnapshot -> QuotaWindow:
+- QuotaWindow remains an owned/value-like component of UsageSnapshot.
+- Use explicit mapping equivalent to UsageSnapshot -> OwnsOne(snapshot => snapshot.Quota),
+  mapping the quota fields into the UsageSnapshots table.
+- Do NOT create a separate QuotaWindows table unless there is a proven technical reason
+  requiring planner review.
+- EF Core cannot constructor-bind an owned navigation property, so UsageSnapshot's
+  existing public validating constructor (which takes QuotaWindow as a parameter) is not
+  directly usable by EF for materialization. Implement the smallest encapsulation-safe
+  fix: preserve the public validating constructor for application/domain code; add an
+  EF-compatible materialization path (e.g. a private constructor over scalar mapped
+  properties plus a private setter or backing field for the Quota navigation, assigned by
+  EF after owner construction). Do not add public setters merely for EF. Do not remove
+  domain validation from the normal public construction path. Do not add EF Core
+  attributes/dependencies to AIUsageMonitor.Domain unless absolutely necessary.
+
+MANDATORY ROUND-TRIP TEST:
+Do not consider the mapping successful merely because the migration builds. Add a real
+persistence integration test that creates a valid QuotaWindow, creates a UsageSnapshot,
+saves it through EF Core, disposes/clears the first DbContext, loads the snapshot again
+from the database, and verifies the owned QuotaWindow was materialized correctly
+(Id, ProviderId, QuotaDefinitionId, ExternalKey, QuotaType, QuotaUnit, UsedValue,
+RemainingValue, LimitValue, UsedPercentage, RemainingPercentage, WindowStart, ResetAt,
+Source, Confidence, CapturedAt). This must be a true round trip through a fresh DbContext,
+not a change-tracker assertion against the same in-memory instance.
+
+INITIAL MIGRATION GATE:
+Do not create/finalize the initial migration until: all entity mappings are explicitly
+reviewed; UsageSnapshot materialization works; the QuotaWindow owned mapping works;
+Subscription.Price precision is explicitly configured; no secret field exists in the SQL
+model; and ProviderConnection.CredentialReference is confirmed to be only an opaque
+lookup identifier. After creating the migration, inspect the generated schema manually.
+The migration must not contain AccessToken, RefreshToken, Password, Cookie, Secret, or
+CredentialValue. CredentialReference is permitted.
+
+Record the final materialization strategy and round-trip result in .ai/CURRENT_STATE.md.
+
 VALIDATE:
 - migration generated
 - clean DB creation
 - migration apply
 - write/read
+- UsageSnapshot/QuotaWindow owned-type round-trip test (see addendum above)
 - duplicate prevention
 - build
 - tests
-- migration review
+- migration review (manually inspect generated schema for secret fields)
 - git diff
 - secret check
 
 Do not implement providers/dashboard.
 
-Update CURRENT_STATE with migration/database/build status and next Session 04.
+Update CURRENT_STATE with migration/database/build status, the UsageSnapshot/QuotaWindow
+materialization strategy and round-trip result, and next Session 04.
 
 GIT DELIVERY:
 The Git Delivery Contract in AGENTS.md is mandatory.
