@@ -6,8 +6,8 @@
 **GitHub:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Current Phase:** Phase 0 — Foundation  
-**Last Completed Session:** Session 02R — Domain Integrity Remediation  
-**Next Session:** Session 03 — SQL Server LocalDB Persistence  
+**Last Completed Session:** Session 03 — EF Core 10 + SQL Server LocalDB Persistence  
+**Next Session:** Session 04 — Provider Feasibility  
 **Release State:** NOT STARTED
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -64,7 +64,7 @@ Providers:
 **Test status:** SUCCESS — 2/2 tests passed (1 per test project, smoke tests)  
 **WinUI launch status:** SUCCESS — verified live (see §9)  
 **Packaged release:** No (not in scope)  
-**LocalDB database:** Not created (not in scope)  
+**LocalDB database:** Created and migrated this session — `(localdb)\MSSQLLocalDB`, database `AIUsageMonitor`, no username/password (trusted connection); see §9E  
 
 ---
 
@@ -75,7 +75,7 @@ Providers:
 | 01 | Repository & solution foundation | COMPLETE | restore/build/test/launch all verified |
 | 02 | Domain/application architecture | COMPLETE | build (default + explicit x64)/tests verified; merged to `main` and `origin/main` verified — see §9C |
 | 02R | Domain integrity remediation | COMPLETE | build (x64)/tests verified (28/28, 7/7); merged to `main` and `origin/main` verified — see §9D |
-| 03 | EF Core + LocalDB | NOT STARTED | — |
+| 03 | EF Core + LocalDB | COMPLETE | build/migration/round-trip/duplicate-prevention/full solution tests verified; merged to `main` and `origin/main` verified — see §9E |
 | 04 | Provider feasibility | NOT STARTED | — |
 | Gate A | Opus architecture review | NOT STARTED | — |
 | 05 | WinUI design system | NOT STARTED | — |
@@ -164,6 +164,35 @@ No business/domain/provider logic was implemented, per Session 01 scope.
 No provider-specific parsing, no EF Core/persistence implementation, no UI work — all deferred to later sessions per scope.
 
 `tests/AIUsageMonitor.Domain.Tests/` gained 5 files (`QuotaWindowTests`, `DynamicQuotaCollectionTests`, `AlertRuleTests`, `SubscriptionTests`, `ProviderConnectionTests`) covering percentage normalization/validation, used/remaining consistency (including the "never treat used% as remaining%" invariant from AGENTS.md §8), arbitrary/mixed quota-type collections, `DateTimeOffset` offset preservation and start/reset ordering, and a few other important invalid-state guards (threshold ordering, billing-period ordering, price/currency pairing, sync-time ordering). 19/19 pass.
+
+### Session 03 additions (08 August 2026)
+
+**`AIUsageMonitor.Domain`** — one materialization-only change (see decision 25): `UsageSnapshot`'s four properties became `{ get; private set; }` and a `private UsageSnapshot(Guid id, Guid providerId, Guid quotaDefinitionId)` constructor was added for EF Core to bind. The public validating constructor is unchanged; no public setters were added; no EF Core package reference was added to Domain.
+
+**`AIUsageMonitor.Application`** — new persistence-facing contracts and one pure application-logic class:
+
+- `Providers/IProviderRepository.cs`, `Providers/IProviderConnectionRepository.cs`
+- `Quotas/IQuotaDefinitionRepository.cs`
+- `Alerts/IAlertRuleRepository.cs`, `Alerts/IAlertEventRepository.cs`
+- `Sync/ISyncEventRepository.cs`
+- `Usage/UsageSnapshotChangeDetector.cs` — pure/deterministic BRD §16 duplicate-snapshot rule (see §9E "Material-change rule")
+
+**`AIUsageMonitor.Infrastructure`** — EF Core 10 + SQL Server LocalDB persistence layer, first real content in this project:
+
+- `AIUsageMonitor.Infrastructure.csproj` — `Microsoft.EntityFrameworkCore`/`.SqlServer`/`.Design` 10.0.0, `Microsoft.Extensions.DependencyInjection.Abstractions`/`Logging.Abstractions` 10.0.0, plus an explicit direct pin of `System.Security.Cryptography.Xml` 10.0.10 to override a vulnerable (NU1903) transitive resolution pulled in by `Microsoft.Data.SqlClient` 6.1.1
+- `Persistence/AIUsageMonitorDbContext.cs` — `DbSet<T>` for all 9 persisted entities; configurations applied from assembly
+- `Persistence/PersistenceOptions.cs` — `DatabaseName = "AIUsageMonitor"`, default LocalDB connection string (`(localdb)\MSSQLLocalDB`, `Trusted_Connection=True`, no username/password)
+- `Persistence/AIUsageMonitorDbContextFactory.cs` — `IDesignTimeDbContextFactory<T>` for `dotnet ef` CLI tooling only, not used at runtime
+- `Persistence/SettingsEntry.cs` — the Infrastructure-only row shape backing `ISettingsService` (JSON value, never a secret)
+- `Persistence/DatabasePrerequisiteStatus.cs`, `Persistence/DatabaseInitializationResult.cs`, `Persistence/IDatabaseInitializer.cs`, `Persistence/SqlLocalDbInitializer.cs` — graceful LocalDB-unavailable handling (see §9E)
+- `Persistence/Configurations/*.cs` — one `IEntityTypeConfiguration<T>` per entity; every scalar property is explicitly declared (see decision 26 for why) and every `Id` is `ValueGeneratedNever()` (all IDs are domain-generated GUIDs)
+- `Persistence/Repositories/Ef*.cs` — one EF Core-backed implementation per Session 02 Application repository/service contract
+- `Persistence/Migrations/` — the `InitialCreate` migration (see §9E for manual schema-inspection result)
+- `InfrastructureServiceCollectionExtensions.cs` — `AddInfrastructure()` DI composition-root extension
+
+**`AIUsageMonitor.Desktop`** — now references `Infrastructure` (decision 14 resolved) and calls `services.AddInfrastructure()` in `ConfigureServices`; `OnLaunched` starts the host, calls `IDatabaseInitializer.InitializeAsync()`, logs a warning (never throws/crashes) if the database isn't ready, then activates the window regardless.
+
+**`tests/AIUsageMonitor.Infrastructure.Tests/`** — new xUnit project (decision 27), 10 tests, all passing against real LocalDB: see §9E.
 
 ---
 
@@ -269,6 +298,13 @@ Planner review of Session 02 raised 5 findings before EF Core turns the domain i
 22. **`Subscription` gained `ConfidenceLevel Confidence`.** It previously had `DataSource Source` but no confidence dimension, unlike `QuotaWindow`/`ProviderAccount`. Added as a required constructor parameter (not inferred automatically — the caller must state it) so persisted subscription data can distinguish Official/VerifiedLocal/Inferred/Manual before Session 03 gives it a database column.
 23. **`ProviderConnection` gained an optional `string? CredentialReference`.** An opaque lookup key into secure storage (e.g. `"GitHub:Copilot:Primary"`), resolved through `ISecureCredentialStore` — never the secret itself. Rejects a whitespace-only value if one is supplied (via `ArgumentException`), but is otherwise unvalidated content since the actual reference format is provider/Infrastructure-defined. Windows Credential Manager implementation remains deferred to Session 17 per the BRD; this only adds the domain-level place to point at it.
 24. **Git Delivery Contract gained a narrow metadata-only finalization exception (`AGENTS.md` §6A rule 15).** The contract's own `.ai/CURRENT_STATE.md` finalization step needs the merge/push/`origin/main` verification results to already exist, which is impossible to include in the commit that goes *into* that merge — Session 02 worked around this ad hoc with a small follow-up commit directly to `main`. Rule 15 now formally permits exactly that: a single post-merge commit touching only `.ai/CURRENT_STATE.md`/session metadata (never source code), still subject to branch protection (no bypass), requiring no feature branch of its own, and explicitly not requiring recursive documentation of itself.
+
+### Session 03 — EF Core + LocalDB Persistence (08 August 2026)
+
+25. **`UsageSnapshot` materialization strategy: private EF-only constructor + private setters, owned-type table-splitting via `OwnsOne`.** Per the mandatory Session 03 addendum, EF Core cannot constructor-bind the owned `Quota` (`QuotaWindow`) navigation when it is table-split onto `UsageSnapshots` (EF materializes the owner first, then the owned instance separately, then assigns it). Fix: `UsageSnapshot`'s four properties became `{ get; private set; }` (`Quota` defaults `= null!`), and a second `private UsageSnapshot(Guid id, Guid providerId, Guid quotaDefinitionId)` constructor was added, binding only the three scalar properties EF *can* set via the owning constructor; EF then assigns `Quota` afterward through its private setter. The public validating `UsageSnapshot(id, providerId, quotaDefinitionId, quota)` constructor is completely unchanged — application/domain code still cannot construct an `UsageSnapshot` without a valid `QuotaWindow`. No public setters were added. `QuotaWindow` itself needed no changes: its existing `private` constructor with parameter names matching property names 1:1 is already EF-constructor-bindable, and `UsageSnapshotConfiguration.OwnsOne(s => s.Quota, ...)` flattens all 13 of its properties onto `UsageSnapshots` columns (`ExternalKey`, `QuotaType`, `QuotaUnit`, `UsedValue`, `RemainingValue`, `LimitValue`, `UsedPercentage`, `RemainingPercentage`, `WindowStart`, `ResetAt`, `Source`, `Confidence`, `CapturedAt`) — no separate `QuotaWindows` table exists. Verified by a true fresh-`DbContext` round-trip test (§9E).
+26. **Every `IEntityTypeConfiguration<T>` in this codebase must explicitly declare `.Property(...)` for every scalar property, not just the ones needing special treatment (conversions, max lengths, precision).** Discovered empirically: `dotnet ef migrations add` repeatedly failed with `No suitable constructor was found for type 'X'. Cannot bind '<param>' in 'X(...)'` for `AlertEvent` and then `AlertRule` — both fully-immutable, single-constructor domain entities — even though their constructor parameter names already matched property names 1:1 by ordinary EF convention, and even though other entities' *configured* properties bound fine. The properties that failed to bind were exactly the ones with no explicit `.Property()` call in their configuration. Root cause not fully isolated (candidate: EF Core 10's constructor-binding convention in this environment does not reliably fall back to convention-based scalar discovery for properties absent from the Fluent API when a type also has FK/relationship configuration present), but the reproducible fix is exhaustive explicit declaration. Applied to every entity configuration in `Persistence/Configurations/`, plus `.Property(x => x.Id).ValueGeneratedNever()` on every entity (independently correct regardless of this bug, since every ID in this codebase is domain-generated, never DB-generated). Any new entity configuration added in a later session must follow the same exhaustive pattern or risk the same migration-generation failure.
+27. **New `tests/AIUsageMonitor.Infrastructure.Tests` xUnit project created**, deviating from the two-test-project layout implied by Sessions 01/02. Neither `AIUsageMonitor.Domain.Tests` (references only Domain — cannot reference EF Core/Infrastructure) nor `AIUsageMonitor.Provider.Tests` (scoped to provider adapters) is an appropriate home for real-LocalDB persistence/round-trip integration tests. References Domain, Application, and Infrastructure; added to `AIUsageMonitor.sln` via `dotnet sln add`. Each test class implements `IAsyncLifetime` and owns its own uniquely-named LocalDB database (created via the real `InitialCreate` migration, dropped on disposal) rather than sharing one fixture across classes/methods — required because `Providers.Code` is uniquely indexed and `ProviderCode` only has 5 fixed enum values, so concurrently-reused test data would collide if databases were shared.
+28. **`Desktop → Infrastructure` reference added (resolves decision 14's deferral).** `AIUsageMonitor.Desktop.csproj` now references `AIUsageMonitor.Infrastructure`; `App.xaml.cs`'s `ConfigureServices` calls `services.AddInfrastructure()`, and `OnLaunched` (now `async void`, the standard WinUI pattern) starts the generic host and calls `IDatabaseInitializer.InitializeAsync()` before activating the main window. A non-ready result (LocalDB missing/unreachable) is logged via Serilog as a warning and the window is activated anyway — the application never crashes or blocks startup on a persistence failure, per the Session 03 "LOCALDB MISSING" rule. Surfacing this status in the UI itself is left to a later session (no UI work was in Session 03 scope).
 
 Add only material decisions.
 
@@ -411,6 +447,57 @@ No EF Core code, migrations, or `Microsoft.EntityFrameworkCore.*` package refere
 
 ---
 
+## 9E. Session 03 Validation — EF Core 10 + SQL Server LocalDB Persistence (08 August 2026)
+
+### Materialization strategy and round-trip result
+
+See decision 25 for the full strategy (private EF-only `UsageSnapshot` constructor + private setters + `OwnsOne` table-splitting; `QuotaWindow` unchanged). The mandatory round-trip test (`UsageSnapshotRoundTripTests.UsageSnapshot_SurvivesRoundTrip_ThroughFreshDbContext`) creates a `QuotaWindow` via `QuotaWindow.Create(...)`, wraps it in a `UsageSnapshot`, saves via one `DbContext`, disposes it, then loads by ID through a **second, fresh** `DbContext` (`AsNoTracking()`, no shared change tracker) and asserts equality on all 14 mandated fields (`Id`, `ProviderId`, `QuotaDefinitionId`, `ExternalKey`, `QuotaType`, `QuotaUnit`, `UsedValue`, `RemainingValue`, `LimitValue`, `UsedPercentage`, `RemainingPercentage`, `WindowStart`, `ResetAt`, `Source`, `Confidence`, `CapturedAt`). **Result: PASS**, run against a real, uniquely-named LocalDB database created via the actual `InitialCreate` migration (not `EnsureCreated`).
+
+### Material-change rule (BRD §16 duplicate-snapshot prevention)
+
+Implemented in `UsageSnapshotChangeDetector.HasMaterialChange(previous, current)` (pure/static, Application layer, no DB dependency):
+- A `WindowStart` or `ResetAt` change is always material (new quota period), even if percentages happen to match.
+- `UsedPercentage`/`RemainingPercentage` moves within 1.0 percentage point, and `UsedValue`/`RemainingValue`/`LimitValue` moves within 0.5 absolute units, are treated as noise.
+- A value newly appearing or disappearing (`null` ↔ non-`null`) is always material — "no data" and "some data" are never treated as equivalent.
+
+`EfUsageSnapshotRepository.AddAsync(...)` calls this against the most recently persisted snapshot for the same `(ProviderId, QuotaDefinitionId)` before writing; a non-material change is silently skipped (no new row), a material one is written. Verified by two dedicated integration tests against real LocalDB: one negligible-change case (asserts row count stays at 1) and one material-change case (asserts row count becomes 2).
+
+### Initial migration — manual schema-inspection gate
+
+`InitialCreate` (`src/AIUsageMonitor.Infrastructure/Persistence/Migrations/20260808164735_InitialCreate.cs`) was manually inspected line-by-line against the Session 03 gate:
+- `UsageSnapshots` has the owned `QuotaWindow` fields flattened directly onto it as plain columns — confirmed no separate `QuotaWindows` table exists.
+- `Subscriptions.Price` is `decimal(18,2)` with explicit `precision: 18, scale: 2` — not EF's implicit default.
+- Regex scan (`AccessToken|RefreshToken|Password|Cookie|Secret|CredentialValue`, case-insensitive) across the full migration file: **zero matches**. `ProviderConnections.CredentialReference` (`nvarchar(256)`, nullable) is the only credential-adjacent column, documented in code as an opaque lookup key into a future `ISecureCredentialStore`, never the secret itself.
+- `Settings` table has only `Key` (PK), `Value` (JSON text), `UpdatedAt` — no secret-shaped column.
+
+`dotnet ef database update` was run against the real `(localdb)\MSSQLLocalDB` instance (database `AIUsageMonitor`) and applied cleanly on first try (clean-database creation verified).
+
+### Test results
+
+| Project | Result |
+|---|---|
+| `tests/AIUsageMonitor.Domain.Tests` | 28/28 passed (unchanged from Session 02R) |
+| `tests/AIUsageMonitor.Provider.Tests` | 7/7 passed (unchanged from Session 02R) |
+| `tests/AIUsageMonitor.Infrastructure.Tests` (new, decision 27) | **10/10 passed**, all against real LocalDB: 1 mandatory round-trip test, 2 duplicate-prevention tests, 5 write/read smoke tests (`ProviderConnection`+`CredentialReference`, `Subscription`+price precision, `AlertRule`+`AlertEvent`, `SyncEvent`, `Settings`), 2 `SqlLocalDbInitializer` tests (clean-DB-ready path, and unreachable-server path proving `InitializeAsync` never throws — returns a `DatabaseInitializationResult` with `IsReady=false` instead) |
+| Full solution (`dotnet test AIUsageMonitor.sln`) | **45/45 passed** |
+
+### Build
+
+| Step | Command | Result |
+|---|---|---|
+| Build (full solution, incl. new Infrastructure.Tests + Desktop→Infrastructure wiring) | `dotnet build AIUsageMonitor.sln` | SUCCESS — 0 Warning(s), 0 Error(s), all 8 projects |
+| Vulnerable transitive package | `dotnet list package --vulnerable --include-transitive` (Infrastructure) | `Microsoft.Data.SqlClient` 6.1.1 pulled `System.Security.Cryptography.Xml` 9.0.0 (NU1903, 8 high-severity advisories); fixed by an explicit direct pin to `10.0.10`. Re-checked after the pin: 0 vulnerabilities. |
+| Secrets | Regex scan (`password=|pwd=|api[_-]?key|secret=|token=`) across all Session 03 new/changed `.cs` files | No secrets found — every match was `CancellationToken cancellationToken = default` (false positive on `token=`) |
+| Build artifacts | `git status` reviewed | No `bin/`, `obj/`, `.vs/` paths staged; `.gitignore` remains effective |
+
+### Not validated this session (out of scope)
+
+- LocalDB-missing UI surfacing (Desktop only logs a warning today; a visible UI state is later-session scope).
+- ARM64 build/launch (unchanged outstanding item from Session 01/02, tracked in §8).
+- Any provider (Session 04+) or UI/dashboard (Session 05+) work.
+
+---
+
 ## 10. Latest Reviewer Verdict
 
 No review yet.
@@ -421,31 +508,41 @@ No review yet.
 
 Run:
 
-**Session 03 — SQL Server LocalDB Persistence**
+**Session 04 — Provider Feasibility**
 
-Use the exact Session 03 prompt in `docs/SESSION_PROMPTS.md`.
+Use the exact Session 04 prompt in `docs/SESSION_PROMPTS.md`.
 
 Executor:
 - Terra
 - Luna
 - or Sonnet
 
-Session 03 must:
-- implement EF Core 10 + SQL Server LocalDB persistence for the Session 02/02R domain model (Providers, ProviderConnections, Subscriptions, QuotaDefinitions, UsageSnapshots, AlertRules, AlertEvents, SyncEvents, Settings)
-- read §9D's EF Core readiness notes first, especially the required `UsageSnapshot` → `QuotaWindow` owned-type mapping and `Subscription.Price` precision
-- follow the "MANDATORY EF MATERIALIZATION & PERSISTENCE SAFETY ADDENDUM" now embedded in the Session 03 prompt in `docs/SESSION_PROMPTS.md` (added 08 August 2026, not yet executed): `UsageSnapshot` needs an EF-compatible materialization path for the owned `QuotaWindow` navigation (EF cannot constructor-bind it) without adding public setters or weakening the existing public validating constructor; a true persistence round-trip test (fresh `DbContext`, not a change-tracker assertion) is mandatory before the initial migration is finalized; the migration must be manually inspected to confirm no secret-shaped columns (`AccessToken`/`RefreshToken`/`Password`/`Cookie`/`Secret`/`CredentialValue`) exist — record the chosen materialization strategy and round-trip result in this file
-- create migrations and upgrade-safe initialization
-- implement `IUsageSnapshotRepository` (and other Session 02 persistence-facing contracts as appropriate) against LocalDB
-- prevent duplicate `UsageSnapshot` writes when values haven't materially changed
-- handle missing/unavailable LocalDB gracefully
-- store no secrets in the database (`ProviderConnection.CredentialReference` is an opaque key only — never persist the actual secret)
-- build + run targeted persistence tests, review diff, update this file
+Session 04 must (per the Provider Discipline rules in `CLAUDE.md` §4 and `AGENTS.md`):
+- investigate real, safe data-acquisition feasibility for Codex, Claude, Kimi, Copilot, and Antigravity
+- never invent endpoint URLs or response fields; never infer billing data as fact; never extract browser cookies; never expose raw tokens; never commit unsanitized account payloads
+- persist any findings using the Session 03 persistence layer's contracts (`IProviderRepository`, `IProviderConnectionRepository`, etc.) — do not bypass EF Core or hand-roll ad hoc storage
+- a provider field that cannot be obtained safely must remain unavailable or use an approved manual fallback, never a fabricated value
+- build + run targeted tests, review diff, update this file
 
-Do not start provider coding (Session 04+) or UI work (Session 05+).
+Do not start dashboard/UI work (Session 05+).
 
 ---
 
 ## 12. Recent Handoff
+
+### 08 August 2026 — Session 03 (EF Core 10 + SQL Server LocalDB Persistence) complete, merged to main
+
+Implemented production-quality local persistence for the full Session 02/02R domain model using EF Core 10 + Microsoft SQL Server LocalDB: `AIUsageMonitorDbContext`, one `IEntityTypeConfiguration<T>` per entity, the `InitialCreate` migration, a design-time factory, `SqlLocalDbInitializer`/`IDatabaseInitializer` for never-throw graceful startup, one repository/service per aggregate (Providers, ProviderConnections, Subscriptions, QuotaDefinitions, UsageSnapshots, AlertRules, AlertEvents, SyncEvents, Settings), and `UsageSnapshotChangeDetector` for BRD §16 duplicate-history-row prevention. Followed the mandatory EF Materialization & Persistence Safety Addendum exactly: `QuotaWindow` stayed owned/value-like via `OwnsOne` table-splitting onto `UsageSnapshots` (no separate table), and `UsageSnapshot` gained only a private EF-only constructor plus private setters — its public validating constructor and all domain validation were left untouched (decision 25).
+
+Along the way, discovered and fixed a real EF Core 10 constructor-binding limitation affecting every immutable, single-constructor domain entity: `dotnet ef migrations add` fails with "No suitable constructor was found ... Cannot bind '<param>'" unless literally every scalar constructor parameter has an explicit `.Property(...)` declaration in its configuration class, even when the parameter name already matches the property name 1:1 (decision 26) — applied across all nine entity configurations before the migration would generate cleanly.
+
+Added a new `AIUsageMonitor.Infrastructure.Tests` xUnit project (10 tests, all against real LocalDB, no mocks): the mandatory `UsageSnapshot`/`QuotaWindow` round-trip test (write via one `DbContext`, read via a fresh second one, assert all 14 fields), two duplicate-prevention tests (negligible change skipped, material change written), five write/read smoke tests covering every other persisted entity including `ProviderConnection.CredentialReference`'s opaque round-trip and `Subscription.Price`'s explicit `decimal(18,2)` precision, and two `SqlLocalDbInitializer` tests proving initialization never throws even against an unreachable server. Each test class owns its own uniquely-named, freshly-migrated database via `IAsyncLifetime` (decision 27) after a shared-fixture design caused unique-index collisions on `Providers.Code`.
+
+Manually inspected the generated `InitialCreate` migration against the mandatory secret-column gate: zero matches for `AccessToken|RefreshToken|Password|Cookie|Secret|CredentialValue`; `ProviderConnections.CredentialReference` remains the only credential-adjacent column and is confirmed opaque-only both in the schema and in tests. Wired `AIUsageMonitor.Desktop`'s `App.xaml.cs` to call `AddInfrastructure()` and `IDatabaseInitializer.InitializeAsync()` at startup, logging a warning (not crashing) if LocalDB is unavailable (decision 28), resolving the Session 02 deferral recorded as decision 14.
+
+Full solution build: 0 warnings/errors across all 9 projects. Full test suite: 45/45 passing (28 Domain + 7 Provider + 10 Infrastructure, no regressions). Fixed one NU1903 transitive vulnerability advisory (`System.Security.Cryptography.Xml` pulled in via `Microsoft.Data.SqlClient`) by pinning a direct `PackageReference`. Full detail in §9E.
+
+Branch `feature/session-03-ef-localdb-persistence` created from `main`, committed, pushed, merged to `main`, pushed, and `origin/main` verified to match exactly. Working tree clean on `main`.
 
 ### 08 August 2026 — Session 02R (Domain Integrity Remediation) complete, merged to main
 

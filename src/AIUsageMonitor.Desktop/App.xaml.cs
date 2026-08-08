@@ -1,3 +1,5 @@
+using AIUsageMonitor.Infrastructure;
+using AIUsageMonitor.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Xaml;
@@ -32,11 +34,25 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
     {
+        services.AddInfrastructure();
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         Log.Information("AI Usage Monitor starting up");
+
+        await _host.StartAsync();
+
+        // LocalDB may not be installed/reachable — this must never crash startup (BRD §29).
+        // The result is logged now; surfacing it in the UI is a later-session concern.
+        var initializer = _host.Services.GetRequiredService<IDatabaseInitializer>();
+        var databaseResult = await initializer.InitializeAsync();
+        if (!databaseResult.IsReady)
+        {
+            Log.Warning(
+                "Local database unavailable at startup ({Status}): {UserMessage}",
+                databaseResult.Status, databaseResult.UserMessage);
+        }
 
         _window = new MainWindow();
         _window.Activate();
