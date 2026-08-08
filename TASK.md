@@ -1,78 +1,92 @@
-# TASK — COMPLETED
+# TASK — SESSION 04
 
-Task: Session 03R — Portable Consumer Desktop Architecture Migration
+Task: Session 04 — Provider Feasibility Investigation
 Executor: Luna Max
-Status: COMPLETE
-Final gate: AWAITING PLANNER REVIEW
+Status: NOT STARTED
+Scope: Evidence and feasibility only; do not implement provider adapters.
 
-Implemented:
+## Common active-session inheritance
 
-- Converted `AIUsageMonitor.Desktop` from WinUI/Windows App SDK to a minimal WPF .NET 10 shell.
-- Replaced active EF Core/SQL Server LocalDB Infrastructure and database tests with versioned JSON
-  documents, monthly JSONL event/history stores, atomic writes, per-path synchronization,
-  corruption quarantine/isolation, LocalAppData paths, and DI registration.
-- Preserved provider-independent Domain/Application contracts, dynamic quota behavior,
-  `DateTimeOffset` semantics, opaque credential references, and material-change duplicate
-  suppression. Removed the obsolete EF-only `UsageSnapshot` materialization hook.
-- Added non-trimmed self-contained single-file publish profiles for `win-x64`, `win-x86`, and
-  `win-arm64`.
-- Corrected the Session 04 / Gate A sequence in the active governance documents and recorded the
-  official .NET 10 Windows support-matrix distinction in `.ai/CURRENT_STATE.md`.
+This is the complete executable prompt for the current task. The repository, not prior chat
+context, is authoritative.
 
-Validated:
+- Execute only the named session.
+- Read `AGENTS.md`, `docs/BRD v1.0.md`, `.ai/CURRENT_STATE.md`, `docs/IMPLEMENTATION_PLAN.md`,
+  the Session 04 section of `docs/SESSION_PROMPTS.md`, and this `TASK.md` before acting. Inspect
+  `git status` before editing and preserve unrelated changes.
+- `docs/SESSION_PROMPTS.md` is the permanent approved session library; `TASK.md` is the current/next
+  executable session; `.ai/CURRENT_STATE.md` is the factual execution history and live project state.
+- The active architecture is WPF + .NET 10 + MVVM + Modular Clean Architecture.
+- Active persistence is `System.Text.Json` with JSON for state/configuration and JSONL for append-oriented
+  history/events.
+- V1 has no EF Core, SQL Server, LocalDB, ORM, SQLite, Angular, Electron, Node.js, npm, or embedded Chromium.
+- Released artifacts must be self-contained; no separately installed .NET runtime, SDK, database, Node, or
+  developer tooling may be required.
+- No provider CLI is mandatory for the whole application. Non-developer/browser-only users require truthful
+  connection or manual fallback paths where supported.
+- Preserve remaining-capacity semantics, dynamic quota windows, `DateTimeOffset`, provider truthfulness,
+  privacy, and last-known-good behavior.
+- Honor the Cross-Windows Compatibility Contract: Windows 10 build 17763 engineering baseline, Windows 10
+  1809+/Windows 11 goal, x86/x64/ARM64, x64 primary, and graceful fallback for optional modern effects.
+- Do not add providers or unrelated product scope. Do not implement provider production code in this session.
+- Use focused evidence and sanitized fixtures; no live authenticated provider calls in CI.
+- Review the diff, inspect secrets/debug artifacts, update `CURRENT_STATE`, deliver the assigned session,
+  prepare the next executable `TASK.md` only after successful delivery, and stop before the next session/gate.
 
-- `dotnet restore AIUsageMonitor.sln` — success.
-- Debug x64 solution build — success, 0 warnings/errors.
-- Full tests — 45/45 passed: 28 Domain, 7 Provider, 10 Infrastructure.
-- Release x86 and ARM64 solution builds — success, 0 warnings/errors.
-- Self-contained single-file publish — success for all three Windows RIDs; trimming disabled and
-  published outputs contain no runtimeconfig/deps file.
-- x64 published WPF shell launch — success with visible `AI Usage Monitor` window. The harness
-  restored the host's missing lowercase `windir` environment variable from `SystemRoot`, which
-  WPF's font cache expects on a normal Windows installation.
-- Active-source legacy-runtime scan, secret review, and `git diff --check` — no active legacy
-  runtime matches, no secrets/generated publish artifacts tracked, and no whitespace errors.
+Completed implementation/remediation work must follow the Git Delivery Contract: use an appropriately named
+session branch, commit, push the branch, merge into `main`, push `main`, fetch and verify
+`origin/main`, and leave the working tree clean. The permitted final metadata-only synchronization may
+touch only `.ai/CURRENT_STATE.md` and `TASK.md`.
 
-Not validated:
+## Session 04 — Provider Feasibility Investigation
 
-- Clean-machine installation, every Windows edition, x86/ARM64 live launch, ARM64 hardware or
-  emulator execution, code signing, and MSIX packaging.
-- Provider feasibility, provider adapters, dashboard, polished design system, tray/HUD,
-  analytics, recommendations, notifications, or any Session 04+ work.
+~~~
+EXECUTE SESSION 04 ONLY.
+EVIDENCE/FEASIBILITY SESSION — DO NOT IMPLEMENT PROVIDER ADAPTERS.
+~~~
 
-Blockers / limitations:
+Confirm before investigation that Session 03R remains complete, Session 03R-F is complete and merged into
+`main`, `origin/main` is verified, and the planner has no unresolved blocker preventing feasibility work.
+Gate A follows Session 04 and is not a prerequisite. Stop before Gate A.
 
-- The project retains the approved build-17763/x86/x64/ARM64 engineering target, but Microsoft's
-  official .NET 10 Windows page limits official Windows 10 support to LTSC/Enterprise entries;
-  broader Windows 10 1809+ claims remain technical-compatibility/best-effort pending planner and
-  release validation.
-- The secure credential adapter and provider connection UX remain later-session work.
+Investigate Codex, Claude, Kimi, GitHub Copilot, and Google Antigravity using official documentation, safe
+local inspection, and approved account workflows. For each provider determine:
 
-Files/areas changed:
+1. installation/application detection
+2. account and authentication-state detection
+3. official usage API or account usage endpoint
+4. OAuth/device/account connection options
+5. browser-only workflow if officially supported
+6. official CLI/status/usage command, if any
+7. safe verified local metadata
+8. actual quota windows/credits exposed
+9. whether values mean used or remaining
+10. absolute used/remaining/limit availability
+11. reset timestamp and timezone
+12. plan and subscription/renewal information
+13. network and rate-limit requirements
+14. auth expiry behavior
+15. manual/partial/unsupported fallback
 
-- WPF desktop project/shell and publish profiles.
-- JSON/JSONL Infrastructure persistence, repositories, DI, and focused tests.
-- Domain/Application comments and the obsolete EF-only snapshot materialization hook.
-- `AGENTS.md`, `CLAUDE.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md`,
-  `docs/SESSION_PROMPTS.md`, `.ai/CURRENT_STATE.md`, `.gitignore`, and this handoff.
+Answer explicitly:
 
-CURRENT_STATE updated: Yes
+- Can a non-developer connect it?
+- Can a browser-only user use it?
+- Is CLI required, or can it remain optional?
+- What is official, verified local, inferred, manual, unavailable, or unsupported?
 
-Git delivery:
+Use current, primary evidence. Prefer official provider APIs, OAuth/device/account flows, authenticated account
+surfaces, and documented endpoints. A CLI is optional, never a whole-application prerequisite. Do not guess
+endpoints or schemas, fabricate quotas/plans/reset times, or label inferred data as official. Do not extract
+browser cookies/passwords, print tokens, commit raw authenticated payloads, or store secrets.
 
-- Session branch: `refactor/session-03r-portable-consumer-architecture`
-- Implementation commit: `a708e494a1f646ab19c3b6805943fe91c278e79c`
-- Branch push: SUCCESS; pushed to `origin` with upstream tracking.
-- Merge to `main`: SUCCESS; merge commit `1a674c6878bed49203d4306900b611fa2ecbdbce`.
-- `main` push: SUCCESS.
-- `origin/main` verification: SUCCESS; local `main` and `origin/main` resolve to the merge commit.
-- Final metadata synchronization: documentation-only update permitted by `AGENTS.md` §6A rule 15;
-  working tree verified clean after its push.
+Record a capability/evidence matrix and safe implementation recommendation in `.ai/CURRENT_STATE.md`.
+Do not create provider production code, provider adapters, dashboard work, Session 05 work, or Gate A findings.
+Validate the existing solution only as appropriate for an evidence session. Update the factual state, deliver
+the assigned evidence session through Git, prepare the next executable task after successful delivery, and stop.
 
-Next planned session:
+## Stop condition
 
-- Session 04 — Provider Feasibility Investigation, NOT EXECUTED and not executable until the
-  planner checkpoint confirms Session 03R is merged/verified with no unresolved blocker.
-- Gate A remains after Session 04 and is not a prerequisite for Session 04.
-
-Session 04 NOT EXECUTED.
+Session 04 is complete only when its provider evidence and capability matrix are recorded, no provider adapter
+has been implemented, Git delivery is verified, and the next task is prepared without executing it.
+~~~

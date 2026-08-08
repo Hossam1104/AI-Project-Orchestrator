@@ -67,16 +67,24 @@ was executed.
 
 ### Next execution and gate sequencing
 
-Session 04 is `NOT STARTED`. It will be prepared as the next executable root `TASK.md` during
-finalization, but may begin
+Session 04 is `NOT STARTED`. It is prepared as the next executable root `TASK.md`, but may begin
 only after this Session 03R-F delivery is merged to `main`, `origin/main` is verified, and the
 planner checkpoint finds no unresolved blocker. Gate A remains `NOT STARTED` and runs after Session
 04; it is not a prerequisite for Session 04.
 
 ### Git delivery
 
-Branch implementation and merge/push metadata will be recorded in the permitted final
-documentation-only synchronization after this validated remediation is integrated.
+| Step | Result |
+|---|---|
+| Remediation branch | `fix/session-03r-foundation-resilience` |
+| Implementation commit | `ca89a93363b634c03f58e145a02aa321f1897cdd` — `fix: harden portable foundation before provider feasibility` |
+| Push branch | SUCCESS; branch pushed to `origin` with upstream tracking |
+| Merge to `main` | SUCCESS; merge commit `ef5fa35b8626e457601dc5a64c033aeef2427b7e`, no conflicts |
+| Push `main` | SUCCESS; `c6e6a10..ef5fa35 main -> main` |
+| Pre-finalization `origin/main` verification | SUCCESS; local `main` and `origin/main` both resolved to `ef5fa35b8626e457601dc5a64c033aeef2427b7e` |
+| Final metadata synchronization | Documentation-only update to this file and `TASK.md`, permitted by `AGENTS.md` §6A rule 15; no source/config/test files |
+| Final `origin/main` verification | SUCCESS after the synchronization push; local `main` and `origin/main` match exactly |
+| Working tree | Verified clean after final metadata synchronization and push |
 
 ---
 
@@ -719,8 +727,8 @@ Session 03R remains complete and Session 03R-F is now complete, with the resilie
 corrected and validated. The next planned session is **Session 04 — Provider Feasibility
 Investigation**, but it must not start until the Session 03R-F branch has been merged into `main`,
 `origin/main` has been verified, and the planner checkpoint finds no unresolved blocker. The root
-`TASK.md` will be prepared as the complete executable Session 04 prompt during finalization. Use
-the permanent prompt library in `docs/SESSION_PROMPTS.md` as the source.
+`TASK.md` is the complete executable Session 04 prompt. Use the permanent prompt library in
+`docs/SESSION_PROMPTS.md` as the source.
 
 Gate A remains `NOT STARTED` and follows Session 04; it is not a prerequisite for Session 04.
 Session 04 was not executed during Session 03R or Session 03R-F.
@@ -745,7 +753,7 @@ file-log setup occurred before the guarded WPF startup fallback; usage latest lo
 JSONL history; and an interrupted final JSONL line could be joined to the next append. Session
 03R-F corrected these without changing the WPF/JSON/JSONL/no-database architecture. It also
 replaced the completion-handoff TASK lifecycle with a next-executable-task lifecycle; the root
-`TASK.md` will be prepared for Session 04 during finalization without executing Session 04.
+`TASK.md` now contains the complete Session 04 prompt without executing Session 04.
 
 Focused coverage now includes guarded storage initialization/degraded results, newest-partition
 latest lookup, material-change duplicate suppression, JSONL interrupted-tail recovery, and the
