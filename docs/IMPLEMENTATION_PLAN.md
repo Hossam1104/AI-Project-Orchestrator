@@ -1,1009 +1,487 @@
-# AI Usage Monitor — Implementation Plan
+# AI Usage Monitor - Implementation Plan
 
-**Version:** 1.0  
-**Date:** 08 August 2026  
+**Version:** 1.1
+**Date:** 08 August 2026
+**Rebaseline:** Portable Consumer Architecture Rebaseline - 08 August 2026
 **Local Project Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`  
 **GitHub Repository:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
 **Default Branch:** `main`  
 **Primary Requirements:** `docs/BRD v1.0.md`  
-**Executors:** Terra / Luna / Sonnet  
-**Reviewer:** Opus 5  
 **Planner:** GPT-5.6 Sol  
+**Default Executor:** Luna Max
+**Fallback Executors:** Terra / Sonnet only when explicitly assigned
+**Reviewer:** Opus 5
 
 ---
 
-## 1. Purpose
+## 1. Purpose and Authority
 
-This file is the authoritative implementation sequence for AI Usage Monitor.
+This file is the authoritative active implementation sequence for AI Usage Monitor. The product is a local-first Windows desktop utility for individual AI users, not a SaaS product, team platform, or developer-only tool.
 
-The project is a personal Windows desktop utility. It is not a SaaS product and does not require Jira.
+Source-of-truth files, in authority order, are:
 
-The repository itself must contain enough context for any supported AI model to continue the project without depending on previous chat history.
+1. `docs/BRD v1.0.md` - product and business requirements.
+2. `AGENTS.md` - universal AI execution contract.
+3. `.ai/CURRENT_STATE.md` - single mutable factual handoff.
+4. `docs/IMPLEMENTATION_PLAN.md` - sequence and gates.
+5. `docs/SESSION_PROMPTS.md` - exact executor/reviewer instructions.
+6. `CLAUDE.md` - Claude/Sonnet/Opus adapter behavior.
 
-Source-of-truth files:
-
-1. `docs/BRD v1.0.md` — product/business requirements.
-2. `AGENTS.md` — universal AI execution contract.
-3. `.ai/CURRENT_STATE.md` — single mutable handoff/status file.
-4. `docs/IMPLEMENTATION_PLAN.md` — implementation sequence and gates.
-5. `docs/SESSION_PROMPTS.md` — exact prompts used to execute each session.
-6. `CLAUDE.md` — Claude/Sonnet/Opus adapter instructions.
+The architecture rebaseline is an approved planner decision. It does not rewrite Git history and does not claim that the source migration has already happened.
 
 ---
 
-## 2. Frozen V1 Scope
+## 2. Historical Completed Sessions vs Active Remaining Plan
 
-### Approved technology stack
+The following historical facts are preserved:
 
-| Layer | Technology |
+```text
+01  Repository & Solution Foundation                  COMPLETE
+02  Domain & Application Architecture                 COMPLETE
+02R Domain Integrity Remediation                      COMPLETE
+03  EF Core + SQL Server LocalDB Persistence          COMPLETE - SUPERSEDED
+```
+
+Session 03 was a valid implementation of the architecture approved at that time. It was built, tested, committed, pushed, and merged. A later product clarification changed V1 to a zero-prerequisite consumer release. The LocalDB/EF implementation is therefore historical and superseded, not a failed session.
+
+The active plan begins with the architecture correction:
+
+```text
+03R Portable Consumer Desktop Architecture Migration NEXT
+04  Provider Feasibility Investigation                NOT STARTED
+Gate A                                                NOT STARTED
+05  WPF Modern Design System                          NOT STARTED
+06  Main Dashboard                                    NOT STARTED
+07  Tray & Focus HUD                                  NOT STARTED
+08  Codex                                             NOT STARTED
+09  Claude                                            NOT STARTED
+10  Kimi                                              NOT STARTED
+11  GitHub Copilot                                    NOT STARTED
+12  Antigravity                                       NOT STARTED
+Gate B                                                NOT STARTED
+13  Subscription Management                           NOT STARTED
+14  JSONL History & Analytics                         NOT STARTED
+15  Capacity Recommendation Engine                    NOT STARTED
+16  Monitoring & Notifications                         NOT STARTED
+17  Settings, Security & File Resilience              NOT STARTED
+18  UX & Performance Polish                           NOT STARTED
+Gate C                                                NOT STARTED
+19  Self-Contained Packaging & Release               NOT STARTED
+20  Final Stabilization                               NOT STARTED
+Final Gate                                            NOT STARTED
+```
+
+Do not reuse the plain `Session 03` label for the migration. Do not start Session 04 until Session 03R is complete and the required review gate permits it.
+
+---
+
+## 3. Frozen V1 Target Architecture
+
+| Area | Approved target |
 |---|---|
 | Language | C# |
-| Runtime | .NET 10 LTS |
-| Desktop UI | WinUI 3 |
-| Windows framework | Windows App SDK |
+| Runtime | .NET 10 |
+| Desktop UI | WPF |
 | UI pattern | MVVM |
 | Architecture | Modular Clean Architecture |
-| ORM | EF Core 10 |
-| Database | Microsoft SQL Server LocalDB |
-| SQL driver | Microsoft.Data.SqlClient |
-| HTTP | HttpClient |
-| Resilience | Microsoft.Extensions.Http.Resilience |
-| DI | Microsoft.Extensions.DependencyInjection |
+| Serialization | `System.Text.Json` |
+| Small local state | JSON |
+| Append-oriented history/events | JSONL |
+| Database | None |
+| ORM | None |
+| HTTP | `HttpClient` |
+| Resilience | `Microsoft.Extensions.Http.Resilience` where materially justified |
+| Dependency injection | `Microsoft.Extensions.DependencyInjection` |
 | Logging | Serilog |
-| Secrets | Windows Credential Manager / DPAPI where justified |
-| Tests | xUnit, targeted only |
-| Source control | Git + GitHub |
-| CI | GitHub Actions |
-| Packaging | Windows packaged release / MSIX where appropriate |
+| Secrets | Windows Credential Manager or planner-approved Windows secure storage |
+| Tests | Focused xUnit tests |
+| Release | Self-contained Windows artifacts |
+| Source control/CI | Git, GitHub, GitHub Actions |
 
-### Initial providers
-
-- OpenAI Codex
-- Anthropic Claude
-- Kimi / Kimi Code
-- GitHub Copilot
-- Google Antigravity
-
-### Explicit V1 exclusions
-
-- Jira
-- Angular
-- web dashboard
-- application-owned cloud backend
-- multi-user/team management
-- prompt/chat execution
-- automatic model switching
-- browser-cookie extraction
-- password extraction
-- telemetry
-- commercial billing/payment functionality
+The V1 architecture must not introduce WinUI 3, Windows App SDK, EF Core, SQL Server LocalDB, SQLite, Angular, Electron, Node.js, npm, or embedded Chromium. The historical source still contains the old stack until Session 03R removes it; that is documented state, not an active target requirement.
 
 ---
 
-## 2A. Cross-Windows Compatibility Baseline
+## 4. Zero-Prerequisite Consumer Deployment
 
-Frozen alongside the V1 architecture. Full contract: `AGENTS.md` §3A. Full requirement: `docs/BRD v1.0.md` §1A.
+The released application shall require no separately installed .NET runtime, SDK, database engine, Node.js runtime, or developer tooling.
+
+The release strategy must use self-contained publishing. Evaluate:
 
 ```text
-Minimum OS:
-Windows 10 1809 / Build 17763
-
-Supported:
-Windows 10 1809+
-Windows 11
-
-Architectures:
-x86
-x64
-ARM64
-
-Primary development/validation architecture:
-x64
+SelfContained=true
+PublishSingleFile=true
 ```
 
-Design principle: **Modern where available. Compatible everywhere supported.** Optional modern UI effects (Mica/Acrylic/newer backdrops) require capability detection and a functionally-equivalent fallback. Core layers (Domain, Application, Providers, persistence, monitoring, analytics, recommendation engine) must not depend on Windows 11-only APIs or modern hardware acceleration (no mandatory AVX/AVX2, dedicated GPU, TPM, or NPU).
+for WPF, enabling single-file only when stable. Do not blindly enable trimming; WPF and reflection-heavy libraries must be treated cautiously. Reliability is more important than binary size.
 
-Every session from Session 02 onward inherits this baseline automatically, even where not repeated verbatim below.
+Release artifacts are architecture-specific where necessary:
 
----
+- `win-x64`
+- `win-x86`
+- `win-arm64`
 
-## 3. Authority Order
-
-If instructions conflict, follow:
-
-1. `docs/BRD v1.0.md`
-2. `AGENTS.md`
-3. approved decisions/current facts in `.ai/CURRENT_STATE.md`
-4. `docs/IMPLEMENTATION_PLAN.md`
-5. assigned section of `docs/SESSION_PROMPTS.md`
-6. current implementation
-7. executor preference
-
-No AI model may silently override a higher authority.
+The user experience is `download -> run`. The application must not require SQL/LocalDB, SQLite installation, Node/npm, Angular, Visual Studio, a .NET runtime installer, or a mandatory provider CLI. Development machines may use the .NET SDK; end-user machines must not need it.
 
 ---
 
-## 4. Repository Layout
+## 5. Cross-Windows Compatibility
 
-Target:
+The permanent baseline from `AGENTS.md` Section 3A remains in force:
+
+- minimum baseline: Windows 10 version 1809 / build 17763
+- supported OS goal: Windows 10 1809+ and Windows 11
+- architectures: x86, x64, ARM64
+- x64 primary validation, x86 then ARM64 secondary
+- optional modern effects require capability detection and a compatible fallback
+- no Windows 11-only core dependency or modern hardware requirement
+- verify exact .NET 10/WPF support against current official Microsoft documentation before release claims
+
+Domain, Application, provider engine, persistence, analytics, recommendation, monitoring, and alert evaluation must remain independent of newer Windows-only features. WPF is the baseline UI and must remain functional with ordinary rendering.
+
+---
+
+## 6. Repository Responsibilities
+
+The broad project layout remains:
 
 ```text
-AI Usage Monitor Tool/
-│
-├── AGENTS.md
-├── CLAUDE.md
-├── README.md
-├── AIUsageMonitor.sln
-├── Directory.Build.props
-├── .editorconfig
-├── .gitignore
-│
-├── docs/
-│   ├── BRD v1.0.md
-│   ├── IMPLEMENTATION_PLAN.md
-│   └── SESSION_PROMPTS.md
-│
-├── .ai/
-│   └── CURRENT_STATE.md
-│
-├── src/
-│   ├── AIUsageMonitor.Desktop/
-│   ├── AIUsageMonitor.Domain/
-│   ├── AIUsageMonitor.Application/
-│   ├── AIUsageMonitor.Infrastructure/
-│   └── AIUsageMonitor.Providers/
-│
-├── tests/
-│   ├── AIUsageMonitor.Domain.Tests/
-│   └── AIUsageMonitor.Provider.Tests/
-│
-└── .github/
-    └── workflows/
+src/AIUsageMonitor.Desktop       WPF presentation/composition root
+src/AIUsageMonitor.Domain        provider-independent domain rules
+src/AIUsageMonitor.Application   use cases and provider-independent contracts
+src/AIUsageMonitor.Infrastructure JSON/JSONL, secure storage, logging, OS integration
+src/AIUsageMonitor.Providers     provider detection, collection, parsing, normalization
+tests/*                          focused domain, provider, infrastructure/file tests
 ```
 
-Do not create numerous handoff/status Markdown files.  
-`.ai/CURRENT_STATE.md` is intentionally the single mutable project status.
+Dependency direction:
+
+```text
+Desktop/WPF -> Application -> Domain
+Infrastructure -> Application/Domain contracts
+Providers -> Application/Domain contracts
+```
+
+Domain must not depend on WPF, serializers, filesystem APIs, HTTP, provider libraries, EF, SQL, or Windows UI APIs. Desktop must not parse provider data or manage secrets. Infrastructure owns file persistence and secure-storage adapters. Providers collect; core normalizes; UI displays.
 
 ---
 
-## 5. Architecture
+## 7. Local File Persistence Design
 
-### Dependency direction
+V1 is single-user local software. Use ordinary per-user files rooted at:
 
 ```text
-AIUsageMonitor.Desktop
-          ↓
-AIUsageMonitor.Application
-          ↓
-AIUsageMonitor.Domain
-
-AIUsageMonitor.Infrastructure ──→ Application/Domain contracts
-AIUsageMonitor.Providers      ──→ Application/Domain contracts
+Environment.SpecialFolder.LocalApplicationData
+approximately %LOCALAPPDATA%\AIUsageMonitor\
 ```
 
-### Domain rules
+The exact filenames may be refined in Session 03R, but the conceptual layout is:
 
-The Domain project must not depend on:
+```text
+AIUsageMonitor/
+  settings.json
+  providers.json
+  subscriptions.json
+  current-state.json
+  history/
+    YYYY-MM.jsonl
+  alerts/
+    YYYY-MM.jsonl
+  logs/
+```
 
-- WinUI
-- EF Core
-- SQL Server
-- HttpClient
-- provider-specific SDKs
-- Windows UI APIs
+Use JSON for small configuration/state documents and JSONL for append-oriented usage snapshots, sync history, and alert events. Long-lived formats require explicit schema versions. JSONL records require record/schema metadata for future evolution.
 
-### Desktop rules
+Critical state writes must serialize, write a temporary file, flush where practical, and replace the destination atomically where supported. Per-store or append synchronization must protect concurrent refresh/manual/resume writes. Do not use distributed locks, write beside the executable, write under Program Files, or require administrator privileges.
 
-Desktop/UI must never:
+History services must stream records, read only relevant monthly partitions, support time ranges, preserve ordering, and avoid loading years of history at startup. The existing material-change detector must prevent unchanged snapshots from being appended.
 
-- parse provider-specific JSON
-- parse CLI output
-- inspect provider session files
-- know provider token formats
-- call undocumented provider endpoints directly
+Storage must distinguish valid, missing, empty, unsupported-schema, corrupt, I/O-failure, and permission-failure cases. It must log/report problems, quarantine or back up safely where useful, and keep the application usable when one optional file is bad. It must never silently destroy user data.
 
-### Provider rules
-
-Each provider owns:
-
-- installation detection
-- authentication-state detection
-- safe collection
-- provider-specific parsing
-- normalization
-- provider-specific error translation
-
-Everything outside provider modules consumes normalized models.
+Actual credentials are never stored in JSON, JSONL, settings, provider state, history, alerts, or logs. Files may contain only opaque credential references.
 
 ---
 
-## 6. Dynamic Quota Model
+## 8. Provider Truth and Consumer UX
 
-The entire architecture must support arbitrary quota windows.
-
-Never design fixed fields such as:
-
-```text
-CodexFiveHourUsage
-ClaudeWeeklyUsage
-KimiMonthlyUsage
-```
-
-Use:
-
-```text
-Provider
-  └─ QuotaDefinition
-       └─ QuotaSnapshot/QuotaWindow
-            ├─ Type
-            ├─ Unit
-            ├─ UsedValue
-            ├─ RemainingValue
-            ├─ LimitValue
-            ├─ UsedPercentage
-            ├─ RemainingPercentage
-            ├─ WindowStart
-            ├─ ResetAt
-            ├─ Source
-            └─ Confidence
-```
-
-The primary dashboard convention is **remaining capacity**.
-
----
-
-## 7. Provider Truth Rule
-
-Provider integrations are expected to change over time.
-
-Never invent an API, quota, reset timestamp, plan, subscription date, or local-file schema.
+The initial provider sequence remains Codex, Claude, Kimi, GitHub Copilot, and Antigravity. Session 04 must investigate each provider before adapters are implemented.
 
 Collection priority:
 
 1. official provider API
-2. official OAuth/device authorization
-3. official CLI/status command
-4. verified safe local metadata
-5. verified read-only provider endpoint
+2. official OAuth/device/account connection
+3. official authenticated account/usage endpoint
+4. official CLI where useful
+5. verified safe local metadata
 6. manual fallback
 
-Allowed UI states:
+For each field, distinguish official, verified local, inferred, manual, unavailable, unsupported, stale, or authentication-required data. Never fabricate quotas, reset times, plan fields, billing periods, or subscription dates. A browser-only or non-developer user must have a safe connection/manual path whenever the provider allows it. A CLI is optional.
 
-- Connected
-- Local Detected
-- Partial
-- Authentication Required
-- Not Available
-- Unsupported
-- Stale
-- Rate Limited
-- Error
-- Disabled
-
-Truthful partial data is acceptable. Fake completeness is not.
+The normalized model remains dynamic: arbitrary quota windows, credits, rolling limits, model-specific allowances, used/remaining/limit values, `DateTimeOffset` timestamps, source, and confidence. The UI's primary convention is remaining capacity, with no double inversion.
 
 ---
 
-## 8. Security Baseline
+## 9. Testing Strategy
 
-Never:
+Keep V1 tests targeted. Replace the historical database-focused emphasis with:
 
-- save passwords
-- copy browser cookies
-- log access tokens
-- commit tokens
-- store tokens in LocalDB
-- store secrets in appsettings
-- commit raw authenticated payloads
-- transmit prompt/source-code content
+- JSON serialization/deserialization round trips
+- schema-version compatibility and upgrade handling
+- JSONL append/read behavior
+- monthly partition selection and time-range queries
+- chronological ordering and `DateTimeOffset` offset preservation
+- material-change duplicate suppression
+- atomic/safe writes
+- missing, empty, corrupt, unsupported-schema, I/O, and permission behavior
+- settings, provider-state, subscription, and alert persistence
+- secure credential-reference/no-secret guarantees
+- provider parsing and source semantics
+- quota normalization, reset math, burn rate, and recommendation scoring
+- critical WPF view-model behavior where useful
+- self-contained publish smoke validation
 
-Use:
-
-- official OAuth/device flows
-- Windows Credential Manager
-- DPAPI only when technically justified
-- redacted logs
-- sanitized test fixtures
+No live authenticated provider calls in CI. Use sanitized fixtures. Do not carry meaningless EF migration, `DbContext`, or LocalDB installation tests into the active architecture.
 
 ---
 
-## 9. Git Workflow
+## 10. Git Workflow
 
-Repository:
-
-`https://github.com/Hossam1104/AI-Usage-Monitor-Tool`
-
-Default branch:
-
-`main`
-
-Recommended session branch pattern:
+The default branch is `main`. Implementation/remediation sessions use a session branch and must follow the Git Delivery Contract in `AGENTS.md` Section 6A:
 
 ```text
-feature/session-01-foundation
-feature/session-02-domain
-feature/session-03-persistence
-feature/session-04-provider-feasibility
-...
+inspect status -> implement -> validate -> update CURRENT_STATE
+-> review diff -> commit -> push branch -> merge main
+-> push main -> fetch/verify origin/main -> clean tree -> stop
 ```
 
-Rules:
-
-- inspect `git status` before each session
-- preserve unrelated user changes
-- never `git reset --hard` or destructive-clean user files
-- one execution session = one coherent scope
-- commit only session-related work
-- never commit credentials
-- review final diff before completion
-
-### Git Delivery Contract (default for Sessions 02–20)
-
-Full contract: `AGENTS.md` §6A. Every completed implementation/remediation session must, by default, commit, push its session branch, merge into `main`, push `main`, and verify `origin/main` before stopping — a session is not `COMPLETE` until remote `main` contains the validated work (documented external restrictions, e.g. branch protection requiring a PR, are the only exception, and must be recorded in `.ai/CURRENT_STATE.md`). Never leave validated work only local or only on an un-integrated remote branch, and never ask the project owner whether to commit/push — that is already answered permanently: yes. A narrow exception (`AGENTS.md` §6A rule 15) permits one metadata-only follow-up commit directly to `main`, solely to record `.ai/CURRENT_STATE.md`'s final merge/push/verification state once it's known — never source code, never a substitute for the real branch/merge workflow. Reviewer-only Opus gates are exempt unless explicitly asked to modify repository files.
-
-Suggested commit prefixes:
-
-- `feat:`
-- `fix:`
-- `refactor:`
-- `docs:`
-- `chore:`
+Never force-push, hard-reset, or delete unrelated user changes. A documentation-only rebaseline may use `docs/portable-consumer-architecture-rebaseline`; Session 03R uses `refactor/session-03r-portable-consumer-architecture`.
 
 ---
 
-# 10. Master Delivery Sequence
+# 11. Master Delivery Sequence
 
 ```text
-PHASE 0 — FOUNDATION
-01 Repository & solution foundation
-02 Domain/application architecture
-03 EF Core + SQL Server LocalDB
-04 Provider feasibility investigation
-   ↓
-REVIEW GATE A — OPUS 5
+Historical Phase 0
+  01 Foundation                         COMPLETE
+  02 Domain/Application                 COMPLETE
+  02R Domain Integrity                   COMPLETE
+  03 EF Core + SQL Server LocalDB        COMPLETE - SUPERSEDED
 
-PHASE 1 — EXPERIENCE
-05 WinUI design system
-06 Main dashboard
-07 System tray + Focus HUD
+Active Phase 0 - Architecture Correction
+  03R Portable Consumer Migration        NEXT
+  04 Provider Feasibility                NOT STARTED
+  Gate A                                 NOT STARTED
 
-PHASE 2 — PROVIDERS
-08 Codex
-09 Claude
-10 Kimi
-11 GitHub Copilot
-12 Antigravity
-   ↓
-REVIEW GATE B — OPUS 5
+Active Phase 1 - Experience
+  05 WPF Modern Design System             NOT STARTED
+  06 Main Dashboard                       NOT STARTED
+  07 Tray + Focus HUD                     NOT STARTED
 
-PHASE 3 — INTELLIGENCE
-13 Subscription management
-14 History & analytics
-15 Capacity recommendation engine
-16 Monitoring & notifications
+Active Phase 2 - Providers
+  08 Codex                                NOT STARTED
+  09 Claude                               NOT STARTED
+  10 Kimi                                 NOT STARTED
+  11 GitHub Copilot                       NOT STARTED
+  12 Antigravity                          NOT STARTED
+  Gate B                                 NOT STARTED
 
-PHASE 4 — HARDENING
-17 Settings, security & resilience
-18 UX & performance polish
-   ↓
-REVIEW GATE C — OPUS 5
-19 Packaging, CI & release engineering
-20 Final stabilization
-   ↓
-FINAL RELEASE REVIEW — OPUS 5
+Active Phase 3 - Product Intelligence
+  13 Subscription Management              NOT STARTED
+  14 JSONL History & Analytics             NOT STARTED
+  15 Capacity Recommendation Engine       NOT STARTED
+  16 Monitoring & Notifications            NOT STARTED
+
+Active Phase 4 - Hardening and Release
+  17 Settings, Security & File Resilience NOT STARTED
+  18 UX & Performance Polish               NOT STARTED
+  Gate C                                 NOT STARTED
+  19 Self-Contained Packaging & Release   NOT STARTED
+  20 Final Stabilization                  NOT STARTED
+  Final Gate                              NOT STARTED
 ```
 
-Sessions execute sequentially unless the planner explicitly changes the plan.
+Sessions execute sequentially. Do not implement Sessions 08-12 before Session 04 evidence and Gate A approval. Do not execute Session 04 before Session 03R completes.
 
 ---
 
-# 11. Phase 0 — Foundation
+# 12. Session 03R - Portable Consumer Desktop Architecture Migration
 
-## Session 01 — Repository & Solution Foundation
+**Status:** NEXT.
+**Default executor:** Luna Max.
+**Branch:** `refactor/session-03r-portable-consumer-architecture`.
 
-### Objective
-Create the clean .NET 10/WinUI 3 project structure and validate the toolchain.
+Objective: convert the currently implemented WinUI/Windows App SDK/EF Core/SQL Server LocalDB source to the approved WPF + JSON/JSONL + self-contained consumer architecture without discarding the completed Domain/Application work or falsifying historical Session 03.
 
-### Deliverables
-- local Git repository connected to `https://github.com/Hossam1104/AI-Usage-Monitor-Tool`
-- solution file
-- WinUI desktop project
-- Domain class library
-- Application class library
-- Infrastructure class library
-- Providers class library
-- Domain test project
-- Provider test project
-- correct project references
-- central build props
-- `.editorconfig`
-- `.gitignore`
-- concise README
-- minimal DI/logging bootstrapping
-- CURRENT_STATE synchronized to actual repo
+Required outcomes:
 
-### Exit
-- restore succeeds
-- solution builds
-- shell launches where environment supports it
-- no business feature is prematurely implemented
+- convert `AIUsageMonitor.Desktop` to a minimal WPF shell targeting .NET 10; remove active WinUI/Windows App SDK configuration and dependencies
+- preserve project name and dependency direction where practical
+- preserve Domain/Application contracts and their dynamic quota/time/security invariants
+- remove EF Core, SQL Server, LocalDB, `DbContext`, migrations, database initialization, SQL repositories, and obsolete SQL-specific tests from the active runtime
+- implement Infrastructure file stores with `System.Text.Json` and JSONL as appropriate
+- preserve provider-independent repository/service contracts where they remain sound
+- implement LocalAppData path resolution and automatic directory initialization
+- add schema versioning, safe atomic JSON writes, synchronized writes, corruption classification/recovery, and monthly streaming JSONL history
+- replace the EF usage snapshot repository with JSONL behavior while preserving material-change detection, latest/range queries, ordering, source/confidence, and `DateTimeOffset`
+- migrate infrastructure tests to focused JSON/JSONL/file-resilience tests
+- make the WPF shell open with no providers, missing state, empty history, or isolated storage/provider failures
+- establish and validate self-contained publishing for win-x64, win-x86, and win-arm64 where the environment permits; evaluate single-file without blind trimming
+- update `CURRENT_STATE` with actual target/current distinctions and validation; stop before Session 04
+
+Session 03R must not implement provider adapters, the dashboard, tray/HUD polish, or Session 04 investigation.
 
 ---
 
-## Session 02 — Domain & Application Architecture
+# 13. Session 04 - Provider Feasibility Investigation
 
-### Objective
-Implement provider-independent domain models and contracts.
+Evidence-only session. For each provider investigate official usage API, account usage endpoint, OAuth/device/account auth, browser-based supported workflow, optional CLI, safe local metadata, manual fallback, plan, quota windows, reset timestamp/timezone, subscription/renewal information, source semantics, and authentication failure behavior.
 
-### Core concepts
-- Provider
-- ProviderAccount
-- ProviderConnection
-- Subscription
-- QuotaDefinition
-- QuotaWindow/current quota state
-- UsageSnapshot
-- AlertRule
-- AlertEvent
-- SyncEvent
-- DataSource
-- ConfidenceLevel
-- BillingCadence
-- provider status
-- quota type/unit
-
-### Services/contracts
-- AI provider abstraction
-- provider registry/discovery
-- refresh orchestration
-- aggregation
-- snapshot persistence
-- subscription service
-- alert evaluation
-- settings abstraction
-- secure credential abstraction
-- clock abstraction if useful
-
-### Exit
-- no fixed quota schema
-- important invariants covered by targeted tests
-- project boundaries remain correct
-- domain/application architecture remains OS-independent wherever possible (Cross-Windows Compatibility Baseline, §2A)
+Answer whether a non-developer/browser-only user can connect, whether CLI is required or optional, what is official/verified/inferred/manual, and what must remain unavailable. Do not implement adapters. Save a capability/evidence matrix in `CURRENT_STATE` and preserve privacy/security.
 
 ---
 
-## Session 03 — Persistence
+# 14. Gate A - Opus 5
 
-### Objective
-Implement EF Core 10 + Microsoft SQL Server LocalDB.
+Gate A reviews Sessions 01-04 and must inspect:
 
-### Required persistence
-- Providers
-- ProviderConnections
-- Subscriptions
-- QuotaDefinitions
-- UsageSnapshots
-- AlertRules
-- AlertEvents
-- SyncEvents
-- Settings
+- WPF is the active desktop foundation
+- Domain/Application separation and dynamic quota correctness
+- absence of WinUI/Windows App SDK/EF/SQL/LocalDB runtime dependency
+- JSON/JSONL stores, schema versions, atomic writes, synchronization, corruption handling, and `DateTimeOffset`
+- duplicate-history suppression and streaming/range behavior
+- LocalAppData and no administrator requirement
+- self-contained publish strategy and x64/x86/ARM64 artifacts
+- provider feasibility evidence and non-developer UX feasibility
+- credential boundaries, no secrets in files, and provider truth
+- Cross-Windows compatibility and graceful UI degradation
 
-### Requirements
-- migrations
-- upgrade-safe initialization
-- useful indexes
-- duplicate snapshot prevention
-- no secrets
-- graceful LocalDB missing/unavailable handling
+Opus must reject Gate A if the active architecture still requires LocalDB/SQL Server/EF or if zero-prerequisite deployment is unproven at the architecture level.
 
 ---
 
-## Session 04 — Provider Feasibility Investigation
+# 15. Session 05 - WPF Modern Design System
 
-### Objective
-Verify real collection possibilities against the actual local/authenticated environment before provider coding.
-
-### For all five providers determine
-- installation detection
-- auth/account detection
-- official API
-- OAuth/device auth
-- official CLI/status/usage command
-- safe local metadata
-- actual quota windows
-- source semantic: used vs remaining
-- reset timestamp + timezone
-- plan
-- subscription/billing dates
-- rate limits
-- network requirement
-- fallback
-
-### Capability status
-Every field is classified:
-
-- `VERIFIED`
-- `NOT AVAILABLE`
-- `MANUAL FALLBACK`
-- `FURTHER INVESTIGATION`
-
-### Exit
-Capability matrix and evidence are saved in `.ai/CURRENT_STATE.md`.
-
-No speculative provider coding.
+Build a modern, premium, dark-first WPF design system with light/system option, resource tokens, typography, spacing, cards, buttons, icons, status badges, progress components, provider accents, responsive layout, loading/error/empty states, keyboard accessibility, high-DPI behavior, and restrained animation. Do not depend on Mica/Acrylic or any unavailable modern effect. Do not implement providers.
 
 ---
 
-# 12. Review Gate A — Opus 5
+# 16. Session 06 - Main Dashboard
 
-Review Sessions 01–04.
-
-Focus:
-
-- architecture
-- dependencies
-- dynamic quota domain
-- LocalDB design
-- provider abstraction
-- Session 04 evidence
-- security
-- complexity
-- future maintainability
-- target framework, minimum OS, architecture configuration; OS-independent domain/application design; dependencies that could raise the minimum OS (§2A)
-
-Gate verdict:
-
-- `APPROVED TO CONTINUE`
-- `REJECTED — BLOCKERS LISTED`
-
-BLOCKER/HIGH findings must be resolved before Session 05.
+Build the general-user dashboard around available/remaining capacity, reset countdowns, plans, credits, connection status, last-updated time, stale/partial/error states, best available capacity, and dynamic provider card/quota rows. A provider may expose zero, one, or many windows or only credits. Do not use developer jargon by default, parse provider payloads in WPF, or fabricate missing windows.
 
 ---
 
-# 13. Phase 1 — Experience
+# 17. Session 07 - Tray and Focus HUD
 
-## Session 05 — WinUI Design System
-
-Build:
-
-- navigation shell
-- Mica
-- dark/light/system themes
-- typography system
-- spacing
-- card surfaces
-- provider identity controls
-- quota bars/rings
-- status pills
-- loading skeleton
-- empty/stale/error states
-- warning/critical states
-- keyboard/accessibility states
-
-Visual direction:
-
-**modern developer command center**
-
-Polished but restrained.
-
-Mica/Acrylic/modern backdrop usage must be capability checked and have a compatible fallback (§2A). The design must remain attractive on older supported Windows 10 devices where advanced effects are unavailable.
+Implement lightweight WPF tray behavior and an optional compact Focus HUD: open dashboard, show/hide HUD, refresh, pause/resume hook, settings, explicit exit, remembered position/size/mode, always-on-top, readable provider rows, stale/error indicators, and no heavy browser background process. Preserve simple startup and shutdown behavior.
 
 ---
 
-## Session 06 — Main Dashboard
+# 18. Sessions 08-12 - Providers
 
-Build:
-
-- overall capacity
-- best-capacity provider
-- next reset
-- dynamic provider cards
-- arbitrary quota rows
-- exact + relative reset
-- status/stale state
-- refresh all
-- refresh progress
-- insight panel
-- intentional credit-only layout
-
-No provider-specific parsing in UI.
+Keep the sequence: 08 Codex, 09 Claude, 10 Kimi, 11 GitHub Copilot, 12 Antigravity. Each adapter must implement only the capability path verified in Session 04. CLI is optional, never assumed. Every adapter requires detector, collector, parser, normalizer, structured failures, stale/auth handling, safe persistence, sanitized fixtures, focused tests, and a truthful manual/partial/unsupported fallback where automatic usage is unavailable. No fabricated endpoints, quotas, reset times, subscription data, or credential access.
 
 ---
 
-## Session 07 — System Tray & Focus HUD
+# 19. Session 13 - Subscription Management
 
-Build:
-
-- tray icon/menu
-- open dashboard
-- Focus HUD toggle
-- refresh
-- pause/resume monitoring hook
-- settings
-- explicit exit
-- close/minimize to tray
-- compact HUD
-- expanded HUD
-- always-on-top
-- position persistence
-- size/mode persistence
-- optional opacity
-- provider click-through
-
-The HUD must remain comfortable beside VS Code/another IDE.
-
-Tray/window/HUD behavior must not unnecessarily depend on Windows 11-only APIs (§2A) and must respect the supported OS range.
+Persist and display plan, original start, billing period, renewal, cancellation/paid-through semantics, auto-renew, price, currency, cadence, source, confidence, and last verified time through JSON stores. Missing values are normal. Support manual entry and clearly distinguish provider, verified-local, inferred, and manual data. No payment functionality.
 
 ---
 
-# 14. Phase 2 — Provider Integrations
+# 20. Session 14 - JSONL History and Analytics
 
-All Sessions 08–12 consume verified Session 04 findings.
-
-If provider behavior changed, re-verify before implementation.
-
-Provider detection must not assume Windows 11-only paths, registry structures, or shell behavior unless the provider itself officially requires that OS (§2A). Distinguish a **provider limitation** from an **AI Usage Monitor limitation** — the rest of the application must keep functioning either way.
-
-## Session 08 — Codex
-Implement only verified detection/auth/usage/quota/reset/plan/subscription sources and manual fallbacks.
-
-## Session 09 — Claude
-Implement verified session/5h, weekly, model-specific, credits/extra-usage and metadata where exposed.
-
-## Session 10 — Kimi
-Implement verified rolling 5h, weekly, monthly membership credits, Extra Usage, plan and reset data.
-
-## Session 11 — GitHub Copilot
-Implement supported GitHub identity/auth and current AI-credit/billing usage. Do not invent 5h/weekly windows.
-
-## Session 12 — Antigravity
-Implement safe verified quota/account integration. Partial/manual fallback is acceptable if programmatic access is unreliable.
-
-### Common provider requirements
-- detector
-- collector
-- parser
-- normalizer
-- structured failures
-- stale/auth-expired handling
-- persistence
-- dashboard/HUD integration
-- sanitized fixtures
-- focused parser/normalization tests
-- manual comparison with provider's own usage surface
+Use partitioned JSONL history with streaming/incremental reads, time ranges, chronological ordering, remaining-capacity trends, consumption delta, burn rate, reset detection, estimated exhaustion, estimated remaining-at-reset, and explicit stale gaps. Do not load all lifetime history unnecessarily or fabricate interpolation.
 
 ---
 
-# 15. Review Gate B — Opus 5
+# 21. Session 15 - Capacity Recommendation Engine
 
-Audit all provider implementations for:
-
-- invented endpoints
-- brittle scraping
-- cookie extraction
-- token leakage
-- wrong quota interpretation
-- used/remaining inversion
-- timezone/reset bugs
-- fabricated subscription data
-- stale data displayed as fresh
-- last-known values replaced by zero
-- duplicate snapshots
-- aggressive polling
-- UI/provider coupling
-- provider detection compatibility, Windows-specific assumptions, provider-specific OS requirements correctly isolated from the rest of the app (§2A)
-
-BLOCKER/HIGH findings must be resolved before Phase 3.
+Implement deterministic capacity scoring only. Use remaining capacity, relevant windows, credits, reset proximity, burn rate, provider availability, stale confidence, and exhaustion. Handle missing/credit-only data explicitly. Output a score, ranking, reason, and best available capacity recommendation. Do not rank intelligence or invoke an AI model.
 
 ---
 
-# 16. Phase 3 — Product Intelligence
+# 22. Session 16 - Monitoring and Notifications
 
-## Session 13 — Subscription Management
-
-Support:
-
-- plan
-- original start
-- billing-period start
-- billing-period end
-- renewal date
-- cancellation/paid-through
-- auto-renew
-- price
-- currency
-- billing cadence
-- source/confidence
-- manual fallback
-
-Never present inferred dates as provider facts.
+Implement lightweight background refresh (approximately 60 seconds by default), startup/resume/foreground/manual triggers, cancellation, timeout/backoff, provider isolation, no overlapping refresh, and notification deduplication. Persist alert events through JSONL/file stores without high-frequency disk writes. Support warning/critical remaining thresholds, exhaustion, reset/restored, authentication failure, stale provider, and renewal notifications.
 
 ---
 
-## Session 14 — History & Analytics
+# 23. Session 17 - Settings, Security and File Resilience
 
-Implement:
-
-- 24h
-- 7d
-- 30d
-- billing-cycle history
-- remaining-capacity trend
-- consumption delta
-- burn rate
-- reset detection/markers
-- gaps/stale periods
-- estimated exhaustion
-- estimated remaining at reset
-
-Do not forecast from insufficient data.
+Implement settings for providers, refresh, startup, themes, HUD, thresholds, and manual subscriptions using JSON. Harden atomic writes, backups/quarantine where useful, schema upgrades, missing/corrupt/unsupported files, permissions/path failures, storage availability, credential manager integration, secure disconnect, secret redaction, and provider auth recovery. Remove database-resilience assumptions.
 
 ---
 
-## Session 15 — Capacity Recommendation Engine
+# 24. Session 18 - UX and Performance Polish
 
-Deterministic capacity score only.
-
-Inputs:
-
-- current remaining
-- short-window remaining
-- weekly remaining
-- monthly/credits remaining
-- reset proximity
-- burn rate
-- provider health
-- stale confidence
-- exhaustion
-
-Outputs:
-
-- score
-- ranking
-- explanation
-- long-session recommendation
-- constrained-provider warning
-
-No LLM call.  
-No claim about intelligence/model quality.
+Perform no-new-scope stabilization. Validate startup time, idle CPU, memory, JSONL large-history behavior, UI responsiveness, WPF rendering, high DPI, x86/x64/ARM64 builds where feasible, older supported hardware, reduced-effect fallback, restrained animations, cancellation, and absence of unnecessary disk/provider work.
 
 ---
 
-## Session 16 — Monitoring & Notifications
+# 25. Gate B - Opus 5
 
-Implement:
-
-- periodic refresh (~60 sec default)
-- startup refresh
-- resume refresh
-- foreground refresh where sensible
-- safe local event refresh
-- timeout/cancellation
-- provider isolation
-- retry/backoff/rate-limit handling
-
-Alerts:
-
-- warning under 30%
-- critical under 15%
-- exhausted
-- reset/restored
-- authentication failure
-- stale provider
-- renewal approaching
-
-Implement notification deduplication/cooldown.
-
-Background monitoring must remain lightweight on older/lower-spec supported hardware: low idle CPU, reasonable memory, no aggressive/high-frequency timers (§2A).
+Review all five provider implementations against Session 04 evidence. Audit invented endpoints, brittle scraping, cookie/token exposure, source semantics, used/remaining inversion, reset/timezone errors, fabricated subscription values, stale-state handling, duplicate snapshots, aggressive polling, provider isolation, and provider-specific logic leaking into WPF. Classify findings and approve or reject Phase 3.
 
 ---
 
-# 17. Phase 4 — Production Hardening
+# 26. Gate C - Opus 5
 
-## Session 17 — Settings, Security & Resilience
-
-Settings:
-
-- provider enable/disable
-- refresh interval
-- Windows startup
-- theme
-- Focus HUD
-- thresholds
-- provider setup
-- manual subscriptions
-
-Resilience:
-
-- offline
-- LocalDB missing
-- DB transient error
-- provider timeout
-- rate limit
-- malformed payload
-- provider removed
-- auth expired
-- partial data
-
-Security:
-
-- Windows Credential Manager
-- DPAPI only where necessary
-- log redaction
-- credential disconnect/delete
-- no secrets in DB/config
-
-OS capability detection and resilience must be reviewed: any post-17763 API/feature use must be guarded with a working fallback, never a crash (§2A).
+Perform a pre-release audit of BRD coverage, WPF/MVVM boundaries, JSON/JSONL integrity, security, provider correctness, UX/accessibility, performance, resilience, monitoring, alerts, analytics, recommendation logic, compatibility, and zero-prerequisite release evidence. Resolve BLOCKER/HIGH findings before Session 19.
 
 ---
 
-## Session 18 — UX & Performance Polish
+# 27. Session 19 - Self-Contained Packaging and Release
 
-No new product scope.
-
-Review:
-
-- information hierarchy
-- card consistency
-- quota wording
-- reset display
-- resizing
-- DPI
-- text scaling
-- keyboard
-- accessibility
-- themes
-- loading/stale/error
-- HUD
-- tray behavior
-- UI-thread blocking
-- DB/network chatter
-- chart history performance
-- cancellation/disposal
-
-Performance and compatibility validation must include older/lower-resource supported environments, not only the primary development machine: reduced/no visual effects, x64 primary build, x86 build, ARM64 build where feasible, hardware-independent functionality, and both high-DPI and normal-DPI behavior (§2A).
+Create repeatable release artifacts and CI for `win-x64`, `win-x86`, and `win-arm64` where feasible. Validate `SelfContained=true`, evaluate stable single-file publishing, avoid blind trimming, keep mutable data outside the install directory, and test a clean compatible Windows machine/VM with no separately installed .NET runtime, SDK, SQL, Node, or developer tooling. Do not add database installers, Angular, Node, WebView, or hidden runtime prerequisites.
 
 ---
 
-# 18. Review Gate C — Opus 5
+# 28. Session 20 - Final Stabilization
 
-Pre-release audit:
-
-- BRD coverage
-- security
-- provider correctness
-- architecture
-- UI/UX
-- accessibility
-- performance
-- resilience
-- history math
-- recommendation logic
-- monitoring
-- notifications
-- UI graceful degradation, older-system resource usage, API capability checks, background performance, architecture outputs across the supported OS/architecture matrix (§2A)
-
-Resolve release blockers before Session 19.
+No new features. Validate download -> launch -> use, first-run directory creation, missing/empty/corrupt state recovery, existing history, provider failure isolation, offline/stale behavior, credential security, dashboard/HUD/tray, analytics, alerts, recommendations, self-contained artifacts, and the Cross-Windows contract. Resolve BLOCKER/HIGH issues, update `CURRENT_STATE` to RELEASE CANDIDATE when justified, and stop before Final Review.
 
 ---
 
-# 19. Session 19 — Packaging, CI & Release Engineering
+# 29. Final Opus 5 Release Review
 
-Build:
+For every BRD requirement classify PASS, PARTIAL, FAIL, or NOT APPLICABLE. Explicitly confirm:
 
-- Release configuration
-- GitHub Actions restore/build/test
-- no live provider secrets
-- versioning
-- Windows packaging
-- LocalDB prerequisite strategy
-- safe migration on upgrade
-- release artifact
-- concise README install/update instructions
+- WPF is the active UI technology
+- WinUI and Windows App SDK are absent from the active runtime
+- EF Core, SQL Server, and LocalDB are absent from the active runtime
+- SQLite was not introduced without approval
+- JSON/JSONL persistence and schema versioning are active
+- safe writes, corruption handling, streaming history, and duplicate suppression work
+- secrets remain external to files
+- self-contained release works without a .NET runtime installation or developer tooling
+- provider CLI is optional and browser/non-developer use is represented truthfully
+- provider truth, remaining-capacity semantics, timestamps, and reset behavior are correct
+- terminology serves general AI users
+- WPF UI remains modern, readable, accessible, and performant
+- x64/x86/ARM64 artifacts and supported-OS claims are evidence-based
 
-Release consideration must cover win-x86, win-x64, and win-arm64 (§2A). No packaging decision may silently raise the minimum OS beyond build 17763.
-
-No cloud infrastructure.
-
----
-
-# 20. Session 20 — Final Stabilization
-
-No new features.
-
-Validate full V1 against BRD:
-
-- fresh launch
-- existing database
-- missing LocalDB
-- provider connected
-- provider disabled
-- provider partial
-- provider stale
-- auth expired
-- offline
-- quota change
-- quota reset
-- subscription manual entry
-- dashboard
-- provider details
-- history
-- recommendation
-- alerts
-- notifications
-- HUD
-- tray
-- restart
-- Windows startup
-- packaged installation/update
-
-Final acceptance validation must cover the Windows 10 1809 compatibility contract, later Windows 10 releases, Windows 11, x86, x64, ARM64, and modern-effects-unavailable fallback (§2A), using real hardware, VMs, build validation, compatibility guards, or a justified combination of what is realistically available. Do not claim hardware/OS execution that was not actually performed.
-
-Resolve all BLOCKER/HIGH defects.
-
-Set `.ai/CURRENT_STATE.md` to `RELEASE CANDIDATE`.
+The final verdict must be exactly `READY FOR PERSONAL PRODUCTION USE` or `NOT READY FOR PERSONAL PRODUCTION USE`.
 
 ---
 
-# 21. Final Opus 5 Release Review
+# 30. Definition of Done
 
-Every BRD requirement:
+Every executor session is done only when:
 
-- PASS
-- PARTIAL
-- FAIL
-- NOT APPLICABLE
+1. assigned scope is implemented and no future scope was added
+2. appropriate build/validation and focused tests actually ran
+3. no session-created warnings/errors remain unexplained
+4. no secrets/debug artifacts are present
+5. final Git diff was reviewed
+6. `.ai/CURRENT_STATE.md` was updated factually
+7. changes were committed
+8. session branch was pushed
+9. branch was merged into `main`
+10. `main` was pushed
+11. `origin/main` was fetched and verified
+12. working tree is clean
+13. limitations/blockers and next session are recorded
+14. executor stops
 
-The compatibility verdict must explicitly cover Windows 10 1809+, Windows 11, x86, x64, ARM64, fallback behavior when modern effects are unavailable, and the absence of accidental Windows 11-only core dependencies (§2A). A release-blocking compatibility regression must be classified per severity like any other finding.
-
-Final verdict exactly:
-
-`READY FOR PERSONAL PRODUCTION USE`
-
-or:
-
-`NOT READY FOR PERSONAL PRODUCTION USE`
-
-No conditional approval while blockers remain.
-
----
-
-# 22. Definition of Done — Every Executor Session
-
-A session is Done only when:
-
-1. assigned scope is implemented
-2. unrelated scope was not added
-3. solution builds
-4. targeted validation/tests actually run
-5. no session-created compiler errors remain
-6. no secrets are present
-7. final Git diff was reviewed
-8. `.ai/CURRENT_STATE.md` was updated
-9. changes are committed (Git Delivery Contract, `AGENTS.md` §6A)
-10. the session branch is pushed
-11. the session branch is merged into `main`
-12. `main` is pushed to `origin`
-13. `origin/main` is verified to contain the merged work
-14. the working tree is clean
-15. limitations/blockers are documented
-16. next session is identified
-17. executor stops
-
----
-
-# 23. V1 Completion
-
-V1 is complete when:
-
-- Sessions 01–20 are complete
-- all Opus gates pass
-- all five providers have truthful integrations/fallbacks
-- dynamic quota display works
-- history works
-- HUD works
-- alerts work
-- security rules pass
-- GitHub CI passes
-- packaged release works
-- final Opus verdict is `READY FOR PERSONAL PRODUCTION USE`
+V1 is complete only when Sessions 01-20, all Opus gates, truthful provider paths/fallbacks, dynamic capacity display, JSONL history, HUD, alerts, security, CI, self-contained release, and the final Opus verdict are complete.
