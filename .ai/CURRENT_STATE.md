@@ -8,19 +8,89 @@
 **APO-18:** COMPLETE / ACCEPTED
 **APO-19:** COMPLETE / SOL ACCEPTED
 **APO-20:** COMPLETE — repository and physical local-root rename complete
+**APO-22:** IMPLEMENTATION COMPLETE — AWAITING CLAUDE OPUS 5 INDEPENDENT REVIEW / SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-20 - Finalize repository and physical local-root rename
-**Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-20 COMPLETE - repository and physical local-root rename complete
-**Next implementation:** Sol planner checkpoint in `TASK.md`; do not execute APO-19 or any implementation Story automatically
+**Current Story:** APO-22 - Implement Windows Credential Manager Secure Credential Store
+**Current Epic:** APO-2 - Windows Platform & Application Foundation
+**Status:** APO-22 implementation delivered on `feat/APO-22-windows-credential-manager`; NOT merged to `main`; NOT marked Done
+**Next implementation:** Claude Opus 5 independent review, then GPT-5.6 Sol acceptance; do not execute APO-31 or any other Story automatically
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
-> APO-20 changes repository/folder identity only. Technical identifiers and product source code
-> remain unchanged. APO-19 remains complete and Sol-accepted; it was not rerun by APO-20.
+> APO-22 adds a concrete secure-credential-store adapter only. It does not change repository
+> identity, provider adapters, or any other Story's scope. APO-20 remains complete; it was not
+> rerun by APO-22.
+
+---
+
+## 0. APO-22 Current State & Delivery Summary
+
+APO-22 implemented `WindowsCredentialManagerStore`, the first concrete adapter behind the existing
+`ISecureCredentialStore` Application contract (`src/AIUsageMonitor.Application/Security/ISecureCredentialStore.cs`).
+The contract signature was NOT changed.
+
+| Item | Result |
+|---|---|
+| Starting SHA (expected, verified) | `aab184b6e8dcd1aa9f87012bec0845d4070fb410` (`origin/main` matched local `main`) |
+| Branch | `feat/APO-22-windows-credential-manager` |
+| Windows mechanism | Windows Credential Manager Generic Credential (`CRED_TYPE_GENERIC`), `CRED_PERSIST_LOCAL_MACHINE` persistence |
+| Native APIs | `CredWriteW`, `CredReadW`, `CredDeleteW`, `CredFree` (Advapi32.dll), verified against Microsoft Learn `wincred.h` documentation before implementation |
+| Secret encoding on the wire | UTF-8 bytes into `CredentialBlob`; decoded back with `Encoding.UTF8` on read |
+| Target name | `AIUsageMonitor:Credential:{credentialReference}` (namespaces APO's Generic Credentials in the shared vault) |
+| DI registration | `ISecureCredentialStore -> WindowsCredentialManagerStore` (singleton), in `InfrastructureServiceCollectionExtensions.AddInfrastructure` |
+| Non-Windows behavior | Throws `PlatformNotSupportedException` before any native call (`OperatingSystem.IsWindows()` guard, injectable for tests) |
+
+### Files changed/added
+
+- `src/AIUsageMonitor.Infrastructure/Security/ICredentialManagerNativeStore.cs` (new, internal) — testable seam over the native calls.
+- `src/AIUsageMonitor.Infrastructure/Security/WindowsCredentialManagerNativeStore.cs` (new, internal) — P/Invoke implementation.
+- `src/AIUsageMonitor.Infrastructure/Security/CredentialManagerNativeException.cs` (new, public) — carries operation, target name, and Win32 error code; never the secret.
+- `src/AIUsageMonitor.Infrastructure/Security/WindowsCredentialManagerStore.cs` (new, public) — `ISecureCredentialStore` implementation.
+- `src/AIUsageMonitor.Infrastructure/AIUsageMonitor.Infrastructure.csproj` (modified) — added `InternalsVisibleTo` for `AIUsageMonitor.Infrastructure.Tests` only, to keep the native seam internal per the execution contract.
+- `src/AIUsageMonitor.Infrastructure/InfrastructureServiceCollectionExtensions.cs` (modified) — DI registration.
+- `tests/AIUsageMonitor.Infrastructure.Tests/Security/FakeCredentialManagerNativeStore.cs` (new) — in-memory native-call fake.
+- `tests/AIUsageMonitor.Infrastructure.Tests/Security/WindowsCredentialManagerStoreTests.cs` (new) — 14 focused tests.
+- `TASK.md` (replaced with the APO-22 contract, now the review checkpoint below).
+
+### Validation evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln` (Debug) | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln` | SUCCESS; 64/64 passing (28 Domain, 7 Provider, 29 Infrastructure) — up from the 50/50 baseline (15 prior Infrastructure tests + 14 new) |
+| `git diff --check` | Clean (only a benign LF/CRLF normalization notice on `TASK.md`, not a real whitespace defect) |
+| `dotnet build` Desktop, `-p:Platform=x64 -r win-x64` (Release) | SUCCESS; 0 warnings, 0 errors — **compile-only** |
+| `dotnet build` Desktop, `-p:Platform=x86 -r win-x86` (Release) | SUCCESS; 0 warnings, 0 errors — **compile-only** |
+| `dotnet build` Desktop, `-p:Platform=ARM64 -r win-arm64` (Release) | SUCCESS; 0 warnings, 0 errors — **compile-only**; no ARM64 hardware execution performed or claimed |
+| Real native round-trip smoke check | Performed manually on this Windows x64 dev machine only (temporary test, added, run, then deleted before commit): write/read-back exact bytes/update/delete/confirm-not-found all succeeded against the actual Windows Credential Manager vault, then the credential and the scratch test file were both removed. `cmdkey /list` confirmed no `AIUsageMonitor` credential remained afterward. This is not part of the committed automated suite (the committed suite uses the fake per the execution contract), so it is not repeatable evidence for the reviewer to rerun — it only records that the native P/Invoke path was exercised once against real Windows Credential Manager during implementation. |
+| Secret/diff review | SUCCESS; searched the diff for the test secret literals used in fixtures (e.g. `super-secret-token`, `codex-secret-value`) — they appear only in test files, never in generated output, logs, or persisted JSON/JSONL |
+
+### Known limitations
+
+- Test requirement "non-Windows guard behavior where reasonably testable" is covered by an
+  injectable `Func<bool> isWindows` seam exercised in
+  `NonWindowsPlatform_FailsTruthfullyWithoutCallingTheNativeStore` — this proves the guard logic
+  deterministically, but does not (and cannot, on this Windows-only dev/CI environment) prove
+  actual execution under a non-Windows OS.
+- ARM64/x86 evidence above is compile-only, performed on an x64 development machine; no ARM64 or
+  x86 hardware runtime execution was performed or is claimed.
+- `CRED_MAX_CREDENTIAL_BLOB_SIZE` is 2560 bytes (`CRED_PERSIST_LOCAL_MACHINE`); a secret encoded to
+  more than 2560 UTF-8 bytes will fail with a `CredentialManagerNativeException` surfacing the
+  native Win32 error code. No APO code pre-validates this size; the OS enforces it.
+- APO-31 (provider capacity adapters) was explicitly NOT started. No provider connection UX, no
+  Codex/Claude/Kimi/Copilot/Antigravity adapter code, no LocalAppData migration, and no
+  solution/project/namespace rename were touched.
+
+### Review boundary
+
+APO-22 implementation is delivered on `feat/APO-22-windows-credential-manager` and has **NOT**
+been merged to `main` and has **NOT** been marked Done. Claude Opus 5 independent review and
+GPT-5.6 Sol acceptance are required next. `main` remains unchanged at
+`aab184b6e8dcd1aa9f87012bec0845d4070fb410`.
 
 ---
 
@@ -241,6 +311,9 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 - Cross-Windows compatibility (Windows 10 1809+ / Windows 11) is a permanent contract.
 - APO-20 renamed the active repository and local project folder identities; technical solution,
   project, namespace, assembly, test, and persistence identifiers remain unchanged.
+- APO-22 implements the first concrete `ISecureCredentialStore` adapter: Windows Credential
+  Manager Generic Credentials, `CRED_PERSIST_LOCAL_MACHINE` persistence, secrets never written to
+  JSON/JSONL/logs.
 
 ---
 
@@ -251,14 +324,19 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
+| APO-22 | `feat/APO-22-windows-credential-manager` | Pending | Not merged | 21 Aug 2026 | AWAITING OPUS REVIEW / SOL ACCEPTANCE |
 
 ---
 
 ## 10. Next Planner Boundary
 
-`APO-20 repository and physical local-root rename work is complete. TASK.md contains the safe Sol
-planner checkpoint. APO-19 remains complete and Sol-accepted and has not been rerun.`
+APO-20 repository and physical local-root rename work is complete. APO-22 delivered the Windows
+Credential Manager secure credential store adapter on `feat/APO-22-windows-credential-manager` and
+is now the active review checkpoint in `TASK.md`. APO-19 remains complete and Sol-accepted and has
+not been rerun.
 
-GPT-5.6 Sol must accept final APO-20, mark it Done in Jira, create the actual backfill Stories
-under APO-2, APO-3, APO-4, and APO-17, select the first implementation Story, and issue its full
-execution contract. Do not execute any Story automatically from this checkpoint.
+Claude Opus 5 must independently review APO-22 (implementation, tests, native-memory safety,
+credential-reference validation, non-Windows guard, DI wiring, and this file's evidence), then
+GPT-5.6 Sol must accept or reject it. Only after acceptance may Sol select and issue the next
+execution contract (e.g. APO-31, which depends on APO-22). Do not execute any Story automatically
+from this checkpoint.

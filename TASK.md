@@ -1,43 +1,41 @@
-# APO Planner Checkpoint after APO-20
+# APO-22 Review Checkpoint - Windows Credential Manager Secure Credential Store
 
 Status:
-APO-20 COMPLETE
+IMPLEMENTATION COMPLETE - AWAITING CLAUDE OPUS 5 INDEPENDENT REVIEW / SOL ACCEPTANCE
 
-Completed:
+Jira Story:
+APO-22 - Implement Windows Credential Manager Secure Credential Store
 
-- APO-18 governance rebaseline
-- APO-19 legacy implementation inventory and reuse classification
-- APO-20 GitHub repository rename
-- APO-20 physical local-root rename
+Parent Epic:
+APO-2 - Windows Platform & Application Foundation
 
-Current Repository:
+Dependency:
+APO-22 blocks APO-31 - Implement Official Provider Capacity Adapters
 
-https://github.com/Hossam1104/AI-Project-Orchestrator
+Executor:
+Claude Sonnet 5 (bounded implementation) - implementation complete
 
-Current Local Root:
+Branch:
+feat/APO-22-windows-credential-manager (NOT merged to main)
 
-D:\AI Tools\Hossam\AI-Project-Orchestrator
+Delivered:
 
-Approved backlog input:
+- `WindowsCredentialManagerStore` implements the existing `ISecureCredentialStore` contract
+  (unchanged) using Windows Credential Manager Generic Credentials via `CredWriteW`, `CredReadW`,
+  `CredDeleteW`, `CredFree`.
+- Native calls isolated behind an internal `ICredentialManagerNativeStore` seam; DI registers
+  `ISecureCredentialStore -> WindowsCredentialManagerStore` in
+  `InfrastructureServiceCollectionExtensions`.
+- 14 new focused tests against a fake native store; full suite 64/64 passing (up from 50/50).
+- Full detail, evidence, and known limitations are recorded in `.ai/CURRENT_STATE.md` Section 0.
 
-docs/LEGACY_IMPLEMENTATION_MAP.md
+Required next authority:
 
-Next authority:
+1. Claude Opus 5 must independently review the implementation, diff, tests, and evidence in
+   `.ai/CURRENT_STATE.md` against this contract and the BRD/AGENTS.md security requirements.
+2. GPT-5.6 Sol must accept or reject APO-22 based on that review.
+3. Only after Sol acceptance may the next execution contract (e.g. APO-31, which depends on
+   APO-22) be issued.
 
-GPT-5.6 Sol must:
-
-1. accept final APO-20;
-2. mark APO-20 Done in Jira;
-3. create the real historical/reuse/refactor backlog Stories under:
-   - APO-2
-   - APO-3
-   - APO-4
-   - APO-17
-4. assign Jira-generated keys;
-5. determine which historical items can legitimately be marked Done;
-6. select the first real APO implementation/refactor Story;
-7. issue its complete TASK.md execution contract.
-
-No executor may automatically start another Story.
-
-Then STOP.
+This file does NOT authorize APO-23, APO-27, APO-31, APO-33, or any other Story. No executor may
+start further implementation work from this checkpoint. `main` remains unchanged.

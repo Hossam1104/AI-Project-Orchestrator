@@ -1,6 +1,7 @@
 using AIUsageMonitor.Application.Alerts;
 using AIUsageMonitor.Application.Providers;
 using AIUsageMonitor.Application.Quotas;
+using AIUsageMonitor.Application.Security;
 using AIUsageMonitor.Application.Settings;
 using AIUsageMonitor.Application.Subscriptions;
 using AIUsageMonitor.Application.Sync;
@@ -8,6 +9,7 @@ using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Application.Usage;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Infrastructure.Persistence.Repositories;
+using AIUsageMonitor.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Infrastructure;
@@ -39,6 +41,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IAlertEventRepository, JsonAlertEventRepository>();
         services.AddSingleton<ISyncEventRepository, JsonSyncEventRepository>();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
+
+        // Stateless native-call wrapper; singleton avoids re-allocating it per resolution while
+        // matching the lifetime of every other adapter registered here.
+        services.AddSingleton<ISecureCredentialStore, WindowsCredentialManagerStore>();
 
         services.AddSingleton<IClock, SystemClock>();
 
