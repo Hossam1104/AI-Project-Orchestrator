@@ -166,8 +166,7 @@ policy, and stop. Do not execute another Story.
 
 # CURRENT APO CHECKPOINT
 
-APO-20 completed the repository identity rename, but the physical local-root move is blocked by a
-Windows process lock. The full APO-19 execution contract is prepared in the root `TASK.md` with the
-final APO-20 main SHA and updated repository/path references. Preparing that contract does not
-authorize APO-19 execution; the local rename must complete first, followed by a fresh
-planner/owner instruction and the applicable Jira gate.
+APO-20 completed the repository and local-root identity rename. The root `TASK.md` is now a safe
+Sol planner checkpoint with updated repository/path references. It does not authorize APO-19 or
+any other implementation Story; Sol must create the actual Jira backfill Stories, select the first
+approved implementation Story, and issue its full execution contract.

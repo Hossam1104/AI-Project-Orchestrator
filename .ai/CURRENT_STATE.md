@@ -5,19 +5,19 @@
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Local Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
-**Repository/local-folder rename:** PARTIAL; repository renamed, physical local-folder move blocked
+**Repository/local-folder rename:** COMPLETE
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-20 - Rename repository and local project root to AI Project Orchestrator
 **Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-20 PARTIAL - repository rename complete; local folder rename blocked
-**Next implementation:** APO-19 execution contract prepared in `TASK.md`; do not execute until the local rename is complete and a fresh instruction authorizes it
+**Status:** APO-20 COMPLETE - repository and local folder identity rename complete
+**Next implementation:** Safe Sol planner checkpoint in `TASK.md`; no implementation Story is authorized until Sol creates the real Jira backlog and issues a fresh execution contract
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
-> APO-20 changes repository/folder identity only. Technical identifiers and product source code remain
-> unchanged. APO-19 is prepared for the next planner boundary and has not been executed by APO-20.
+> APO-20 changed repository/folder identity only. Technical identifiers and product source code
+> remain unchanged. APO-19 remains complete and Sol-accepted; it was not rerun by APO-20.
 
 ---
 
@@ -29,14 +29,14 @@ GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
 
 | Item | Result |
 |---|---|
-| Old repository | `Hossam1104/AI-Usage-Monitor-Tool` |
+| Historical old repository | `Hossam1104/AI-Usage-Monitor-Tool` |
 | New repository | `Hossam1104/AI-Project-Orchestrator` |
-| Old local root | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
+| Historical old local root | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
 | New local root | `D:\AI Tools\Hossam\AI Project Orchestrator` |
 | Verified starting SHA | `9659bf65bda4defc91b2383cf7f195637678485f` |
 | Final APO-20 implementation merge SHA | `861dc99` |
 | Origin | `https://github.com/Hossam1104/AI-Project-Orchestrator.git`; verified with fetch |
-| Local folder rename | BLOCKED; `Rename-Item` from `D:\AI Tools\Hossam` failed with `IOException` because the directory is used by another process |
+| Local folder rename | COMPLETE; `D:\AI Tools\Hossam\AI Project Orchestrator` exists and is the authoritative local root |
 | Technical rename | Not performed; solution/project/namespace/assembly/test/persistence identifiers remain unchanged |
 
 ### APO-20 Validation Evidence
@@ -50,9 +50,10 @@ GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
 | Technical source scope | SUCCESS; no `src/`, `tests/`, `.csproj`, `.sln`, namespace, assembly, or persistence rename |
 | Secret/artifact review | SUCCESS; no credentials or untracked generated artifacts introduced |
 
-The older `ae712335696d827a7a1a2d2464cf667f43430c33` SHA in the assigned contract and the APO-19
-legacy-map assessment is retained as historical evidence; the repository state verified for this
-execution began at `9659bf65bda4defc91b2383cf7f195637678485f`.
+The older `ae712335696d827a7a1a2d2464cf667f43430c33` SHA in the APO-19 legacy-map assessment is
+retained as historical evidence. The APO-19 accepted final main SHA is
+`9659bf65bda4defc91b2383cf7f195637678485f`; the repository state verified for APO-20 began at
+that accepted SHA.
 
 ---
 
@@ -116,7 +117,8 @@ Before APO-20, GPT-5.6 Sol was required to review the legacy implementation map 
 Jira backlog management:
 
 1. Review `docs/LEGACY_IMPLEMENTATION_MAP.md`.
-2. Create and approve the recommended Jira backfill and implementation Stories (APO-20 through APO-32).
+2. Review the recommended backlog item titles and target Epics, then create and approve the real
+   Jira backfill and implementation Stories with Jira-assigned keys.
 3. Select the first approved implementation Story and issue its execution contract in `TASK.md`.
 
 That historical boundary is superseded by APO-20's repository-identity work. Do not execute APO-2,
@@ -218,7 +220,7 @@ Completed 08 August 2026. Guarded LocalAppData storage initialization, added deg
 Completed 21 August 2026. Consolidated `docs/BRD.md` as the single authoritative BRD, updated repository governance for Jira project `APO`, and established the six-role AI operating model.
 
 ### APO-19 - Legacy Implementation Inventory & APO Reuse Map
-Completed 21 August 2026. Conducted complete code inspection, categorized all components into 5 reuse classifications, documented in `docs/LEGACY_IMPLEMENTATION_MAP.md`, and formulated Jira backfill recommendations (APO-20 through APO-32).
+Completed 21 August 2026. Conducted complete code inspection, categorized all components into 5 reuse classifications, documented in `docs/LEGACY_IMPLEMENTATION_MAP.md`, and formulated title- and target-Epic-based Jira backfill recommendations. Jira keys remain for Sol/Jira to assign.
 
 ---
 
@@ -243,14 +245,16 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 |---|---|---|---|---|---|
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
-| APO-20 | `refactor/APO-20-project-identity-rename` | `861dc99` | `861dc99` (fast-forward) | 21 Aug 2026 | PARTIAL - local folder lock |
+| APO-20 | `refactor/APO-20-project-identity-rename` | `861dc99` | `861dc99` (fast-forward) | 21 Aug 2026 | COMPLETE |
 
 ---
 
 ## 10. Next Planner Boundary
 
-`APO-20 repository work is complete at 861dc99. The full APO-19 execution contract is prepared in
-TASK.md with the final APO-20 main SHA and updated repository/path references. APO-19 has not been
-executed by this task and remains blocked until the physical local-root rename is completed.`
+`APO-20 identity rename is complete. APO-19 remains complete and Sol-accepted. The approved
+backlog input is docs/LEGACY_IMPLEMENTATION_MAP.md, and TASK.md is now a safe Sol planner
+checkpoint. No product source refactoring is authorized from this checkpoint.`
 
-Do not execute APO-19 or any other Story automatically from this checkpoint.
+GPT-5.6 Sol must review the final APO-20 state, create the actual backfill Stories under APO-2,
+APO-3, APO-4, and APO-17, select the first implementation Story, and issue its full execution
+contract. Do not execute any Story automatically from this checkpoint.

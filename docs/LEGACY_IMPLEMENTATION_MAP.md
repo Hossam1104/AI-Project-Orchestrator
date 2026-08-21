@@ -18,7 +18,7 @@
 
 ## 1. Purpose
 
-This document provides the formal legacy implementation inventory and architectural reuse classification for the AI Project Orchestrator (APO) repository (`https://github.com/Hossam1104/AI-Usage-Monitor-Tool`).
+This document provides the formal legacy implementation inventory and architectural reuse classification for the AI Project Orchestrator (APO) repository (`https://github.com/Hossam1104/AI-Project-Orchestrator`).
 
 APO succeeds the previous "AI Usage Monitor" product identity. Rather than rewriting the codebase from scratch, APO preserves and evolves validated engineering assets. This inventory inspects all active solution files, Domain models, Application contracts, Infrastructure persistence components, WPF desktop composition, publish profiles, tests, and historical Git commits against the 17 approved APO Epics and the consolidated Business Requirements Document (`docs/BRD.md`).
 
@@ -30,9 +30,13 @@ Every meaningful implementation area is classified to guide GPT-5.6 Sol in Jira 
 
 | Property | Value / Evidence |
 |---|---|
-| **Repository** | `https://github.com/Hossam1104/AI-Usage-Monitor-Tool` |
-| **Local Project Root** | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
+| **Active Repository** | `https://github.com/Hossam1104/AI-Project-Orchestrator` |
+| **Active Local Project Root** | `D:\AI Tools\Hossam\AI Project Orchestrator` |
+| **Historical pre-APO-20 Repository** | `https://github.com/Hossam1104/AI-Usage-Monitor-Tool` |
+| **Historical pre-APO-20 Local Project Root** | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
 | **Inspected Starting SHA** | `ae712335696d827a7a1a2d2464cf667f43430c33` |
+| **APO-19 Final Main SHA** | `9659bf65bda4defc91b2383cf7f195637678485f` |
+| **APO-20 Identity Rename Status** | Complete; repository and local-root identity renamed |
 | **Session Branch** | `docs/APO-19-legacy-implementation-map` |
 | **Authoritative Requirements** | `docs/BRD.md` (v1.1, approved 21 August 2026) |
 | **Active Target Architecture** | C# / .NET 10, WPF, MVVM, modular clean architecture, `System.Text.Json`, JSON/JSONL local file persistence, Serilog, Windows Credential Manager, self-contained Windows artifacts |
@@ -299,12 +303,16 @@ The product identity has formally transitioned to **AI Project Orchestrator (APO
 
 ## 14. Jira Backfill Recommendations
 
-The following Stories and Tasks are recommended for GPT-5.6 Sol to review and create in Jira project `APO`.
+The following backlog items are recommendations for GPT-5.6 Sol to review and create in Jira
+project `APO`. The titles and target Epics below are planning input only; Jira keys must be assigned
+by Jira after Sol creates the real Stories/Tasks. No provisional `APO-20` through `APO-32` numbering
+is authoritative.
 *(Note: Recommended initial status `Done` is only proposed where complete implementation and passing validation evidence exist in the current repository).*
 
 ### 14.1 Epic: APO-2 — Windows Platform & Application Foundation
 
-1. **APO-20: Preserve and Rebaseline .NET 10 / WPF Platform & Host Composition**
+1. **Title: Preserve and Rebaseline .NET 10 / WPF Platform & Host Composition**
+   - **Target Epic**: APO-2 - Windows Platform & Application Foundation
    - **Type**: Story (Historical Backfill & Foundation)
    - **BRD Requirements**: §1, §12, §13, §14
    - **Implementation Evidence**: `AIUsageMonitor.sln`, `Directory.Build.props`, `app.manifest`, `App.xaml.cs`, `InfrastructureServiceCollectionExtensions.cs`.
@@ -314,7 +322,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-2. **APO-21: Implement Windows Credential Manager Secure Credential Store**
+2. **Title: Implement Windows Credential Manager Secure Credential Store**
+   - **Target Epic**: APO-2 - Windows Platform & Application Foundation
    - **Type**: Story (New Implementation)
    - **BRD Requirements**: §12.2, FR-PROJ-003, FR-AGENT-001
    - **Implementation Evidence**: Contract `ISecureCredentialStore` exists in `Application/Security/`.
@@ -324,7 +333,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Required (Security/Credential safety).
    - **Recommended Jira Status**: **To Do**
 
-3. **APO-22: Refactor Application Identity and Technical Naming for APO**
+3. **Title: Refactor Application Identity and Technical Naming for APO**
+   - **Target Epic**: APO-2 - Windows Platform & Application Foundation
    - **Type**: Story (Refactoring)
    - **BRD Requirements**: §1, §18
    - **Implementation Evidence**: Rebranding inventory in Section 13 of this document.
@@ -336,7 +346,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
 
 ### 14.2 Epic: APO-3 — Local Persistence, Resilience & Security Foundation
 
-1. **APO-23: Preserve and Validate Schema-Versioned Atomic JSON Document Store**
+1. **Title: Preserve and Validate Schema-Versioned Atomic JSON Document Store**
+   - **Target Epic**: APO-3 - Local Persistence, Resilience & Security Foundation
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: §8, §12.1
    - **Implementation Evidence**: `JsonFileStore.cs`, `VersionedJsonCollectionStore.cs`, `JsonDocumentPersistenceTests.cs` (6 tests).
@@ -346,7 +357,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-2. **APO-24: Preserve and Validate Monthly Partitioned JSONL Event Store with Tail Resilience**
+2. **Title: Preserve and Validate Monthly Partitioned JSONL Event Store with Tail Resilience**
+   - **Target Epic**: APO-3 - Local Persistence, Resilience & Security Foundation
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: §8, §12.1, FR-AUD-001
    - **Implementation Evidence**: `JsonlEventStore.cs`, `JsonlHistoryPersistenceTests.cs` (5 tests).
@@ -356,7 +368,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-3. **APO-25: Preserve and Validate Storage Startup Resilience and Degraded Mode**
+3. **Title: Preserve and Validate Storage Startup Resilience and Degraded Mode**
+   - **Target Epic**: APO-3 - Local Persistence, Resilience & Security Foundation
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: §8, §12.1, §13
    - **Implementation Evidence**: `StorageStartup.cs`, `StorageStartupTests.cs` (3 tests).
@@ -366,7 +379,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-4. **APO-26: Extend Storage Layout and Stores for APO Projects and Orchestration Records**
+4. **Title: Extend Storage Layout and Stores for APO Projects and Orchestration Records**
+   - **Target Epic**: APO-3 - Local Persistence, Resilience & Security Foundation
    - **Type**: Story (New Implementation / Extension)
    - **BRD Requirements**: §8, §12.1, FR-PROJ-001, FR-AUD-001
    - **Implementation Evidence**: `ApplicationDataPaths.cs` and `JsonFileStore.cs`.
@@ -378,7 +392,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
 
 ### 14.3 Epic: APO-4 — AI Usage, Subscription & Capacity Monitoring
 
-1. **APO-27: Preserve and Validate Dynamic Quota Normalization and Mathematical Invariants**
+1. **Title: Preserve and Validate Dynamic Quota Normalization and Mathematical Invariants**
+   - **Target Epic**: APO-4 - AI Usage, Subscription & Capacity Monitoring
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: FR-CAP-002, FR-CAP-003, FR-CAP-004, FR-CAP-005
    - **Implementation Evidence**: `QuotaWindow.cs`, `QuotaDefinition.cs`, `QuotaWindowTests.cs` (16 tests), `DynamicQuotaCollectionTests.cs` (3 tests).
@@ -388,7 +403,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-2. **APO-28: Preserve and Validate Subscriptions, Alert Rules, and Sync Event Models**
+2. **Title: Preserve and Validate Subscriptions, Alert Rules, and Sync Event Models**
+   - **Target Epic**: APO-4 - AI Usage, Subscription & Capacity Monitoring
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: FR-CAP-001, §8.3, §10, §11
    - **Implementation Evidence**: `Subscription.cs`, `AlertRule.cs`, `SyncEvent.cs`, `SubscriptionTests.cs` (5 tests), `AlertRuleTests.cs` (1 test).
@@ -398,7 +414,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-3. **APO-29: Preserve and Validate Usage Snapshot Change Detection and Repository**
+3. **Title: Preserve and Validate Usage Snapshot Change Detection and Repository**
+   - **Target Epic**: APO-4 - AI Usage, Subscription & Capacity Monitoring
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: FR-CAP-008, §11
    - **Implementation Evidence**: `UsageSnapshot.cs`, `UsageSnapshotChangeDetector.cs`, `JsonUsageSnapshotRepository.cs`.
@@ -408,7 +425,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-4. **APO-30: Implement Official Provider Capacity Adapters (Codex, Claude, Kimi, Copilot, Antigravity)**
+4. **Title: Implement Official Provider Capacity Adapters (Codex, Claude, Kimi, Copilot, Antigravity)**
+   - **Target Epic**: APO-4 - AI Usage, Subscription & Capacity Monitoring
    - **Type**: Story (New Implementation)
    - **BRD Requirements**: §10, FR-CAP-001 through FR-CAP-007
    - **Implementation Evidence**: `IAiUsageProvider` contract and `AIUsageMonitor.Providers` project.
@@ -420,7 +438,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
 
 ### 14.4 Epic: APO-17 — Packaging, Compatibility, CI & Release Quality
 
-1. **APO-31: Preserve Cross-Windows Multi-Architecture Publish Configuration**
+1. **Title: Preserve Cross-Windows Multi-Architecture Publish Configuration**
+   - **Target Epic**: APO-17 - Packaging, Compatibility, CI & Release Quality
    - **Type**: Story (Historical Backfill)
    - **BRD Requirements**: §13, §14
    - **Implementation Evidence**: `win-x64.pubxml`, `win-x86.pubxml`, `win-arm64.pubxml`, `app.manifest`.
@@ -430,7 +449,8 @@ The following Stories and Tasks are recommended for GPT-5.6 Sol to review and cr
    - **Opus Review**: Not required (already validated).
    - **Recommended Jira Status**: **Done**
 
-2. **APO-32: Establish GitHub Actions CI Workflow for Automated Build, Test, and Multi-RID Packaging**
+2. **Title: Establish GitHub Actions CI Workflow for Automated Build, Test, and Multi-RID Packaging**
+   - **Target Epic**: APO-17 - Packaging, Compatibility, CI & Release Quality
    - **Type**: Story (New Implementation)
    - **BRD Requirements**: §14, §15
    - **Implementation Evidence**: `Directory.Build.props`, solution structure.
