@@ -279,9 +279,17 @@ No source-code APO refactoring is claimed by this Story.
 
 ## 10. APO-18 Delivery Record
 
-Branch/commit/merge/remote evidence is completed at the end of the session. The required final
-state is remote `main` containing the validated APO-18 changes, local `main` equal to `origin/main`,
-and a clean working tree.
+| Step | Result |
+|---|---|
+| Starting `main` SHA | `c6ff813b66af0d92602b84b35fd68f4c54ef373b` |
+| Session branch | `refactor/APO-18-product-governance-rebaseline` |
+| Implementation commit | `7d70dae` - `docs: rebaseline project as AI Project Orchestrator` |
+| Push session branch | SUCCESS; branch pushed to `origin` with upstream tracking |
+| Merge into `main` | SUCCESS; merge commit `56f4ea7`, no conflicts |
+| Push `main` | SUCCESS; `c6ff813..56f4ea7 main -> main` |
+| Fetch and verify before final metadata sync | SUCCESS; local `main` and `origin/main` both `56f4ea7` |
+| Final metadata synchronization | This `.ai/CURRENT_STATE.md`-only post-merge commit, permitted by `AGENTS.md` |
+| Final verification | Required after this metadata push; local `main` must equal `origin/main` and tree must be clean |
 
 ---
 
