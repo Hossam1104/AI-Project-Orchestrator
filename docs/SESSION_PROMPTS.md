@@ -166,8 +166,8 @@ policy, and stop. Do not execute another Story.
 
 # CURRENT APO CHECKPOINT
 
-APO-20 completed the repository identity rename, but the physical local-root move is blocked by a
-Windows process lock. The root `TASK.md` contains the APO-20 recovery checkpoint with updated
-repository/path references. It does not authorize APO-19 or any other implementation Story; after
-the local move succeeds, a fresh instruction is required before Sol creates the safe planner
-checkpoint.
+APO-20 completed the repository identity rename and the physical local-root move. The root
+`TASK.md` contains the safe Sol planner checkpoint with the final repository/path references. It
+does not authorize APO-19 or any other implementation Story. GPT-5.6 Sol must synchronize Jira,
+create the approved backfill Stories, select the first implementation Story, and issue its complete
+execution contract before any executor begins.

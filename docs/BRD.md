@@ -8,7 +8,7 @@
 **Date:** 21 August 2026
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
-**Local Project Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
+**Local Project Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
 **Jira Project:** `APO`
 **Product Owner:** Hossam
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
@@ -39,10 +39,9 @@ the APO product, especially:
 - focused validation and release evidence.
 
 APO-18 preserved the existing GitHub repository and local project folder while establishing this
-rebaseline. APO-20 subsequently renamed the active repository and established the AI Project
-Orchestrator local-root target; the physical Windows folder move remains a delivery follow-up while
-a process lock is released. Technical identifiers containing `AIUsageMonitor` remain unchanged and
-may be migrated incrementally under planner-controlled work. No big-bang technical rename is
+rebaseline. APO-20 subsequently renamed the active repository and physical local root to the AI
+Project Orchestrator identity. Technical identifiers containing `AIUsageMonitor` remain unchanged
+and may be migrated incrementally under planner-controlled work. No big-bang technical rename is
 required here.
 
 # 2. Executive Summary and Business Problem

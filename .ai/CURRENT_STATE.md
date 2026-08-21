@@ -4,14 +4,17 @@
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
-**Local Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
-**Repository/local-folder rename:** PARTIAL; repository renamed, physical local-folder move blocked
+**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**APO-18:** COMPLETE / ACCEPTED
+**APO-19:** COMPLETE / SOL ACCEPTED
+**APO-20:** COMPLETE — repository and physical local-root rename complete
+**Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-20 - Rename repository and local project root to AI Project Orchestrator
+**Current Story:** APO-20 - Finalize repository and physical local-root rename
 **Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-20 PARTIAL - repository rename complete; local folder rename blocked
-**Next implementation:** APO-20 recovery checkpoint in `TASK.md`; do not execute APO-19 or any implementation Story until the physical local-root rename succeeds and a fresh instruction authorizes the next planner step
+**Status:** APO-20 COMPLETE - repository and physical local-root rename complete
+**Next implementation:** Sol planner checkpoint in `TASK.md`; do not execute APO-19 or any implementation Story automatically
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -23,20 +26,22 @@
 
 ## 1. APO-20 Current State & Identity Rename Summary
 
-APO-20 completed the controlled repository and local project-root identity rename. The active
-GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
-`D:\AI Tools\Hossam\AI Project Orchestrator`.
+APO-20 completed the controlled repository and physical local project-root identity rename. The
+active GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
+`D:\AI Tools\Hossam\AI-Project-Orchestrator`.
 
 | Item | Result |
 |---|---|
 | Historical old repository | `Hossam1104/AI-Usage-Monitor-Tool` |
 | New repository | `Hossam1104/AI-Project-Orchestrator` |
 | Historical old local root | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
-| New local root | `D:\AI Tools\Hossam\AI Project Orchestrator` |
+| New local root | `D:\AI Tools\Hossam\AI-Project-Orchestrator` |
 | Verified starting SHA | `9659bf65bda4defc91b2383cf7f195637678485f` |
-| Final APO-20 implementation merge SHA | `861dc99` |
+| Prior APO-20 implementation merge SHA | `861dc99` |
+| Finalization starting SHA | `cba84d57c88d95d93fe360f50ff2e961bdb13168` |
 | Origin | `https://github.com/Hossam1104/AI-Project-Orchestrator.git`; verified with fetch |
-| Local folder rename | BLOCKED; `Rename-Item` from `D:\AI Tools\Hossam` returned `IOException` / `RenameItemIOError` because the directory is used by another process |
+| Physical local-root rename | COMPLETE; verified from the authoritative hyphenated root |
+| Historical first rename attempt | BLOCKED by a Windows process lock; resolved before this finalization |
 | Technical rename | Not performed; solution/project/namespace/assembly/test/persistence identifiers remain unchanged |
 
 ### APO-20 Validation Evidence
@@ -245,17 +250,15 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 |---|---|---|---|---|---|
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
-| APO-20 | `refactor/APO-20-project-identity-rename` | `861dc99` | `861dc99` (fast-forward) | 21 Aug 2026 | PARTIAL - local folder lock |
+| APO-20 | `docs/APO-20-finalize-local-root` | `cba84d5` (finalization baseline) | Pending finalization commit | 21 Aug 2026 | COMPLETE |
 
 ---
 
 ## 10. Next Planner Boundary
 
-`APO-20 repository work is complete at 861dc99, but the physical local-root rename remains
-blocked. TASK.md contains the recovery checkpoint. APO-19 remains complete and Sol-accepted and
-has not been rerun.`
+`APO-20 repository and physical local-root rename work is complete. TASK.md contains the safe Sol
+planner checkpoint. APO-19 remains complete and Sol-accepted and has not been rerun.`
 
-After the local move succeeds, a fresh instruction is required. GPT-5.6 Sol must then review the
-final APO-20 state, create the actual backfill Stories under APO-2, APO-3, APO-4, and APO-17,
-select the first implementation Story, and issue its full execution contract. Do not execute any
-Story automatically from this checkpoint.
+GPT-5.6 Sol must accept final APO-20, mark it Done in Jira, create the actual backfill Stories
+under APO-2, APO-3, APO-4, and APO-17, select the first implementation Story, and issue its full
+execution contract. Do not execute any Story automatically from this checkpoint.
