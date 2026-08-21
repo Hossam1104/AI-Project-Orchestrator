@@ -5,18 +5,18 @@
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Local Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
-**Repository/local-folder rename:** COMPLETE
+**Repository/local-folder rename:** PARTIAL; repository renamed, physical local-folder move blocked
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-20 - Rename repository and local project root to AI Project Orchestrator
 **Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-20 COMPLETE - repository and local folder identity rename complete
-**Next implementation:** Safe Sol planner checkpoint in `TASK.md`; no implementation Story is authorized until Sol creates the real Jira backlog and issues a fresh execution contract
+**Status:** APO-20 PARTIAL - repository rename complete; local folder rename blocked
+**Next implementation:** APO-20 recovery checkpoint in `TASK.md`; do not execute APO-19 or any implementation Story until the physical local-root rename succeeds and a fresh instruction authorizes the next planner step
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
-> APO-20 changed repository/folder identity only. Technical identifiers and product source code
+> APO-20 changes repository/folder identity only. Technical identifiers and product source code
 > remain unchanged. APO-19 remains complete and Sol-accepted; it was not rerun by APO-20.
 
 ---
@@ -36,7 +36,7 @@ GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
 | Verified starting SHA | `9659bf65bda4defc91b2383cf7f195637678485f` |
 | Final APO-20 implementation merge SHA | `861dc99` |
 | Origin | `https://github.com/Hossam1104/AI-Project-Orchestrator.git`; verified with fetch |
-| Local folder rename | COMPLETE; `D:\AI Tools\Hossam\AI Project Orchestrator` exists and is the authoritative local root |
+| Local folder rename | BLOCKED; `Rename-Item` from `D:\AI Tools\Hossam` returned `IOException` / `RenameItemIOError` because the directory is used by another process |
 | Technical rename | Not performed; solution/project/namespace/assembly/test/persistence identifiers remain unchanged |
 
 ### APO-20 Validation Evidence
@@ -245,16 +245,17 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 |---|---|---|---|---|---|
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
-| APO-20 | `refactor/APO-20-project-identity-rename` | `861dc99` | `861dc99` (fast-forward) | 21 Aug 2026 | COMPLETE |
+| APO-20 | `refactor/APO-20-project-identity-rename` | `861dc99` | `861dc99` (fast-forward) | 21 Aug 2026 | PARTIAL - local folder lock |
 
 ---
 
 ## 10. Next Planner Boundary
 
-`APO-20 identity rename is complete. APO-19 remains complete and Sol-accepted. The approved
-backlog input is docs/LEGACY_IMPLEMENTATION_MAP.md, and TASK.md is now a safe Sol planner
-checkpoint. No product source refactoring is authorized from this checkpoint.`
+`APO-20 repository work is complete at 861dc99, but the physical local-root rename remains
+blocked. TASK.md contains the recovery checkpoint. APO-19 remains complete and Sol-accepted and
+has not been rerun.`
 
-GPT-5.6 Sol must review the final APO-20 state, create the actual backfill Stories under APO-2,
-APO-3, APO-4, and APO-17, select the first implementation Story, and issue its full execution
-contract. Do not execute any Story automatically from this checkpoint.
+After the local move succeeds, a fresh instruction is required. GPT-5.6 Sol must then review the
+final APO-20 state, create the actual backfill Stories under APO-2, APO-3, APO-4, and APO-17,
+select the first implementation Story, and issue its full execution contract. Do not execute any
+Story automatically from this checkpoint.

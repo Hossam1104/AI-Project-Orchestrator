@@ -21,8 +21,9 @@ must be evidence-based; unavailable data remains explicitly unavailable or manua
 
 ## Product and repository continuity
 
-The product identity is AI Project Orchestrator. APO-20 completed the active GitHub repository and
-local project-root rename:
+The product identity is AI Project Orchestrator. APO-20 completed the active GitHub repository
+rename and established the target local project root; the physical local-folder move is pending a
+Windows process-lock release:
 
 `Hossam1104/AI-Project-Orchestrator`
 `D:\AI Tools\Hossam\AI Project Orchestrator`
@@ -78,9 +79,9 @@ Jira Work Item -> Sol execution contract -> TASK.md -> assigned executor
 ```
 
 APO-1 through APO-17 are the approved Epic capability structure. APO-18 established the governance
-baseline, APO-19 produced the legacy implementation map, and APO-20 completed the repository and
-local project-root identity rename. The next work item remains planner-controlled and is defined
-in the safe checkpoint in `TASK.md`.
+baseline, APO-19 produced the legacy implementation map, and APO-20 completed the repository
+identity rename. The physical local-folder move remains blocked by a Windows process lock. The
+next action is the APO-20 recovery checkpoint in `TASK.md`.
 
 See [`AGENTS.md`](AGENTS.md), [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md),
 [`docs/SESSION_PROMPTS.md`](docs/SESSION_PROMPTS.md), and [`.ai/CURRENT_STATE.md`](.ai/CURRENT_STATE.md)

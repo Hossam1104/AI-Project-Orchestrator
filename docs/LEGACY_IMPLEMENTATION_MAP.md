@@ -36,7 +36,7 @@ Every meaningful implementation area is classified to guide GPT-5.6 Sol in Jira 
 | **Historical pre-APO-20 Local Project Root** | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
 | **Inspected Starting SHA** | `ae712335696d827a7a1a2d2464cf667f43430c33` |
 | **APO-19 Final Main SHA** | `9659bf65bda4defc91b2383cf7f195637678485f` |
-| **APO-20 Identity Rename Status** | Complete; repository and local-root identity renamed |
+| **APO-20 Identity Rename Status** | Partial; repository renamed, physical local-root move blocked by a Windows process lock |
 | **Session Branch** | `docs/APO-19-legacy-implementation-map` |
 | **Authoritative Requirements** | `docs/BRD.md` (v1.1, approved 21 August 2026) |
 | **Active Target Architecture** | C# / .NET 10, WPF, MVVM, modular clean architecture, `System.Text.Json`, JSON/JSONL local file persistence, Serilog, Windows Credential Manager, self-contained Windows artifacts |
