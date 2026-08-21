@@ -1,36 +1,33 @@
-# TASK - APO-18 - Governance Rebaseline Checkpoint
+# TASK - APO-19 - Legacy Implementation Inventory Checkpoint
 
 **Status:** COMPLETE - SAFE PLANNER CHECKPOINT
 **Product:** AI Project Orchestrator (APO)
 **Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Story:** APO-18 - Consolidate APO BRD and rebaseline repository governance
+**Story:** APO-19 - Inventory and classify legacy implementation for APO reuse
 **Planner / Acceptance Authority:** GPT-5.6 Sol
+**Assigned Executor:** Gemini 3.7
 
-## Checkpoint outcome
+## Checkpoint Outcome
 
-APO-18 has been completed as a documentation/governance boundary. `docs/BRD.md` is the single
-authoritative BRD. The active governance, implementation plan, prompt library, README, and current
-state identify APO and Jira `APO`, preserve valid historical implementation, and distinguish the
-active WPF/JSON/JSONL foundation from superseded historical WinUI/EF/LocalDB work.
+APO-19 has completed the formal legacy implementation inventory, code inspection, and architectural reuse classification. The durable mapping artifact is delivered at `docs/LEGACY_IMPLEMENTATION_MAP.md`.
 
-The old provider-feasibility Session 04 task is **LEGACY / SUPERSEDED BY APO REBASELINE - DO NOT
-EXECUTE**. It must not be resumed under the old numbered session plan.
+Key outcomes:
+- All 8 solution projects, Domain models, Application contracts, Infrastructure persistence, WPF composition, and publish profiles inspected and classified against `docs/BRD.md` (17 Epics).
+- Classification counts: 5 Reuse As-Is, 6 Reuse With Extension, 3 Refactor, 3 Superseded, 0 Remove.
+- Structured Jira backfill and implementation recommendations (APO-20 through APO-32) formulated under APO-2, APO-3, APO-4, and APO-17.
+- Verified that active runtime contains 0 dependencies on EF Core, SQL Server, LocalDB, WinUI, Windows App SDK, SQLite, Node.js, or Chromium.
+- Baseline validation confirmed: `dotnet restore` (Success), `dotnet build` (Success, 0w/0e), `dotnet test` (Success, 50/50 passing).
+- **NO PRODUCT SOURCE CODE WAS MODIFIED IN APO-19.**
 
-## Stop condition
+## Stop Condition & Next Planner Boundary
 
-This file is not an authorization to execute a new implementation Story. No next implementation
-Story is automatically authorized or guessed here. The executor must stop.
+This file is not an authorization to execute a new implementation Story. No next implementation Story is automatically authorized or guessed here. The executor must stop.
+
+No Jira recommendations may be assumed created in Jira project `APO` until GPT-5.6 Sol performs review and approval.
 
 GPT-5.6 Sol must next:
+1. Review `docs/LEGACY_IMPLEMENTATION_MAP.md`.
+2. Create and approve the necessary Jira backfill Stories (APO-20 through APO-32) under project `APO`.
+3. Select the first approved implementation Story and issue its self-contained `TASK.md` execution contract.
 
-1. review the APO-18 consolidation;
-2. inspect the repository against APO-1 through APO-17;
-3. perform repository-to-Jira legacy backfill and requirement mapping;
-4. classify existing implementation as Reuse As-Is, Reuse With Extension, Refactor, Superseded,
-   or Remove;
-5. define dependencies and acceptance criteria for the next approved Story; and
-6. prepare a new self-contained `TASK.md` execution contract only after that Story is approved.
-
-**APO source-code refactoring and Jira Story decomposition have NOT started.** Do not execute
-APO-2, any provider work, orchestration runtime, model routing, Jira/GitHub adapters, UI redesign,
-or any other future capability from this checkpoint.
+**APO source-code refactoring has NOT started.** Do not execute APO-2, any provider work, orchestration runtime, model routing, Jira/GitHub adapters, UI redesign, or any other future capability from this checkpoint.

@@ -8,56 +8,81 @@
 **Repository/local-folder rename:** Not performed; unchanged by design
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-18 - Consolidate APO BRD and rebaseline repository governance
+**Current Story:** APO-19 - Inventory and classify legacy implementation for APO reuse
 **Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-18 COMPLETE - PLANNER CHECKPOINT
-**Next implementation:** Not authorized; Sol planning and legacy mapping required
+**Status:** APO-19 COMPLETE - PLANNER CHECKPOINT
+**Next implementation:** Not authorized; Sol Jira Story decomposition and execution contract required
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
-> APO-18 does not authorize source refactoring or execution of the next Story.
+> APO-19 does not authorize source refactoring or execution of the next Story.
 
 ---
 
-## 1. APO-18 Current State
+## 1. APO-19 Current State & Inventory Summary
 
-APO-18 completed the formal repository/governance rebaseline from AI Usage Monitor to AI Project
-Orchestrator. `docs/BRD.md` is now the only active authoritative BRD. The active governance model
-uses Jira `APO` for work tracking, preserves repository documentation as the architecture source of
-truth, and uses the approved Sol/Luna/Sonnet/Opus/Terra/Gemini operating model.
+APO-19 completed the formal repository inventory, code inspection, and architectural reuse classification for the AI Project Orchestrator. All active solution files, Domain entities, Application contracts, Infrastructure persistence components, WPF desktop composition, publish profiles, and historical Git commits were analyzed against `docs/BRD.md` and the 17 approved APO Epics.
 
-Completed governance outcomes:
+The comprehensive durable mapping artifact is delivered at `docs/LEGACY_IMPLEMENTATION_MAP.md`.
 
-- consolidated APO BRD created at `docs/BRD.md`;
-- `docs/BRD v1.0.md` and `docs/BRD v1.1.md` removed as active duplicate BRDs;
-- `AGENTS.md`, `CLAUDE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/SESSION_PROMPTS.md`, `README.md`,
-  and `TASK.md` rebaselined for APO;
-- APO-1 through APO-17 Jira Epic structure recorded; no duplicate Epics or speculative Stories
-  created by this Story;
-- old provider-only Session 04 task explicitly marked legacy/superseded and made non-executable;
-- historical implementation and validation evidence preserved below;
-- active WPF/.NET/JSON/JSONL foundation distinguished from historical superseded WinUI/EF/LocalDB;
-- source-code APO mapping/refactoring has **not** started; and
-- root `TASK.md` ends at a safe Sol planner checkpoint and does not authorize another Story.
+### Classification Summary Counts (17 Areas Evaluated)
+- **Reuse As-Is (5)**: Dynamic Quota normalization & mathematical invariants (`QuotaWindow`), Subscriptions domain model (`Subscription`), UsageSnapshot model (`UsageSnapshot`), Capacity JSON/JSONL repositories, SystemClock abstraction (`IClock`).
+- **Reuse With Extension (6)**: .NET 10 solution & platform foundation, Provider/Connection domain, Alerts & Sync domain, Schema-versioned JSON document persistence with atomic replacement & quarantine, Monthly partitioned JSONL event/history persistence with streaming and unterminated tail resilience, Self-contained multi-architecture publish profiles (`win-x64`, `win-x86`, `win-arm64`).
+- **Refactor (3)**: Storage layout & `ApplicationDataPaths` (to add project/run/evidence directories and manage eventual root path migration), Desktop/WPF minimal smoke shell (to evolve into MVVM Command Center under APO-15), Providers project (to implement concrete collection adapters for Codex, Claude, Kimi, Copilot, Antigravity).
+- **Superseded (3)**: Historical EF Core 10 + SQL Server LocalDB persistence (Session 03), Historical WinUI 3 / Windows App SDK shell (Session 01/02), Legacy numbered provider roadmap (Sessions 04–20 in `SESSION_PROMPTS.md`).
+- **Remove (0)**: Zero dead/unsafe code in current working tree.
 
-The old numbered provider-feasibility sequence is **LEGACY / SUPERSEDED BY APO REBASELINE - DO NOT
-EXECUTE**. It must not be resumed as Session 04.
+### Major Reusable Foundations
+- Dynamic quota window normalization and strict mathematical invariants preventing double-inversion bugs and percentage/absolute value contradictions.
+- Resilient local file persistence: schema-versioned JSON with atomic replacement, temporary files, in-process synchronization, and corrupt-file quarantine.
+- Monthly-partitioned JSONL streaming queries with automatic unterminated-tail detection and newline recovery.
+- Storage startup resilience: safe LocalAppData initialization with graceful fallback to degraded no-persistence mode.
+- Self-contained single-file publish profiles targeting Windows 10 (build 17763) and Windows 11 on x64, x86, and ARM64.
+
+### Key Refactor Areas
+- `ApplicationDataPaths`: Expand directory hierarchy for registered projects, orchestration runs, validation evidence, review findings, and planning contracts.
+- Desktop Shell (`MainWindow`): Refactor minimal smoke shell into rich MVVM Command Center with HUD and Tray components.
+- Provider Adapters: Implement concrete, verified collection mechanisms for Codex, Claude, Kimi, GitHub Copilot, and Antigravity.
+
+### Major Gaps for Full APO Capabilities
+- Project Registry and workspace isolation (APO-5).
+- Git and GitHub integration adapters (APO-6).
+- Jira and Azure DevOps work-item integration adapters (APO-7).
+- AI Agent / Model registry and execution connectivity (APO-8).
+- Intelligent quota-aware model routing engine (APO-9).
+- Bounded autonomous execution runtime (APO-11).
+- Independent validation and evidence capture engine (APO-12).
+- Independent review and remediation loop engine (APO-13).
+- Acceptance and human approval gate enforcement (APO-14).
+- Command center UI, HUD, and system tray (APO-15).
+- Activity, audit, and notification event streams (APO-16).
+- GitHub Actions CI/CD pipeline and multi-architecture release qualification (APO-17).
+
+### Baseline Validation Results
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all 8 projects restored |
+| `dotnet build AIUsageMonitor.sln` | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln` | SUCCESS; 50/50 passing (28 Domain, 7 Provider, 15 Infrastructure) |
+| `git diff --check` | SUCCESS; clean formatting |
+| Active legacy dependency scan | SUCCESS; 0 active references to EF Core, SQL Server, LocalDB, WinUI, Windows App SDK, SQLite, Node, Chromium |
+| Source/config scope scan | SUCCESS; no files in `src/`, `tests/`, or `.csproj` modified |
+| Secret/artifact review | SUCCESS; no credentials or untracked artifacts introduced |
+
+**NO PRODUCT SOURCE CODE WAS MODIFIED IN APO-19.**
 
 ---
 
-## 2. Planner Boundary After APO-18
+## 2. Planner Boundary After APO-19
 
-GPT-5.6 Sol must next review the consolidated BRD and perform repository-to-Jira legacy mapping:
+GPT-5.6 Sol must next review the legacy implementation map and proceed with Jira backlog management:
 
-1. inspect the existing source and evidence against APO-1 through APO-17;
-2. backfill meaningful historical implementation into Jira with repository evidence;
-3. classify each area as Reuse As-Is, Reuse With Extension, Refactor, Superseded, or Remove;
-4. define capability dependencies and acceptance criteria; and
-5. prepare the next approved Jira Story and a self-contained `TASK.md` execution contract.
+1. Review `docs/LEGACY_IMPLEMENTATION_MAP.md`.
+2. Create and approve the recommended Jira backfill and implementation Stories (APO-20 through APO-32).
+3. Select the first approved implementation Story and issue its execution contract in `TASK.md`.
 
-Do not guess the next Story. Do not execute APO-2, providers, orchestration, routing, Jira/GitHub
-adapters, UI redesign, or any other future capability from this checkpoint.
+Do not guess the next Story. Do not execute APO-2, providers, orchestration, routing, Jira/GitHub adapters, UI redesign, or any other future capability from this checkpoint.
 
 ---
 
@@ -77,23 +102,15 @@ Release -> self-contained .NET 10 Windows artifacts
 Database/ORM -> none in V1
 ```
 
-The active V1 target is C#/.NET 10, WPF, MVVM, modular clean architecture, System.Text.Json,
-JSON/JSONL local persistence, secure external credential storage, focused xUnit tests, GitHub
-Actions, and self-contained Windows artifacts. Windows 10 build-17763/Windows 11 compatibility is
-the engineering goal with x86/x64/ARM64 consideration and x64 primary validation.
+The active V1 target is C#/.NET 10, WPF, MVVM, modular clean architecture, System.Text.Json, JSON/JSONL local persistence, secure external credential storage, focused xUnit tests, GitHub Actions, and self-contained Windows artifacts. Windows 10 build-17763/Windows 11 compatibility is the engineering goal with x86/x64/ARM64 consideration and x64 primary validation.
 
-The current source already reflects the portable WPF/JSON/JSONL foundation. It has not yet been
-mapped or refactored for the broader APO project registry, tracker integration, agent registry,
-routing, execution, validation/review, acceptance, and command-center capabilities.
-
-Historical EF Core, SQL Server, LocalDB, WinUI, and Windows App SDK work is not active runtime
-architecture. It remains historical project evidence only.
+Historical EF Core, SQL Server, LocalDB, WinUI, and Windows App SDK work is not active runtime architecture. It remains historical project evidence only.
 
 ---
 
 ## 4. Jira Baseline
 
-The approved initial Jira hierarchy is already created under project `APO`:
+The approved initial Jira hierarchy is created under project `APO`:
 
 | Key | Capability |
 |---|---|
@@ -115,8 +132,7 @@ The approved initial Jira hierarchy is already created under project `APO`:
 | APO-16 | Activity, Audit, History & Notifications |
 | APO-17 | Packaging, Compatibility, CI & Release Quality |
 
-APO-18 is the first rebaseline Story under APO-1. Detailed Story/Task decomposition and historical
-backfill have not started and remain Sol-controlled.
+Recommended backfill Stories under these Epics are detailed in `docs/LEGACY_IMPLEMENTATION_MAP.md` Section 14.
 
 ---
 
@@ -125,177 +141,73 @@ backfill have not started and remain Sol-controlled.
 The repository currently contains:
 
 - `AIUsageMonitor.sln` and the existing project structure;
-- Domain models and invariants for providers, subscriptions, dynamic quota windows, usage snapshots,
-  alerts, sync, and opaque credential references;
-- Application contracts for provider discovery/refresh, repositories, usage aggregation,
-  subscriptions, settings, alert evaluation, time, and secure credentials;
-- WPF desktop composition and a resilient empty/no-provider shell;
+- Domain models and invariants for providers, subscriptions, dynamic quota windows, usage snapshots, alerts, sync, and opaque credential references;
+- Application contracts for provider discovery/refresh, repositories, usage aggregation, subscriptions, settings, alert evaluation, time, and secure credentials;
+- WPF desktop composition and a resilient empty/no-provider shell with degraded mode;
 - Infrastructure JSON state stores and monthly JSONL history/event stores under LocalAppData;
-- schema-aware JSON, atomic replacement, synchronized writes, corruption classification, optional
-  state isolation, last-known-good behavior, and interrupted-tail handling;
-- material-change duplicate suppression and latest/range history queries;
-- xUnit Domain, Provider, and Infrastructure tests;
+- Schema-aware JSON, atomic replacement, synchronized writes, corruption classification, optional state isolation, last-known-good behavior, and interrupted-tail handling;
+- Material-change duplicate suppression and latest/range history queries;
+- xUnit Domain, Provider, and Infrastructure tests (50 tests);
 - x86/x64/ARM64 target configuration; and
-- self-contained publish profiles for the three Windows RIDs.
+- Self-contained publish profiles for the three Windows RIDs.
 
-The current source uses `AIUsageMonitor` technical names and the minimal foundation shell. Those
-names and user-facing shell labels are retained during APO-18 because source-code refactoring is
-explicitly out of scope. They are future mapping/refactor candidates, not active product-governance
-claims.
+The current source uses `AIUsageMonitor` technical names and the minimal foundation shell. Those names and user-facing shell labels are retained during APO-19 because source-code refactoring is explicitly out of scope. They are future mapping/refactor candidates, not active product-governance claims.
 
 ---
 
 ## 6. Historical Implementation Record
 
-These records are preserved as history and are not current executable assignments.
-
 ### Session 01 - Repository and Solution Foundation
-
-Completed under the earlier product identity and architecture. Created the solution, project
-layout, build/editor settings, Git ignore rules, initial README/governance, and a minimal desktop
-shell. Restore/build/test/launch validation was recorded at the time.
+Completed under the earlier product identity and architecture. Created the solution, project layout, build/editor settings, Git ignore rules, initial README/governance, and a minimal desktop shell.
 
 ### Session 02 - Domain and Application Architecture
-
-Completed 08 August 2026. Added provider-independent domain models and application contracts for
-dynamic quotas, used/remaining normalization, subscriptions, usage snapshots, alerts, sync,
-provider discovery/refresh, settings, and secure credentials. Domain tests reached 19/19 and
-provider tests 1/1 at that stage. The dynamic quota and no-double-inversion invariants remain
-reusable APO foundation.
+Completed 08 August 2026. Added provider-independent domain models and application contracts for dynamic quotas, used/remaining normalization, subscriptions, usage snapshots, alerts, sync, provider discovery/refresh, settings, and secure credentials.
 
 ### Session 02R - Domain Integrity Remediation
-
-Completed 08 August 2026. Corrected last-known-data retention on provider failure, absolute and
-percentage quota consistency, subscription confidence, opaque credential references, and related
-contracts/tests. Validation was 28/28 Domain tests and 7/7 Provider tests. Historical delivery was
-committed on `fix/session-02-domain-integrity`, merged into `main`, pushed, and verified.
+Completed 08 August 2026. Corrected last-known-data retention on provider failure, absolute and percentage quota consistency, subscription confidence, opaque credential references, and related contracts/tests.
 
 ### Session 03 - EF Core + SQL Server LocalDB Persistence (Historical / Superseded)
-
-Completed 08 August 2026 under the then-approved architecture. Implemented EF Core 10, SQL Server
-LocalDB, migrations, repositories, duplicate-snapshot suppression, LocalDB initialization, and
-real LocalDB round-trip/integration tests. Full tests were 45/45 and the solution built with zero
-warnings/errors; the implementation was committed, pushed, merged, and verified.
-
-The implementation was valid for its original scope and is not a failed session. A later
-zero-prerequisite consumer requirement superseded EF/SQL/LocalDB. No active runtime may revive it
-without explicit planner approval.
+Completed 08 August 2026. Implemented EF Core 10, SQL Server LocalDB, migrations, repositories, duplicate-snapshot suppression, LocalDB initialization, and real LocalDB integration tests. Superseded in Session 03R by the zero-prerequisite consumer requirement.
 
 ### Session 03R - Portable Consumer Desktop Architecture Migration
-
-Completed 08 August 2026. Removed active WinUI/Windows App SDK and EF/SQL/LocalDB runtime paths,
-converted the desktop foundation to WPF, implemented JSON/JSONL file persistence, retained the
-provider-independent contracts, and established self-contained publish profiles. Validation
-included restore, full solution build, 45/45 tests at the migration stage, x86/ARM64 release
-builds, self-contained x64/x86/ARM64 publish, and an x64 WPF shell launch. No provider or Session 04
-work was executed.
+Completed 08 August 2026. Converted desktop foundation to WPF, implemented JSON/JSONL file persistence, retained provider-independent contracts, and established self-contained publish profiles.
 
 ### Session 03R-F - Portable Foundation Resilience Remediation
+Completed 08 August 2026. Guarded LocalAppData storage initialization, added degraded no-persistence startup behavior, optimized newest-partition latest lookup, and added unterminated JSONL tail handling.
 
-Completed 08 August 2026. Moved storage initialization inside guarded startup, added degraded
-no-persistence startup behavior, optimized newest-partition latest lookup, and preserved an
-unterminated JSONL tail as a skipped corrupt line separated from the next append. Validation:
+### APO-18 - Governance Rebaseline & Consolidated BRD
+Completed 21 August 2026. Consolidated `docs/BRD.md` as the single authoritative BRD, updated repository governance for Jira project `APO`, and established the six-role AI operating model.
 
-| Check | Result |
-|---|---|
-| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
-| Debug x64 solution build | SUCCESS, 0 warnings/errors |
-| Full focused tests | SUCCESS, 50/50 (28 Domain, 7 Provider, 15 Infrastructure) |
-| Release x86 solution build | SUCCESS, 0 warnings/errors |
-| Release ARM64 solution build | SUCCESS, 0 warnings/errors |
-| x64 self-contained publish | SUCCESS using existing `win-x64` profile |
-| x64 WPF launch | SUCCESS; published shell remained alive with visible foundation window |
-| Legacy active-runtime scan | No active EF Core, SQL Server, LocalDB, WinUI, or Windows App SDK matches |
-| Secret/artifact/diff review | No credential-shaped literals; no tracked publish output; diff check clean |
-
-Limitations recorded at that time remain: no clean-machine installation test, no all-Windows-
-edition matrix, no x86/ARM64 live launch, no ARM64 hardware/emulator run, no code signing/MSIX,
-and provider capability/adapter work was not started.
+### APO-19 - Legacy Implementation Inventory & APO Reuse Map
+Completed 21 August 2026. Conducted complete code inspection, categorized all components into 5 reuse classifications, documented in `docs/LEGACY_IMPLEMENTATION_MAP.md`, and formulated Jira backfill recommendations (APO-20 through APO-32).
 
 ---
 
 ## 7. Historical Architecture Decisions Retained
 
-- The WPF/JSON/JSONL portable foundation superseded the earlier WinUI/EF/LocalDB runtime because
-  APO requires zero external consumer prerequisites.
-- The historical EF/LocalDB implementation was completed and validated under its former approval;
-  its supersession is a product/deployment decision, not a falsification of history.
-- Dynamic quota windows and the `QuotaWindow` construction/normalization boundary are preserved.
-- Used/remaining contradictions are rejected rather than silently clamped or inverted.
+- Portable WPF/JSON/JSONL foundation is the approved active architecture.
+- Historical EF/LocalDB and WinUI implementations remain recorded as completed historical milestones.
+- Dynamic quota windows and mathematical normalization invariants are preserved.
+- Used/remaining contradictions are rejected at construction.
 - Last-known valid provider data is retained on refresh failure and marked stale/error.
-- Opaque credential references are allowed; actual secrets remain in secure storage.
-- JSON/JSONL stores use schema metadata, safe writes, synchronization, duplicate suppression,
-  monthly/range/streaming behavior, and corruption isolation.
-- Cross-Windows compatibility is a permanent contract; modern optional effects never gate function.
-- The repository and local folder names remain unchanged during APO-18.
+- Opaque credential references are stored in JSON; raw secrets remain in Windows Credential Manager.
+- JSON/JSONL stores enforce schema metadata, atomic temporary-file replacement, in-process synchronization, duplicate suppression, streaming queries, and corruption quarantine.
+- Cross-Windows compatibility (Windows 10 1809+ / Windows 11) is a permanent contract.
+- Repository and local project folder names remain unchanged.
 
 ---
 
-## 8. APO-18 Validation and Scope Review
+## 8. Delivery Record
 
-APO-18 is documentation/governance work. The following were verified for this work:
-
-- starting branch was `main`, clean and synchronized with `origin/main` before edits;
-- remote is `https://github.com/Hossam1104/AI-Usage-Monitor-Tool.git`;
-- active source/configuration/test files were not modified by APO-18;
-- `docs/BRD.md` is the only active BRD after removal of the two versioned files;
-- active governance references `docs/BRD.md`, APO, Jira, and the six-role strategy;
-- old Session 04 is explicitly historical/superseded and root `TASK.md` is a planner checkpoint;
-- historical EF/SQL/LocalDB and WinUI references are labeled historical/superseded;
-- README distinguishes reusable foundation from planned APO capabilities; and
-- changed documentation was reviewed for stale authority, secrets, debug artifacts, and generated
-  output.
-
-Baseline validation executed for APO-18:
-
-| Check | Result |
-|---|---|
-| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all 8 projects restored |
-| `dotnet build AIUsageMonitor.sln` | SUCCESS; 0 warnings, 0 errors |
-| `dotnet test AIUsageMonitor.sln` | SUCCESS; 50/50 (28 Domain, 7 Provider, 15 Infrastructure) |
-| `git diff --check` | SUCCESS; no whitespace errors |
-| Active BRD scan | SUCCESS; `docs/BRD.md` is the only active BRD |
-| Source/config/test scope scan | SUCCESS; no files in `src`, `tests`, or `Directory.Build.props` changed |
-| Secret/artifact review | SUCCESS; no secrets or generated artifacts introduced |
-
-No source-code APO refactoring is claimed by this Story.
+| Story | Branch | Implementation Commit | Merge Commit | Delivery Date | Status |
+|---|---|---|---|---|---|
+| APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
+| APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 
 ---
 
-## 9. Known Limitations and Open Planning Items
+## 9. Next Planner Boundary
 
-- APO source-code mapping and refactoring have not started.
-- Detailed Jira Story/Task decomposition and historical backfill have not started.
-- Provider mechanisms remain unverified for APO and no provider adapters are implemented.
-- Project registry, Git/GitHub/Jira/Azure DevOps adapters, agent registry, routing, orchestration,
-  validation engine, independent review automation, acceptance workflow, and command-center
-  expansion remain future Epic work.
-- Existing technical identifiers and the minimal foundation shell still reflect the predecessor
-  implementation until a future approved rebrand/refactor item.
-- Clean-machine launch, full Windows edition coverage, x86/ARM64 live launch, ARM64 hardware/
-  emulator execution, signing, and final release qualification remain unclaimed.
-
----
-
-## 10. APO-18 Delivery Record
-
-| Step | Result |
-|---|---|
-| Starting `main` SHA | `c6ff813b66af0d92602b84b35fd68f4c54ef373b` |
-| Session branch | `refactor/APO-18-product-governance-rebaseline` |
-| Implementation commit | `7d70dae` - `docs: rebaseline project as AI Project Orchestrator` |
-| Push session branch | SUCCESS; branch pushed to `origin` with upstream tracking |
-| Merge into `main` | SUCCESS; merge commit `56f4ea7`, no conflicts |
-| Push `main` | SUCCESS; `c6ff813..56f4ea7 main -> main` |
-| Fetch and verify before final metadata sync | SUCCESS; local `main` and `origin/main` both `56f4ea7` |
-| Final metadata synchronization | This `.ai/CURRENT_STATE.md`-only post-merge commit, permitted by `AGENTS.md` |
-| Final verification | Required after this metadata push; local `main` must equal `origin/main` and tree must be clean |
-
----
-
-## 11. Next Planner Boundary
-
-`APO source-code refactoring and Jira Story decomposition have NOT started. GPT-5.6 Sol must review
-APO-18 and define the next Story.`
+`APO source-code refactoring and Jira Story decomposition have NOT started. GPT-5.6 Sol must review docs/LEGACY_IMPLEMENTATION_MAP.md and define the next Story.`
 
 The root `TASK.md` is deliberately a safe checkpoint. Do not execute another task from this state.
