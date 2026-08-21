@@ -12,9 +12,10 @@ This is the universal execution contract for every AI model working in this repo
 **Live Handoff:** `.ai/CURRENT_STATE.md`
 **Jira Project:** `APO`
 
-APO-20 renamed the GitHub repository and local folder to the current product identity. Technical
-identifiers containing `AIUsageMonitor` remain intentionally unchanged and may be migrated
-incrementally under planner approval.
+APO-20 renamed the GitHub repository to the current product identity and established the target
+local folder identity; the physical local-folder move is pending a Windows process-lock release.
+Technical identifiers containing `AIUsageMonitor` remain intentionally unchanged and may be
+migrated incrementally under planner approval.
 
 ---
 

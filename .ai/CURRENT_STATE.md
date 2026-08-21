@@ -5,13 +5,13 @@
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Local Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
-**Repository/local-folder rename:** APO-20 complete; active identities renamed
+**Repository/local-folder rename:** PARTIAL; repository renamed, physical local-folder move blocked
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-20 - Rename repository and local project root to AI Project Orchestrator
 **Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-20 COMPLETE - APO-19 PREPARED, NOT EXECUTED
-**Next implementation:** APO-19 execution contract prepared in `TASK.md`; execution requires a fresh authorized instruction
+**Status:** APO-20 PARTIAL - repository rename complete; local folder rename blocked
+**Next implementation:** APO-19 execution contract prepared in `TASK.md`; do not execute until the local rename is complete and a fresh instruction authorizes it
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -34,9 +34,9 @@ GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
 | Old local root | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
 | New local root | `D:\AI Tools\Hossam\AI Project Orchestrator` |
 | Verified starting SHA | `9659bf65bda4defc91b2383cf7f195637678485f` |
-| Final APO-20 main SHA | Pending final integration metadata update |
+| Final APO-20 main SHA | `861dc99` |
 | Origin | `https://github.com/Hossam1104/AI-Project-Orchestrator.git`; verified with fetch |
-| Local folder rename | Pending; must be performed last after Git delivery is safe |
+| Local folder rename | BLOCKED; `Rename-Item` from `D:\AI Tools\Hossam` failed with `IOException` because the directory is used by another process |
 | Technical rename | Not performed; solution/project/namespace/assembly/test/persistence identifiers remain unchanged |
 
 ### APO-20 Validation Evidence
@@ -110,15 +110,18 @@ The comprehensive durable mapping artifact is delivered at `docs/LEGACY_IMPLEMEN
 
 ---
 
-## 3. Planner Boundary After APO-19
+## 3. Historical Planner Boundary After APO-19
 
-GPT-5.6 Sol must next review the legacy implementation map and proceed with Jira backlog management:
+Before APO-20, GPT-5.6 Sol was required to review the legacy implementation map and proceed with
+Jira backlog management:
 
 1. Review `docs/LEGACY_IMPLEMENTATION_MAP.md`.
 2. Create and approve the recommended Jira backfill and implementation Stories (APO-20 through APO-32).
 3. Select the first approved implementation Story and issue its execution contract in `TASK.md`.
 
-Do not guess the next Story. Do not execute APO-2, providers, orchestration, routing, Jira/GitHub adapters, UI redesign, or any other future capability from this checkpoint.
+That historical boundary is superseded by APO-20's repository-identity work. Do not execute APO-2,
+providers, orchestration, routing, Jira/GitHub adapters, UI redesign, or any other future capability
+from this checkpoint.
 
 ---
 
@@ -240,13 +243,14 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 |---|---|---|---|---|---|
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
-| APO-20 | `refactor/APO-20-project-identity-rename` | Pending final metadata update | Pending final metadata update | 21 Aug 2026 | COMPLETE |
+| APO-20 | `refactor/APO-20-project-identity-rename` | `861dc99` | `861dc99` (fast-forward) | 21 Aug 2026 | PARTIAL - local folder lock |
 
 ---
 
 ## 10. Next Planner Boundary
 
-`APO-20 is complete. The full APO-19 execution contract is prepared in TASK.md with the final
-APO-20 main SHA and updated repository/path references. APO-19 has not been executed by this task.`
+`APO-20 repository work is complete at 861dc99. The full APO-19 execution contract is prepared in
+TASK.md with the final APO-20 main SHA and updated repository/path references. APO-19 has not been
+executed by this task and remains blocked until the physical local-root rename is completed.`
 
 Do not execute APO-19 or any other Story automatically from this checkpoint.

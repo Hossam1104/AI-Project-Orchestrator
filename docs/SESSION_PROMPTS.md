@@ -166,7 +166,8 @@ policy, and stop. Do not execute another Story.
 
 # CURRENT APO CHECKPOINT
 
-APO-20 completed the controlled repository and local-root identity rename. The full APO-19
-execution contract is prepared in the root `TASK.md` with the final APO-20 main SHA and updated
-repository/path references. Preparing that contract does not authorize APO-19 execution; a fresh
-planner/owner instruction and the applicable Jira gate are required.
+APO-20 completed the repository identity rename, but the physical local-root move is blocked by a
+Windows process lock. The full APO-19 execution contract is prepared in the root `TASK.md` with the
+final APO-20 main SHA and updated repository/path references. Preparing that contract does not
+authorize APO-19 execution; the local rename must complete first, followed by a fresh
+planner/owner instruction and the applicable Jira gate.

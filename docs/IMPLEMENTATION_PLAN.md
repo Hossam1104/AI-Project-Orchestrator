@@ -73,9 +73,10 @@ The approved initial Jira capability map is:
 
 The Epic list is approved. Sol may refine names, dependencies, and Story ordering only within the
 BRD and owner-approved scope. APO-18 established the governance baseline, APO-19 produced the
-legacy implementation inventory, and APO-20 completed the repository/local-root identity rename.
-The next work item remains planner-controlled and is prepared in the root `TASK.md`; it does not
-authorize any unrelated Epic or Story.
+legacy implementation inventory, and APO-20 completed the repository identity rename while the
+physical local-root move remains blocked by a Windows process lock. The next work item remains
+planner-controlled and is prepared in the root `TASK.md`; it does not authorize any unrelated Epic
+or Story.
 
 ---
 
@@ -269,6 +270,7 @@ code is changed or claimed as APO-refactored.
 
 ## 9. Current Planning Boundary
 
-APO-20 completed the repository identity rename under APO-1. The root `TASK.md` contains the next
-prepared self-contained APO-19 execution contract with the final APO-20 starting SHA. Preparing
-that task does not authorize its execution automatically.
+APO-20 completed the repository identity rename under APO-1, but the physical local-root move is
+blocked by a Windows process lock. The root `TASK.md` contains the next prepared self-contained
+APO-19 execution contract with the final APO-20 starting SHA. Preparing that task does not
+authorize its execution automatically, and APO-19 must wait for the local rename to complete.

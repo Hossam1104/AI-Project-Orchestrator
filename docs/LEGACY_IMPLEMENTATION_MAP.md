@@ -10,6 +10,10 @@
 **Authoritative BRD:** `docs/BRD.md` (v1.1)
 **Operating Contract:** `AGENTS.md`
 
+> Historical baseline note: this durable APO-19 evidence artifact records the repository and local
+> root as they existed before APO-20. The old URL/path values below are intentionally retained as
+> audit evidence and are not active repository or local-root references.
+
 ---
 
 ## 1. Purpose

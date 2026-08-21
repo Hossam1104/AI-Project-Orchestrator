@@ -6,21 +6,22 @@
 **Story:** APO-19 - Inventory and classify legacy implementation for APO reuse
 **Planner / Acceptance Authority:** GPT-5.6 Sol
 **Assigned Executor:** Gemini 3.7 (Auxiliary cost/quota-balancing executor)
-**Dependency:** APO-20 complete; this contract is prepared after the repository identity rename
+**Dependency:** APO-20 repository work complete; physical local-root rename remains a prerequisite
 
 ## Repository and starting checkpoint
 
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Local root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
 **Default branch:** `main`
-**Expected starting SHA:** `<FINAL_APO_20_MAIN_SHA>`
+**Expected starting SHA:** `861dc99`
 **Authoritative requirements:** `docs/BRD.md`
 **Execution authority:** `AGENTS.md`
 **Live handoff:** `.ai/CURRENT_STATE.md`
 
-The repository and local root were renamed by APO-20. Preserve the technical identifiers that
-still contain `AIUsageMonitor`; this Story is an inventory and classification exercise, not a
-technical codebase rename.
+The GitHub repository identity was renamed by APO-20. The target local root is the path above, but
+the physical folder move must complete before this Story executes. Preserve the technical
+identifiers that still contain `AIUsageMonitor`; this Story is an inventory and classification
+exercise, not a technical codebase rename.
 
 ## Objective
 
@@ -102,4 +103,5 @@ tree clean. Stop after APO-19 evidence is delivered and the next planner boundar
 Do not begin APO-2, APO-3, APO-4, APO-5, APO-6, APO-7, APO-8, APO-9, APO-10, APO-11, APO-12, APO-13,
 APO-14, APO-15, APO-16, APO-17, or any unassigned task.
 
-This contract is prepared by APO-20 and is not being executed in the current session.
+This contract is prepared by APO-20 and is not being executed in the current session. Do not start
+it until the physical local-root rename is complete and a fresh instruction authorizes APO-19.
