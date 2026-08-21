@@ -1,581 +1,385 @@
-# AGENTS.md - AI Usage Monitor AI Execution Contract
+# AGENTS.md - AI Project Orchestrator (APO) Execution Contract
 
 This is the universal execution contract for every AI model working in this repository.
 
-**Repository:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool  
-**Local Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`  
-**Primary Requirements:** `docs/BRD v1.0.md`  
-**Plan:** `docs/IMPLEMENTATION_PLAN.md`  
-**Prompts:** `docs/SESSION_PROMPTS.md`  
+**Repository:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool
+**Local Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`
+**Product:** AI Project Orchestrator (APO)
+**Previous Product Identity:** AI Usage Monitor
+**Primary Requirements:** `docs/BRD.md`
+**Implementation Plan:** `docs/IMPLEMENTATION_PLAN.md`
+**Prompt Library:** `docs/SESSION_PROMPTS.md`
 **Live Handoff:** `.ai/CURRENT_STATE.md`
+**Jira Project:** `APO`
+
+The repository and local folder retain their existing names. Technical identifiers containing
+`AIUsageMonitor` may be migrated incrementally under planner approval.
 
 ---
 
-# 1. Roles
+# 1. AI Operating Model and Roles
 
-## Planner
+The approved default strategy is quality/risk first and quota/cost second. Do not downgrade work
+solely to preserve quota.
 
-GPT-5.6 Sol owns:
+| Priority | Model | Default role |
+|---|---|---|
+| 1 | GPT-5.6 Sol | Planner / Architect / Acceptance Authority |
+| 2 | GPT-5.6 Luna Max | Substantial implementation / cross-cutting fixes |
+| 3 | Claude Sonnet 5 | Bounded implementation / bug fixing |
+| 4 | Claude Opus 5 | Independent reviewer |
+| 5 | GPT-5.6 Terra HIGH | Optional specialist security audit; not default reviewer |
+| Auxiliary | Gemini 3.7 | Cost/quota load-balancing executor for suitable bounded work |
 
-- BRD planning
-- architecture planning
-- implementation sequence
-- session decomposition
-- approved scope changes
+## Planner - GPT-5.6 Sol
 
-## Default Executor
+Sol owns requirements interpretation, architecture, Jira decomposition, execution contracts,
+model-routing policy, acceptance criteria, approved scope changes, and final acceptance.
 
-Luna Max is the default implementation executor from the Portable Consumer Architecture Rebaseline onward.
+## Default Executor - GPT-5.6 Luna Max
 
-Terra and Sonnet are fallback executors only when explicitly assigned for a particular session. No executor may choose a different session or continue automatically.
+Luna is the default executor for substantial implementations, cross-cutting changes, complex
+refactors, and high-blast-radius fixes when a Jira work item assigns that role.
 
-Executor rule:
+## Bounded Executor - Claude Sonnet 5
 
-> One assigned session at a time.
+Sonnet is preferred for bounded implementation, focused tests, and localized bug fixes when
+explicitly assigned.
 
-Executors implement, validate, review their diff, update current state, deliver through Git, and stop.
+## Independent Reviewer - Claude Opus 5
 
-## Reviewer
+Opus performs independent review gates. Opus is not the normal implementation executor and must
+remain independent from the implementation executor by default. Reviewer mode does not add scope
+or implement fixes unless explicitly requested.
 
-Opus 5 performs independent review gates.
+## Optional Specialist - GPT-5.6 Terra HIGH
 
-Reviewer mode does not add new product scope and does not implement fixes unless explicitly asked.
+Terra is an optional, risk-triggered security auditor. Terra is not the default reviewer.
+
+## Auxiliary Executor - Gemini 3.7
+
+Gemini may handle suitable bounded, repetitive, validation, documentation, or quota-balancing work
+when capability and risk permit. It does not replace Sol's planning or Opus's independence.
+
+One assigned Jira work item is the maximum active scope for one executor. No executor may choose a
+different work item, combine unrelated Stories, or continue automatically.
 
 ---
 
-# 2. Mandatory Read Order
+# 2. Mandatory Startup Read Order
 
 Before modifying repository files:
 
 1. Read `AGENTS.md` completely.
-2. Read `docs/BRD v1.0.md`.
-3. Read `.ai/CURRENT_STATE.md`.
+2. Read `docs/BRD.md` completely.
+3. Read `.ai/CURRENT_STATE.md` completely.
 4. Read `docs/IMPLEMENTATION_PLAN.md`.
 5. Read the active root `TASK.md` completely.
-6. Read the exact relevant section of `docs/SESSION_PROMPTS.md` when the task references it.
-7. Inspect `git status`, then inspect only task-relevant source/config files.
+6. Read only the exact relevant section of `docs/SESSION_PROMPTS.md` when the work item references
+   a prompt or review gate.
+7. Inspect `git status`, branch, remote, and only task-relevant source/configuration files.
 
-Do not depend on previous chat context.
-
-The repository is the source of truth.
+Do not depend on previous chat context. The repository is the source of truth.
 
 ---
 
-# Active TASK.md Contract
+# 3. Authority and Traceability
 
-From this remediation onward, the root `TASK.md` is the active executable task, not a historical
-execution log. It may add planner-approved scope and completion requirements, but it cannot
-override the BRD or this contract.
+When instructions conflict, use this order:
 
-1. Root `TASK.md` contains the current executable session/task.
-2. Every executor must read it during mandatory startup.
-3. Execute only the task defined in `TASK.md`.
-4. `TASK.md` cannot override higher-authority BRD/governance decisions.
-5. `.ai/CURRENT_STATE.md` remains the authoritative factual project history/status.
-6. `docs/SESSION_PROMPTS.md` remains the permanent detailed session specification library.
-7. After a session completes successfully and is delivered to `main`, Luna determines the next
-   approved session from the implementation plan and current state.
-8. Luna opens `docs/SESSION_PROMPTS.md` and copies the full approved prompt for that next session,
-   including the applicable `COMMON ACTIVE SESSION INHERITANCE` content.
-9. Luna replaces the entire root `TASK.md` with that complete executable prompt. It must contain
-   the actual instructions Luna will execute later, not merely a title or a reference to the
-   permanent prompt library.
-10. The next `TASK.md` must be self-contained enough for a fresh Luna Max chat, and its preparation
-    must be committed, pushed, and verified through the Git Delivery Contract.
-11. Updating `TASK.md` does not authorize executing it.
-12. Luna must stop after preparing and pushing the next `TASK.md`; Luna must not execute the newly
-    populated task automatically.
-13. Every new task requires a new explicit user instruction such as:
-    `Execute the current root TASK.md through completion.`
-14. If the current task is PARTIAL or BLOCKED, do not advance `TASK.md` to the next normal
-    session. Keep or create an appropriate remediation/recovery task instead.
-15. Do not use `TASK.md` as a historical execution log; historical execution results belong in
-    `.ai/CURRENT_STATE.md`.
+1. `docs/BRD.md`;
+2. `AGENTS.md`;
+3. planner-approved architecture decisions and `.ai/CURRENT_STATE.md`;
+4. the assigned Jira Story/Task acceptance scope;
+5. `docs/IMPLEMENTATION_PLAN.md`;
+6. the root `TASK.md`; and
+7. executor preference.
 
-## Permanent TASK.md lifecycle
+Jira is the authoritative work-tracking system for APO. Repository documentation, the BRD,
+approved architecture decisions, and validation evidence are the architecture/governance source of
+truth. A Jira issue must never override the BRD or approved architecture.
 
-The permanent approved prompt library drives the next executable task:
+The required execution flow is:
 
 ```text
-docs/SESSION_PROMPTS.md
-        |
-        | contains permanent approved session prompts
-        v
-Luna completes current session
-        |
-        v
-Luna identifies next approved session
-        |
-        v
-Luna COPIES the full next-session prompt from docs/SESSION_PROMPTS.md
-        |
-        v
-root TASK.md is replaced with it
-        |
-        v
-commit / push / verify
-        |
-        v
-STOP
+Jira Work Item
+      |
+      v
+Sol execution contract / architecture checkpoint
+      |
+      v
+TASK.md current execution contract
+      |
+      v
+Assigned executor
+      |
+      v
+Validation and evidence
+      |
+      v
+Independent review where required
+      |
+      v
+Sol acceptance
+      |
+      v
+Jira / Git synchronization
 ```
 
-`TASK.md` must always be ready for direct execution in the next fresh context. The project owner
-must not be required to manually populate it, and populating it never authorizes the next session.
+Every meaningful implementation and historical foundation must be traceable to a Jira Epic and
+Story/Task with repository evidence. Do not create speculative Jira work items unless the assigned
+planner scope explicitly requires them.
 
 ---
 
-# 3. Authority Order
+# 4. TASK.md and Prompt-Library Lifecycle
 
-When instructions conflict:
+`TASK.md` is the current executable work-item contract only when it explicitly contains an
+assigned, approved task. It must never be used as a historical execution log. `.ai/CURRENT_STATE.md`
+contains factual history and live status.
 
-1. `docs/BRD v1.0.md`
-2. `AGENTS.md`
-3. approved facts/decisions in `.ai/CURRENT_STATE.md`
-4. `docs/IMPLEMENTATION_PLAN.md`
-5. assigned session prompt
-6. existing implementation
-7. executor preference
+`docs/SESSION_PROMPTS.md` is a permanent prompt library and historical record. The old numbered
+AI Usage Monitor provider sequence is superseded and must not be treated as executable. Future APO
+execution prompts are prepared by Sol only after Jira decomposition and assignment; do not
+pre-generate speculative implementation prompts.
 
-Do not silently override a higher authority.
+After a completed work item is delivered, Sol determines the next approved work item, prepares its
+self-contained execution contract, replaces `TASK.md` when appropriate, commits/pushes that
+preparation, and stops. Updating `TASK.md` never authorizes executing the next task automatically.
 
----
-
-# 3A. Cross-Windows Compatibility Contract
-
-This section is permanent and mandatory. Every executor and reviewer session from Session 02 onward inherits it automatically.
-
-## Baseline
-
-- Minimum OS baseline: Windows 10 version 1809 / build 17763
-- Supported OS goal: Windows 10 1809+ and Windows 11
-- Supported architectures: x86, x64, ARM64
-- Primary validation architecture: x64
-- Secondary validation architectures: x86, then ARM64
-
-Design principle:
-
-> Modern where available. Compatible everywhere supported.
-
-The exact Windows version support of the selected .NET 10/WPF release must be verified against current official Microsoft documentation before release claims are made. No executor may silently raise the minimum supported OS.
-
-## Mandatory Rules
-
-1. **API guarding** - No Windows 11-only API or post-build-17763 OS feature may be used for core functionality without runtime capability/version detection. An unavailable modern feature must never crash the app.
-2. **Core independence** - Domain, Application, provider engine, quota calculation, subscription handling, history, analytics, recommendation, monitoring, persistence, and alert evaluation must not depend on Windows 11-only functionality.
-3. **UI graceful degradation** - Optional modern backdrops, window effects, or animations must fall back to a compatible WPF surface with identical functionality. Visual effects never gate functionality.
-4. **No modern hardware prerequisites** - AVX/AVX2, a dedicated/recent GPU, TPM, NPU, AI accelerator, or recent-generation CPU must never be mandatory.
-5. **Lightweight background operation** - Use low idle CPU, reasonable memory, asynchronous I/O, and restrained timers. Do not noticeably degrade the IDE or other applications.
-6. **Functional parity** - provider monitoring, local file persistence, quota display/calculation, subscription information, history, alerts, notifications, tray, Focus HUD, analytics, and recommendations must work without modern GPU functionality.
-
-## Dependency Rule
-
-Before adopting a package, framework dependency, Windows API, or native component beginning with Session 02, check it against the build-17763 minimum and the self-contained consumer deployment goal. If it would raise the minimum supported Windows version or add an avoidable end-user prerequisite, identify the incompatibility, look for a compatible alternative, record the issue in `.ai/CURRENT_STATE.md`, and escalate to the planner. The executor does not have authority to silently raise the minimum.
-
-Reviewers must treat an unguarded modern dependency, hard hardware-acceleration requirement, or unsupported-OS crash as a classified finding under Section 23.
+If work is partial or blocked, keep a remediation/recovery task and do not advance to a normal next
+Story. A fresh user instruction is required to execute a newly prepared task.
 
 ---
 
-# 4. Frozen V1 Stack
-
-The approved active V1 stack is:
-
-- C#
-- .NET 10
-- WPF
-- MVVM
-- Modular Clean Architecture
-- `System.Text.Json`
-- JSON for small state/configuration documents
-- JSON Lines (JSONL) for append-oriented history and event streams
-- `HttpClient`
-- `Microsoft.Extensions.Http.Resilience` where materially justified
-- `Microsoft.Extensions.DependencyInjection`
-- Serilog
-- Windows Credential Manager or another planner-approved Windows secure-storage mechanism
-- Git and GitHub
-- GitHub Actions
-- focused xUnit tests
-- self-contained Windows release artifacts
-
-V1 has no database engine and no ORM:
-
-- no EF Core
-- no SQL Server
-- no SQL Server LocalDB
-- no SQLite unless the planner explicitly changes V1 architecture
-
-Do not introduce Angular, Electron, Tauri, Node.js, embedded Chromium, a cloud backend, or Jira unless the planner explicitly changes V1 architecture.
-
-The previous WinUI/Windows App SDK/EF/LocalDB stack is historical implementation context only and is superseded by the Portable Consumer Architecture decision recorded in `.ai/CURRENT_STATE.md`.
-
----
-
-# 5. Current State Contract
-
-`.ai/CURRENT_STATE.md` is the single mutable handoff/status source.
-
-Every executor session must update it before stopping. It must distinguish the approved target architecture from the architecture currently present in source code.
-
-Do not keep duplicate volatile status inside:
-
-- `AGENTS.md`
-- `CLAUDE.md`
-- the BRD
-- `docs/IMPLEMENTATION_PLAN.md`
-- random handoff files
-
-Historical facts, decisions, and validation evidence may remain in the handoff when clearly labeled.
-
----
-
-# 6. One Session Only
-
-Execute only the session explicitly assigned.
-
-Do not:
-
-- combine sessions
-- continue to the next session automatically
-- implement future provider work early
-- re-plan the project unless a blocker requires planner involvement
-
-At session end:
-
-1. build or perform the validation appropriate to the assigned scope
-2. run relevant tests/checks
-3. review the Git diff
-4. check for secrets and debug artifacts
-5. update `CURRENT_STATE`
-6. commit, push, merge, and verify per Section 6A
-7. report status
-8. stop
-
----
-
-# 6A. Git Delivery Contract
-
-This section is permanent and mandatory for every completed executor implementation/remediation session from Session 02 onward. Reviewer-only Opus gates are exempt unless explicitly asked to modify repository files.
-
-Requirement:
-
-> Every completed executor session must commit, push its branch, merge into `main`, push `main`, verify `origin/main`, and leave the working tree clean.
-
-Workflow:
-
-```text
-main
-  -> session feature/fix branch
-  -> implement
-  -> validate
-  -> update .ai/CURRENT_STATE.md
-  -> review diff
-  -> commit
-  -> push branch
-  -> merge into main
-  -> push main
-  -> verify origin/main
-  -> clean working tree
-```
-
-Mandatory rules:
-
-1. Use an appropriately named branch such as `feature/session-XX-description`, `refactor/session-03r-description`, or `fix/...`, unless a documented technical reason prevents it.
-2. Commit every completed implementation/remediation session.
-3. Push the session branch.
-4. Integrate the session into `main`.
-5. Push `main` to `origin`.
-6. Fetch and verify `origin/main` after the push.
-7. Leave the final working tree clean.
-8. Never leave validated work only uncommitted, only local, or only on an unintegrated feature branch.
-9. Never ask the project owner whether completed work should be committed or pushed.
-10. Do not automatically proceed into the next implementation session after merging.
-11. Never use `git push --force`, `git reset --hard`, or `git clean -fd` unless explicitly instructed for that specific action.
-12. Preserve unrelated user changes.
-13. If branch protection prevents direct merging, use the repository-supported PR/merge workflow and document the restriction in `CURRENT_STATE`.
-14. A session is not `COMPLETE` until remote `main` contains the validated work, unless a documented external GitHub restriction makes integration impossible.
-15. A single post-merge metadata-only commit directly to `main` is permitted solely to synchronize `.ai/CURRENT_STATE.md` and `TASK.md` with the already completed merge/push/verification. It must touch no source, product/configuration, or test files, must not bypass branch protection, and must not require a recursive session.
-
----
-
-# 7. Provider Truthfulness
-
-Providers:
-
-- Codex
-- Claude
-- Kimi
-- GitHub Copilot
-- Antigravity
-
-Their behavior may change.
-
-Mandatory rules:
-
-- verify current behavior
-- prefer official APIs, OAuth/device auth, account usage surfaces, and documented endpoints
-- use an official CLI only when it is available and useful; a CLI is never a whole-application prerequisite
-- use local metadata only when verified safe
-- do not guess endpoints or file schemas
-- do not assume plan, billing, reset, or subscription fields are available
-- do not fabricate 5-hour, weekly, monthly, or credit values
-- do not label inferred data as official
-
-If unavailable, use one of:
-
-- Not Available
-- Manual
-- Partial
-- Authentication Required
-- Stale
-- Unsupported
-
-A truthful partial provider is acceptable.
-
-Provider collection priority is:
-
-1. official provider API
-2. official OAuth/device/account connection
-3. official authenticated account or usage endpoint
-4. official CLI, if present and useful
-5. safe verified local application metadata
-6. manual configuration/input fallback
-
----
-
-# 8. Used vs Remaining Semantics
-
-The UI's primary convention is remaining capacity.
-
-For each provider:
-
-- prove source semantics
-- normalize once
-- keep parsing/normalization separate
-- test source-to-domain transformation
-- prevent double inversion
-
-Never interpret `used_percent = 80` as `80% available`.
-
----
-
-# 9. Time and Reset Rules
-
-Use `DateTimeOffset` for provider timestamps.
-
-Preserve the source offset where available. Normalize safely for calculations. Display reset time in the user's current Windows timezone.
-
-Test midnight, week boundaries, daylight/timezone conversion where relevant, reset detection, and source timestamps without explicit offsets. Never guess a reset timezone.
-
----
-
-# 10. Architecture Rules
-
-## Domain
-
-Domain must not depend on WPF, JSON file implementation details, EF Core, SQL, HTTP, provider libraries, filesystem APIs, or Windows UI APIs.
-
-## Application
-
-Application owns provider-independent contracts and use cases. It may define persistence abstractions, but must not know JSON filenames, LocalAppData paths, serializer configuration, or provider payload formats.
-
-## Desktop
-
-Desktop/WPF must not parse provider payloads, parse CLI output, inspect provider files directly, manage tokens directly, or contain storage-format rules. It consumes application services and view models through the composition root.
-
-## Providers
-
-Providers own detection, collection, parsing, normalization, provider-specific errors, and capability truth. They return normalized domain/application results.
-
-## Infrastructure
-
-Infrastructure owns JSON/JSONL persistence, safe file operations, storage-path resolution, secure credential adapters, Windows notifications, logging infrastructure, and appropriate OS integrations. Provider failure must be isolated.
-
-The intended direction remains:
+# 5. Active V1 Architecture
+
+The approved active foundation is:
+
+- C#;
+- .NET 10;
+- WPF;
+- MVVM;
+- modular clean architecture;
+- `System.Text.Json`;
+- JSON for small state/configuration documents;
+- monthly-partitioned JSONL for append-oriented history/events;
+- `HttpClient` and resilience extensions where materially justified;
+- dependency injection;
+- Serilog;
+- Windows Credential Manager or another planner-approved secure store;
+- Git/GitHub/GitHub Actions;
+- focused xUnit tests; and
+- self-contained Windows release artifacts.
+
+V1 has no mandatory database engine or ORM: no EF Core, SQL Server, LocalDB, or SQLite unless the
+planner explicitly changes the architecture after evidence. Do not introduce Angular, Electron,
+Tauri, Node.js, npm, embedded Chromium, or an APO-owned cloud backend without an explicit decision.
+Historical WinUI/Windows App SDK and EF/SQL/LocalDB work remains historical/superseded context.
+
+The intended dependency direction is:
 
 ```text
 Desktop/WPF -> Application -> Domain
 Infrastructure -> Application/Domain contracts
-Providers -> Application/Domain contracts
+Providers/integrations -> Application/Domain contracts
 ```
 
----
-
-# 11. Dynamic Quota Rule
-
-Never model the system around fixed quota columns.
-
-Support arbitrary rolling windows, session limits, daily/weekly/monthly limits, billing cycles, AI credits, token allowances, model-specific quotas, and custom provider quotas. The UI adapts to the data the provider actually exposes.
-
----
-
-# 12. Local File Persistence Contract
-
-V1 is single-user local software with no database engine.
-
-1. Store mutable application data below `Environment.SpecialFolder.LocalApplicationData`, approximately `%LOCALAPPDATA%\AIUsageMonitor\`.
-2. Use JSON for settings, provider configuration/state, subscriptions, alert rules, current state, and other small documents.
-3. Use monthly-partitioned JSONL for usage snapshots, sync history, and alert events unless a simpler approved partition is justified.
-4. Every long-lived JSON document contains an explicit schema version such as `schemaVersion: 1`. JSONL records contain record/schema metadata sufficient for future evolution.
-5. Critical JSON writes serialize to a temporary file, flush where practical, and replace the destination atomically where supported. Never rely on unsafe direct overwrite for critical state.
-6. Concurrent writes are serialized with the smallest appropriate per-store or append synchronization. Do not introduce distributed locks.
-7. History services stream and query only relevant JSONL files, preserve chronological ordering, and do not load all lifetime history at startup.
-8. Preserve the existing material-change rule for usage snapshots; do not append unchanged snapshots.
-9. Distinguish missing, empty, valid, unsupported-schema, corrupt, I/O-failure, and permission-failure states. Log/report problems, isolate or quarantine safely, and do not silently destroy user data.
-10. Do not write mutable runtime data beside the executable or under Program Files. Do not require administrator privileges.
-11. Do not write actual secrets to JSON, JSONL, settings, provider state, history, alerts, or logs.
-12. Do not introduce a database or ORM unless the planner explicitly changes V1 architecture after evidence shows file storage is insufficient.
+Domain must not depend on WPF, JSON/file details, HTTP, provider libraries, filesystem APIs, or
+Windows UI APIs. Application owns provider-independent contracts and use cases, not filenames,
+LocalAppData paths, serializer configuration, or provider payload formats. Desktop consumes
+application services/view models and must not parse provider payloads, inspect provider files, or
+manage tokens. Infrastructure owns persistence, safe files, paths, credentials, logging, and OS
+integration. Providers own detection, collection, parsing, normalization, and capability truth.
 
 ---
 
-# 13. Security Rules
+# 6. Provider and Data Truthfulness
 
-Never:
+Initial monitored providers are Codex, Claude, Kimi, GitHub Copilot, and Antigravity. Their behavior
+must be verified before implementation. Prefer, in order:
 
-- store passwords or raw provider tokens
-- extract browser cookies or unrelated credentials
-- log tokens or sensitive environment variables
-- commit credentials or raw authenticated payloads
-- store provider secrets in JSON/JSONL or LocalDB
-- place secrets in appsettings or other repository files
-- collect prompts, conversations, source code, or task content
+1. official API;
+2. official OAuth/device/account connection;
+3. official authenticated account/usage endpoint;
+4. official CLI where useful;
+5. safe verified local metadata; and
+6. manual fallback.
 
-Use:
+Never guess endpoints or file schemas, assume plan/billing/reset fields, fabricate quota windows,
+or label inferred values official. If unavailable, use truthful states such as Not Available,
+Manual, Partial, Authentication Required, Stale, or Unsupported.
 
-1. official OAuth/device/account flows
-2. Windows Credential Manager or another planner-approved secure store
-3. DPAPI only when technically justified
-4. opaque credential references in JSON when a reference is needed
-5. redacted diagnostics and sanitized fixtures
+The primary UI convention is remaining capacity. Prove whether source values mean used or remaining,
+normalize exactly once, and test source-to-domain transformation. Never interpret `used_percent =
+80` as 80% available. Use arbitrary dynamic windows rather than fixed quota columns. Preserve
+`DateTimeOffset` source offsets, calculate safely, display in the user's Windows timezone, and
+never guess an unknown reset timezone.
 
----
-
-# 14. Privacy Rules
-
-The monitor needs usage and subscription metadata only.
-
-Do not collect or store prompts, conversations, provider chat history, source code, repository content, task content, browser passwords, browser cookies, unrelated tokens, app telemetry, or cloud-synced user data.
-
-No cloud sync, app telemetry, or user tracking is enabled by default.
+Refresh failures retain last-known valid values and mark them stale/error. One provider failure
+must not crash or hide other providers. A provider CLI is optional and never a whole-application
+prerequisite; browser-only and non-developer fallback paths must be truthful.
 
 ---
 
-# 15. UI Rules
+# 7. Cross-Windows Compatibility Contract
 
-Visual objective:
+Baseline goal: Windows 10 version 1809/build 17763 and Windows 11, with x86, x64, and ARM64
+targets. x64 is primary validation, followed by x86 and ARM64. Exact .NET 10/WPF support claims
+must be verified against current Microsoft documentation before release claims.
 
-> Modern AI command center / AI capacity cockpit.
+Mandatory rules:
 
-The WPF baseline must be modern without depending on WinUI-specific effects. It is dark-first, supports light/system themes, uses strong typography, restrained gradients, rounded cards, accessible status text/icons, provider accents, clear remaining capacity, reset countdowns, polished loading/error/empty states, DPI awareness, and responsive resizing.
+1. Guard Windows 11-only or post-build-17763 APIs with runtime capability/version detection.
+2. Keep domain, application, providers, persistence, analytics, recommendation, monitoring, and
+   alerts independent of newer Windows features.
+3. Optional visual effects must degrade to ordinary WPF surfaces with identical functionality.
+4. Do not require AVX/AVX2, a dedicated/recent GPU, TPM, NPU, AI accelerator, or recent CPU.
+5. Keep background operation asynchronous, low-CPU, and low-memory.
+6. Preserve functional parity for capacity, subscriptions, history, alerts, notifications, tray,
+   Focus HUD, analytics, and recommendations without modern GPU functionality.
 
-The product is for developers and non-developers. Do not make CLI, shell, SDK, token, or coding terminology the default unless provider setup genuinely requires it. Avoid neon overload, huge marketing areas, excessive animation, color-only meaning, and clutter. The Focus HUD must be useful beside an IDE while remaining lightweight.
-
----
-
-# 16. Testing Rules
-
-Target tests at high-risk logic rather than creating thousands of low-value tests:
-
-- quota normalization and used/remaining conversion
-- reset and timezone math
-- provider parsers and source semantics
-- JSON serialization/deserialization round trips
-- schema compatibility/version handling
-- JSONL append/read and time-range queries
-- duplicate suppression
-- atomic/safe writes
-- missing/corrupt-file handling
-- settings/subscription/provider-state persistence
-- secret redaction and credential-reference safety
-- burn-rate and recommendation scoring
-- critical WPF view-model behavior where useful
-- self-contained publish smoke checks
-
-No live authenticated provider calls in GitHub CI. Use sanitized fixtures. Manual WPF/provider validation must be recorded honestly.
+Before adopting a package, native component, API, or framework, check the minimum OS and
+self-contained consumer contract. Record incompatible dependencies and escalate to Sol; do not
+silently raise the minimum.
 
 ---
 
-# 17. Validation Rules
+# 8. Local Persistence and Security Contract
 
-Before stopping:
+Mutable data is stored below `Environment.SpecialFolder.LocalApplicationData`, approximately
+`%LOCALAPPDATA%\AIUsageMonitor\` until a separately approved migration. JSON documents contain
+settings, provider/project state, subscriptions, alert/routing policy, and other small state.
+Monthly JSONL contains usage snapshots, orchestration/audit events, validation/review events, and
+alerts.
 
-- build the full solution for implementation sessions
-- run relevant targeted tests
-- perform required manual/provider/publish validation
-- review compile warnings caused by the session
-- review `git diff`
-- inspect changed files for secrets and debug artifacts
-- update `.ai/CURRENT_STATE.md`
+Every long-lived JSON document has an explicit schema version. JSONL records include record/schema
+metadata. Critical writes serialize to a temporary file, flush where practical, and replace the
+destination atomically where supported. Concurrent writes use the smallest per-store/append
+synchronization; no distributed locks.
 
-For documentation-only governance work, do not claim a build or test for an architecture that has not been implemented. Validate document consistency, paths, scope, and stale active requirements instead.
+History reads stream only relevant partitions, preserve chronological ordering, support ranges, and
+do not load all lifetime history at startup. Preserve material-change duplicate suppression.
+Distinguish missing, empty, valid, unsupported-schema, corrupt, I/O-failure, and permission-failure
+states. Report and isolate/quarantine safely where useful. Never silently destroy user data, write
+beside the executable or under Program Files, or require administrator privileges.
 
-Never claim a command or test was run if it was not run. If the environment blocks validation, document exactly what was blocked and why.
+Never store passwords, raw tokens, refresh tokens, cookies, authenticated payloads, prompts,
+conversations, source code, repository content, or unrelated credentials in files, logs, or source
+control. JSON may store only an opaque credential reference. Use Windows Credential Manager, DPAPI
+when justified, or another planner-approved secure mechanism. Redact secrets from diagnostics.
 
----
-
-# 18. Git Safety
-
-Before editing, inspect `git status`.
-
-Never destroy unrelated user changes, hard reset, blindly delete untracked files, or rewrite unrelated history. Keep session changes isolated. The repository remote is `https://github.com/Hossam1104/AI-Usage-Monitor-Tool.git` and the default branch is `main`.
-
----
-
-# 19. Dependency Discipline
-
-Before adding a package:
-
-- prove it is needed
-- prefer .NET/Microsoft/Windows capabilities compatible with the minimum OS
-- avoid duplicate packages
-- prefer maintained packages
-- consider self-contained publishing and end-user prerequisites
-- record significant dependency decisions in `CURRENT_STATE`
-
-Do not replace approved technologies because another framework is personally preferred.
+APO may transmit only the context and source/code reasonably required by an explicitly configured
+executor. Honor project isolation, exclusions, secret scanning/redaction, least privilege, and
+visible destination. APO-owned telemetry and cloud sync are not enabled by default.
 
 ---
 
-# 20. Error Handling
+# 9. UI, Monitoring, and Release Contract
 
-When refresh or storage operations fail:
+The product is a modern AI command center for developers and non-developers: dark-first with
+light/system support, strong typography, restrained gradients, rounded cards, provider accents,
+accessible labels/icons, readable remaining capacity, reset countdowns, polished loading/empty/
+stale/partial/error states, responsive resizing, keyboard navigation, high DPI support, and
+restrained motion. Color alone must not communicate state. A lightweight tray and optional Focus
+HUD may provide glanceable status beside an IDE.
 
-- retain the last-known valid value
-- mark stale/error
-- show the last successful update
-- expose concise diagnostic detail
-- do not replace values with zero
-- do not crash other providers, history, settings, or startup
+Monitoring defaults to approximately 60 seconds plus startup, resume, foreground, manual refresh,
+and safe local-change triggers. Use cancellation, timeout, retry/backoff, throttling, rate-limit
+awareness, provider isolation, and no overlapping refresh. Monitoring must not meaningfully consume
+provider quota. Default warnings are 30% remaining and critical 15%, with deduplicated alerts for
+low/exhausted/restored capacity, stale/auth failure, and renewal/expiry.
 
-The application must open with no connected providers and must isolate an unavailable or corrupt optional local file where safe recovery is possible.
-
----
-
-# 21. Scope Control
-
-Do not add:
-
-- AI chat
-- prompt runner
-- model auto-switching
-- AI-based recommendation calls
-- cloud sync
-- mobile app
-- Angular dashboard
-- Electron/embedded browser runtime
-- organization/team billing
-- payment workflows
-- unrelated productivity features
-
-Do not add new providers during the Portable Consumer Architecture Rebaseline. Retain the approved five-provider sequence.
+The released application must be self-contained and must not require a separately installed .NET
+runtime, SDK, Visual Studio, database engine, Node/npm, embedded browser, or provider CLI. Evaluate
+`SelfContained=true` and `PublishSingleFile=true` for WPF without blind trimming. Consider
+`win-x64`, `win-x86`, and `win-arm64`, and claim only validation actually performed. The app must
+open with no providers, empty history, missing optional state, offline status, absent CLI, or
+isolated provider failure.
 
 ---
 
-# 22. Executor Completion Report
+# 10. Testing and Validation Contract
 
-End every executor session with:
+Target tests at high-risk logic:
+
+- dynamic quota normalization and used/remaining conversion;
+- reset and timezone math;
+- provider parsers and source semantics;
+- subscription and billing interpretation;
+- JSON round trips and schema compatibility;
+- JSONL append/read/range ordering;
+- duplicate suppression and interrupted-tail behavior;
+- atomic/safe writes and missing/corrupt/unsupported-file handling;
+- settings/provider/subscription/alert persistence;
+- credential-reference safety and secret redaction;
+- routing, burn rate, recommendations, state transitions, and gates;
+- critical WPF view-model behavior; and
+- self-contained publish smoke checks.
+
+No live authenticated provider calls or credentials in CI. Use sanitized fixtures. Documentation-only
+work must not claim build/test results for an architecture it did not implement. Every executor must
+run validation proportionate to the assigned work, review warnings and diff, inspect secrets and
+generated artifacts, and update `.ai/CURRENT_STATE.md` honestly.
+
+---
+
+# 11. Jira and Work-Item Discipline
+
+Jira project `APO` is the work-tracking authority. The approved initial Epic structure is APO-1
+through APO-17 as listed in `docs/BRD.md` and `docs/IMPLEMENTATION_PLAN.md`. Sol progressively
+decomposes Epics into Stories/Tasks and backfills historical implementation with evidence.
+
+Do not create duplicate Epics or speculative Stories during an assigned Story unless instructed.
+Do not start source refactoring, a provider, runtime, routing engine, or another Epic early. Use one
+bounded work item at a time. When a Story is complete, synchronize Jira/Git state and stop at the
+planner boundary.
+
+---
+
+# 12. Git Delivery Contract
+
+Every completed executor implementation or governance/remediation session must:
+
+1. inspect status and preserve unrelated changes;
+2. work on an appropriately named branch such as `refactor/APO-18-product-governance-rebaseline`;
+3. validate the assigned scope and review the diff/secrets;
+4. update `.ai/CURRENT_STATE.md`;
+5. commit the completed work;
+6. push the session branch;
+7. integrate into `main` using repository policy;
+8. push `main` to `origin`;
+9. fetch and verify `origin/main` matches local `main`; and
+10. leave the working tree clean.
+
+Never use force push, `git reset --hard`, or `git clean -fd` unless explicitly instructed for that
+specific action. Preserve unrelated owner changes. Protected-branch and human-approval rules take
+precedence; if direct integration is blocked, use the supported PR/merge workflow and document the
+restriction. A single post-merge metadata-only synchronization commit is permitted for current
+state/task metadata when required to record the already verified merge.
+
+---
+
+# 13. Scope Control
+
+Do not add AI chat, unrelated productivity features, mobile/cloud sync, payment workflows, team
+billing, prompt/conversation collection, browser-cookie extraction, unsafe credential access,
+speculative provider endpoints, database/ORM runtime, Angular/Electron/Node/embedded browser, or
+new providers without explicit planner approval.
+
+For APO-18 specifically, do not implement product functionality, providers, orchestration runtime,
+model routing, Jira/GitHub adapters, source-code refactoring, namespace/project renaming, LocalAppData
+migration, WPF redesign, or speculative Jira Stories. APO-18 is the product/governance consolidation
+boundary and ends at the Sol planner checkpoint.
+
+---
+
+# 14. Executor Completion Report
+
+End every executor work item with:
 
 ```text
-Session:
+Work item:
 Status: COMPLETE / PARTIAL / BLOCKED
 
 Implemented:
@@ -595,73 +399,28 @@ Files/areas changed:
 
 CURRENT_STATE updated: Yes
 
-Next planned session:
+Next planner boundary:
 - ...
 ```
 
----
-
-# 23. Reviewer Rules
-
-Opus 5 review severity:
-
-- BLOCKER - unsafe, fundamentally wrong, or prevents release/progression
-- HIGH - major correctness/security/reliability issue
-- MEDIUM - important but safely deferrable
-- LOW - minor maintainability/polish
-
-Reviewers must inspect actual code/evidence, not trust executor summaries. A polished UI does not compensate for unreliable quota data or a release that requires a hidden runtime/database/developer prerequisite.
-
-Gate A, Gate B, Gate C, and Final Review must explicitly inspect the zero-prerequisite consumer contract, cross-Windows compatibility, provider truthfulness, file persistence integrity, credential security, and self-contained release evidence where applicable.
+Do not claim a work item complete when required work remains or validation was not performed.
 
 ---
 
-# 24. Core Product Standard
+# 15. Reviewer Rules
 
-The application must be trustworthy enough that an individual can glance at it while working and decide which paid AI subscription or service has sufficient remaining capacity.
+Opus review severity is:
 
-Accuracy and explicit uncertainty always outrank visual symmetry.
+- **BLOCKER** - unsafe, fundamentally wrong, or prevents progression;
+- **HIGH** - major correctness, security, or reliability issue;
+- **MEDIUM** - important but safely deferrable; and
+- **LOW** - minor maintainability or polish issue.
 
----
+Reviewers inspect actual code and evidence, not executor summaries. Required review gates must
+explicitly inspect the zero-prerequisite consumer contract, cross-Windows compatibility, provider
+truthfulness, dynamic used/remaining semantics, file-persistence integrity, credential security,
+project isolation, human approval gates, and self-contained release evidence where applicable.
 
-# 25. Zero-Prerequisite Consumer Deployment Contract
-
-This is a permanent V1 release requirement.
-
-1. The released application must not require a separately installed .NET runtime.
-2. The released application must not require the .NET SDK, Visual Studio, or other developer tooling.
-3. The released application must not require SQL Server, LocalDB, SQLite installation, or any other database engine.
-4. The released application must not require Node.js, npm, Angular, Electron, or an embedded browser runtime.
-5. No provider CLI may be mandatory for the whole application. A user who uses an AI service in a browser must have a truthful connection or manual fallback path where supported.
-6. The application must open with no connected providers, empty history, missing optional configuration, or an isolated provider failure.
-7. The application must open with missing/corrupt optional local data whenever safe recovery or quarantine is possible; user data must not be silently destroyed.
-8. Mutable data must use per-user application-data locations and never require administrator privileges.
-9. Actual credentials must remain outside JSON/JSONL and behind the secure credential abstraction.
-10. Release artifacts must be self-contained. `PublishSingleFile=true` and `SelfContained=true` must be evaluated for WPF; trimming must not be enabled blindly.
-11. Release consideration must cover `win-x64`, `win-x86`, and `win-arm64`, with claims limited to artifacts and environments actually validated.
-
----
-
-# 26. Portable Consumer Architecture Rebaseline
-
-Approved planner decision: 08 August 2026.
-
-The approved target is a local-first Windows desktop application for general individual AI users, not a developer-only utility:
-
-```text
-WPF + MVVM
-       |
-Application contracts/services
-       |
-Domain
-
-Infrastructure -> JSON/JSONL, secure credentials, OS integration
-Providers      -> verified collection and normalization
-
-Release -> self-contained .NET 10 Windows artifacts
-Database/ORM -> none in V1
-```
-
-Session 03 completed the originally approved EF Core + SQL Server LocalDB persistence design successfully. That implementation is a completed historical implementation, not a failure. The later product clarification changed the V1 deployment requirement to zero external prerequisites and general-consumer usability. The LocalDB/EF implementation is therefore superseded; Session 03R removed it from the active runtime before provider development begins.
-
----
+The core product standard is trust: an individual should be able to glance at APO and decide which
+paid AI service or model has sufficient remaining capacity and which project work can safely
+continue. Accuracy, evidence, and explicit uncertainty outrank visual symmetry.
