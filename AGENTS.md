@@ -2,8 +2,8 @@
 
 This is the universal execution contract for every AI model working in this repository.
 
-**Repository:** https://github.com/Hossam1104/AI-Usage-Monitor-Tool
-**Local Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`
+**Repository:** https://github.com/Hossam1104/AI-Project-Orchestrator
+**Local Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Primary Requirements:** `docs/BRD.md`
@@ -12,8 +12,9 @@ This is the universal execution contract for every AI model working in this repo
 **Live Handoff:** `.ai/CURRENT_STATE.md`
 **Jira Project:** `APO`
 
-The repository and local folder retain their existing names. Technical identifiers containing
-`AIUsageMonitor` may be migrated incrementally under planner approval.
+APO-20 renamed the GitHub repository and local folder to the current product identity. Technical
+identifiers containing `AIUsageMonitor` remain intentionally unchanged and may be migrated
+incrementally under planner approval.
 
 ---
 

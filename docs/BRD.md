@@ -7,8 +7,8 @@
 **Status:** APPROVED PRODUCT BASELINE
 **Date:** 21 August 2026
 **Previous Product Identity:** AI Usage Monitor
-**Repository:** `https://github.com/Hossam1104/AI-Usage-Monitor-Tool`
-**Local Project Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`
+**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
+**Local Project Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
 **Jira Project:** `APO`
 **Product Owner:** Hossam
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
@@ -38,9 +38,10 @@ the APO product, especially:
 - self-contained consumer deployment; and
 - focused validation and release evidence.
 
-The existing GitHub repository and local project folder remain unchanged for this rebaseline.
-User-facing product identity is APO, while technical identifiers containing `AIUsageMonitor` may
-be migrated incrementally under planner-controlled work. No big-bang rename is required here.
+APO-18 preserved the existing GitHub repository and local project folder while establishing this
+rebaseline. APO-20 subsequently renamed those active identities to AI Project Orchestrator.
+Technical identifiers containing `AIUsageMonitor` remain unchanged and may be migrated
+incrementally under planner-controlled work. No big-bang technical rename is required here.
 
 # 2. Executive Summary and Business Problem
 
@@ -644,7 +645,8 @@ architecture claims, and a self-contained consumer release.
 
 The following are baseline decisions unless explicitly changed by the owner/planner:
 
-1. Product identity is AI Project Orchestrator (APO); the repository and local folder remain.
+1. Product identity is AI Project Orchestrator (APO); APO-20 renamed the active repository and
+   local folder while preserving technical identifiers for a later controlled migration.
 2. Jira project `APO` is authoritative for work tracking and traceability.
 3. Existing code and history are preserved and classified before refactoring.
 4. AI usage/capacity monitoring remains a first-class capability.

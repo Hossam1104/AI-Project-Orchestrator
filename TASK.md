@@ -1,33 +1,105 @@
-# TASK - APO-19 - Legacy Implementation Inventory Checkpoint
+# TASK - APO-19 - Inventory and classify legacy implementation for APO reuse
 
-**Status:** COMPLETE - SAFE PLANNER CHECKPOINT
+**Status:** PREPARED EXECUTION CONTRACT - NOT EXECUTED BY APO-20
 **Product:** AI Project Orchestrator (APO)
 **Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
 **Story:** APO-19 - Inventory and classify legacy implementation for APO reuse
 **Planner / Acceptance Authority:** GPT-5.6 Sol
-**Assigned Executor:** Gemini 3.7
+**Assigned Executor:** Gemini 3.7 (Auxiliary cost/quota-balancing executor)
+**Dependency:** APO-20 complete; this contract is prepared after the repository identity rename
 
-## Checkpoint Outcome
+## Repository and starting checkpoint
 
-APO-19 has completed the formal legacy implementation inventory, code inspection, and architectural reuse classification. The durable mapping artifact is delivered at `docs/LEGACY_IMPLEMENTATION_MAP.md`.
+**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
+**Local root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
+**Default branch:** `main`
+**Expected starting SHA:** `<FINAL_APO_20_MAIN_SHA>`
+**Authoritative requirements:** `docs/BRD.md`
+**Execution authority:** `AGENTS.md`
+**Live handoff:** `.ai/CURRENT_STATE.md`
 
-Key outcomes:
-- All 8 solution projects, Domain models, Application contracts, Infrastructure persistence, WPF composition, and publish profiles inspected and classified against `docs/BRD.md` (17 Epics).
-- Classification counts: 5 Reuse As-Is, 6 Reuse With Extension, 3 Refactor, 3 Superseded, 0 Remove.
-- Structured Jira backfill and implementation recommendations (APO-20 through APO-32) formulated under APO-2, APO-3, APO-4, and APO-17.
-- Verified that active runtime contains 0 dependencies on EF Core, SQL Server, LocalDB, WinUI, Windows App SDK, SQLite, Node.js, or Chromium.
-- Baseline validation confirmed: `dotnet restore` (Success), `dotnet build` (Success, 0w/0e), `dotnet test` (Success, 50/50 passing).
-- **NO PRODUCT SOURCE CODE WAS MODIFIED IN APO-19.**
+The repository and local root were renamed by APO-20. Preserve the technical identifiers that
+still contain `AIUsageMonitor`; this Story is an inventory and classification exercise, not a
+technical codebase rename.
 
-## Stop Condition & Next Planner Boundary
+## Objective
 
-This file is not an authorization to execute a new implementation Story. No next implementation Story is automatically authorized or guessed here. The executor must stop.
+Inspect the existing implementation and Git history, map reusable foundation work to the approved
+APO BRD and Epic structure, and produce durable evidence that lets Sol sequence the next
+planner-controlled implementation Stories.
 
-No Jira recommendations may be assumed created in Jira project `APO` until GPT-5.6 Sol performs review and approval.
+## In scope
 
-GPT-5.6 Sol must next:
-1. Review `docs/LEGACY_IMPLEMENTATION_MAP.md`.
-2. Create and approve the necessary Jira backfill Stories (APO-20 through APO-32) under project `APO`.
-3. Select the first approved implementation Story and issue its self-contained `TASK.md` execution contract.
+- Read `AGENTS.md`, `docs/BRD.md`, `.ai/CURRENT_STATE.md`, `docs/IMPLEMENTATION_PLAN.md`, this
+  `TASK.md`, and the relevant historical sections of `docs/SESSION_PROMPTS.md`.
+- Inspect the active `AIUsageMonitor.sln`, all source and test projects, project references,
+  Domain models, Application contracts, Infrastructure persistence/resilience, WPF composition,
+  provider foundation, publish profiles, configuration, tests, and relevant Git history.
+- Map each meaningful existing capability to the BRD requirements and approved APO Epics.
+- Classify each meaningful area exactly once as **Reuse As-Is**, **Reuse With Extension**,
+  **Refactor**, **Superseded**, or **Remove**, with evidence and rationale.
+- Record technical boundaries, architecture compatibility, security/privacy implications,
+  provider-truthfulness implications, cross-Windows/release implications, gaps, dependencies,
+  and recommended Story sequencing.
+- Update or create the durable inventory artifact at `docs/LEGACY_IMPLEMENTATION_MAP.md`.
+- Preserve historical evidence accurately, including the pre-APO-20 repository/path baseline where
+  it is relevant and explicitly identified as historical.
 
-**APO source-code refactoring has NOT started.** Do not execute APO-2, any provider work, orchestration runtime, model routing, Jira/GitHub adapters, UI redesign, or any other future capability from this checkpoint.
+## Out of scope and prohibitions
+
+- Do not modify product source code, tests, solution/project files, namespaces, assembly names, or
+  persistence schemas.
+- Do not rename `AIUsageMonitor.sln`, any `AIUsageMonitor.*` project/test directory, technical
+  identifier, or `%LOCALAPPDATA%\AIUsageMonitor`.
+- Do not implement providers, orchestration runtime, model routing, GitHub/Jira adapters, WPF
+  redesign, new product functionality, or future APO Stories.
+- Do not revive EF Core, SQL Server, LocalDB, SQLite, WinUI, Windows App SDK, Node/npm, Electron,
+  Tauri, Chromium, or an APO-owned cloud backend.
+- Do not create speculative Jira work items or execute any Story other than APO-19.
+- Do not use live authenticated provider calls or credentials. Do not add secrets or generated
+  build artifacts to source control.
+
+## BRD requirements and acceptance criteria
+
+The completed inventory must:
+
+1. Treat `docs/BRD.md` as the requirements authority and preserve the active WPF/.NET/JSON/JSONL
+   architecture boundary.
+2. Cover all active solution projects and tests plus the relevant superseded history.
+3. Provide an evidence-backed classification and requirement/Epic mapping for every meaningful
+   capability area.
+4. Identify reusable foundations, extensions, refactor areas, superseded work, removals, risks,
+   dependencies, and gaps without claiming unimplemented APO capabilities as complete.
+5. Explicitly verify the no-database/ORM active runtime, secure credential boundary, dynamic
+   used/remaining capacity semantics, last-known-good behavior, project-isolation implications,
+   and self-contained Windows release considerations.
+6. Deliver a readable durable mapping artifact and update `.ai/CURRENT_STATE.md` with factual
+   evidence, validation, limitations, and the next Sol planner boundary.
+7. Make no product source/test/project changes.
+
+## Required validation and evidence
+
+Before and after the inventory:
+
+- Inspect `git status`, current branch, remotes, `HEAD`, and the expected starting SHA.
+- Use a bounded branch such as `docs/APO-19-legacy-implementation-map` and preserve unrelated
+  owner changes.
+- Run the validation appropriate to the inspected baseline:
+  `dotnet restore AIUsageMonitor.sln`, `dotnet build AIUsageMonitor.sln`,
+  `dotnet test AIUsageMonitor.sln`, and `git diff --check`.
+- Record actual restore/build/test results, warning/error counts, test totals, and any baseline
+  limitation; do not claim results that were not run.
+- Scan the diff and repository status for source changes, secrets, credentials, and generated
+  artifacts.
+- Confirm the active source/configuration scope is unchanged except for the inventory artifact,
+  current-state evidence, and any explicitly approved documentation updates.
+
+## Delivery and stop condition
+
+Follow the Git Delivery Contract in `AGENTS.md`: update `.ai/CURRENT_STATE.md`, commit and push the
+assigned branch, integrate under repository policy, verify `origin/main`, and leave the working
+tree clean. Stop after APO-19 evidence is delivered and the next planner boundary is recorded.
+Do not begin APO-2, APO-3, APO-4, APO-5, APO-6, APO-7, APO-8, APO-9, APO-10, APO-11, APO-12, APO-13,
+APO-14, APO-15, APO-16, APO-17, or any unassigned task.
+
+This contract is prepared by APO-20 and is not being executed in the current session.

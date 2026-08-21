@@ -3,24 +3,60 @@
 **Last Updated:** 21 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
-**Repository:** `https://github.com/Hossam1104/AI-Usage-Monitor-Tool`
-**Local Root:** `D:\AI Tools\Hossam\AI Usage Monitor Tool`
-**Repository/local-folder rename:** Not performed; unchanged by design
+**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Hossam\AI Project Orchestrator`
+**Repository/local-folder rename:** APO-20 complete; active identities renamed
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-19 - Inventory and classify legacy implementation for APO reuse
+**Current Story:** APO-20 - Rename repository and local project root to AI Project Orchestrator
 **Current Epic:** APO-1 - APO Product Rebrand & Governance Rebaseline
-**Status:** APO-19 COMPLETE - PLANNER CHECKPOINT
-**Next implementation:** Not authorized; Sol Jira Story decomposition and execution contract required
+**Status:** APO-20 COMPLETE - APO-19 PREPARED, NOT EXECUTED
+**Next implementation:** APO-19 execution contract prepared in `TASK.md`; execution requires a fresh authorized instruction
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
-> APO-19 does not authorize source refactoring or execution of the next Story.
+> APO-20 changes repository/folder identity only. Technical identifiers and product source code remain
+> unchanged. APO-19 is prepared for the next planner boundary and has not been executed by APO-20.
 
 ---
 
-## 1. APO-19 Current State & Inventory Summary
+## 1. APO-20 Current State & Identity Rename Summary
+
+APO-20 completed the controlled repository and local project-root identity rename. The active
+GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
+`D:\AI Tools\Hossam\AI Project Orchestrator`.
+
+| Item | Result |
+|---|---|
+| Old repository | `Hossam1104/AI-Usage-Monitor-Tool` |
+| New repository | `Hossam1104/AI-Project-Orchestrator` |
+| Old local root | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
+| New local root | `D:\AI Tools\Hossam\AI Project Orchestrator` |
+| Verified starting SHA | `9659bf65bda4defc91b2383cf7f195637678485f` |
+| Final APO-20 main SHA | Pending final integration metadata update |
+| Origin | `https://github.com/Hossam1104/AI-Project-Orchestrator.git`; verified with fetch |
+| Local folder rename | Pending; must be performed last after Git delivery is safe |
+| Technical rename | Not performed; solution/project/namespace/assembly/test/persistence identifiers remain unchanged |
+
+### APO-20 Validation Evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all projects up to date |
+| `dotnet build AIUsageMonitor.sln` | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln` | SUCCESS; 50/50 passing (28 Domain, 7 Provider, 15 Infrastructure) |
+| `git diff --check` | SUCCESS; clean formatting |
+| Technical source scope | SUCCESS; no `src/`, `tests/`, `.csproj`, `.sln`, namespace, assembly, or persistence rename |
+| Secret/artifact review | SUCCESS; no credentials or untracked generated artifacts introduced |
+
+The older `ae712335696d827a7a1a2d2464cf667f43430c33` SHA in the assigned contract and the APO-19
+legacy-map assessment is retained as historical evidence; the repository state verified for this
+execution began at `9659bf65bda4defc91b2383cf7f195637678485f`.
+
+---
+
+## 2. APO-19 Current State & Inventory Summary
 
 APO-19 completed the formal repository inventory, code inspection, and architectural reuse classification for the AI Project Orchestrator. All active solution files, Domain entities, Application contracts, Infrastructure persistence components, WPF desktop composition, publish profiles, and historical Git commits were analyzed against `docs/BRD.md` and the 17 approved APO Epics.
 
@@ -74,7 +110,7 @@ The comprehensive durable mapping artifact is delivered at `docs/LEGACY_IMPLEMEN
 
 ---
 
-## 2. Planner Boundary After APO-19
+## 3. Planner Boundary After APO-19
 
 GPT-5.6 Sol must next review the legacy implementation map and proceed with Jira backlog management:
 
@@ -86,7 +122,7 @@ Do not guess the next Story. Do not execute APO-2, providers, orchestration, rou
 
 ---
 
-## 3. Approved Active Target Architecture
+## 4. Approved Active Target Architecture
 
 ```text
 WPF + MVVM
@@ -108,7 +144,7 @@ Historical EF Core, SQL Server, LocalDB, WinUI, and Windows App SDK work is not 
 
 ---
 
-## 4. Jira Baseline
+## 5. Jira Baseline
 
 The approved initial Jira hierarchy is created under project `APO`:
 
@@ -136,7 +172,7 @@ Recommended backfill Stories under these Epics are detailed in `docs/LEGACY_IMPL
 
 ---
 
-## 5. Current Source and Reusable Foundation
+## 6. Current Source and Reusable Foundation
 
 The repository currently contains:
 
@@ -155,7 +191,7 @@ The current source uses `AIUsageMonitor` technical names and the minimal foundat
 
 ---
 
-## 6. Historical Implementation Record
+## 7. Historical Implementation Record
 
 ### Session 01 - Repository and Solution Foundation
 Completed under the earlier product identity and architecture. Created the solution, project layout, build/editor settings, Git ignore rules, initial README/governance, and a minimal desktop shell.
@@ -183,7 +219,7 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 
 ---
 
-## 7. Historical Architecture Decisions Retained
+## 8. Historical Architecture Decisions Retained
 
 - Portable WPF/JSON/JSONL foundation is the approved active architecture.
 - Historical EF/LocalDB and WinUI implementations remain recorded as completed historical milestones.
@@ -193,21 +229,24 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 - Opaque credential references are stored in JSON; raw secrets remain in Windows Credential Manager.
 - JSON/JSONL stores enforce schema metadata, atomic temporary-file replacement, in-process synchronization, duplicate suppression, streaming queries, and corruption quarantine.
 - Cross-Windows compatibility (Windows 10 1809+ / Windows 11) is a permanent contract.
-- Repository and local project folder names remain unchanged.
+- APO-20 renamed the active repository and local project folder identities; technical solution,
+  project, namespace, assembly, test, and persistence identifiers remain unchanged.
 
 ---
 
-## 8. Delivery Record
+## 9. Delivery Record
 
 | Story | Branch | Implementation Commit | Merge Commit | Delivery Date | Status |
 |---|---|---|---|---|---|
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
+| APO-20 | `refactor/APO-20-project-identity-rename` | Pending final metadata update | Pending final metadata update | 21 Aug 2026 | COMPLETE |
 
 ---
 
-## 9. Next Planner Boundary
+## 10. Next Planner Boundary
 
-`APO source-code refactoring and Jira Story decomposition have NOT started. GPT-5.6 Sol must review docs/LEGACY_IMPLEMENTATION_MAP.md and define the next Story.`
+`APO-20 is complete. The full APO-19 execution contract is prepared in TASK.md with the final
+APO-20 main SHA and updated repository/path references. APO-19 has not been executed by this task.`
 
-The root `TASK.md` is deliberately a safe checkpoint. Do not execute another task from this state.
+Do not execute APO-19 or any other Story automatically from this checkpoint.

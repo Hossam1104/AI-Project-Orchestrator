@@ -5,7 +5,7 @@
 **Product:** AI Project Orchestrator (APO)
 **Primary Requirements:** `docs/BRD.md`
 **Jira Project:** `APO`
-**Repository:** `https://github.com/Hossam1104/AI-Usage-Monitor-Tool`
+**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Default Branch:** `main`
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
 **Substantial Executor:** GPT-5.6 Luna Max
@@ -72,8 +72,10 @@ The approved initial Jira capability map is:
 | APO-17 | Packaging, Compatibility, CI & Release Quality | Cross-cutting; evidence from all Epics |
 
 The Epic list is approved. Sol may refine names, dependencies, and Story ordering only within the
-BRD and owner-approved scope. APO-18 is the first Story under APO-1 and is the current governance
-boundary; it does not authorize APO-2 or any later Epic.
+BRD and owner-approved scope. APO-18 established the governance baseline, APO-19 produced the
+legacy implementation inventory, and APO-20 completed the repository/local-root identity rename.
+The next work item remains planner-controlled and is prepared in the root `TASK.md`; it does not
+authorize any unrelated Epic or Story.
 
 ---
 
@@ -267,8 +269,6 @@ code is changed or claimed as APO-refactored.
 
 ## 9. Current Planning Boundary
 
-APO-18 is the active rebaseline Story under APO-1. On completion, Sol must review the consolidated
-BRD and current source, backfill/match legacy implementation to APO Epics, classify reuse, define
-dependencies, and prepare the next approved Jira Story and self-contained execution contract.
-
-The next implementation Story must not be guessed here and must not be executed automatically.
+APO-20 completed the repository identity rename under APO-1. The root `TASK.md` contains the next
+prepared self-contained APO-19 execution contract with the final APO-20 starting SHA. Preparing
+that task does not authorize its execution automatically.

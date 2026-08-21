@@ -21,11 +21,11 @@ must be evidence-based; unavailable data remains explicitly unavailable or manua
 
 ## Product and repository continuity
 
-The product identity is now AI Project Orchestrator. The GitHub repository and local project folder
-remain unchanged for now:
+The product identity is AI Project Orchestrator. APO-20 completed the active GitHub repository and
+local project-folder rename:
 
-`Hossam1104/AI-Usage-Monitor-Tool`
-`D:\AI Tools\Hossam\AI Usage Monitor Tool`
+`Hossam1104/AI-Project-Orchestrator`
+`D:\AI Tools\Hossam\AI Project Orchestrator`
 
 The active requirements baseline is [`docs/BRD.md`](docs/BRD.md). Jira project `APO` is the
 authoritative work-tracking system. The old versioned BRDs and provider-only session plan are
@@ -77,9 +77,9 @@ Jira Work Item -> Sol execution contract -> TASK.md -> assigned executor
 -> validation -> independent review where required -> Sol acceptance -> Jira/Git synchronization
 ```
 
-APO-1 through APO-17 are the approved Epic capability structure. APO-18 is the current governance
-rebaseline boundary. GPT-5.6 Sol must perform repository-to-Jira legacy mapping and prepare the
-next approved Story before source refactoring or new capability implementation begins.
+APO-1 through APO-17 are the approved Epic capability structure. APO-18 established the governance
+baseline, APO-19 produced the legacy implementation map, and APO-20 completed the repository
+identity rename. The next work item remains planner-controlled and is prepared in `TASK.md`.
 
 See [`AGENTS.md`](AGENTS.md), [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md),
 [`docs/SESSION_PROMPTS.md`](docs/SESSION_PROMPTS.md), and [`.ai/CURRENT_STATE.md`](.ai/CURRENT_STATE.md)
@@ -88,7 +88,7 @@ for execution rules, dependencies, history, and evidence.
 ## Repository layout
 
 ```text
-AI Usage Monitor Tool/
+AI Project Orchestrator/
 â”œâ”€â”€ AGENTS.md
 â”œâ”€â”€ CLAUDE.md
 â”œâ”€â”€ AIUsageMonitor.sln

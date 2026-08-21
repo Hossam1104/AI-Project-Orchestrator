@@ -166,7 +166,7 @@ policy, and stop. Do not execute another Story.
 
 # CURRENT APO CHECKPOINT
 
-APO-18 is the current governance rebaseline Story. Its completion checkpoint is represented in the
-root `TASK.md`. No subsequent implementation prompt is authorized until Sol performs legacy-to-APO
-repository mapping, Jira backfill/decomposition, dependency review, and prepares the next approved
-Story contract.
+APO-20 completed the controlled repository and local-root identity rename. The full APO-19
+execution contract is prepared in the root `TASK.md` with the final APO-20 main SHA and updated
+repository/path references. Preparing that contract does not authorize APO-19 execution; a fresh
+planner/owner instruction and the applicable Jira gate are required.
