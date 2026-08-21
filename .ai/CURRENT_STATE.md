@@ -34,7 +34,7 @@ GitHub repository is `Hossam1104/AI-Project-Orchestrator`, and the local root is
 | Old local root | `D:\AI Tools\Hossam\AI Usage Monitor Tool` |
 | New local root | `D:\AI Tools\Hossam\AI Project Orchestrator` |
 | Verified starting SHA | `9659bf65bda4defc91b2383cf7f195637678485f` |
-| Final APO-20 main SHA | `861dc99` |
+| Final APO-20 implementation merge SHA | `861dc99` |
 | Origin | `https://github.com/Hossam1104/AI-Project-Orchestrator.git`; verified with fetch |
 | Local folder rename | BLOCKED; `Rename-Item` from `D:\AI Tools\Hossam` failed with `IOException` because the directory is used by another process |
 | Technical rename | Not performed; solution/project/namespace/assembly/test/persistence identifiers remain unchanged |
