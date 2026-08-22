@@ -1,6 +1,6 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 22 August 2026
+**Last Updated:** 23 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
@@ -9,22 +9,24 @@
 **APO-19:** COMPLETE / SOL ACCEPTED
 **APO-20:** COMPLETE — repository and physical local-root rename complete
 **APO-22:** COMPLETE — Sol-accepted PR #1 merged into main
-**APO-23:** IMPLEMENTATION COMPLETE — AWAITING GPT-5.6 SOL ACCEPTANCE
+**APO-23:** COMPLETE — PR #2 merged to `main` at `40f62f9`
+**APO-31:** REMEDIATION COMPLETE — AWAITING GPT-5.6 SOL VERIFICATION
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-23 - Refactor Application Identity and Technical Naming for APO
-**Current Epic:** APO-2 - Windows Platform & Application Foundation
-**Status:** APO-23 branding implementation delivered on `feat/APO-23-branding` at `fe95991`; Draft PR #2 open; not merged to `main`
-**Next implementation:** GPT-5.6 Sol acceptance of APO-23; do not execute APO-24, APO-27, APO-31, APO-33, or any other Story automatically
-**Release state:** Reusable foundation and branded WPF shell validated; APO implementation and release qualification are not complete
+**Current Story:** APO-31 - Official Provider Capacity Adapters
+**Current Epic:** APO-4 - Provider Integrations & Usage Collection
+**Status:** APO-31 implementation plus final bounded independent-review remediation delivered on `feat/APO-31-provider-capacity-adapters`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
+**Next implementation:** GPT-5.6 Sol final delta acceptance; do not execute another Story automatically
+**Release state:** Officially supported provider surfaces are adapted with explicit unsupported/manual states; full product release qualification is not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
 > APO-22 adds the concrete secure-credential-store adapter and is now merged at main SHA
-> `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 establishes product identity and a
-> branded WPF foundation surface only. Technical identifiers, persistence identity, provider
-> adapters, and orchestration runtime remain outside this Story.
+> `40f62f98787df80368eeeca454b223edf8dbd5d9`. APO-23 establishes product identity and a
+> branded WPF foundation surface. APO-31 adds only the verified provider adapter surfaces
+> documented in `docs/APO-31_PROVIDER_EVIDENCE.md`; technical identifiers, persistence identity,
+> and orchestration runtime remain outside this Story.
 
 ---
 
@@ -469,7 +471,8 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
 | APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a`, `55e1b74`, `b1b97de` | `f6f04dc` (PR #1 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
-| APO-23 | `feat/APO-23-branding` | `4b7a060`, `fe95991` | Not merged; Draft PR #2 | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
+| APO-23 | `feat/APO-23-branding` | `4b7a060`, `fe95991` | `40f62f9` (PR #2 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
+| APO-31 | `feat/APO-31-provider-capacity-adapters` | `7a5bd9b` | Draft PR #3; intentionally unmerged | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
 
 ---
 
@@ -478,8 +481,180 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 APO-20 repository and physical local-root rename work is complete. APO-22 was accepted and merged
 through PR #1 at `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 implemented the approved
 branding assets, WPF resources, product identity, shell polish, README redesign, and validation
-evidence on `feat/APO-23-branding` at `fe95991`. The branch is pushed and Draft PR #2 is open
-against `main`; APO-23 remains intentionally unmerged.
+evidence and was accepted through PR #2 at `40f62f98787df80368eeeca454b223edf8dbd5d9`.
 
-The exact next authority is GPT-5.6 Sol acceptance of APO-23. Do not execute APO-24, APO-27,
-APO-31, APO-33, or any other Story automatically from this checkpoint.
+APO-31 implementation is complete in commit `7a5bd9b7ec84866bd7e4ded603337dbb59d57299` on
+`feat/APO-31-provider-capacity-adapters`. Draft PR #3 is open against `main`; its provider
+evidence matrix is `docs/APO-31_PROVIDER_EVIDENCE.md`. This Story must remain unmerged pending
+GPT-5.6 Sol acceptance. Do not execute another Story automatically from this checkpoint.
+
+## 11. APO-31 Provider Capacity Adapters (Current Delivery)
+
+**Starting main SHA:** `40f62f98787df80368eeeca454b223edf8dbd5d9` (APO-23 squash merge)
+
+**Branch:** `feat/APO-31-provider-capacity-adapters`
+
+**Implemented adapters and boundaries:**
+
+- GitHub Copilot personal-user and organization billing usage endpoints are adapted as usage-only
+  `Partial` results. No allowance, remaining capacity, reset, plan, or subscription is inferred.
+- Anthropic organization Messages Usage Reports are adapted as token usage-only `Partial` results.
+  Claude/Claude Code consumer subscription capacity remains detected/manual/unsupported.
+- Kimi Code's documented local server usage endpoint is adapted only for a loopback HTTP(S) server
+  address and an opaque credential reference. Documented quota rows and reset times are mapped;
+  account fields are returned, while unproven plan and monetary extra-usage semantics are omitted.
+- Codex and Antigravity official CLIs are safely detected. Their interactive status/usage surfaces
+  are not scraped; refresh remains manual/unsupported.
+- All five `ProviderCode` values are registered in deterministic enum order and discovered with
+  provider isolation.
+
+**Official evidence:** `docs/APO-31_PROVIDER_EVIDENCE.md` records source URLs, authentication
+requirements, source semantics, implementation scope, and unsupported/manual boundaries.
+
+**Validation evidence:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider tests | SUCCESS; 20/20 passing |
+| Full solution tests | SUCCESS; 98/98 passing (28 Domain, 20 provider, 50 Infrastructure) |
+| Self-contained publish checks | SUCCESS; `win-x64`, `win-x86`, `win-arm64` |
+| Secret/diff checks | SUCCESS; no secret-pattern matches; `git diff --check` clean before final metadata commit |
+
+**Security and truthfulness:** Provider configuration stores only opaque credential references;
+secure-store material is never persisted or included in error text. HTTP response bodies are not
+logged or surfaced. Typed failure states and last-known-good retention are tested. Usage reports
+remain usage-only, and unsupported consumer subscription surfaces remain explicit.
+
+**Acceptance boundary:** The implementation and bounded remediation are ready for GPT-5.6 Sol
+verification. Do not merge APO-31, create or execute a follow-on Story, or broaden provider scope
+without Sol direction.
+
+## 11.1 APO-31 SOL remediation / periodic review checkpoint
+
+**Sol initial review:** `CHANGES REQUIRED` against reviewed head
+`f98fa7111cdccb3a363590b44c9e79b08ce20bce`.
+
+**Remediation starting state:**
+
+- Branch remained `feat/APO-31-provider-capacity-adapters`; no new branch or PR was created.
+- `main` and `origin/main` remained `40f62f98787df80368eeeca454b223edf8dbd5d9`.
+- Draft PR #3 remained open, draft, and unmerged.
+- The existing implementation architecture and provider contracts were preserved.
+
+**Findings and bounded resolutions:**
+
+1. **Anthropic Admin Usage pagination — DONE.** `MessagesUsageReport` now reads `has_more` and
+   `next_page`; the first request preserves `starting_at`, later requests use URL-encoded cursor
+   pages, and all token values are aggregated before a usage-only window is published. Blank or
+   repeated cursors are malformed. Any later-page HTTP, parse, or cancellation failure prevents an
+   incomplete result; a prior complete snapshot is returned stale through `ProviderAdapterBase`.
+2. **Kimi credential destination safety — DONE.** Kimi validates an absolute loopback HTTP(S) URI
+   using `Uri.IsLoopback` before secure-store retrieval and before setting `Authorization`. Genuine
+   `127.0.0.1`, `localhost`, and `[::1]` addresses are accepted; remote IPv4 and DNS hosts fail
+   with stable `invalid_configuration` without credential or handler use.
+3. **Copilot identity failure typing — DONE.** All `/user` HTTP statuses now route through the
+   existing billing-request classifier. Authentication, permission, unsupported, rate-limit, and
+   provider-server outcomes retain their established outcome/error/stale semantics. The generic
+   identity-unavailable message remains only for successful responses with no usable login.
+4. **Kimi remaining evidence — DONE.** The undocumented `remaining` wire property is no longer
+   mapped. Provider-supplied `used`, `limit`, and `reset_at` are mapped where present; `QuotaWindow`
+   derives `UsedPercentage` and `RemainingPercentage` exactly once.
+5. **Kimi subscription mapping — DONE.** First-party Kimi server documentation lists
+   `userLevelName` but does not define it as the active membership subscription tier. The adapter
+   therefore returns `Subscription = null` while preserving documented account fields.
+6. **Kimi Extra Usage — DONE.** Monetary extra usage includes a provider currency code, but the
+   current `QuotaWindow` public contract cannot preserve currency identity. APO-31 does not emit a
+   misleading generic currency quota; the limitation is documented.
+
+7. **Anthropic pagination query preservation - DONE.** Sol discovered one final query-preservation
+   issue after the first remediation: subsequent pages dropped `starting_at`. The effective
+   `starting_at` is now captured once and preserved across all Anthropic pages, with regression
+   coverage verifying the page 1/page 2 query invariant and clock stability.
+
+**Provider matrix after remediation:**
+
+- Codex: official CLI detection only; consumer quota remains unsupported/manual.
+- Claude: official CLI detection only for consumer subscription; Anthropic Admin API remains a
+  separate organization token-usage channel with complete multi-page pagination.
+- Kimi: experimental documented local API only with explicit opaque credential reference and
+  loopback-only HTTP(S) destination; used/limit/reset quota and account fields; no inferred plan or
+  currency window.
+- GitHub Copilot: official personal-user and organization billing usage endpoints, usage-only
+  partial results, with typed `/user` subject failures.
+- Antigravity: official `agy` detection only; interactive usage remains unsupported/manual.
+
+**Runtime configuration boundary:** The adapters and secure credential-reference seam exist, but the
+current WPF foundation shell only registers default options through `services.AddProviders()`. It
+does not yet expose Copilot, Anthropic, or Kimi connection/settings controls. Tests configure
+options directly. No environment-variable or plaintext `appsettings` secret storage was added.
+
+**Validation evidence:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider tests | SUCCESS; 40/40 passing (20 existing plus 20 remediation regressions) |
+| Full solution tests | SUCCESS; 118/118 passing (28 Domain, 40 provider, 50 Infrastructure); final pagination query regression included |
+| `win-x64` self-contained publish | SUCCESS; existing single-file profile |
+| x86/ARM64 publish | Not rerun; no project/package/publish configuration changed |
+| `git diff --check` | SUCCESS; only benign LF/CRLF normalization warnings from Git |
+| Secret-pattern and secret-content review | SUCCESS; no provider secret literals in source/docs; test secrets remain sanitized test-only data; unsafe Kimi tests proved zero credential/HTTP use |
+
+**Remediation implementation commit:** `fc1bc6f` (`fix: address APO-31 provider truthfulness review`).
+
+**Final pagination fix commit:** `da9a953153797592a4feaca19edf446241333d37`
+(`fix: preserve Anthropic usage query across pages`).
+
+**Next authority:** GPT-5.6 Sol must verify this final pagination micro-fix and decide the scheduled
+periodic/critical independent review checkpoint. PR #3 remains draft/unmerged; do not merge, invoke
+Opus directly, create or execute another Story, or broaden provider scope from this checkpoint.
+
+## 11.2 APO-31 Independent-Review Remediation Final Bounded Pass
+
+**Scheduled independent review:** Completed against the immutable feature head
+`11ba9ddc085a886f27db5c9bb5632982042217ed`; verdict was `CHANGES REQUIRED`. No second Opus review
+was invoked for this remediation pass.
+
+**Findings addressed:**
+
+- **O-01:** Anthropic Messages Usage `limit=1000` was removed after re-verifying the current
+  first-party API reference. The request now omits the bucket-width-dependent optional `limit`,
+  captures `starting_at` once per refresh, and preserves all non-pagination query parameters while
+  URL-encoding cursor `page` values.
+- **O-02:** The named Anthropic Admin API HttpClient now uses `AllowAutoRedirect = false`. 3xx
+  responses are typed `provider_error` failures and are not followed; no redirect destination
+  receives the `x-api-key`, and no response body, Location, or key is copied to public errors.
+- **O-03:** Claude and Copilot strict numeric parsing rejects present malformed, null, negative,
+  non-finite, and non-numeric values as `malformed_response`. Copilot validates both gross and net
+  quantities before retaining its existing gross-over-net selection. Mixed malformed refreshes do
+  not publish a smaller total; last-known-good data is retained stale.
+- **O-04:** `docs/APO-31_PROVIDER_EVIDENCE.md` was corrected with the current Anthropic source,
+  request/redirect semantics, and actual totals.
+
+**Remediation commit:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
+(`fix: remediate APO-31 independent review findings`).
+
+**Final validation:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider tests | SUCCESS; 45/45 passing |
+| Full solution tests | SUCCESS; 123/123 passing (28 Domain, 45 Provider, 50 Infrastructure) |
+| `git diff --check` | SUCCESS; only benign Git LF/CRLF normalization notices |
+| Secret-pattern / known-secret review | SUCCESS; no real credentials or provider secret literals; sanitized test fixture only |
+| `win-x64` self-contained single-file publish | SUCCESS |
+| `win-x86` / `win-arm64` publish | Not rerun; no project/package/publish configuration changed; previous evidence retained |
+
+**Final branch state:** The remediation is on `feat/APO-31-provider-capacity-adapters` with Draft
+PR #3 still `OPEN`, `DRAFT`, and `UNMERGED`. `main` remains at
+`40f62f98787df80368eeeca454b223edf8dbd5d9`. The final pushed remediation commit is
+`40b26ee1d8a9a6a0c4052f45d96185564d99c20d`; the handoff metadata commit follows this state.
+
+**Next planner boundary:** GPT-5.6 Sol final delta acceptance against the exact final branch SHA.
+Do not merge, modify `main`, invoke another reviewer, start another Story, or authorize Provider
+Settings or the Capacity Dashboard from this checkpoint.

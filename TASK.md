@@ -1,64 +1,90 @@
-# APO-23 SOL ACCEPTANCE CHECKPOINT
+# APO-31 SOL FINAL ACCEPTANCE CHECKPOINT
 
-Status:
-IMPLEMENTATION COMPLETE - AWAITING GPT-5.6 SOL ACCEPTANCE
+**Story:** APO-31 - Official Provider Capacity Adapters
+**Branch:** `feat/APO-31-provider-capacity-adapters`
+**Original reviewed head:** `11ba9ddc085a886f27db5c9bb5632982042217ed`
+**Independent review verdict:** `CHANGES REQUIRED`
+**Draft PR:** [#3](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/3)
+**Base:** `main` at `40f62f98787df80368eeeca454b223edf8dbd5d9`
+**Remediation implementation commit:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
+**Final pushed remediation branch head:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
 
-Jira Story:
-APO-23 - Refactor Application Identity and Technical Naming for APO
+## Independent-review findings
 
-Parent Epic:
-APO-2 - Windows Platform & Application Foundation
+- **O-01 MAJOR - Anthropic Messages Usage query:** the previous `limit=1000` request
+  was not valid for every documented `bucket_width`. The adapter now omits `limit`, captures
+  `starting_at` once per refresh, and preserves it and every other non-pagination parameter on
+  every cursor page. Only the URL-encoded `page` cursor is added after page one.
+- **O-02 MAJOR - Anthropic Admin API redirect safety:** the named Anthropic HttpClient now uses
+  `HttpClientHandler.AllowAutoRedirect = false`. A 3xx response is an existing typed
+  `provider_error`; no `Location`, response body, or API key is exposed, and no redirect is
+  followed.
+- **O-03 MAJOR - strict numeric provider parsing:** Claude and GitHub Copilot now reject present
+  malformed, null, negative, non-finite, or non-numeric numeric values as `malformed_response`.
+  Copilot validates both `grossQuantity` and `netQuantity` before preserving the existing
+  gross-over-net selection. Malformed mixed refreshes never publish a partial smaller total and
+  retain the previous complete data as `Stale`.
+- **O-04 MINOR - evidence synchronization:** `docs/APO-31_PROVIDER_EVIDENCE.md` now records the
+  corrected Anthropic semantics, redirect boundary, and actual validation totals.
 
-Executor:
-GPT-5.6 Luna xHigh
+## Final request and parsing behavior
 
-Branch:
-feat/APO-23-branding
+### Anthropic Messages Usage
 
-Starting main SHA:
-f6f04dca89313c9964add3c403a151a7b8b6919e (APO-22 PR #1 squash merge)
+- First-party rule verified against the current Anthropic Messages Usage API reference:
+  `limit` is optional and its default/max values depend on `bucket_width` (`1d` 31, `1h` 168,
+  `1m` 1440 maximum buckets).
+- Final request shape contains the captured `starting_at`; it omits `limit` and uses `page` only
+  for later cursor requests.
+- Pagination regression proves `100 + 200 = 300`, exact `starting_at` preservation, cursor URL
+  encoding, clock mutation safety, malformed blank/repeated cursors, later-page failure,
+  cancellation, and stale retention.
 
-Draft PR:
-[#2](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/2) - open, draft, not merged.
+### Redirect protection
 
-Implementation commit:
-`fe95991` - `feat: apply APO branding and product identity`
+- The named Anthropic Admin API client disables automatic redirects.
+- 3xx responses are not success and map to the stable `provider_error` path.
+- The loopback regression uses a disposable local redirect origin/destination and proves the
+  synthetic `x-api-key` is not sent to the destination or included in result/error output.
 
-## Delivered
+### Claude and Copilot malformed numbers
 
-- Branding is based on the owner-approved `assets/Logo.png` and `assets/Colors.png`; original
-  bytes are preserved.
-- Reusable WPF resources are in `src/AIUsageMonitor.Desktop/Resources/` for colors, brushes,
-  typography, and controls.
-- Visible product identity is `AI Project Orchestrator (APO)` across the WPF window, shell header,
-  metadata, logging messages, README, and footer.
-- A derived `assets/runtime/apo-icon.ico` supplies the compact Windows/window/taskbar identity.
-- The WPF shell is a polished, truthful foundation surface with disabled/planned navigation;
-  it does not fabricate providers, routing, projects, execution, or dashboard metrics.
-- README.md is redesigned as the official landing page with local branding, factual badges,
-  Mermaid architecture/target-flow diagrams, a repository-controlled animation, a clean WPF
-  screenshot, implementation status, security, compatibility, roadmap, and governance.
-- `assets/readme/apo-flow.svg` and `assets/readme/apo-shell.png` are linked from the README.
-- `AIUsageMonitor.sln`, technical project/namespace/assembly/test names, and
-  `%LOCALAPPDATA%\\AIUsageMonitor` remain unchanged for compatibility.
+- Claude present non-number token fields fail as `malformed_response`; no partial token total is
+  published. A later malformed refresh retains the previous complete usage as stale.
+- Copilot validates both official usage quantity fields, does not silently discard an item, and
+  does not fall back past a malformed present field. A later malformed mixed refresh retains the
+  previous complete usage as stale.
 
-## Validation
+## Validation evidence
 
-- `dotnet restore AIUsageMonitor.sln` - SUCCESS.
-- `dotnet build AIUsageMonitor.sln` - SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln` - SUCCESS; 85/85 passing.
-- Self-contained single-file publish - SUCCESS for `win-x64`, `win-x86`, and `win-arm64`.
-- Self-contained x64 WPF launch smoke - SUCCESS; title, icon, logo, resources, and shell rendered.
-- README local-link check - SUCCESS; 10 local paths checked, none missing.
-- Mermaid fence check - SUCCESS; 2 Mermaid blocks present.
-- Approved asset hash check - SUCCESS; original `Logo.png` and `Colors.png` preserved.
-- `git diff --check` - SUCCESS; only expected LF/CRLF normalization notices.
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider test project | SUCCESS; 45/45 passing |
+| Domain tests | SUCCESS; 28/28 passing |
+| Provider tests | SUCCESS; 45/45 passing |
+| Infrastructure tests | SUCCESS; 50/50 passing |
+| Full solution tests | SUCCESS; 123/123 passing |
+| `git diff --check` | SUCCESS; only benign Git LF/CRLF normalization notices |
+| Secret-pattern / known-secret review | SUCCESS; no real credentials or provider secret literals; only sanitized test fixture secret |
+| `win-x64` self-contained single-file publish | SUCCESS; `win-x64` profile |
+| `win-x86` and `win-arm64` publish | Not rerun; project/package/publish configuration unchanged and prior APO-31 evidence retained |
+| Live authenticated provider calls | Not run; prohibited by the test contract |
 
-## Scope boundary
+## Evidence and scope
 
-No provider adapters, APO-31, routing engine, autonomous execution, tracker runtime, Project
-Registry backend, full APO-15 dashboard, LocalAppData migration, technical namespace/project
-rename, updater/installer, cloud backend, CI implementation, or other Story was started.
+- Corrected evidence: `docs/APO-31_PROVIDER_EVIDENCE.md`.
+- No Provider Settings UI, AI Capacity Dashboard, Project Registry, GitHub project orchestration,
+  Jira/Azure runtime, routing, autonomy, database/ORM, browser scraping, TUI scraping, cookie
+  extraction, private endpoint reverse engineering, or additional provider was implemented.
+- Accepted Codex, Claude consumer, Kimi, Copilot, and Antigravity boundaries remain unchanged.
 
-The exact next authority is GPT-5.6 Sol acceptance of APO-23. This checkpoint does not authorize
-APO-24, APO-27, APO-31, APO-33, or any other Story.
+## PR and authority
+
+- PR #3 remains `OPEN`, `DRAFT`, and `UNMERGED`.
+- No merge, rebase, force push, main-branch modification, new branch, new PR, Jira write, or
+  second Opus review is authorized or performed.
+- Next authority: **GPT-5.6 Sol** for final delta acceptance against the exact final branch SHA.
+
+This checkpoint does not authorize Provider Settings, Capacity Dashboard, or any next Story.
