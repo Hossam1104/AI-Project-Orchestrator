@@ -15,8 +15,9 @@ public sealed class ProviderConnection
     /// <summary>
     /// An opaque lookup key into secure storage (e.g. "GitHub:Copilot:Primary"), resolved
     /// through <c>ISecureCredentialStore</c>. This must NEVER contain the actual secret —
-    /// no password, token, cookie, or OAuth secret. Actual credential storage/retrieval is
-    /// implemented against Windows Credential Manager in a later session (BRD §31).
+    /// no password, token, cookie, or OAuth secret. It is case-insensitive: casing must not
+    /// be used to distinguish two credentials. Actual credential storage/retrieval is
+    /// implemented against Windows Credential Manager (BRD §31).
     /// </summary>
     public string? CredentialReference { get; }
 

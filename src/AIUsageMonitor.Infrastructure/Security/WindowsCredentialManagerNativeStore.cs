@@ -17,11 +17,11 @@ internal sealed class WindowsCredentialManagerNativeStore : ICredentialManagerNa
     // wincred.h CRED_TYPE_GENERIC (1): a generic credential not tied to an authentication package.
     private const int CredTypeGeneric = 1;
 
-    // wincred.h CRED_PERSIST_LOCAL_MACHINE (2): persists across logon sessions for this Windows
-    // user on this machine only. Selected over CRED_PERSIST_SESSION (lost at logoff, unsuitable
-    // for a desktop app that must remember provider credentials between sessions) and
-    // CRED_PERSIST_ENTERPRISE (roams with the user profile and caps CredentialBlobSize far below
-    // CRED_MAX_CREDENTIAL_BLOB_SIZE, which APO does not need and would only add attack surface).
+    // wincred.h CRED_PERSIST_LOCAL_MACHINE (2): durable across subsequent logon sessions,
+    // available to the same Windows user, local to this machine only, non-roaming. Selected over
+    // CRED_PERSIST_SESSION (lost at logoff, unsuitable for a desktop app that must remember
+    // provider credentials between sessions) and CRED_PERSIST_ENTERPRISE (roams with the user
+    // profile, which APO does not need for a per-machine desktop credential).
     private const int CredPersistLocalMachine = 2;
 
     // winerror.h ERROR_NOT_FOUND (1168 / 0x490): "Element not found." Returned by CredReadW and
@@ -80,9 +80,10 @@ internal sealed class WindowsCredentialManagerNativeStore : ICredentialManagerNa
             throw new CredentialManagerNativeException("read", targetName, errorCode);
         }
 
+        var credential = default(NativeCredential);
         try
         {
-            var credential = Marshal.PtrToStructure<NativeCredential>(credentialPtr);
+            credential = Marshal.PtrToStructure<NativeCredential>(credentialPtr);
             if (credential.CredentialBlobSize <= 0 || credential.CredentialBlob == IntPtr.Zero)
             {
                 secretBytes = Array.Empty<byte>();
@@ -96,7 +97,25 @@ internal sealed class WindowsCredentialManagerNativeStore : ICredentialManagerNa
         }
         finally
         {
+            // Zero the native CredentialBlob while the buffer returned by CredReadW is still
+            // owned/valid, then free it exactly once. The resulting managed string produced by
+            // the caller from secretBytes remains inherently non-zeroable (immutable, may be
+            // copied by the runtime/GC) -- this only removes the unmanaged copy.
+            ZeroNativeBlob(credential.CredentialBlob, credential.CredentialBlobSize);
             CredFree(credentialPtr);
+        }
+    }
+
+    private static void ZeroNativeBlob(IntPtr blobHandle, int length)
+    {
+        if (blobHandle == IntPtr.Zero || length <= 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < length; i++)
+        {
+            Marshal.WriteByte(blobHandle, i, 0);
         }
     }
 

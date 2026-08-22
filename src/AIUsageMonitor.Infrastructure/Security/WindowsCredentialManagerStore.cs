@@ -17,8 +17,14 @@ public sealed class WindowsCredentialManagerStore : ISecureCredentialStore
 {
     // Namespaces this application's Generic Credentials within the shared Windows Credential
     // Manager vault so APO entries are identifiable and do not collide with unrelated
-    // applications' credentials for the same logical target.
-    private const string TargetNamePrefix = "AIUsageMonitor:Credential:";
+    // applications' credentials for the same logical target. This is the permanent APO V1
+    // vault namespace; changing it requires an explicit planner-approved migration Story.
+    private const string TargetNamePrefix = "AIProjectOrchestrator:Credential:";
+
+    // Generic Credential blob limit (CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512 bytes). Validated
+    // here, before any native call, so callers get a clear ArgumentException instead of a
+    // confusing native Win32/RPC failure for an input already known to be too large.
+    private const int MaxCredentialBlobSizeBytes = 2560;
 
     private readonly ICredentialManagerNativeStore _nativeStore;
     private readonly Func<bool> _isWindows;
@@ -50,6 +56,14 @@ public sealed class WindowsCredentialManagerStore : ISecureCredentialStore
         var secretBytes = Encoding.UTF8.GetBytes(secret);
         try
         {
+            if (secretBytes.Length > MaxCredentialBlobSizeBytes)
+            {
+                throw new ArgumentException(
+                    $"Encoded secret is {secretBytes.Length} bytes, which exceeds the Windows " +
+                    $"Credential Manager Generic Credential blob limit of {MaxCredentialBlobSizeBytes} bytes.",
+                    nameof(secret));
+            }
+
             _nativeStore.Write(targetName, secretBytes);
         }
         finally
@@ -97,7 +111,8 @@ public sealed class WindowsCredentialManagerStore : ISecureCredentialStore
         return Task.CompletedTask;
     }
 
-    private static string BuildTargetName(string credentialReference) => TargetNamePrefix + credentialReference;
+    private static string BuildTargetName(string credentialReference) =>
+        TargetNamePrefix + credentialReference.ToUpperInvariant();
 
     private void EnsureWindows()
     {

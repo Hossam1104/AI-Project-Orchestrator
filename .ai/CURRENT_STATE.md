@@ -1,6 +1,6 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 21 August 2026
+**Last Updated:** 22 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
@@ -8,14 +8,14 @@
 **APO-18:** COMPLETE / ACCEPTED
 **APO-19:** COMPLETE / SOL ACCEPTED
 **APO-20:** COMPLETE — repository and physical local-root rename complete
-**APO-22:** IMPLEMENTATION COMPLETE — AWAITING CLAUDE OPUS 5 INDEPENDENT REVIEW / SOL ACCEPTANCE
+**APO-22:** REMEDIATION COMPLETE — AWAITING CLAUDE OPUS 5 RE-REVIEW / SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-22 - Implement Windows Credential Manager Secure Credential Store
 **Current Epic:** APO-2 - Windows Platform & Application Foundation
-**Status:** APO-22 implementation delivered on `feat/APO-22-windows-credential-manager`; NOT merged to `main`; NOT marked Done
-**Next implementation:** Claude Opus 5 independent review, then GPT-5.6 Sol acceptance; do not execute APO-31 or any other Story automatically
+**Status:** APO-22 remediation delivered on `feat/APO-22-windows-credential-manager`; NOT merged to `main`; NOT marked Done
+**Next implementation:** Claude Opus 5 independent Review 2, then GPT-5.6 Sol acceptance; do not execute APO-31 or any other Story automatically
 **Release state:** Reusable foundation validated; APO implementation and release qualification not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -23,6 +23,76 @@
 > APO-22 adds a concrete secure-credential-store adapter only. It does not change repository
 > identity, provider adapters, or any other Story's scope. APO-20 remains complete; it was not
 > rerun by APO-22.
+
+---
+
+## -1. APO-22 Remediation (Opus Review 1 -> Sol Decisions -> Bounded Fix)
+
+Claude Opus 5 performed independent Review 1 against implementation head `de2290a0fb070dd59f8a4c76248a140e019fd35d`.
+
+**Opus Review 1 verdict:** CHANGES REQUIRED (architecture sound; native interop verified correct;
+secret handling substantially sound). 1 MAJOR + 7 MINOR findings.
+
+**Sol decisions (final for APO-22):**
+
+- `credentialReference` is a **case-insensitive** identifier. Canonical Windows target casing =
+  `credentialReference.ToUpperInvariant()` (invariant, not current-culture; no trimming beyond the
+  approved case normalization).
+- Permanent APO V1 Windows Credential Manager namespace = `AIProjectOrchestrator:Credential:`
+  (replacing the legacy `AIUsageMonitor:Credential:` prefix). No production/provider credentials
+  exist yet and APO-31 has not started, so **no migration, dual-read, or old-prefix handling was
+  implemented** — none was required.
+
+**Remediation commit:** applied on `feat/APO-22-windows-credential-manager` (see Section 9 Delivery
+Record for the exact SHA once pushed).
+
+**Findings addressed:**
+
+| Finding | Resolution |
+|---|---|
+| MAJOR-1 (case identity undefined) | `WindowsCredentialManagerStore.BuildTargetName` now canonicalizes with `ToUpperInvariant()`; new namespace `AIProjectOrchestrator:Credential:`; case-identity tests added (store/retrieve/remove across differing casings; exact-target-name assertion). |
+| MINOR (fake store used ordinal, not case-insensitive, comparer) | `FakeCredentialManagerNativeStore` dictionary now uses `StringComparer.OrdinalIgnoreCase`, matching real Windows Generic Credential TargetName identity. |
+| MINOR (unsupported claim that `CRED_PERSIST_ENTERPRISE` has a lower blob-size limit) | Comment in `WindowsCredentialManagerNativeStore` corrected to state only supported, documented behavior (durable across logons, per-user, per-machine, non-roaming); the false blob-size claim was removed. |
+| MINOR (native read blob not zeroed before `CredFree`) | `TryRead` now zeroes the native `CredentialBlob` bytes in a `finally` block, immediately before `CredFree`, with `CredFree` still called exactly once and no use-after-free/double-free/leak. |
+| MINOR (no deterministic secret-size validation) | `StoreAsync` now validates the UTF-8-encoded secret against the 2560-byte Generic Credential blob limit (`MaxCredentialBlobSizeBytes`) **before** calling the native store, throwing `ArgumentException` (param `secret`, no secret content) without an unmanaged allocation for oversized input; the managed `secretBytes` are still zeroed in `finally`. |
+| MINOR (non-asserting file test) | `StoreAsync_DoesNotWriteTheSecretToAnyFileUnderApplicationStorage` now materializes the enumerated file list with `.ToArray()` and asserts it is empty, instead of a `foreach` that could execute zero assertions. |
+| MINOR (thin high-value contract coverage) | Added case-identity, exact-target-name, native read/delete failure, retrieve/remove validation, retrieve/remove cancellation, empty-secret, Unicode-secret, and exact/over the 2560-byte boundary tests. |
+| Documentation (opaque/case-insensitive contract) | `ISecureCredentialStore` and `ProviderConnection.CredentialReference` XML docs now state the reference is opaque, case-insensitive, and never contains the secret. Method signatures and the storage location of `CredentialReference` were not changed. |
+
+**Corrected blob-size documentation:** the Windows Generic Credential blob limit is
+`CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512 = 2560` bytes. This is a property of the Generic Credential
+type itself, not of `CRED_PERSIST_LOCAL_MACHINE` specifically — the prior note incorrectly implied a
+persistence-mode-specific limit. APO now pre-validates this size at the `WindowsCredentialManagerStore`
+boundary before any native call.
+
+**Validation evidence (remediation):**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln` (Debug) | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln` | SUCCESS; **85/85** passing (28 Domain, 7 Provider, 50 Infrastructure) — up from the 64/64 Review-1 baseline (29 prior Infrastructure security/other tests + 21 new case-identity/validation/cancellation/unicode/oversize tests) |
+| `git diff --check` | Clean (only the same benign LF/CRLF normalization notice seen in the Review-1 baseline) |
+| `dotnet build` Desktop, `-p:Platform=x64 -r win-x64` (Release, self-contained) | SUCCESS; 0 warnings, 0 errors — **compile-only** |
+| `dotnet build` Desktop, `-p:Platform=x86 -r win-x86` (Release, self-contained) | SUCCESS; 0 warnings, 0 errors — **compile-only** |
+| `dotnet build` Desktop, `-p:Platform=ARM64 -r win-arm64` (Release, self-contained) | SUCCESS; 0 warnings, 0 errors — **compile-only**; no ARM64 hardware execution performed or claimed |
+| Secret/diff review | SUCCESS; diff limited to the 6 files listed below; no secret literals outside test fixtures; no assets/README/UI touched |
+
+**Files changed in remediation:**
+
+- `src/AIUsageMonitor.Application/Security/ISecureCredentialStore.cs` — doc-only.
+- `src/AIUsageMonitor.Domain/Providers/ProviderConnection.cs` — doc-only.
+- `src/AIUsageMonitor.Infrastructure/Security/WindowsCredentialManagerStore.cs` — new namespace, `ToUpperInvariant()` canonicalization, deterministic oversize validation.
+- `src/AIUsageMonitor.Infrastructure/Security/WindowsCredentialManagerNativeStore.cs` — corrected persistence comment, read-blob zeroization before `CredFree`.
+- `tests/AIUsageMonitor.Infrastructure.Tests/Security/FakeCredentialManagerNativeStore.cs` — `StringComparer.OrdinalIgnoreCase`.
+- `tests/AIUsageMonitor.Infrastructure.Tests/Security/WindowsCredentialManagerStoreTests.cs` — fixed 2 tests, added 21 new test cases.
+
+**Explicitly out of scope / not touched:** APO-31 provider adapters, `assets/` branding, `README.md`,
+WPF UI, LocalAppData migration, solution/project/namespace rename, old-prefix migration/dual-read/
+enumeration/cleanup (none required — no production credentials exist under the legacy prefix).
+
+**Review boundary:** Claude Opus 5 must perform independent Review 2 against the remediated head.
+GPT-5.6 Sol must accept the Story before merge or before APO-31 may begin.
 
 ---
 
@@ -39,7 +109,7 @@ The contract signature was NOT changed.
 | Windows mechanism | Windows Credential Manager Generic Credential (`CRED_TYPE_GENERIC`), `CRED_PERSIST_LOCAL_MACHINE` persistence |
 | Native APIs | `CredWriteW`, `CredReadW`, `CredDeleteW`, `CredFree` (Advapi32.dll), verified against Microsoft Learn `wincred.h` documentation before implementation |
 | Secret encoding on the wire | UTF-8 bytes into `CredentialBlob`; decoded back with `Encoding.UTF8` on read |
-| Target name | `AIUsageMonitor:Credential:{credentialReference}` (namespaces APO's Generic Credentials in the shared vault) |
+| Target name | `AIProjectOrchestrator:Credential:{credentialReference.ToUpperInvariant()}` (namespaces APO's Generic Credentials in the shared vault; case-insensitive since APO-22 remediation — see Section -1) |
 | DI registration | `ISecureCredentialStore -> WindowsCredentialManagerStore` (singleton), in `InfrastructureServiceCollectionExtensions.AddInfrastructure` |
 | Non-Windows behavior | Throws `PlatformNotSupportedException` before any native call (`OperatingSystem.IsWindows()` guard, injectable for tests) |
 
@@ -78,19 +148,23 @@ The contract signature was NOT changed.
   actual execution under a non-Windows OS.
 - ARM64/x86 evidence above is compile-only, performed on an x64 development machine; no ARM64 or
   x86 hardware runtime execution was performed or is claimed.
-- `CRED_MAX_CREDENTIAL_BLOB_SIZE` is 2560 bytes (`CRED_PERSIST_LOCAL_MACHINE`); a secret encoded to
-  more than 2560 UTF-8 bytes will fail with a `CredentialManagerNativeException` surfacing the
-  native Win32 error code. No APO code pre-validates this size; the OS enforces it.
+- `CRED_MAX_CREDENTIAL_BLOB_SIZE` is 2560 bytes, a property of the Generic Credential type itself
+  (not specific to `CRED_PERSIST_LOCAL_MACHINE`). Since the APO-22 remediation (Section -1),
+  `WindowsCredentialManagerStore.StoreAsync` pre-validates the UTF-8-encoded secret against this
+  limit and throws `ArgumentException` before any native call, instead of relying on a native
+  Win32/RPC failure.
 - APO-31 (provider capacity adapters) was explicitly NOT started. No provider connection UX, no
   Codex/Claude/Kimi/Copilot/Antigravity adapter code, no LocalAppData migration, and no
   solution/project/namespace rename were touched.
 
 ### Review boundary
 
-APO-22 implementation is delivered on `feat/APO-22-windows-credential-manager` and has **NOT**
-been merged to `main` and has **NOT** been marked Done. Claude Opus 5 independent review and
-GPT-5.6 Sol acceptance are required next. `main` remains unchanged at
-`aab184b6e8dcd1aa9f87012bec0845d4070fb410`.
+This section records the original APO-22 implementation as reviewed in Opus Review 1. Claude Opus 5
+returned CHANGES REQUIRED against this state; the bounded remediation applied on top of it is
+recorded in Section -1. APO-22 is delivered on `feat/APO-22-windows-credential-manager` and has
+**NOT** been merged to `main` and has **NOT** been marked Done. Claude Opus 5 independent Review 2
+against the remediated head, then GPT-5.6 Sol acceptance, are required next. `main` remains
+unchanged at `aab184b6e8dcd1aa9f87012bec0845d4070fb410`.
 
 ---
 
@@ -314,6 +388,9 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 - APO-22 implements the first concrete `ISecureCredentialStore` adapter: Windows Credential
   Manager Generic Credentials, `CRED_PERSIST_LOCAL_MACHINE` persistence, secrets never written to
   JSON/JSONL/logs.
+- APO-22 remediation (Section -1): `credentialReference` is case-insensitive; canonical Windows
+  target casing is `ToUpperInvariant()`; the permanent vault namespace is
+  `AIProjectOrchestrator:Credential:`.
 
 ---
 
@@ -324,19 +401,20 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
-| APO-22 | `feat/APO-22-windows-credential-manager` | Pending | Not merged | 21 Aug 2026 | AWAITING OPUS REVIEW / SOL ACCEPTANCE |
+| APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a` (initial), remediation commit below | Not merged | 21-22 Aug 2026 | REMEDIATED — AWAITING OPUS REVIEW 2 / SOL ACCEPTANCE |
 
 ---
 
 ## 10. Next Planner Boundary
 
 APO-20 repository and physical local-root rename work is complete. APO-22 delivered the Windows
-Credential Manager secure credential store adapter on `feat/APO-22-windows-credential-manager` and
-is now the active review checkpoint in `TASK.md`. APO-19 remains complete and Sol-accepted and has
-not been rerun.
+Credential Manager secure credential store adapter on `feat/APO-22-windows-credential-manager`,
+received Opus Review 1 (CHANGES REQUIRED), and has now completed the bounded remediation described
+in Section -1 on the same branch. It is the active review checkpoint in `TASK.md`. APO-19 remains
+complete and Sol-accepted and has not been rerun.
 
-Claude Opus 5 must independently review APO-22 (implementation, tests, native-memory safety,
-credential-reference validation, non-Windows guard, DI wiring, and this file's evidence), then
-GPT-5.6 Sol must accept or reject it. Only after acceptance may Sol select and issue the next
-execution contract (e.g. APO-31, which depends on APO-22). Do not execute any Story automatically
-from this checkpoint.
+Claude Opus 5 must independently perform Review 2 against the remediated head (case-identity fix,
+vault-namespace change, native read-blob zeroization, deterministic oversize validation, corrected
+persistence comment, and the expanded test suite), then GPT-5.6 Sol must accept or reject it. Only
+after acceptance may Sol select and issue the next execution contract (e.g. APO-31, which depends
+on APO-22). Do not execute any Story automatically from this checkpoint.

@@ -1,9 +1,12 @@
+using System.Text;
 using AIUsageMonitor.Infrastructure.Security;
 
 namespace AIUsageMonitor.Infrastructure.Tests.Security;
 
 public sealed class WindowsCredentialManagerStoreTests
 {
+    private const string TargetPrefix = "AIProjectOrchestrator:Credential:";
+
     [Fact]
     public async Task StoreAsync_PassesCredentialReferenceAndSecretToNativeStore()
     {
@@ -13,7 +16,7 @@ public sealed class WindowsCredentialManagerStoreTests
         await store.StoreAsync("GitHub:Copilot:Primary", "super-secret-token");
 
         var target = Assert.Single(native.WriteCalls);
-        Assert.Contains("GitHub:Copilot:Primary", target, StringComparison.Ordinal);
+        Assert.Equal(TargetPrefix + "GITHUB:COPILOT:PRIMARY", target);
         Assert.Equal("super-secret-token", native.GetStoredSecretUtf8(target));
     }
 
@@ -85,7 +88,7 @@ public sealed class WindowsCredentialManagerStoreTests
         const string secret = "top-secret-value-should-not-leak";
         var native = new FakeCredentialManagerNativeStore
         {
-            WriteException = new CredentialManagerNativeException("write", "AIUsageMonitor:Credential:Antigravity:Primary", 5)
+            WriteException = new CredentialManagerNativeException("write", TargetPrefix + "ANTIGRAVITY:PRIMARY", 5)
         };
         var store = new WindowsCredentialManagerStore(native);
 
@@ -136,11 +139,11 @@ public sealed class WindowsCredentialManagerStoreTests
 
         await store.StoreAsync("GitHub:Copilot:Primary", secret);
 
-        foreach (var file in Directory.EnumerateFiles(temporary.Paths.RootDirectory, "*", SearchOption.AllDirectories))
-        {
-            var content = await File.ReadAllTextAsync(file);
-            Assert.DoesNotContain(secret, content, StringComparison.Ordinal);
-        }
+        var files = Directory
+            .EnumerateFiles(temporary.Paths.RootDirectory, "*", SearchOption.AllDirectories)
+            .ToArray();
+
+        Assert.Empty(files);
     }
 
     [Fact]
@@ -165,5 +168,213 @@ public sealed class WindowsCredentialManagerStoreTests
     public void Constructor_RejectsNullNativeStore()
     {
         Assert.Throws<ArgumentNullException>(() => new WindowsCredentialManagerStore(null!));
+    }
+
+    // --- Case identity (Sol decision: credentialReference is case-insensitive; canonical
+    // Windows target = ToUpperInvariant()) ---
+
+    [Theory]
+    [InlineData("GitHub:Copilot:Primary")]
+    [InlineData("github:copilot:primary")]
+    [InlineData("GITHUB:COPILOT:PRIMARY")]
+    [InlineData("GiThUb:CoPiLoT:PrImArY")]
+    public async Task RetrieveAsync_ResolvesTheSameCredential_RegardlessOfReferenceCasing(string casedReference)
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+        await store.StoreAsync("GitHub:Copilot:Primary", "shared-secret");
+
+        var retrieved = await store.RetrieveAsync(casedReference);
+
+        Assert.Equal("shared-secret", retrieved);
+    }
+
+    [Fact]
+    public async Task StoreAsync_UnderDifferentCasing_ReplacesTheSameCredential()
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await store.StoreAsync("GitHub:Copilot:Primary", "first-secret");
+        await store.StoreAsync("github:copilot:primary", "second-secret");
+
+        Assert.Equal("second-secret", await store.RetrieveAsync("GITHUB:COPILOT:PRIMARY"));
+        Assert.Equal(2, native.WriteCalls.Count);
+        Assert.Equal(native.WriteCalls[0], native.WriteCalls[1]);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_UnderDifferentCasing_RemovesTheSameCredential()
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+        await store.StoreAsync("GitHub:Copilot:Primary", "secret");
+
+        await store.RemoveAsync("GITHUB:COPILOT:PRIMARY");
+
+        Assert.Null(await store.RetrieveAsync("github:copilot:primary"));
+    }
+
+    [Fact]
+    public async Task BuildTargetName_ProducesTheExactPermanentApoNamespaceAndUppercaseReference()
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await store.StoreAsync("GitHub:Copilot:Primary", "secret");
+
+        var target = Assert.Single(native.WriteCalls);
+        Assert.Equal("AIProjectOrchestrator:Credential:GITHUB:COPILOT:PRIMARY", target);
+    }
+
+    // --- Native failure propagation ---
+
+    [Fact]
+    public async Task RetrieveAsync_NativeReadFailure_PropagatesWithoutLeakingSecretContent()
+    {
+        var native = new FakeCredentialManagerNativeStore
+        {
+            ReadException = new CredentialManagerNativeException("read", TargetPrefix + "CODEX:PRIMARY", 87)
+        };
+        var store = new WindowsCredentialManagerStore(native);
+
+        var exception = await Record.ExceptionAsync(() => store.RetrieveAsync("Codex:Primary"));
+
+        var nativeException = Assert.IsType<CredentialManagerNativeException>(exception);
+        Assert.Equal(87, nativeException.NativeErrorCode);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_NativeDeleteFailure_Propagates()
+    {
+        var native = new FakeCredentialManagerNativeStore
+        {
+            DeleteException = new CredentialManagerNativeException("delete", TargetPrefix + "KIMI:PRIMARY", 5)
+        };
+        var store = new WindowsCredentialManagerStore(native);
+
+        var exception = await Record.ExceptionAsync(() => store.RemoveAsync("Kimi:Primary"));
+
+        var nativeException = Assert.IsType<CredentialManagerNativeException>(exception);
+        Assert.Equal(5, nativeException.NativeErrorCode);
+    }
+
+    // --- RetrieveAsync / RemoveAsync validation ---
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RetrieveAsync_RejectsNullEmptyOrWhitespaceCredentialReference(string? credentialReference)
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => store.RetrieveAsync(credentialReference!));
+        Assert.Empty(native.ReadCalls);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task RemoveAsync_RejectsNullEmptyOrWhitespaceCredentialReference(string? credentialReference)
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => store.RemoveAsync(credentialReference!));
+        Assert.Empty(native.DeleteCalls);
+    }
+
+    // --- Cancellation ---
+
+    [Fact]
+    public async Task RetrieveAsync_HonorsCancellationBeforeTheNativeOperation()
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => store.RetrieveAsync("GitHub:Copilot:Primary", cts.Token));
+
+        Assert.Empty(native.ReadCalls);
+    }
+
+    [Fact]
+    public async Task RemoveAsync_HonorsCancellationBeforeTheNativeOperation()
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => store.RemoveAsync("GitHub:Copilot:Primary", cts.Token));
+
+        Assert.Empty(native.DeleteCalls);
+    }
+
+    // --- Empty and Unicode secrets ---
+
+    [Fact]
+    public async Task StoreAsync_RoundTripsAnEmptySecretExactly()
+    {
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await store.StoreAsync("Empty:Secret", string.Empty);
+        var retrieved = await store.RetrieveAsync("Empty:Secret");
+
+        Assert.Equal(string.Empty, retrieved);
+    }
+
+    [Fact]
+    public async Task StoreAsync_RoundTripsAUnicodeSecretExactly()
+    {
+        // Synthetic value combining Latin diacritics, CJK, and an astral-plane emoji to exercise
+        // multi-byte and surrogate-pair UTF-8 encoding round-tripping.
+        const string secret = "Sÿnthëtic-测试-🚀-value";
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await store.StoreAsync("Unicode:Secret", secret);
+        var retrieved = await store.RetrieveAsync("Unicode:Secret");
+
+        Assert.Equal(secret, retrieved);
+    }
+
+    // --- Deterministic oversize validation (2560-byte Generic Credential blob limit) ---
+
+    [Fact]
+    public async Task StoreAsync_AcceptsASecretEncodingToExactlyTheMaximumBlobSize()
+    {
+        var secret = new string('a', 2560);
+        Assert.Equal(2560, Encoding.UTF8.GetByteCount(secret));
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        await store.StoreAsync("MaxSize:Secret", secret);
+
+        Assert.Single(native.WriteCalls);
+        Assert.Equal(secret, await store.RetrieveAsync("MaxSize:Secret"));
+    }
+
+    [Fact]
+    public async Task StoreAsync_RejectsASecretEncodingToOneByteOverTheMaximumBlobSize_BeforeAnyNativeCall()
+    {
+        var secret = new string('a', 2561);
+        Assert.Equal(2561, Encoding.UTF8.GetByteCount(secret));
+        var native = new FakeCredentialManagerNativeStore();
+        var store = new WindowsCredentialManagerStore(native);
+
+        var exception = await Record.ExceptionAsync(() => store.StoreAsync("OverSize:Secret", secret));
+
+        var argumentException = Assert.IsType<ArgumentException>(exception);
+        Assert.Equal("secret", argumentException.ParamName);
+        Assert.DoesNotContain(secret, argumentException.Message, StringComparison.Ordinal);
+        Assert.Empty(native.WriteCalls);
     }
 }

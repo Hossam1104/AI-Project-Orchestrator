@@ -8,11 +8,13 @@ namespace AIUsageMonitor.Infrastructure.Tests.Security;
 /// In-memory <see cref="ICredentialManagerNativeStore"/> double so
 /// <see cref="WindowsCredentialManagerStore"/> can be exercised without touching the real Windows
 /// Credential Manager vault. Records every call so tests can assert exactly what the store passed
-/// to the native layer.
+/// to the native layer. Uses <see cref="StringComparer.OrdinalIgnoreCase"/> for target-name
+/// identity because real Windows Generic Credential TargetName values are case-insensitive; this
+/// double must reflect that identity behavior, not deviate from it.
 /// </summary>
 internal sealed class FakeCredentialManagerNativeStore : ICredentialManagerNativeStore
 {
-    private readonly Dictionary<string, byte[]> _entries = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, byte[]> _entries = new(StringComparer.OrdinalIgnoreCase);
 
     public List<string> WriteCalls { get; } = new();
 
