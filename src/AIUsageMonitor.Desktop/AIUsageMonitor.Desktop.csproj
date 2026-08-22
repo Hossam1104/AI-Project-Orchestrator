@@ -32,6 +32,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AIUsageMonitor.Application\AIUsageMonitor.Application.csproj" />
     <ProjectReference Include="..\AIUsageMonitor.Infrastructure\AIUsageMonitor.Infrastructure.csproj" />
+    <ProjectReference Include="..\AIUsageMonitor.Providers\AIUsageMonitor.Providers.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Infrastructure.Persistence;
+using AIUsageMonitor.Providers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -43,6 +44,7 @@ public partial class App : System.Windows.Application
                 .ConfigureServices(services =>
                 {
                     services.AddInfrastructure(_paths.RootDirectory);
+                    services.AddProviders();
                     services.AddSingleton<MainWindow>();
                 })
                 .Build();
