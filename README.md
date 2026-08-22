@@ -128,11 +128,18 @@ automated model routing is not implemented yet.
 | Model | Default role |
 | --- | --- |
 | **GPT-5.6 Sol** | Planner, architect, and acceptance authority |
-| **GPT-5.6 Luna Max** | Substantial implementation and cross-cutting fixes |
+| **GPT-5.6 Luna xHigh** | Substantial implementation and cross-cutting fixes |
 | **Claude Sonnet 5** | Bounded implementation and focused bug fixing |
 | **Claude Opus 5** | Periodic independent reviewer at critical checkpoints |
 | **GPT-5.6 Terra HIGH** | Optional specialist security review when risk warrants it |
 | **Gemini 3.7** | Bounded, repetitive, validation, documentation, or quota-balancing work |
+
+GPT-5.6 Luna xHigh is the default substantial executor. Because Luna xHigh has a higher
+hallucination risk, execution prompts must be detailed, precise, bounded, and verification-oriented.
+Claude Opus 5 is used approximately every 5 meaningful implementation prompts and at genuinely
+critical checkpoints only, not after every Story. GPT-5.6 Sol remains the Planner, Architect, and
+Acceptance Authority. Codex/GPT and Claude remain the primary stack, while Gemini 3.7 remains
+auxiliary for bounded work and quota balancing.
 
 ## Security and privacy
 

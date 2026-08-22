@@ -10,7 +10,7 @@ Parent Epic:
 APO-2 - Windows Platform & Application Foundation
 
 Executor:
-GPT-5.6 Luna Max
+GPT-5.6 Luna xHigh
 
 Branch:
 feat/APO-23-branding
