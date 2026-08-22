@@ -8,21 +8,87 @@
 **APO-18:** COMPLETE / ACCEPTED
 **APO-19:** COMPLETE / SOL ACCEPTED
 **APO-20:** COMPLETE — repository and physical local-root rename complete
-**APO-22:** REMEDIATION COMPLETE — AWAITING CLAUDE OPUS 5 RE-REVIEW / SOL ACCEPTANCE
+**APO-22:** COMPLETE — Sol-accepted PR #1 merged into main
+**APO-23:** IMPLEMENTATION COMPLETE — AWAITING GPT-5.6 SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-22 - Implement Windows Credential Manager Secure Credential Store
+**Current Story:** APO-23 - Refactor Application Identity and Technical Naming for APO
 **Current Epic:** APO-2 - Windows Platform & Application Foundation
-**Status:** APO-22 remediation delivered on `feat/APO-22-windows-credential-manager`; NOT merged to `main`; NOT marked Done
-**Next implementation:** Claude Opus 5 independent Review 2, then GPT-5.6 Sol acceptance; do not execute APO-31 or any other Story automatically
-**Release state:** Reusable foundation validated; APO implementation and release qualification not complete
+**Status:** APO-23 branding implementation delivered on `feat/APO-23-branding`; Draft PR pending final delivery metadata; not merged to `main`
+**Next implementation:** GPT-5.6 Sol acceptance of APO-23; do not execute APO-24, APO-27, APO-31, APO-33, or any other Story automatically
+**Release state:** Reusable foundation and branded WPF shell validated; APO implementation and release qualification are not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
-> APO-22 adds a concrete secure-credential-store adapter only. It does not change repository
-> identity, provider adapters, or any other Story's scope. APO-20 remains complete; it was not
-> rerun by APO-22.
+> APO-22 adds the concrete secure-credential-store adapter and is now merged at main SHA
+> `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 establishes product identity and a
+> branded WPF foundation surface only. Technical identifiers, persistence identity, provider
+> adapters, and orchestration runtime remain outside this Story.
+
+---
+
+## -2. APO-23 Branding & WPF Product Identity (Current Delivery)
+
+**Starting main SHA:** `f6f04dca89313c9964add3c403a151a7b8b6919e` (APO-22 squash merge)
+
+**Branch:** `feat/APO-23-branding`, rebased from the owner-approved asset commit lineage
+`74fc81eb3b11e7a6c1acf7641acbd83ffc952e23`.
+
+**Approved assets and preservation:**
+
+- `assets/Logo.png` — authoritative logo; original bytes preserved.
+- `assets/Colors.png` — authoritative palette/usage reference; original bytes preserved.
+- `assets/runtime/apo-icon.ico` — derived compact symbol for Windows application/window surfaces.
+- `assets/readme/apo-flow.svg` — repository-controlled, lightweight target-flow animation.
+- `assets/readme/apo-shell.png` — clean screenshot from the self-contained x64 WPF shell.
+
+**WPF theme/resource structure:**
+
+- `src/AIUsageMonitor.Desktop/Resources/Colors.xaml` — approved palette tokens.
+- `src/AIUsageMonitor.Desktop/Resources/Brushes.xaml` — surfaces, accents, states, and gradients.
+- `src/AIUsageMonitor.Desktop/Resources/Typography.xaml` — Windows-native display/body typography.
+- `src/AIUsageMonitor.Desktop/Resources/Controls.xaml` — cards, buttons, navigation, chips, and focus states.
+
+**Visible product identity changes:**
+
+- Main window title and taskbar/window icon now identify **AI Project Orchestrator**.
+- Shell header, welcome surface, README hero, footer, and product metadata use **AI Project Orchestrator (APO)**.
+- Startup/shutdown log messages use the APO product identity; the existing log filename remains
+  compatibility-sensitive under the preserved `AIUsageMonitor` storage identity.
+- `AIUsageMonitor.sln`, project/directories, namespaces, assembly names, test names, and
+  `%LOCALAPPDATA%\AIUsageMonitor` remain deliberately unchanged.
+
+**README redesign:**
+
+- Branded hero with approved local logo and factual .NET/WPF/Windows/C# badges.
+- Target orchestration flow animation and Mermaid target-flow/architecture diagrams.
+- Current status, architecture, operating model, security, compatibility, build/test, roadmap,
+  governance, repository tree, documentation links, identity mapping, and screenshot preview.
+- No fake CI/build badges, provider claims, routing claims, or completion percentages.
+
+**Validation evidence:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln` | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln` | SUCCESS; 85/85 passing (28 Domain, 7 Provider, 50 Infrastructure) |
+| `dotnet publish` `win-x64` | SUCCESS; self-contained single-file publish |
+| `dotnet publish` `win-x86` | SUCCESS; self-contained single-file publish; compile/publish evidence only |
+| `dotnet publish` `win-arm64` | SUCCESS; self-contained single-file publish; compile/publish evidence only |
+| Self-contained WPF launch smoke | SUCCESS on this Windows x64 development machine; title, icon, logo, resources, and shell rendered |
+| README local-link check | SUCCESS; 10 local paths checked, none missing |
+| README Mermaid fence check | SUCCESS; 2 Mermaid blocks present |
+| Approved asset hash check | SUCCESS; `Logo.png` and `Colors.png` match the approved asset commit |
+| `git diff --check` | SUCCESS; only expected LF/CRLF normalization notices |
+
+**Scope and limitations:** No provider adapters, routing engine, autonomous runtime, project
+registry backend, tracker runtime, full APO-15 dashboard, LocalAppData migration, technical
+namespace rename, updater/installer, cloud backend, or CI implementation was started. x86 and
+ARM64 were publish-validated from the x64 development machine; no corresponding hardware runtime
+execution is claimed. No independent Opus review is required for this Story unless Sol identifies
+a new critical issue.
 
 ---
 
@@ -160,11 +226,10 @@ The contract signature was NOT changed.
 ### Review boundary
 
 This section records the original APO-22 implementation as reviewed in Opus Review 1. Claude Opus 5
-returned CHANGES REQUIRED against this state; the bounded remediation applied on top of it is
-recorded in Section -1. APO-22 is delivered on `feat/APO-22-windows-credential-manager` and has
-**NOT** been merged to `main` and has **NOT** been marked Done. Claude Opus 5 independent Review 2
-against the remediated head, then GPT-5.6 Sol acceptance, are required next. `main` remains
-unchanged at `aab184b6e8dcd1aa9f87012bec0845d4070fb410`.
+returned CHANGES REQUIRED against that state; the bounded remediation applied on top of it is
+recorded in Section -1. The Sol-accepted APO-22 head was verified unchanged, PR #1 was marked
+ready, and it was squash-merged into `main` at `f6f04dca89313c9964add3c403a151a7b8b6919e`.
+`main` remains unchanged after the APO-23 branch work.
 
 ---
 
@@ -337,11 +402,13 @@ The repository currently contains:
 - Infrastructure JSON state stores and monthly JSONL history/event stores under LocalAppData;
 - Schema-aware JSON, atomic replacement, synchronized writes, corruption classification, optional state isolation, last-known-good behavior, and interrupted-tail handling;
 - Material-change duplicate suppression and latest/range history queries;
-- xUnit Domain, Provider, and Infrastructure tests (50 tests);
+- xUnit Domain, Provider, and Infrastructure tests (85 tests; 28 Domain, 7 Provider, 50 Infrastructure);
 - x86/x64/ARM64 target configuration; and
 - Self-contained publish profiles for the three Windows RIDs.
 
-The current source uses `AIUsageMonitor` technical names and the minimal foundation shell. Those names and user-facing shell labels are retained during APO-19 because source-code refactoring is explicitly out of scope. They are future mapping/refactor candidates, not active product-governance claims.
+The current source uses `AIUsageMonitor` technical names while the WPF surface now presents the
+AI Project Orchestrator identity through the branded foundation shell. Technical names remain
+future mapping/refactor candidates; they are not user-facing product-governance claims.
 
 ---
 
@@ -401,20 +468,18 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-18 | `refactor/APO-18-product-governance-rebaseline` | `7d70dae` | `56f4ea7` | 21 Aug 2026 | COMPLETE |
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
-| APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a` (initial), remediation commit below | Not merged | 21-22 Aug 2026 | REMEDIATED — AWAITING OPUS REVIEW 2 / SOL ACCEPTANCE |
+| APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a`, `55e1b74`, `b1b97de` | `f6f04dc` (PR #1 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
+| APO-23 | `feat/APO-23-branding` | Pending final delivery commit | Not merged; Draft PR pending | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
 
 ---
 
 ## 10. Next Planner Boundary
 
-APO-20 repository and physical local-root rename work is complete. APO-22 delivered the Windows
-Credential Manager secure credential store adapter on `feat/APO-22-windows-credential-manager`,
-received Opus Review 1 (CHANGES REQUIRED), and has now completed the bounded remediation described
-in Section -1 on the same branch. It is the active review checkpoint in `TASK.md`. APO-19 remains
-complete and Sol-accepted and has not been rerun.
+APO-20 repository and physical local-root rename work is complete. APO-22 was accepted and merged
+through PR #1 at `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 implemented the approved
+branding assets, WPF resources, product identity, shell polish, README redesign, and validation
+evidence on `feat/APO-23-branding`. The final branch commit, push, and Draft PR metadata must be
+recorded here before the handoff is complete.
 
-Claude Opus 5 must independently perform Review 2 against the remediated head (case-identity fix,
-vault-namespace change, native read-blob zeroization, deterministic oversize validation, corrected
-persistence comment, and the expanded test suite), then GPT-5.6 Sol must accept or reject it. Only
-after acceptance may Sol select and issue the next execution contract (e.g. APO-31, which depends
-on APO-22). Do not execute any Story automatically from this checkpoint.
+The exact next authority is GPT-5.6 Sol acceptance of APO-23. Do not execute APO-24, APO-27,
+APO-31, APO-33, or any other Story automatically from this checkpoint.
