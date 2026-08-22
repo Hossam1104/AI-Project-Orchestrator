@@ -10,7 +10,6 @@ using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Domain.Common;
 using AIUsageMonitor.Domain.Providers;
 using AIUsageMonitor.Domain.Quotas;
-using AIUsageMonitor.Domain.Subscriptions;
 using AIUsageMonitor.Providers.Common;
 
 namespace AIUsageMonitor.Providers.Kimi;
@@ -49,12 +48,15 @@ public sealed class KimiProvider : ProviderAdapterBase
     {
         cancellationToken.ThrowIfCancellationRequested();
         var cliDetected = _executableLocator.Find("kimi") is not null;
-        var configured = !string.IsNullOrWhiteSpace(_options.CredentialReference);
+        var configured = IsAllowedServerAddress(_options.ServerAddress) &&
+                         !string.IsNullOrWhiteSpace(_options.CredentialReference);
         return Task.FromResult(new ProviderDetectionResult(
             Code,
             cliDetected || configured,
             configured
                 ? "Documented Kimi Code local usage API configured."
+                : !IsAllowedServerAddress(_options.ServerAddress)
+                    ? "Kimi Code local usage API configuration is invalid."
                 : cliDetected
                     ? "Official Kimi Code CLI detected; configure its documented local API token for structured usage."
                     : "No official Kimi Code CLI or local usage API credential detected.",
@@ -64,6 +66,11 @@ public sealed class KimiProvider : ProviderAdapterBase
     public override async Task<ProviderConnectionStatus> GetConnectionStatusAsync(
         CancellationToken cancellationToken = default)
     {
+        if (!IsAllowedServerAddress(_options.ServerAddress))
+        {
+            return ProviderConnectionStatus.Error;
+        }
+
         if (!string.IsNullOrWhiteSpace(_options.CredentialReference))
         {
             var token = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
@@ -80,6 +87,13 @@ public sealed class KimiProvider : ProviderAdapterBase
 
     protected override async Task<ProviderRefreshResult> RefreshCoreAsync(CancellationToken cancellationToken)
     {
+        if (!IsAllowedServerAddress(_options.ServerAddress))
+        {
+            return Failure(
+                ProviderErrorCodes.InvalidConfiguration,
+                "Kimi Code local usage API requires a loopback HTTP address.");
+        }
+
         if (string.IsNullOrWhiteSpace(_options.CredentialReference))
         {
             return Unsupported();
@@ -118,7 +132,6 @@ public sealed class KimiProvider : ProviderAdapterBase
 
         var quotaWindows = MapQuotaWindows(usage.Envelope.Data);
         ProviderAccount? account = null;
-        Subscription? subscription = null;
         string? metadataWarning = null;
 
         var userInfo = await FetchAsync<KimiUserInfoData>(
@@ -140,25 +153,6 @@ public sealed class KimiProvider : ProviderAdapterBase
                 ConfidenceLevel.Official,
                 UtcNow);
 
-            if (!string.IsNullOrWhiteSpace(info.UserLevelName))
-            {
-                subscription = new Subscription(
-                    ProviderIdentity.ForAccount(Code, $"subscription:{externalId}"),
-                    ProviderIdentity.ForProvider(Code),
-                    info.UserLevelName,
-                    originalStartDate: null,
-                    billingPeriodStart: null,
-                    billingPeriodEnd: null,
-                    renewalDate: null,
-                    cancelledDate: null,
-                    autoRenew: null,
-                    price: null,
-                    currency: null,
-                    cadence: null,
-                    DataSource.OfficialCli,
-                    ConfidenceLevel.Official,
-                    UtcNow);
-            }
         }
         else if (userInfo.Malformed)
         {
@@ -171,13 +165,13 @@ public sealed class KimiProvider : ProviderAdapterBase
 
         if (quotaWindows.Count == 0)
         {
-            return Partial(account, subscription, quotaWindows,
+            return Partial(account, null, quotaWindows,
                 metadataWarning ?? "Kimi returned no structured quota rows.");
         }
 
         return metadataWarning is null
-            ? ProviderRefreshResult.Success(Code, account, subscription, quotaWindows, UtcNow)
-            : Partial(account, subscription, quotaWindows, metadataWarning);
+            ? ProviderRefreshResult.Success(Code, account, null, quotaWindows, UtcNow)
+            : Partial(account, null, quotaWindows, metadataWarning);
     }
 
     private async Task<KimiCallResult<T>> FetchAsync<T>(
@@ -218,28 +212,9 @@ public sealed class KimiProvider : ProviderAdapterBase
             .Cast<QuotaWindow>()
             .ToList();
 
-        if (data.ExtraUsage is { MonthlyChargeLimitEnabled: true, MonthlyChargeLimitCents: not null })
-        {
-            var limit = data.ExtraUsage.MonthlyChargeLimitCents.Value / 100d;
-            var used = (data.ExtraUsage.MonthlyUsedCents ?? 0) / 100d;
-            if (limit > 0 && used <= limit)
-            {
-                windows.Add(QuotaWindow.Create(
-                    "kimi-code:extra-usage:monthly-spend",
-                    QuotaType.ExtraUsage,
-                    QuotaUnit.Currency,
-                    used,
-                    remainingValue: limit - used,
-                    limit,
-                    usedPercentage: null,
-                    remainingPercentage: null,
-                    windowStart: null,
-                    resetAt: null,
-                    DataSource.OfficialCli,
-                    ConfidenceLevel.Official,
-                    UtcNow));
-            }
-        }
+        // Extra usage is a monetary wallet and includes a provider currency code. The current
+        // QuotaWindow contract cannot preserve that identity, so it is intentionally not
+        // normalized into a generic currency window.
 
         return windows;
     }
@@ -247,16 +222,10 @@ public sealed class KimiProvider : ProviderAdapterBase
     private QuotaWindow? MapQuotaRow(KimiQuotaRow row)
     {
         var used = TryReadNumber(row.Used);
-        var remaining = TryReadNumber(row.Remaining);
         var limit = TryReadNumber(row.Limit);
-        if (!used.HasValue && !remaining.HasValue && !limit.HasValue)
+        if (!used.HasValue && !limit.HasValue)
         {
             return null;
-        }
-
-        if (limit is null && used is not null && remaining is not null)
-        {
-            limit = used.Value + remaining.Value;
         }
 
         var type = ResolveQuotaType(row.Window);
@@ -266,7 +235,7 @@ public sealed class KimiProvider : ProviderAdapterBase
             type,
             QuotaUnit.Custom,
             used,
-            remaining,
+            remainingValue: null,
             limit,
             usedPercentage: null,
             remainingPercentage: null,
@@ -358,6 +327,10 @@ public sealed class KimiProvider : ProviderAdapterBase
     private static string FirstNonBlank(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? "quota";
 
+    private static bool IsAllowedServerAddress(Uri? address) =>
+        address is { IsAbsoluteUri: true, IsLoopback: true } &&
+        (address.Scheme == Uri.UriSchemeHttp || address.Scheme == Uri.UriSchemeHttps);
+
     private sealed record KimiCallResult<T>(KimiEnvelope<T>? Envelope, HttpStatusCode? StatusCode, bool Malformed);
 
     private sealed class KimiEnvelope<T>
@@ -407,8 +380,6 @@ public sealed class KimiProvider : ProviderAdapterBase
         [JsonPropertyName("nickname")]
         public string? Nickname { get; set; }
 
-        [JsonPropertyName("userLevelName")]
-        public string? UserLevelName { get; set; }
     }
 
     private sealed class KimiQuotaRow
@@ -421,9 +392,6 @@ public sealed class KimiProvider : ProviderAdapterBase
 
         [JsonPropertyName("used")]
         public JsonElement Used { get; set; }
-
-        [JsonPropertyName("remaining")]
-        public JsonElement Remaining { get; set; }
 
         [JsonPropertyName("limit")]
         public JsonElement Limit { get; set; }

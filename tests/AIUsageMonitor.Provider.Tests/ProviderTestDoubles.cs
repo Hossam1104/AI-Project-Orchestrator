@@ -15,6 +15,8 @@ internal sealed class TestCredentialStore : ISecureCredentialStore
 {
     private readonly Dictionary<string, string> _secrets = new(StringComparer.OrdinalIgnoreCase);
 
+    public int RetrieveCount { get; private set; }
+
     public void Add(string reference, string secret) => _secrets[reference] = secret;
 
     public Task StoreAsync(string credentialReference, string secret, CancellationToken cancellationToken = default)
@@ -25,6 +27,7 @@ internal sealed class TestCredentialStore : ISecureCredentialStore
 
     public Task<string?> RetrieveAsync(string credentialReference, CancellationToken cancellationToken = default)
     {
+        RetrieveCount++;
         _secrets.TryGetValue(credentialReference, out var secret);
         return Task.FromResult(secret);
     }

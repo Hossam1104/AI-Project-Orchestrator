@@ -93,29 +93,57 @@ public sealed class ClaudeProvider : ProviderAdapterBase
             return AuthenticationRequired();
         }
 
+        var tokenCount = 0d;
+        var nextPage = (string?)null;
+        var seenCursors = new HashSet<string>(StringComparer.Ordinal);
         var client = _httpClientFactory.CreateClient(HttpClientName);
-        using var request = new HttpRequestMessage(HttpMethod.Get, BuildUsagePath());
-        request.Headers.Add("x-api-key", adminKey);
-        request.Headers.Add("anthropic-version", "2023-06-01");
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
+        while (true)
         {
-            return MapHttpFailure(response.StatusCode);
-        }
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                nextPage is null ? BuildUsagePath() : BuildUsagePath(nextPage));
+            request.Headers.Add("x-api-key", adminKey);
+            request.Headers.Add("anthropic-version", "2023-06-01");
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        var payload = await response.Content.ReadFromJsonAsync<MessagesUsageReport>(cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
-        if (payload?.Data is null)
-        {
-            return Failure(ProviderErrorCodes.MalformedResponse, "Anthropic returned an unusable messages usage report.");
-        }
+            using var response = await client.SendAsync(
+                request,
+                cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return MapHttpFailure(response.StatusCode);
+            }
 
-        var tokenCount = payload.Data
-            .SelectMany(bucket => bucket.Results ?? Enumerable.Empty<MessagesUsageResult>())
-            .SelectMany(result => result.TokenValues())
-            .Sum();
+            var payload = await response.Content.ReadFromJsonAsync<MessagesUsageReport>(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            if (payload?.Data is null)
+            {
+                return Failure(ProviderErrorCodes.MalformedResponse, "Anthropic returned an unusable messages usage report.");
+            }
+
+            tokenCount += payload.Data
+                .SelectMany(bucket => bucket.Results ?? Enumerable.Empty<MessagesUsageResult>())
+                .SelectMany(result => result.TokenValues())
+                .Sum();
+
+            if (!payload.HasMore)
+            {
+                break;
+            }
+
+            nextPage = payload.NextPage;
+            if (string.IsNullOrWhiteSpace(nextPage))
+            {
+                return Failure(ProviderErrorCodes.MalformedResponse, "Anthropic returned a missing pagination cursor.");
+            }
+
+            if (!seenCursors.Add(nextPage))
+            {
+                return Failure(ProviderErrorCodes.MalformedResponse, "Anthropic returned a repeated pagination cursor.");
+            }
+
+        }
 
         if (tokenCount <= 0)
         {
@@ -148,6 +176,11 @@ public sealed class ClaudeProvider : ProviderAdapterBase
         return $"v1/organizations/usage_report/messages?starting_at={Uri.EscapeDataString(startingAt)}&limit=1000";
     }
 
+    private string BuildUsagePath(string page)
+    {
+        return $"v1/organizations/usage_report/messages?page={Uri.EscapeDataString(page)}&limit=1000";
+    }
+
     private ProviderRefreshResult MapHttpFailure(HttpStatusCode statusCode) => statusCode switch
     {
         HttpStatusCode.Unauthorized => AuthenticationRequired(),
@@ -167,6 +200,12 @@ public sealed class ClaudeProvider : ProviderAdapterBase
     {
         [JsonPropertyName("data")]
         public List<MessagesUsageBucket>? Data { get; set; }
+
+        [JsonPropertyName("has_more")]
+        public bool HasMore { get; set; }
+
+        [JsonPropertyName("next_page")]
+        public string? NextPage { get; set; }
     }
 
     private sealed class MessagesUsageBucket

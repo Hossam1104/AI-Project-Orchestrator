@@ -1,9 +1,9 @@
-# APO-31 - SOL ACCEPTANCE CHECKPOINT
+# APO-31 SOL / PERIODIC REVIEW CHECKPOINT
 
-**Status:** COMPLETE IMPLEMENTATION / AWAITING GPT-5.6 SOL ACCEPTANCE
+**Status:** REMEDIATION COMPLETE / AWAITING GPT-5.6 SOL VERIFICATION
 **Story:** APO-31 - Official Provider Capacity Adapters
 **Branch:** `feat/APO-31-provider-capacity-adapters`
-**Implementation commit:** `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`
+**Implementation commit:** `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`; remediation commit to be recorded in `.ai/CURRENT_STATE.md`
 **Draft PR:** [#3](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/3)
 **PR head:** Latest pushed branch tip; includes the implementation and final handoff checkpoint
 **Base:** `main` at `40f62f98787df80368eeeca454b223edf8dbd5d9`
@@ -17,10 +17,11 @@
 - Anthropic organization Messages Usage Reports use the official Admin API route and return
   token-usage-only `Partial` results. Claude/Claude Code consumer subscription capacity remains
   manual/unsupported.
-- Kimi Code uses the documented local server usage and user-info routes when an address and opaque
-  credential reference are explicitly configured. Quota rows, reset times, membership metadata,
-  and documented extra usage are mapped. APO does not launch the server or inspect private auth
-  files.
+- Kimi Code uses the documented local server usage and user-info routes only for a validated
+  loopback HTTP(S) address and an opaque credential reference. Quota rows use provider-supplied
+  used/limit/reset fields; percentages are derived by `QuotaWindow`; `userLevelName` does not
+  create a subscription, and monetary extra usage is not normalized without currency identity.
+  APO does not launch the server or inspect private auth files.
 - Codex, Claude, and Antigravity official CLIs are safely detected. Interactive status/usage
   panels are not scraped; their consumer capacity remains manual/unsupported.
 - All five V1 providers are registered exactly once, discovered deterministically, and isolated
@@ -29,6 +30,9 @@
   and provider failures are implemented. Last-known-good data is retained on later failure.
 - Provider configuration stores only opaque credential references. Secret material is retrieved
   through the secure-store contract and is not written to files, diagnostics, source, or tests.
+- The current WPF foundation shell registers default provider options but does not yet expose
+  user-facing Copilot, Anthropic, or Kimi connection/settings controls; tests configure adapters
+  directly. This remains future configuration/UI scope.
 
 ## Evidence and validation
 
@@ -53,5 +57,5 @@
 
 ## Handoff
 
-The implementation is ready for GPT-5.6 Sol acceptance. This file is now a checkpoint rather than
-an authorization to execute the next Story.
+The bounded remediation is ready for GPT-5.6 Sol verification and the scheduled periodic/critical
+independent review decision. This file is a checkpoint and does not authorize another Story.

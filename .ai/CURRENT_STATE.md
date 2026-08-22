@@ -10,14 +10,14 @@
 **APO-20:** COMPLETE — repository and physical local-root rename complete
 **APO-22:** COMPLETE — Sol-accepted PR #1 merged into main
 **APO-23:** COMPLETE — PR #2 merged to `main` at `40f62f9`
-**APO-31:** IMPLEMENTATION COMPLETE — AWAITING GPT-5.6 SOL ACCEPTANCE
+**APO-31:** REMEDIATION COMPLETE — AWAITING GPT-5.6 SOL VERIFICATION
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-31 - Official Provider Capacity Adapters
 **Current Epic:** APO-4 - Provider Integrations & Usage Collection
-**Status:** APO-31 implementation delivered in `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol acceptance and remains unmerged
-**Next implementation:** GPT-5.6 Sol acceptance of APO-31; do not execute another Story automatically
+**Status:** APO-31 implementation plus bounded Sol remediation delivered on `feat/APO-31-provider-capacity-adapters`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol verification and remains unmerged
+**Next implementation:** GPT-5.6 Sol verification and periodic/critical review decision; do not execute another Story automatically
 **Release state:** Officially supported provider surfaces are adapted with explicit unsupported/manual states; full product release qualification is not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -500,9 +500,9 @@ GPT-5.6 Sol acceptance. Do not execute another Story automatically from this che
   `Partial` results. No allowance, remaining capacity, reset, plan, or subscription is inferred.
 - Anthropic organization Messages Usage Reports are adapted as token usage-only `Partial` results.
   Claude/Claude Code consumer subscription capacity remains detected/manual/unsupported.
-- Kimi Code's documented local server usage endpoint is adapted when a server address and opaque
-  credential reference are explicitly configured. Documented quota rows, reset times, membership
-  metadata, and extra usage are mapped without reading private auth files or launching the server.
+- Kimi Code's documented local server usage endpoint is adapted only for a loopback HTTP(S) server
+  address and an opaque credential reference. Documented quota rows and reset times are mapped;
+  account fields are returned, while unproven plan and monetary extra-usage semantics are omitted.
 - Codex and Antigravity official CLIs are safely detected. Their interactive status/usage surfaces
   are not scraped; refresh remains manual/unsupported.
 - All five `ProviderCode` values are registered in deterministic enum order and discovered with
@@ -527,5 +527,79 @@ secure-store material is never persisted or included in error text. HTTP respons
 logged or surfaced. Typed failure states and last-known-good retention are tested. Usage reports
 remain usage-only, and unsupported consumer subscription surfaces remain explicit.
 
-**Acceptance boundary:** The implementation is ready for GPT-5.6 Sol review. Do not merge APO-31,
-create or execute a follow-on Story, or broaden provider scope without Sol direction.
+**Acceptance boundary:** The implementation and bounded remediation are ready for GPT-5.6 Sol
+verification. Do not merge APO-31, create or execute a follow-on Story, or broaden provider scope
+without Sol direction.
+
+## 11.1 APO-31 SOL remediation / periodic review checkpoint
+
+**Sol initial review:** `CHANGES REQUIRED` against reviewed head
+`f98fa7111cdccb3a363590b44c9e79b08ce20bce`.
+
+**Remediation starting state:**
+
+- Branch remained `feat/APO-31-provider-capacity-adapters`; no new branch or PR was created.
+- `main` and `origin/main` remained `40f62f98787df80368eeeca454b223edf8dbd5d9`.
+- Draft PR #3 remained open, draft, and unmerged.
+- The existing implementation architecture and provider contracts were preserved.
+
+**Findings and bounded resolutions:**
+
+1. **Anthropic Admin Usage pagination — DONE.** `MessagesUsageReport` now reads `has_more` and
+   `next_page`; the first request preserves `starting_at`, later requests use URL-encoded cursor
+   pages, and all token values are aggregated before a usage-only window is published. Blank or
+   repeated cursors are malformed. Any later-page HTTP, parse, or cancellation failure prevents an
+   incomplete result; a prior complete snapshot is returned stale through `ProviderAdapterBase`.
+2. **Kimi credential destination safety — DONE.** Kimi validates an absolute loopback HTTP(S) URI
+   using `Uri.IsLoopback` before secure-store retrieval and before setting `Authorization`. Genuine
+   `127.0.0.1`, `localhost`, and `[::1]` addresses are accepted; remote IPv4 and DNS hosts fail
+   with stable `invalid_configuration` without credential or handler use.
+3. **Copilot identity failure typing — DONE.** All `/user` HTTP statuses now route through the
+   existing billing-request classifier. Authentication, permission, unsupported, rate-limit, and
+   provider-server outcomes retain their established outcome/error/stale semantics. The generic
+   identity-unavailable message remains only for successful responses with no usable login.
+4. **Kimi remaining evidence — DONE.** The undocumented `remaining` wire property is no longer
+   mapped. Provider-supplied `used`, `limit`, and `reset_at` are mapped where present; `QuotaWindow`
+   derives `UsedPercentage` and `RemainingPercentage` exactly once.
+5. **Kimi subscription mapping — DONE.** First-party Kimi server documentation lists
+   `userLevelName` but does not define it as the active membership subscription tier. The adapter
+   therefore returns `Subscription = null` while preserving documented account fields.
+6. **Kimi Extra Usage — DONE.** Monetary extra usage includes a provider currency code, but the
+   current `QuotaWindow` public contract cannot preserve currency identity. APO-31 does not emit a
+   misleading generic currency quota; the limitation is documented.
+
+**Provider matrix after remediation:**
+
+- Codex: official CLI detection only; consumer quota remains unsupported/manual.
+- Claude: official CLI detection only for consumer subscription; Anthropic Admin API remains a
+  separate organization token-usage channel with complete multi-page pagination.
+- Kimi: experimental documented local API only with explicit opaque credential reference and
+  loopback-only HTTP(S) destination; used/limit/reset quota and account fields; no inferred plan or
+  currency window.
+- GitHub Copilot: official personal-user and organization billing usage endpoints, usage-only
+  partial results, with typed `/user` subject failures.
+- Antigravity: official `agy` detection only; interactive usage remains unsupported/manual.
+
+**Runtime configuration boundary:** The adapters and secure credential-reference seam exist, but the
+current WPF foundation shell only registers default options through `services.AddProviders()`. It
+does not yet expose Copilot, Anthropic, or Kimi connection/settings controls. Tests configure
+options directly. No environment-variable or plaintext `appsettings` secret storage was added.
+
+**Validation evidence:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider tests | SUCCESS; 40/40 passing (20 existing plus 20 remediation regressions) |
+| Full solution tests | SUCCESS; 118/118 passing (28 Domain, 40 provider, 50 Infrastructure) |
+| `win-x64` self-contained publish | SUCCESS; existing single-file profile |
+| x86/ARM64 publish | Not rerun; no project/package/publish configuration changed |
+| `git diff --check` | SUCCESS; only benign LF/CRLF normalization warnings from Git |
+| Secret-pattern and secret-content review | SUCCESS; no provider secret literals in source/docs; test secrets remain sanitized test-only data; unsafe Kimi tests proved zero credential/HTTP use |
+
+**Remediation implementation commit:** to be recorded after the bounded remediation commit.
+
+**Next authority:** GPT-5.6 Sol must verify this remediation delta and decide the scheduled
+periodic/critical independent review checkpoint. PR #3 remains draft/unmerged; do not merge, invoke
+Opus directly, create or execute another Story, or broaden provider scope from this checkpoint.

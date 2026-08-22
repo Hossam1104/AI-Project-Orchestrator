@@ -10,6 +10,7 @@ internal static class ProviderErrorCodes
     public const string Network = "network_error";
     public const string MalformedResponse = "malformed_response";
     public const string ProviderServerError = "provider_server_error";
+    public const string InvalidConfiguration = "invalid_configuration";
     public const string Cancelled = "cancelled";
     public const string ProviderError = "provider_error";
 }

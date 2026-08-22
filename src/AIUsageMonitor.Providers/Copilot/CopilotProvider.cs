@@ -102,9 +102,9 @@ public sealed class CopilotProvider : ProviderAdapterBase
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
         var subjectResolution = await ResolveSubjectAsync(client, cancellationToken).ConfigureAwait(false);
-        if (subjectResolution.StatusCode == HttpStatusCode.Unauthorized)
+        if (subjectResolution.StatusCode is { } subjectStatusCode)
         {
-            return AuthenticationRequired();
+            return MapHttpFailure(subjectStatusCode);
         }
 
         var subject = subjectResolution.Subject;

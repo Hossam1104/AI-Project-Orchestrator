@@ -146,6 +146,90 @@ public sealed class OfficialProviderAdapterTests
         Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, null, ProviderRefreshOutcome.AuthenticationRequired)]
+    [InlineData(HttpStatusCode.Forbidden, null, ProviderRefreshOutcome.Partial)]
+    [InlineData(HttpStatusCode.NotFound, null, ProviderRefreshOutcome.Unsupported)]
+    [InlineData(HttpStatusCode.TooManyRequests, "rate_limited", ProviderRefreshOutcome.ProviderError)]
+    [InlineData(HttpStatusCode.InternalServerError, "provider_server_error", ProviderRefreshOutcome.ProviderError)]
+    public async Task Copilot_SubjectLookupPreservesTypedHttpFailure(
+        HttpStatusCode statusCode,
+        string? expectedErrorCode,
+        ProviderRefreshOutcome expectedOutcome)
+    {
+        var credentials = new TestCredentialStore();
+        credentials.Add("github-copilot", TestSecret);
+        var handler = DelegateHttpMessageHandler.Json("{}", statusCode);
+        var provider = new CopilotProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new CopilotOptions { CredentialReference = "github-copilot" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(expectedOutcome, result.Outcome);
+        Assert.Equal(expectedErrorCode, result.ErrorCode);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Copilot_SuccessfulSubjectResponseWithoutLoginRemainsTruthfulPartial()
+    {
+        var credentials = new TestCredentialStore();
+        credentials.Add("github-copilot", TestSecret);
+        var provider = new CopilotProvider(
+            new TestClock(),
+            new TestHttpClientFactory(DelegateHttpMessageHandler.Json("{\"id\":123}")),
+            credentials,
+            new CopilotOptions { CredentialReference = "github-copilot" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.Partial, result.Outcome);
+        Assert.Contains("identity was unavailable", result.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Copilot_SubjectRateLimitAfterSuccessRetainsLastKnownUsageAsStale()
+    {
+        var requestNumber = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            requestNumber++;
+            if (requestNumber == 1)
+            {
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse("{\"login\":\"octocat\"}"));
+            }
+
+            if (requestNumber == 2)
+            {
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                    "{\"usageItems\":[{\"sku\":\"credits\",\"unitType\":\"credits\",\"grossQuantity\":10}]}"));
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("github-copilot", TestSecret);
+        var provider = new CopilotProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new CopilotOptions { CredentialReference = "github-copilot" });
+
+        var first = await provider.RefreshAsync();
+        var second = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.Partial, first.Outcome);
+        Assert.Equal(ProviderRefreshOutcome.Stale, second.Outcome);
+        Assert.Equal("rate_limited", second.ErrorCode);
+        Assert.Equal(10, Assert.Single(second.QuotaWindows).UsedValue);
+        Assert.DoesNotContain(TestSecret, second.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Copilot_CancellationIsPropagated()
     {
@@ -218,6 +302,248 @@ public sealed class OfficialProviderAdapterTests
     }
 
     [Fact]
+    public async Task Claude_AdminApiUsageAggregatesAllPagesAndEscapesReturnedCursor()
+    {
+        var requestCount = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                Assert.Contains("starting_at=", request.RequestUri!.Query, StringComparison.Ordinal);
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                    """
+                    {
+                      "data": [{ "results": [{ "output_tokens": 100 }] }],
+                      "has_more": true,
+                      "next_page": "cursor/a?b c"
+                    }
+                    """));
+            }
+
+            Assert.Contains("page=cursor%2Fa%3Fb%20c", request.RequestUri!.Query, StringComparison.Ordinal);
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                """
+                {
+                  "data": [{ "results": [{ "output_tokens": 200 }] }],
+                  "has_more": false
+                }
+                """));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.Partial, result.Outcome);
+        Assert.Equal(2, requestCount);
+        Assert.Equal(300, Assert.Single(result.QuotaWindows).UsedValue);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Claude_HasMoreWithoutCursorIsMalformedAndDoesNotPublishFirstPage()
+    {
+        var handler = DelegateHttpMessageHandler.Json(
+            """
+            {
+              "data": [{ "results": [{ "output_tokens": 100 }] }],
+              "has_more": true,
+              "next_page": " "
+            }
+            """);
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal("malformed_response", result.ErrorCode);
+        Assert.Empty(result.QuotaWindows);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Claude_RepeatedCursorIsMalformedWithoutRequestingDuplicatePage()
+    {
+        var requestCount = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            requestCount++;
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                requestCount == 1
+                    ? """
+                      {
+                        "data": [{ "results": [{ "output_tokens": 100 }] }],
+                        "has_more": true,
+                        "next_page": "same-cursor"
+                      }
+                      """
+                    : """
+                      {
+                        "data": [{ "results": [{ "output_tokens": 200 }] }],
+                        "has_more": true,
+                        "next_page": "same-cursor"
+                      }
+                      """));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal("malformed_response", result.ErrorCode);
+        Assert.Equal(2, requestCount);
+        Assert.Empty(result.QuotaWindows);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests, "rate_limited")]
+    [InlineData(HttpStatusCode.InternalServerError, "provider_server_error")]
+    public async Task Claude_LaterPageFailureDoesNotPublishIncompleteUsage(
+        HttpStatusCode laterStatus,
+        string expectedErrorCode)
+    {
+        var requestCount = 0;
+        var handler = new DelegateHttpMessageHandler((_, _) =>
+        {
+            requestCount++;
+            return Task.FromResult(requestCount == 1
+                ? DelegateHttpMessageHandler.JsonResponse(
+                    """
+                    {
+                      "data": [{ "results": [{ "output_tokens": 100 }] }],
+                      "has_more": true,
+                      "next_page": "page-2"
+                    }
+                    """
+                  )
+                : new HttpResponseMessage(laterStatus));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal(expectedErrorCode, result.ErrorCode);
+        Assert.Empty(result.QuotaWindows);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Claude_CancellationDuringPaginationIsPropagated()
+    {
+        var secondPageRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new DelegateHttpMessageHandler(async (request, cancellationToken) =>
+        {
+            if (!request.RequestUri!.Query.Contains("page=", StringComparison.Ordinal))
+            {
+                return DelegateHttpMessageHandler.JsonResponse(
+                    """
+                    {
+                      "data": [{ "results": [{ "output_tokens": 100 }] }],
+                      "has_more": true,
+                      "next_page": "page-2"
+                    }
+                    """);
+            }
+
+            secondPageRequested.TrySetResult(true);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+        using var cancellation = new CancellationTokenSource();
+        var refresh = provider.RefreshAsync(cancellation.Token);
+
+        await secondPageRequested.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => refresh);
+    }
+
+    [Fact]
+    public async Task Claude_PreviousCompleteSnapshotIsStaleWhenLaterRefreshPageFails()
+    {
+        var requestCount = 0;
+        var handler = new DelegateHttpMessageHandler((_, _) =>
+        {
+            requestCount++;
+            return requestCount switch
+            {
+                1 or 3 => Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                    """
+                    {
+                      "data": [{ "results": [{ "output_tokens": 100 }] }],
+                      "has_more": true,
+                      "next_page": "page-2"
+                    }
+                    """)),
+                2 => Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                    """
+                    {
+                      "data": [{ "results": [{ "output_tokens": 200 }] }],
+                      "has_more": false
+                    }
+                    """)),
+                _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))
+            };
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var first = await provider.RefreshAsync();
+        var second = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.Partial, first.Outcome);
+        Assert.Equal(300, Assert.Single(first.QuotaWindows).UsedValue);
+        Assert.Equal(ProviderRefreshOutcome.Stale, second.Outcome);
+        Assert.Equal("provider_server_error", second.ErrorCode);
+        Assert.Equal(300, Assert.Single(second.QuotaWindows).UsedValue);
+        Assert.DoesNotContain(TestSecret, second.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Claude_OfficialCliDetectionLeavesSubscriptionCapacityUnsupported()
     {
         var provider = new ClaudeProvider(
@@ -237,7 +563,7 @@ public sealed class OfficialProviderAdapterTests
     }
 
     [Fact]
-    public async Task Kimi_DocumentedLocalUsageApiMapsLimitsResetAndPlan()
+    public async Task Kimi_DocumentedLocalUsageApiMapsLimitsResetAndAccountWithoutUnprovenSubscription()
     {
         var handler = new DelegateHttpMessageHandler((request, _) =>
         {
@@ -260,7 +586,8 @@ public sealed class OfficialProviderAdapterTests
                         "extra_usage": {
                           "monthly_charge_limit_enabled": true,
                           "monthly_charge_limit_cents": 1000,
-                          "monthly_used_cents": 250
+                          "monthly_used_cents": 250,
+                          "currency": "USD"
                         }
                       }
                     }
@@ -276,7 +603,7 @@ public sealed class OfficialProviderAdapterTests
                     "userInfo": {
                       "userId": "kimi-user",
                       "nickname": "Kimi User",
-                      "userLevelName": "Allegretto"
+                       "userLevelName": "Allegretto"
                     }
                   }
                 }
@@ -294,7 +621,7 @@ public sealed class OfficialProviderAdapterTests
         var result = await provider.RefreshAsync();
 
         Assert.Equal(ProviderRefreshOutcome.Success, result.Outcome);
-        Assert.Equal("Allegretto", result.Subscription!.PlanName);
+        Assert.Null(result.Subscription);
         Assert.Equal("Kimi User", result.Account!.DisplayName);
         var weekly = Assert.Single(result.QuotaWindows, window => window.Type == QuotaType.Weekly);
         Assert.Equal(20, weekly.UsedValue);
@@ -302,7 +629,65 @@ public sealed class OfficialProviderAdapterTests
         Assert.Equal(80, weekly.RemainingPercentage);
         Assert.Equal(100, weekly.LimitValue);
         Assert.Equal(new DateTimeOffset(2026, 8, 29, 12, 0, 0, TimeSpan.Zero), weekly.ResetAt);
+        Assert.DoesNotContain(result.QuotaWindows, window => window.Type == QuotaType.ExtraUsage);
         Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("http://127.0.0.1:58627/")]
+    [InlineData("http://localhost:58627/")]
+    [InlineData("http://[::1]:58627/")]
+    public async Task Kimi_LoopbackServerAddressesAreAcceptedBeforeCredentialLookup(string serverAddress)
+    {
+        var credentials = new TestCredentialStore();
+        var handler = DelegateHttpMessageHandler.Json("{}");
+        var provider = new KimiProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new KimiOptions
+            {
+                CredentialReference = "kimi-server",
+                ServerAddress = new Uri(serverAddress)
+            });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.AuthenticationRequired, result.Outcome);
+        Assert.Equal(1, credentials.RetrieveCount);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Theory]
+    [InlineData("http://192.168.1.10:58627/")]
+    [InlineData("http://example.com:58627/")]
+    [InlineData("https://example.com/")]
+    public async Task Kimi_RemoteServerAddressIsRejectedBeforeCredentialOrHttpUse(string serverAddress)
+    {
+        var credentials = new TestCredentialStore();
+        credentials.Add("kimi-server", TestSecret);
+        var handler = DelegateHttpMessageHandler.Json("{}");
+        var provider = new KimiProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new KimiOptions
+            {
+                CredentialReference = "kimi-server",
+                ServerAddress = new Uri(serverAddress)
+            });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal("invalid_configuration", result.ErrorCode);
+        Assert.Equal(0, credentials.RetrieveCount);
+        Assert.Equal(0, handler.RequestCount);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+        Assert.DoesNotContain(serverAddress, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+        Assert.Equal(ProviderConnectionStatus.Error, await provider.GetConnectionStatusAsync());
     }
 
     [Fact]
