@@ -9,22 +9,24 @@
 **APO-19:** COMPLETE / SOL ACCEPTED
 **APO-20:** COMPLETE — repository and physical local-root rename complete
 **APO-22:** COMPLETE — Sol-accepted PR #1 merged into main
-**APO-23:** IMPLEMENTATION COMPLETE — AWAITING GPT-5.6 SOL ACCEPTANCE
+**APO-23:** COMPLETE — PR #2 merged to `main` at `40f62f9`
+**APO-31:** IMPLEMENTATION COMPLETE — AWAITING GPT-5.6 SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-23 - Refactor Application Identity and Technical Naming for APO
-**Current Epic:** APO-2 - Windows Platform & Application Foundation
-**Status:** APO-23 branding implementation delivered on `feat/APO-23-branding` at `fe95991`; Draft PR #2 open; not merged to `main`
-**Next implementation:** GPT-5.6 Sol acceptance of APO-23; do not execute APO-24, APO-27, APO-31, APO-33, or any other Story automatically
-**Release state:** Reusable foundation and branded WPF shell validated; APO implementation and release qualification are not complete
+**Current Story:** APO-31 - Official Provider Capacity Adapters
+**Current Epic:** APO-4 - Provider Integrations & Usage Collection
+**Status:** APO-31 implementation delivered in `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol acceptance and remains unmerged
+**Next implementation:** GPT-5.6 Sol acceptance of APO-31; do not execute another Story automatically
+**Release state:** Officially supported provider surfaces are adapted with explicit unsupported/manual states; full product release qualification is not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
 > APO-22 adds the concrete secure-credential-store adapter and is now merged at main SHA
-> `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 establishes product identity and a
-> branded WPF foundation surface only. Technical identifiers, persistence identity, provider
-> adapters, and orchestration runtime remain outside this Story.
+> `40f62f98787df80368eeeca454b223edf8dbd5d9`. APO-23 establishes product identity and a
+> branded WPF foundation surface. APO-31 adds only the verified provider adapter surfaces
+> documented in `docs/APO-31_PROVIDER_EVIDENCE.md`; technical identifiers, persistence identity,
+> and orchestration runtime remain outside this Story.
 
 ---
 
@@ -469,7 +471,8 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
 | APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a`, `55e1b74`, `b1b97de` | `f6f04dc` (PR #1 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
-| APO-23 | `feat/APO-23-branding` | `4b7a060`, `fe95991` | Not merged; Draft PR #2 | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
+| APO-23 | `feat/APO-23-branding` | `4b7a060`, `fe95991` | `40f62f9` (PR #2 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
+| APO-31 | `feat/APO-31-provider-capacity-adapters` | `7a5bd9b` | Draft PR #3; intentionally unmerged | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
 
 ---
 
@@ -478,8 +481,51 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 APO-20 repository and physical local-root rename work is complete. APO-22 was accepted and merged
 through PR #1 at `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 implemented the approved
 branding assets, WPF resources, product identity, shell polish, README redesign, and validation
-evidence on `feat/APO-23-branding` at `fe95991`. The branch is pushed and Draft PR #2 is open
-against `main`; APO-23 remains intentionally unmerged.
+evidence and was accepted through PR #2 at `40f62f98787df80368eeeca454b223edf8dbd5d9`.
 
-The exact next authority is GPT-5.6 Sol acceptance of APO-23. Do not execute APO-24, APO-27,
-APO-31, APO-33, or any other Story automatically from this checkpoint.
+APO-31 implementation is complete in commit `7a5bd9b7ec84866bd7e4ded603337dbb59d57299` on
+`feat/APO-31-provider-capacity-adapters`. Draft PR #3 is open against `main`; its provider
+evidence matrix is `docs/APO-31_PROVIDER_EVIDENCE.md`. This Story must remain unmerged pending
+GPT-5.6 Sol acceptance. Do not execute another Story automatically from this checkpoint.
+
+## 11. APO-31 Provider Capacity Adapters (Current Delivery)
+
+**Starting main SHA:** `40f62f98787df80368eeeca454b223edf8dbd5d9` (APO-23 squash merge)
+
+**Branch:** `feat/APO-31-provider-capacity-adapters`
+
+**Implemented adapters and boundaries:**
+
+- GitHub Copilot personal-user and organization billing usage endpoints are adapted as usage-only
+  `Partial` results. No allowance, remaining capacity, reset, plan, or subscription is inferred.
+- Anthropic organization Messages Usage Reports are adapted as token usage-only `Partial` results.
+  Claude/Claude Code consumer subscription capacity remains detected/manual/unsupported.
+- Kimi Code's documented local server usage endpoint is adapted when a server address and opaque
+  credential reference are explicitly configured. Documented quota rows, reset times, membership
+  metadata, and extra usage are mapped without reading private auth files or launching the server.
+- Codex and Antigravity official CLIs are safely detected. Their interactive status/usage surfaces
+  are not scraped; refresh remains manual/unsupported.
+- All five `ProviderCode` values are registered in deterministic enum order and discovered with
+  provider isolation.
+
+**Official evidence:** `docs/APO-31_PROVIDER_EVIDENCE.md` records source URLs, authentication
+requirements, source semantics, implementation scope, and unsupported/manual boundaries.
+
+**Validation evidence:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider tests | SUCCESS; 20/20 passing |
+| Full solution tests | SUCCESS; 98/98 passing (28 Domain, 20 provider, 50 Infrastructure) |
+| Self-contained publish checks | SUCCESS; `win-x64`, `win-x86`, `win-arm64` |
+| Secret/diff checks | SUCCESS; no secret-pattern matches; `git diff --check` clean before final metadata commit |
+
+**Security and truthfulness:** Provider configuration stores only opaque credential references;
+secure-store material is never persisted or included in error text. HTTP response bodies are not
+logged or surfaced. Typed failure states and last-known-good retention are tested. Usage reports
+remain usage-only, and unsupported consumer subscription surfaces remain explicit.
+
+**Acceptance boundary:** The implementation is ready for GPT-5.6 Sol review. Do not merge APO-31,
+create or execute a follow-on Story, or broaden provider scope without Sol direction.
