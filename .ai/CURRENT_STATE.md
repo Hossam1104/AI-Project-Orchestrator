@@ -605,6 +605,9 @@ options directly. No environment-variable or plaintext `appsettings` secret stor
 
 **Remediation implementation commit:** `fc1bc6f` (`fix: address APO-31 provider truthfulness review`).
 
+**Final pagination fix commit:** `da9a953153797592a4feaca19edf446241333d37`
+(`fix: preserve Anthropic usage query across pages`).
+
 **Next authority:** GPT-5.6 Sol must verify this final pagination micro-fix and decide the scheduled
 periodic/critical independent review checkpoint. PR #3 remains draft/unmerged; do not merge, invoke
 Opus directly, create or execute another Story, or broaden provider scope from this checkpoint.
