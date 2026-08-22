@@ -33,7 +33,7 @@
 **Starting main SHA:** `f6f04dca89313c9964add3c403a151a7b8b6919e` (APO-22 squash merge)
 
 **Branch:** `feat/APO-23-branding`, rebased from the owner-approved asset commit lineage
-`74fc81eb3b11e7a6c1acf7641acbd83ffc952e23`.
+`74fc81eb3b11e7a6c1acf7641acbd83ffc952e23`; rebased asset commit `4b7a060`.
 
 **Approved assets and preservation:**
 
@@ -469,7 +469,7 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
 | APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a`, `55e1b74`, `b1b97de` | `f6f04dc` (PR #1 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
-| APO-23 | `feat/APO-23-branding` | `fe95991` | Not merged; Draft PR #2 | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
+| APO-23 | `feat/APO-23-branding` | `4b7a060`, `fe95991` | Not merged; Draft PR #2 | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
 
 ---
 
