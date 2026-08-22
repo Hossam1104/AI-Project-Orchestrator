@@ -15,7 +15,7 @@
 **Default Branch:** `main`
 **Current Story:** APO-23 - Refactor Application Identity and Technical Naming for APO
 **Current Epic:** APO-2 - Windows Platform & Application Foundation
-**Status:** APO-23 branding implementation delivered on `feat/APO-23-branding`; Draft PR pending final delivery metadata; not merged to `main`
+**Status:** APO-23 branding implementation delivered on `feat/APO-23-branding` at `fe95991`; Draft PR #2 open; not merged to `main`
 **Next implementation:** GPT-5.6 Sol acceptance of APO-23; do not execute APO-24, APO-27, APO-31, APO-33, or any other Story automatically
 **Release state:** Reusable foundation and branded WPF shell validated; APO implementation and release qualification are not complete
 
@@ -469,7 +469,7 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-19 | `docs/APO-19-legacy-implementation-map` | Pending | Pending | 21 Aug 2026 | COMPLETE |
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
 | APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a`, `55e1b74`, `b1b97de` | `f6f04dc` (PR #1 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
-| APO-23 | `feat/APO-23-branding` | Pending final delivery commit | Not merged; Draft PR pending | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
+| APO-23 | `feat/APO-23-branding` | `fe95991` | Not merged; Draft PR #2 | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
 
 ---
 
@@ -478,8 +478,8 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 APO-20 repository and physical local-root rename work is complete. APO-22 was accepted and merged
 through PR #1 at `f6f04dca89313c9964add3c403a151a7b8b6919e`. APO-23 implemented the approved
 branding assets, WPF resources, product identity, shell polish, README redesign, and validation
-evidence on `feat/APO-23-branding`. The final branch commit, push, and Draft PR metadata must be
-recorded here before the handoff is complete.
+evidence on `feat/APO-23-branding` at `fe95991`. The branch is pushed and Draft PR #2 is open
+against `main`; APO-23 remains intentionally unmerged.
 
 The exact next authority is GPT-5.6 Sol acceptance of APO-23. Do not execute APO-24, APO-27,
 APO-31, APO-33, or any other Story automatically from this checkpoint.
