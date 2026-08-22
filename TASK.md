@@ -1,62 +1,90 @@
-# APO-31 SOL / PERIODIC REVIEW CHECKPOINT
+# APO-31 SOL FINAL ACCEPTANCE CHECKPOINT
 
-**Status:** FINAL PAGINATION MICRO-FIX COMPLETE / AWAITING GPT-5.6 SOL VERIFICATION AND SCHEDULED PERIODIC/CRITICAL REVIEW
 **Story:** APO-31 - Official Provider Capacity Adapters
 **Branch:** `feat/APO-31-provider-capacity-adapters`
-**Implementation commit:** `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`; remediation commit `fc1bc6f`; final pagination fix commit `da9a953153797592a4feaca19edf446241333d37`
+**Original reviewed head:** `11ba9ddc085a886f27db5c9bb5632982042217ed`
+**Independent review verdict:** `CHANGES REQUIRED`
 **Draft PR:** [#3](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/3)
-**PR head:** Latest pushed branch tip; includes the implementation and final handoff checkpoint
 **Base:** `main` at `40f62f98787df80368eeeca454b223edf8dbd5d9`
-**Merge state:** Intentionally unmerged; awaits GPT-5.6 Sol acceptance
+**Remediation implementation commit:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
+**Final pushed remediation branch head:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
 
-## Delivered scope
+## Independent-review findings
 
-- GitHub Copilot personal-user and organization billing-usage adapters use the official GitHub
-  routes and return usage-only `Partial` results. No allowance, remaining capacity, reset, plan,
-  or subscription is fabricated. Enterprise scope is explicit unsupported.
-- Anthropic organization Messages Usage Reports use the official Admin API route and return
-  token-usage-only `Partial` results. Claude/Claude Code consumer subscription capacity remains
-  manual/unsupported.
-- Kimi Code uses the documented local server usage and user-info routes only for a validated
-  loopback HTTP(S) address and an opaque credential reference. Quota rows use provider-supplied
-  used/limit/reset fields; percentages are derived by `QuotaWindow`; `userLevelName` does not
-  create a subscription, and monetary extra usage is not normalized without currency identity.
-  APO does not launch the server or inspect private auth files.
-- Codex, Claude, and Antigravity official CLIs are safely detected. Interactive status/usage
-  panels are not scraped; their consumer capacity remains manual/unsupported.
-- All five V1 providers are registered exactly once, discovered deterministically, and isolated
-  from one another.
-- Typed authentication, permission, unsupported, rate-limit, timeout, network, malformed, server,
-  and provider failures are implemented. Last-known-good data is retained on later failure.
-- Provider configuration stores only opaque credential references. Secret material is retrieved
-  through the secure-store contract and is not written to files, diagnostics, source, or tests.
-- The current WPF foundation shell registers default provider options but does not yet expose
-  user-facing Copilot, Anthropic, or Kimi connection/settings controls; tests configure adapters
-  directly. This remains future configuration/UI scope.
+- **O-01 MAJOR - Anthropic Messages Usage query:** the previous `limit=1000` request
+  was not valid for every documented `bucket_width`. The adapter now omits `limit`, captures
+  `starting_at` once per refresh, and preserves it and every other non-pagination parameter on
+  every cursor page. Only the URL-encoded `page` cursor is added after page one.
+- **O-02 MAJOR - Anthropic Admin API redirect safety:** the named Anthropic HttpClient now uses
+  `HttpClientHandler.AllowAutoRedirect = false`. A 3xx response is an existing typed
+  `provider_error`; no `Location`, response body, or API key is exposed, and no redirect is
+  followed.
+- **O-03 MAJOR - strict numeric provider parsing:** Claude and GitHub Copilot now reject present
+  malformed, null, negative, non-finite, or non-numeric numeric values as `malformed_response`.
+  Copilot validates both `grossQuantity` and `netQuantity` before preserving the existing
+  gross-over-net selection. Malformed mixed refreshes never publish a partial smaller total and
+  retain the previous complete data as `Stale`.
+- **O-04 MINOR - evidence synchronization:** `docs/APO-31_PROVIDER_EVIDENCE.md` now records the
+  corrected Anthropic semantics, redirect boundary, and actual validation totals.
 
-## Evidence and validation
+## Final request and parsing behavior
 
-- Official surface matrix: `docs/APO-31_PROVIDER_EVIDENCE.md`.
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
-- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: SUCCESS; 118/118 passing (28 Domain, 40 provider,
-  50 Infrastructure), including the final Anthropic pagination query-preservation regression.
-- Self-contained publish profiles: SUCCESS for `win-x64`, `win-x86`, and `win-arm64`.
-- Secret-pattern scan: no matches.
-- `git diff --check`: SUCCESS for the final pagination micro-fix diff.
+### Anthropic Messages Usage
 
-## Explicit non-scope and acceptance boundary
+- First-party rule verified against the current Anthropic Messages Usage API reference:
+  `limit` is optional and its default/max values depend on `bucket_width` (`1d` 31, `1h` 168,
+  `1m` 1440 maximum buckets).
+- Final request shape contains the captured `starting_at`; it omits `limit` and uses `page` only
+  for later cursor requests.
+- Pagination regression proves `100 + 200 = 300`, exact `starting_at` preservation, cursor URL
+  encoding, clock mutation safety, malformed blank/repeated cursors, later-page failure,
+  cancellation, and stale retention.
 
-- No browser-cookie extraction, TUI scraping, guessed provider endpoint, OpenAI API-to-Codex quota
-  inference, Anthropic API-to-Claude-subscription inference, Moonshot Open Platform-to-Kimi Code
-  inference, database/ORM, orchestration runtime, routing engine, or new provider was added.
-- No live authenticated provider call or credential is required for CI; tests use sanitized local
-  HTTP handlers and secure-store doubles.
-- Do not merge this Draft PR, invoke an independent reviewer, execute a follow-on Story, or broaden
-  provider scope until GPT-5.6 Sol provides acceptance direction.
+### Redirect protection
 
-## Handoff
+- The named Anthropic Admin API client disables automatic redirects.
+- 3xx responses are not success and map to the stable `provider_error` path.
+- The loopback regression uses a disposable local redirect origin/destination and proves the
+  synthetic `x-api-key` is not sent to the destination or included in result/error output.
 
-The final Anthropic pagination micro-fix is ready for GPT-5.6 Sol verification and the scheduled
-periodic/critical independent review decision. This file remains an APO-31 checkpoint and does not
-authorize another Story.
+### Claude and Copilot malformed numbers
+
+- Claude present non-number token fields fail as `malformed_response`; no partial token total is
+  published. A later malformed refresh retains the previous complete usage as stale.
+- Copilot validates both official usage quantity fields, does not silently discard an item, and
+  does not fall back past a malformed present field. A later malformed mixed refresh retains the
+  previous complete usage as stale.
+
+## Validation evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider test project | SUCCESS; 45/45 passing |
+| Domain tests | SUCCESS; 28/28 passing |
+| Provider tests | SUCCESS; 45/45 passing |
+| Infrastructure tests | SUCCESS; 50/50 passing |
+| Full solution tests | SUCCESS; 123/123 passing |
+| `git diff --check` | SUCCESS; only benign Git LF/CRLF normalization notices |
+| Secret-pattern / known-secret review | SUCCESS; no real credentials or provider secret literals; only sanitized test fixture secret |
+| `win-x64` self-contained single-file publish | SUCCESS; `win-x64` profile |
+| `win-x86` and `win-arm64` publish | Not rerun; project/package/publish configuration unchanged and prior APO-31 evidence retained |
+| Live authenticated provider calls | Not run; prohibited by the test contract |
+
+## Evidence and scope
+
+- Corrected evidence: `docs/APO-31_PROVIDER_EVIDENCE.md`.
+- No Provider Settings UI, AI Capacity Dashboard, Project Registry, GitHub project orchestration,
+  Jira/Azure runtime, routing, autonomy, database/ORM, browser scraping, TUI scraping, cookie
+  extraction, private endpoint reverse engineering, or additional provider was implemented.
+- Accepted Codex, Claude consumer, Kimi, Copilot, and Antigravity boundaries remain unchanged.
+
+## PR and authority
+
+- PR #3 remains `OPEN`, `DRAFT`, and `UNMERGED`.
+- No merge, rebase, force push, main-branch modification, new branch, new PR, Jira write, or
+  second Opus review is authorized or performed.
+- Next authority: **GPT-5.6 Sol** for final delta acceptance against the exact final branch SHA.
+
+This checkpoint does not authorize Provider Settings, Capacity Dashboard, or any next Story.

@@ -1,6 +1,6 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 22 August 2026
+**Last Updated:** 23 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
@@ -16,8 +16,8 @@
 **Default Branch:** `main`
 **Current Story:** APO-31 - Official Provider Capacity Adapters
 **Current Epic:** APO-4 - Provider Integrations & Usage Collection
-**Status:** APO-31 implementation plus bounded Sol remediation delivered on `feat/APO-31-provider-capacity-adapters`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol verification and remains unmerged
-**Next implementation:** GPT-5.6 Sol verification and periodic/critical review decision; do not execute another Story automatically
+**Status:** APO-31 implementation plus final bounded independent-review remediation delivered on `feat/APO-31-provider-capacity-adapters`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
+**Next implementation:** GPT-5.6 Sol final delta acceptance; do not execute another Story automatically
 **Release state:** Officially supported provider surfaces are adapted with explicit unsupported/manual states; full product release qualification is not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -611,3 +611,50 @@ options directly. No environment-variable or plaintext `appsettings` secret stor
 **Next authority:** GPT-5.6 Sol must verify this final pagination micro-fix and decide the scheduled
 periodic/critical independent review checkpoint. PR #3 remains draft/unmerged; do not merge, invoke
 Opus directly, create or execute another Story, or broaden provider scope from this checkpoint.
+
+## 11.2 APO-31 Independent-Review Remediation Final Bounded Pass
+
+**Scheduled independent review:** Completed against the immutable feature head
+`11ba9ddc085a886f27db5c9bb5632982042217ed`; verdict was `CHANGES REQUIRED`. No second Opus review
+was invoked for this remediation pass.
+
+**Findings addressed:**
+
+- **O-01:** Anthropic Messages Usage `limit=1000` was removed after re-verifying the current
+  first-party API reference. The request now omits the bucket-width-dependent optional `limit`,
+  captures `starting_at` once per refresh, and preserves all non-pagination query parameters while
+  URL-encoding cursor `page` values.
+- **O-02:** The named Anthropic Admin API HttpClient now uses `AllowAutoRedirect = false`. 3xx
+  responses are typed `provider_error` failures and are not followed; no redirect destination
+  receives the `x-api-key`, and no response body, Location, or key is copied to public errors.
+- **O-03:** Claude and Copilot strict numeric parsing rejects present malformed, null, negative,
+  non-finite, and non-numeric values as `malformed_response`. Copilot validates both gross and net
+  quantities before retaining its existing gross-over-net selection. Mixed malformed refreshes do
+  not publish a smaller total; last-known-good data is retained stale.
+- **O-04:** `docs/APO-31_PROVIDER_EVIDENCE.md` was corrected with the current Anthropic source,
+  request/redirect semantics, and actual totals.
+
+**Remediation commit:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
+(`fix: remediate APO-31 independent review findings`).
+
+**Final validation:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused provider tests | SUCCESS; 45/45 passing |
+| Full solution tests | SUCCESS; 123/123 passing (28 Domain, 45 Provider, 50 Infrastructure) |
+| `git diff --check` | SUCCESS; only benign Git LF/CRLF normalization notices |
+| Secret-pattern / known-secret review | SUCCESS; no real credentials or provider secret literals; sanitized test fixture only |
+| `win-x64` self-contained single-file publish | SUCCESS |
+| `win-x86` / `win-arm64` publish | Not rerun; no project/package/publish configuration changed; previous evidence retained |
+
+**Final branch state:** The remediation is on `feat/APO-31-provider-capacity-adapters` with Draft
+PR #3 still `OPEN`, `DRAFT`, and `UNMERGED`. `main` remains at
+`40f62f98787df80368eeeca454b223edf8dbd5d9`. The final pushed remediation commit is
+`40b26ee1d8a9a6a0c4052f45d96185564d99c20d`; the handoff metadata commit follows this state.
+
+**Next planner boundary:** GPT-5.6 Sol final delta acceptance against the exact final branch SHA.
+Do not merge, modify `main`, invoke another reviewer, start another Story, or authorize Provider
+Settings or the Capacity Dashboard from this checkpoint.
