@@ -568,6 +568,11 @@ without Sol direction.
    current `QuotaWindow` public contract cannot preserve currency identity. APO-31 does not emit a
    misleading generic currency quota; the limitation is documented.
 
+7. **Anthropic pagination query preservation - DONE.** Sol discovered one final query-preservation
+   issue after the first remediation: subsequent pages dropped `starting_at`. The effective
+   `starting_at` is now captured once and preserved across all Anthropic pages, with regression
+   coverage verifying the page 1/page 2 query invariant and clock stability.
+
 **Provider matrix after remediation:**
 
 - Codex: official CLI detection only; consumer quota remains unsupported/manual.
@@ -592,7 +597,7 @@ options directly. No environment-variable or plaintext `appsettings` secret stor
 | `dotnet restore AIUsageMonitor.sln` | SUCCESS |
 | `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
 | Focused provider tests | SUCCESS; 40/40 passing (20 existing plus 20 remediation regressions) |
-| Full solution tests | SUCCESS; 118/118 passing (28 Domain, 40 provider, 50 Infrastructure) |
+| Full solution tests | SUCCESS; 118/118 passing (28 Domain, 40 provider, 50 Infrastructure); final pagination query regression included |
 | `win-x64` self-contained publish | SUCCESS; existing single-file profile |
 | x86/ARM64 publish | Not rerun; no project/package/publish configuration changed |
 | `git diff --check` | SUCCESS; only benign LF/CRLF normalization warnings from Git |
@@ -600,6 +605,6 @@ options directly. No environment-variable or plaintext `appsettings` secret stor
 
 **Remediation implementation commit:** `fc1bc6f` (`fix: address APO-31 provider truthfulness review`).
 
-**Next authority:** GPT-5.6 Sol must verify this remediation delta and decide the scheduled
+**Next authority:** GPT-5.6 Sol must verify this final pagination micro-fix and decide the scheduled
 periodic/critical independent review checkpoint. PR #3 remains draft/unmerged; do not merge, invoke
 Opus directly, create or execute another Story, or broaden provider scope from this checkpoint.

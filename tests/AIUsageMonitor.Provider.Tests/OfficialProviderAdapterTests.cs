@@ -302,15 +302,19 @@ public sealed class OfficialProviderAdapterTests
     }
 
     [Fact]
-    public async Task Claude_AdminApiUsageAggregatesAllPagesAndEscapesReturnedCursor()
+    public async Task Claude_AdminApiUsageAggregatesAllPagesAndPreservesQueryAcrossPages()
     {
         var requestCount = 0;
+        var requestUris = new List<Uri>();
+        var clock = new TestClock();
+        var initialClockTime = clock.UtcNow;
         var handler = new DelegateHttpMessageHandler((request, _) =>
         {
             requestCount++;
+            requestUris.Add(request.RequestUri!);
             if (requestCount == 1)
             {
-                Assert.Contains("starting_at=", request.RequestUri!.Query, StringComparison.Ordinal);
+                clock.UtcNow = initialClockTime.AddHours(1);
                 return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
                     """
                     {
@@ -318,10 +322,9 @@ public sealed class OfficialProviderAdapterTests
                       "has_more": true,
                       "next_page": "cursor/a?b c"
                     }
-                    """));
+                """));
             }
 
-            Assert.Contains("page=cursor%2Fa%3Fb%20c", request.RequestUri!.Query, StringComparison.Ordinal);
             return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
                 """
                 {
@@ -333,7 +336,7 @@ public sealed class OfficialProviderAdapterTests
         var credentials = new TestCredentialStore();
         credentials.Add("anthropic-admin", TestSecret);
         var provider = new ClaudeProvider(
-            new TestClock(),
+            clock,
             new TestHttpClientFactory(handler),
             credentials,
             new TestExecutableLocator(),
@@ -343,6 +346,21 @@ public sealed class OfficialProviderAdapterTests
 
         Assert.Equal(ProviderRefreshOutcome.Partial, result.Outcome);
         Assert.Equal(2, requestCount);
+        var firstQuery = requestUris[0];
+        var secondQuery = requestUris[1];
+        var firstStartingAt = GetQueryParameter(firstQuery, "starting_at");
+        var secondStartingAt = GetQueryParameter(secondQuery, "starting_at");
+
+        Assert.Equal(
+            initialClockTime.AddDays(-1).ToUniversalTime().ToString("O"),
+            firstStartingAt);
+        Assert.NotNull(firstStartingAt);
+        Assert.Equal(firstStartingAt, secondStartingAt);
+        Assert.Equal("1000", GetQueryParameter(firstQuery, "limit"));
+        Assert.Equal("1000", GetQueryParameter(secondQuery, "limit"));
+        Assert.Null(GetQueryParameter(firstQuery, "page"));
+        Assert.Equal("cursor/a?b c", GetQueryParameter(secondQuery, "page"));
+        Assert.Contains("page=cursor%2Fa%3Fb%20c", secondQuery.Query, StringComparison.Ordinal);
         Assert.Equal(300, Assert.Single(result.QuotaWindows).UsedValue);
         Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
     }
@@ -740,5 +758,24 @@ public sealed class OfficialProviderAdapterTests
         Assert.True((await antigravity.DetectAsync()).IsDetected);
         Assert.Equal(ProviderConnectionStatus.LocalDetected, await antigravity.GetConnectionStatusAsync());
         Assert.Equal(ProviderRefreshOutcome.Unsupported, (await antigravity.RefreshAsync()).Outcome);
+    }
+
+    private static string? GetQueryParameter(Uri uri, string name)
+    {
+        foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = pair.IndexOf('=');
+            var encodedName = separator >= 0 ? pair[..separator] : pair;
+            if (!string.Equals(Uri.UnescapeDataString(encodedName), name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            return separator >= 0
+                ? Uri.UnescapeDataString(pair[(separator + 1)..])
+                : string.Empty;
+        }
+
+        return null;
     }
 }

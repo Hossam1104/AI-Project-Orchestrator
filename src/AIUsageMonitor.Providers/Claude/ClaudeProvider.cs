@@ -96,13 +96,14 @@ public sealed class ClaudeProvider : ProviderAdapterBase
         var tokenCount = 0d;
         var nextPage = (string?)null;
         var seenCursors = new HashSet<string>(StringComparer.Ordinal);
+        var startingAt = (_options.StartingAt ?? _clock.UtcNow.AddDays(-1)).ToUniversalTime();
         var client = _httpClientFactory.CreateClient(HttpClientName);
 
         while (true)
         {
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                nextPage is null ? BuildUsagePath() : BuildUsagePath(nextPage));
+                BuildUsagePath(startingAt, nextPage));
             request.Headers.Add("x-api-key", adminKey);
             request.Headers.Add("anthropic-version", "2023-06-01");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -160,7 +161,7 @@ public sealed class ClaudeProvider : ProviderAdapterBase
             limitValue: null,
             usedPercentage: null,
             remainingPercentage: null,
-            windowStart: _options.StartingAt ?? UtcNow.AddDays(-1),
+            windowStart: startingAt,
             resetAt: null,
             DataSource.OfficialApi,
             ConfidenceLevel.Official,
@@ -170,15 +171,14 @@ public sealed class ClaudeProvider : ProviderAdapterBase
             "Anthropic organization API usage was retrieved; Claude Pro/Max subscription allowance is a separate unavailable channel.");
     }
 
-    private string BuildUsagePath()
+    // All pages must preserve the same non-pagination query parameters. If future filters are
+    // added, keep them in this shared base query for both the initial and cursor requests.
+    private static string BuildUsagePath(DateTimeOffset startingAt, string? page)
     {
-        var startingAt = (_options.StartingAt ?? _clock.UtcNow.AddDays(-1)).ToUniversalTime().ToString("O");
-        return $"v1/organizations/usage_report/messages?starting_at={Uri.EscapeDataString(startingAt)}&limit=1000";
-    }
-
-    private string BuildUsagePath(string page)
-    {
-        return $"v1/organizations/usage_report/messages?page={Uri.EscapeDataString(page)}&limit=1000";
+        var path = $"v1/organizations/usage_report/messages?starting_at={Uri.EscapeDataString(startingAt.ToString("O"))}&limit=1000";
+        return page is null
+            ? path
+            : $"{path}&page={Uri.EscapeDataString(page)}";
     }
 
     private ProviderRefreshResult MapHttpFailure(HttpStatusCode statusCode) => statusCode switch

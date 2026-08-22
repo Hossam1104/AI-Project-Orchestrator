@@ -1,6 +1,6 @@
 # APO-31 SOL / PERIODIC REVIEW CHECKPOINT
 
-**Status:** REMEDIATION COMPLETE / AWAITING GPT-5.6 SOL VERIFICATION
+**Status:** FINAL PAGINATION MICRO-FIX COMPLETE / AWAITING GPT-5.6 SOL VERIFICATION AND SCHEDULED PERIODIC/CRITICAL REVIEW
 **Story:** APO-31 - Official Provider Capacity Adapters
 **Branch:** `feat/APO-31-provider-capacity-adapters`
 **Implementation commit:** `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`; remediation commit `fc1bc6f`
@@ -39,11 +39,11 @@
 - Official surface matrix: `docs/APO-31_PROVIDER_EVIDENCE.md`.
 - `dotnet restore AIUsageMonitor.sln`: SUCCESS.
 - `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: SUCCESS; 98/98 passing (28 Domain, 20 provider,
-  50 Infrastructure).
+- `dotnet test AIUsageMonitor.sln --no-restore`: SUCCESS; 118/118 passing (28 Domain, 40 provider,
+  50 Infrastructure), including the final Anthropic pagination query-preservation regression.
 - Self-contained publish profiles: SUCCESS for `win-x64`, `win-x86`, and `win-arm64`.
 - Secret-pattern scan: no matches.
-- `git diff --check`: clean before this metadata checkpoint; rerun after commit.
+- `git diff --check`: SUCCESS for the final pagination micro-fix diff.
 
 ## Explicit non-scope and acceptance boundary
 
@@ -57,5 +57,6 @@
 
 ## Handoff
 
-The bounded remediation is ready for GPT-5.6 Sol verification and the scheduled periodic/critical
-independent review decision. This file is a checkpoint and does not authorize another Story.
+The final Anthropic pagination micro-fix is ready for GPT-5.6 Sol verification and the scheduled
+periodic/critical independent review decision. This file remains an APO-31 checkpoint and does not
+authorize another Story.

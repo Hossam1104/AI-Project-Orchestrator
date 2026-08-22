@@ -8,7 +8,7 @@ namespace AIUsageMonitor.Provider.Tests;
 
 internal sealed class TestClock : IClock
 {
-    public DateTimeOffset UtcNow { get; init; } = new(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
+    public DateTimeOffset UtcNow { get; set; } = new(2026, 8, 22, 12, 0, 0, TimeSpan.Zero);
 }
 
 internal sealed class TestCredentialStore : ISecureCredentialStore
