@@ -2,29 +2,235 @@
     x:Class="AIUsageMonitor.Desktop.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="AI Usage Monitor"
-    Width="720"
-    Height="420"
-    MinWidth="480"
-    MinHeight="280"
+    Title="AI Project Orchestrator"
+    Icon="/Assets/apo-icon.ico"
+    Width="1180"
+    Height="760"
+    MinWidth="860"
+    MinHeight="580"
+    Background="{StaticResource BrandDeepNavyBrush}"
+    Foreground="{StaticResource BrandTextBrush}"
+    UseLayoutRounding="True"
+    SnapsToDevicePixels="True"
     WindowStartupLocation="CenterScreen">
 
-    <Grid Background="#FF10131A">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock
-                Text="AI Usage Monitor"
-                Foreground="#FFF4F7FB"
-                FontSize="30"
-                FontWeight="SemiBold"
-                HorizontalAlignment="Center" />
-            <TextBlock
-                x:Name="StatusText"
-                Margin="0,12,0,0"
-                Text="No providers connected yet. Your local workspace is ready."
-                Foreground="#FFB5C0D0"
-                FontSize="15"
-                HorizontalAlignment="Center" />
-        </StackPanel>
+    <Grid Opacity="0">
+        <Grid.Triggers>
+            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                <BeginStoryboard>
+                    <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.24" />
+                    </Storyboard>
+                </BeginStoryboard>
+            </EventTrigger>
+        </Grid.Triggers>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Padding="24,18"
+            Background="{StaticResource BrandNavyBlueBrush}"
+            BorderBrush="{StaticResource BrandBorderBrush}"
+            BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal">
+                    <Border
+                        Width="44"
+                        Height="44"
+                        Padding="7"
+                        Background="{StaticResource BrandSurfaceRaisedBrush}"
+                        BorderBrush="{StaticResource BrandBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12">
+                        <Image Source="/Assets/apo-icon.ico" Stretch="Uniform" />
+                    </Border>
+                    <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="AI PROJECT ORCHESTRATOR" Style="{StaticResource EyebrowTextStyle}" />
+                        <TextBlock Text="Intelligent project &amp; AI execution control" Margin="0,3,0,0" Style="{StaticResource CaptionTextStyle}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Grid.Column="1" Style="{StaticResource StatusChipStyle}" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="7" Height="7" Fill="{StaticResource BrandTealBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="FOUNDATION SHELL" Margin="8,0,0,0" Style="{StaticResource CaptionTextStyle}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="244" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Padding="18,22" Background="{StaticResource BrandDeepNavyBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="WORKSPACE" Style="{StaticResource EyebrowTextStyle}" />
+                        <TextBlock Text="Command surfaces" Margin="0,5,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="0,24,0,0">
+                        <Button AutomationProperties.Name="Overview" Style="{StaticResource NavigationItemStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="◈" FontSize="17" Foreground="{StaticResource BrandCyanBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Overview" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                        <Button AutomationProperties.Name="Projects (planned)" IsEnabled="False" Style="{StaticResource NavigationItemStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="□" FontSize="17" Foreground="{StaticResource BrandVioletBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Projects" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="SOON" Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                        <Button AutomationProperties.Name="AI capacity (planned)" IsEnabled="False" Style="{StaticResource NavigationItemStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="▥" FontSize="17" Foreground="{StaticResource BrandCyanBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="AI capacity" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="SOON" Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                        <Button AutomationProperties.Name="Agents (planned)" IsEnabled="False" Style="{StaticResource NavigationItemStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="◇" FontSize="17" Foreground="{StaticResource BrandPurpleBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Agents" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="SOON" Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                        <Button AutomationProperties.Name="Activity (planned)" IsEnabled="False" Style="{StaticResource NavigationItemStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="≡" FontSize="19" Foreground="{StaticResource BrandTealBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="Activity" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="SOON" Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center" />
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Padding="12" Background="{StaticResource BrandNavyBlueBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="1" CornerRadius="10">
+                        <StackPanel>
+                            <TextBlock Text="SCOPE NOTE" Style="{StaticResource EyebrowTextStyle}" />
+                            <TextBlock Text="Future surfaces stay visibly quiet until their capability is real." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" Padding="28" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}" Padding="26">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="220" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="APO / FOUNDATION" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="A clear starting point for orchestrated work." Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource DisplayTitleStyle}" />
+                                <TextBlock x:Name="StatusText" Margin="0,16,20,0" Text="The branded shell is ready. Connectors and orchestration surfaces will arrive through their approved capability stories." TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                <Border Margin="0,20,0,0" HorizontalAlignment="Left" Style="{StaticResource StatusChipStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="PersistenceIndicator" Width="8" Height="8" Fill="{StaticResource BrandSuccessBrush}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="PersistenceCardStateText" Text="Ready" Margin="8,0,0,0" Foreground="{StaticResource BrandTextBrush}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                            <Border Grid.Column="1" Width="220" Height="220" Margin="20,0,0,0" Padding="8" HorizontalAlignment="Right" Background="{StaticResource BrandSoftGlowBrush}" CornerRadius="18">
+                                <Image Source="/Assets/Logo.png" Stretch="Uniform" />
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="LOCAL-FIRST" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Persistence" Margin="0,9,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock x:Name="PersistenceCardDetailText" Text="LocalAppData is available for the foundation." Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="TRUTHFUL STATE" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Provider connections" Margin="0,9,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="Not connected yet. No provider data is fabricated in this shell." Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Style="{StaticResource CardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="QUALITY GATE" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Execution runtime" Margin="0,9,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="Planned. Review, validation, and approval remain explicit product boundaries." Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Margin="0,18,0,0" Style="{StaticResource CardStyle}" Background="{StaticResource BrandNavyBlueBrush}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="4" Background="{StaticResource BrandAccentGradientBrush}" CornerRadius="2" />
+                            <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                                <TextBlock Text="PRODUCT PROMISE" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Quality before quota. Evidence before confidence." Margin="0,8,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="APO is being built as a local-first Windows engineering tool: readable at a glance, explicit about uncertainty, and careful about every handoff." Margin="0,9,0,0" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
     </Grid>
 
 </Window>

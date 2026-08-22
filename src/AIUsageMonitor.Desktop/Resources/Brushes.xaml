@@ -1,0 +1,33 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <SolidColorBrush x:Key="BrandDeepNavyBrush" Color="{StaticResource BrandDeepNavyColor}" />
+    <SolidColorBrush x:Key="BrandNavyBlueBrush" Color="{StaticResource BrandNavyBlueColor}" />
+    <SolidColorBrush x:Key="BrandSurfaceRaisedBrush" Color="{StaticResource BrandSurfaceRaisedColor}" />
+    <SolidColorBrush x:Key="BrandCyanBrush" Color="{StaticResource BrandElectricCyanColor}" />
+    <SolidColorBrush x:Key="BrandTealBrush" Color="{StaticResource BrandNeonTealColor}" />
+    <SolidColorBrush x:Key="BrandVioletBrush" Color="{StaticResource BrandVioletColor}" />
+    <SolidColorBrush x:Key="BrandPurpleBrush" Color="{StaticResource BrandElectricPurpleColor}" />
+    <SolidColorBrush x:Key="BrandSoftGlowBrush" Color="{StaticResource BrandSoftGlowColor}" />
+    <SolidColorBrush x:Key="BrandSteelGrayBrush" Color="{StaticResource BrandSteelGrayColor}" />
+    <SolidColorBrush x:Key="BrandTextBrush" Color="{StaticResource BrandTextColor}" />
+    <SolidColorBrush x:Key="BrandMutedTextBrush" Color="{StaticResource BrandSteelGrayColor}" />
+    <SolidColorBrush x:Key="BrandBorderBrush" Color="{StaticResource BrandBorderColor}" />
+    <SolidColorBrush x:Key="BrandSuccessBrush" Color="{StaticResource BrandSuccessColor}" />
+    <SolidColorBrush x:Key="BrandWarningBrush" Color="{StaticResource BrandWarningColor}" />
+    <SolidColorBrush x:Key="BrandErrorBrush" Color="{StaticResource BrandErrorColor}" />
+
+    <LinearGradientBrush x:Key="BrandAccentGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="{StaticResource BrandElectricCyanColor}" Offset="0" />
+        <GradientStop Color="{StaticResource BrandVioletColor}" Offset="1" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="BrandSurfaceGradientBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FF142342" Offset="0" />
+        <GradientStop Color="#FF0F1B33" Offset="1" />
+    </LinearGradientBrush>
+
+    <SolidColorBrush x:Key="BrandFocusBrush" Color="{StaticResource BrandSoftGlowColor}" />
+
+</ResourceDictionary>

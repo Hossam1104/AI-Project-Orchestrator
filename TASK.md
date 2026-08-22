@@ -1,49 +1,64 @@
-# APO-22 Review Checkpoint - Windows Credential Manager Secure Credential Store
+# APO-23 SOL ACCEPTANCE CHECKPOINT
 
 Status:
-REMEDIATION COMPLETE - AWAITING CLAUDE OPUS 5 INDEPENDENT REVIEW 2 / SOL ACCEPTANCE
+IMPLEMENTATION COMPLETE - AWAITING GPT-5.6 SOL ACCEPTANCE
 
 Jira Story:
-APO-22 - Implement Windows Credential Manager Secure Credential Store
+APO-23 - Refactor Application Identity and Technical Naming for APO
 
 Parent Epic:
 APO-2 - Windows Platform & Application Foundation
 
-Dependency:
-APO-22 blocks APO-31 - Implement Official Provider Capacity Adapters
-
 Executor:
-Claude Sonnet 5 (bounded implementation, then bounded remediation) - both complete
+GPT-5.6 Luna xHigh
 
 Branch:
-feat/APO-22-windows-credential-manager (NOT merged to main)
+feat/APO-23-branding
 
-History on this checkpoint:
+Starting main SHA:
+f6f04dca89313c9964add3c403a151a7b8b6919e (APO-22 PR #1 squash merge)
 
-1. Claude Sonnet 5 delivered the initial implementation (`WindowsCredentialManagerStore` behind the
-   existing `ISecureCredentialStore` contract, 14 tests, 64/64 suite passing).
-2. Claude Opus 5 performed independent Review 1: **CHANGES REQUIRED** — 1 MAJOR (credential-
-   reference case identity undefined against Windows' case-insensitive TargetName) + 7 MINOR
-   findings. Architecture was judged sound and native interop verified correct.
-3. GPT-5.6 Sol issued two final decisions: (a) `credentialReference` is case-insensitive, canonical
-   Windows target casing = `ToUpperInvariant()`; (b) the permanent APO V1 vault namespace is
-   `AIProjectOrchestrator:Credential:` (no migration needed — no production credentials exist yet
-   and APO-31 has not started).
-4. Claude Sonnet 5 completed the bounded remediation implementing both Sol decisions and all 8
-   Opus Review 1 findings. Full detail, evidence, and file list are in `.ai/CURRENT_STATE.md`
-   Section -1.
+Draft PR:
+[#2](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/2) - open, draft, not merged.
 
-Required next authority:
+Implementation commit:
+`fe95991` - `feat: apply APO branding and product identity`
 
-1. Claude Opus 5 must perform independent **Review 2** against the remediated head — verifying the
-   case-identity fix, the new vault namespace, native read-blob zeroization before `CredFree`,
-   deterministic oversize validation ahead of the native call, the corrected persistence comment,
-   and the expanded test suite (85/85 passing) — against this contract and the BRD/AGENTS.md
-   security requirements.
-2. GPT-5.6 Sol must accept or reject APO-22 based on Review 2.
-3. Only after Sol acceptance may the next execution contract (e.g. APO-31, which depends on
-   APO-22) be issued.
+## Delivered
 
-This file does NOT authorize APO-23, APO-27, APO-31, APO-33, branding/UI work, README redesign, or
-any other Story. No executor may start further implementation work from this checkpoint. `main`
-remains unchanged.
+- Branding is based on the owner-approved `assets/Logo.png` and `assets/Colors.png`; original
+  bytes are preserved.
+- Reusable WPF resources are in `src/AIUsageMonitor.Desktop/Resources/` for colors, brushes,
+  typography, and controls.
+- Visible product identity is `AI Project Orchestrator (APO)` across the WPF window, shell header,
+  metadata, logging messages, README, and footer.
+- A derived `assets/runtime/apo-icon.ico` supplies the compact Windows/window/taskbar identity.
+- The WPF shell is a polished, truthful foundation surface with disabled/planned navigation;
+  it does not fabricate providers, routing, projects, execution, or dashboard metrics.
+- README.md is redesigned as the official landing page with local branding, factual badges,
+  Mermaid architecture/target-flow diagrams, a repository-controlled animation, a clean WPF
+  screenshot, implementation status, security, compatibility, roadmap, and governance.
+- `assets/readme/apo-flow.svg` and `assets/readme/apo-shell.png` are linked from the README.
+- `AIUsageMonitor.sln`, technical project/namespace/assembly/test names, and
+  `%LOCALAPPDATA%\\AIUsageMonitor` remain unchanged for compatibility.
+
+## Validation
+
+- `dotnet restore AIUsageMonitor.sln` - SUCCESS.
+- `dotnet build AIUsageMonitor.sln` - SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln` - SUCCESS; 85/85 passing.
+- Self-contained single-file publish - SUCCESS for `win-x64`, `win-x86`, and `win-arm64`.
+- Self-contained x64 WPF launch smoke - SUCCESS; title, icon, logo, resources, and shell rendered.
+- README local-link check - SUCCESS; 10 local paths checked, none missing.
+- Mermaid fence check - SUCCESS; 2 Mermaid blocks present.
+- Approved asset hash check - SUCCESS; original `Logo.png` and `Colors.png` preserved.
+- `git diff --check` - SUCCESS; only expected LF/CRLF normalization notices.
+
+## Scope boundary
+
+No provider adapters, APO-31, routing engine, autonomous execution, tracker runtime, Project
+Registry backend, full APO-15 dashboard, LocalAppData migration, technical namespace/project
+rename, updater/installer, cloud backend, CI implementation, or other Story was started.
+
+The exact next authority is GPT-5.6 Sol acceptance of APO-23. This checkpoint does not authorize
+APO-24, APO-27, APO-31, APO-33, or any other Story.
