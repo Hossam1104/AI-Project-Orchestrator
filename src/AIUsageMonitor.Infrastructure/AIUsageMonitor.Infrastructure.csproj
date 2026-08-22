@@ -14,4 +14,10 @@
     <ProjectReference Include="..\AIUsageMonitor.Domain\AIUsageMonitor.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Lets tests exercise WindowsCredentialManagerStore against a fake ICredentialManagerNativeStore
+         without touching the owner's real Windows Credential Manager vault (APO-22). -->
+    <InternalsVisibleTo Include="AIUsageMonitor.Infrastructure.Tests" />
+  </ItemGroup>
+
 </Project>
