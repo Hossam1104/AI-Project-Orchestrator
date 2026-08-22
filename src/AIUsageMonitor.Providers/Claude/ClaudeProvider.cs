@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -175,7 +174,7 @@ public sealed class ClaudeProvider : ProviderAdapterBase
     // added, keep them in this shared base query for both the initial and cursor requests.
     private static string BuildUsagePath(DateTimeOffset startingAt, string? page)
     {
-        var path = $"v1/organizations/usage_report/messages?starting_at={Uri.EscapeDataString(startingAt.ToString("O"))}&limit=1000";
+        var path = $"v1/organizations/usage_report/messages?starting_at={Uri.EscapeDataString(startingAt.ToString("O"))}";
         return page is null
             ? path
             : $"{path}&page={Uri.EscapeDataString(page)}";
@@ -270,22 +269,17 @@ public sealed class ClaudeProvider : ProviderAdapterBase
 
     private static double? TryReadNumber(JsonElement value)
     {
-        if (value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        if (value.ValueKind == JsonValueKind.Undefined)
         {
             return null;
         }
 
-        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number))
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) &&
+            number >= 0 && double.IsFinite(number))
         {
-            return number >= 0 && double.IsFinite(number) ? number : throw new JsonException("Invalid token quantity.");
+            return number;
         }
 
-        if (value.ValueKind == JsonValueKind.String &&
-            double.TryParse(value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number))
-        {
-            return number >= 0 && double.IsFinite(number) ? number : throw new JsonException("Invalid token quantity.");
-        }
-
-        return null;
+        throw new JsonException("Invalid token quantity.");
     }
 }

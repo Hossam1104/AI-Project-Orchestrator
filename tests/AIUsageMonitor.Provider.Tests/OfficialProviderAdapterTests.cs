@@ -1,13 +1,19 @@
 using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Application.Security;
+using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Domain.Common;
 using AIUsageMonitor.Domain.Providers;
 using AIUsageMonitor.Domain.Quotas;
 using AIUsageMonitor.Providers.Antigravity;
 using AIUsageMonitor.Providers.Claude;
 using AIUsageMonitor.Providers.Codex;
+using AIUsageMonitor.Providers;
 using AIUsageMonitor.Providers.Copilot;
 using AIUsageMonitor.Providers.Kimi;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Provider.Tests;
 
@@ -144,6 +150,64 @@ public sealed class OfficialProviderAdapterTests
         Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
         Assert.Equal("malformed_response", result.ErrorCode);
         Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Copilot_MixedValidAndMalformedUsageItemsFailsWithoutUndercounting()
+    {
+        var credentials = new TestCredentialStore();
+        credentials.Add("github-copilot", TestSecret);
+        var provider = new CopilotProvider(
+            new TestClock(),
+            new TestHttpClientFactory(DelegateHttpMessageHandler.Json(
+                """
+                {
+                  "usageItems": [
+                    { "sku": "valid", "unitType": "credits", "grossQuantity": 10, "netQuantity": 10 },
+                    { "sku": "malformed", "unitType": "credits", "grossQuantity": "not-a-number", "netQuantity": 5 }
+                  ]
+                }
+                """)),
+            credentials,
+            new CopilotOptions { CredentialReference = "github-copilot", Username = "octocat" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal("malformed_response", result.ErrorCode);
+        Assert.Empty(result.QuotaWindows);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Copilot_MalformedMixedRefreshRetainsPreviousCompleteUsageAsStale()
+    {
+        var responseNumber = 0;
+        var handler = new DelegateHttpMessageHandler((_, _) =>
+        {
+            responseNumber++;
+            var json = responseNumber == 1
+                ? "{\"usageItems\":[{\"sku\":\"valid\",\"unitType\":\"credits\",\"grossQuantity\":10}]}"
+                : "{\"usageItems\":[{\"sku\":\"valid\",\"unitType\":\"credits\",\"grossQuantity\":20},{\"sku\":\"malformed\",\"unitType\":\"credits\",\"grossQuantity\":{}}]}";
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(json));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("github-copilot", TestSecret);
+        var provider = new CopilotProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new CopilotOptions { CredentialReference = "github-copilot", Username = "octocat" });
+
+        var first = await provider.RefreshAsync();
+        var second = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.Partial, first.Outcome);
+        Assert.Equal(10, Assert.Single(first.QuotaWindows).UsedValue);
+        Assert.Equal(ProviderRefreshOutcome.Stale, second.Outcome);
+        Assert.Equal("malformed_response", second.ErrorCode);
+        Assert.Equal(10, Assert.Single(second.QuotaWindows).UsedValue);
+        Assert.DoesNotContain(TestSecret, second.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -356,12 +420,98 @@ public sealed class OfficialProviderAdapterTests
             firstStartingAt);
         Assert.NotNull(firstStartingAt);
         Assert.Equal(firstStartingAt, secondStartingAt);
-        Assert.Equal("1000", GetQueryParameter(firstQuery, "limit"));
-        Assert.Equal("1000", GetQueryParameter(secondQuery, "limit"));
+        Assert.Null(GetQueryParameter(firstQuery, "limit"));
+        Assert.Null(GetQueryParameter(secondQuery, "limit"));
         Assert.Null(GetQueryParameter(firstQuery, "page"));
         Assert.Equal("cursor/a?b c", GetQueryParameter(secondQuery, "page"));
         Assert.Contains("page=cursor%2Fa%3Fb%20c", secondQuery.Query, StringComparison.Ordinal);
         Assert.Equal(300, Assert.Single(result.QuotaWindows).UsedValue);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Claude_MixedValidAndMalformedTokenFieldsFailsWithoutUndercounting()
+    {
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(DelegateHttpMessageHandler.Json(
+                """
+                {
+                  "data": [{
+                    "results": [
+                      { "output_tokens": 100 },
+                      { "output_tokens": 200, "uncached_input_tokens": "not-a-number" }
+                    ]
+                  }]
+                }
+                """)),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal("malformed_response", result.ErrorCode);
+        Assert.Empty(result.QuotaWindows);
+        Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Claude_MalformedMixedRefreshRetainsPreviousCompleteUsageAsStale()
+    {
+        var responseNumber = 0;
+        var handler = new DelegateHttpMessageHandler((_, _) =>
+        {
+            responseNumber++;
+            var json = responseNumber == 1
+                ? "{\"data\":[{\"results\":[{\"output_tokens\":100}]}]}"
+                : "{\"data\":[{\"results\":[{\"output_tokens\":200,\"cache_read_input_tokens\":[]}]}]}";
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(json));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var provider = new ClaudeProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            new TestExecutableLocator(),
+            new AnthropicOptions { CredentialReference = "anthropic-admin" });
+
+        var first = await provider.RefreshAsync();
+        var second = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.Partial, first.Outcome);
+        Assert.Equal(100, Assert.Single(first.QuotaWindows).UsedValue);
+        Assert.Equal(ProviderRefreshOutcome.Stale, second.Outcome);
+        Assert.Equal("malformed_response", second.ErrorCode);
+        Assert.Equal(100, Assert.Single(second.QuotaWindows).UsedValue);
+        Assert.DoesNotContain(TestSecret, second.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Claude_AdminApiRedirectDoesNotForwardAdminKeyToRedirectDestination()
+    {
+        await using var redirectProbe = new LoopbackRedirectProbe();
+        var credentials = new TestCredentialStore();
+        credentials.Add("anthropic-admin", TestSecret);
+        var services = new ServiceCollection();
+        services.AddSingleton<IClock>(new TestClock());
+        services.AddSingleton<ISecureCredentialStore>(credentials);
+        services.AddProviders();
+        services.AddSingleton(new AnthropicOptions { CredentialReference = "anthropic-admin" });
+        services.AddHttpClient(ClaudeProvider.HttpClientName, client => client.BaseAddress = redirectProbe.OriginUri);
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ClaudeProvider>();
+
+        var result = await provider.RefreshAsync();
+
+        Assert.Equal(ProviderRefreshOutcome.ProviderError, result.Outcome);
+        Assert.Equal("provider_error", result.ErrorCode);
+        Assert.False(redirectProbe.DestinationRequest.IsCompleted);
         Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
     }
 
@@ -777,5 +927,129 @@ public sealed class OfficialProviderAdapterTests
         }
 
         return null;
+    }
+}
+
+internal sealed class LoopbackRedirectProbe : IAsyncDisposable
+{
+    private readonly TcpListener _originListener = new(IPAddress.Loopback, 0);
+    private readonly TcpListener _destinationListener = new(IPAddress.Loopback, 0);
+    private readonly CancellationTokenSource _shutdown = new();
+    private readonly Task _originTask;
+    private readonly Task _destinationTask;
+    private readonly TaskCompletionSource<string?> _destinationRequest =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public LoopbackRedirectProbe()
+    {
+        _originListener.Start();
+        _destinationListener.Start();
+        var originPort = ((IPEndPoint)_originListener.LocalEndpoint).Port;
+        var destinationPort = ((IPEndPoint)_destinationListener.LocalEndpoint).Port;
+        OriginUri = new Uri($"http://127.0.0.1:{originPort}/", UriKind.Absolute);
+        DestinationUri = new Uri($"http://127.0.0.1:{destinationPort}/redirected", UriKind.Absolute);
+        _originTask = ServeOriginAsync();
+        _destinationTask = ServeDestinationAsync();
+    }
+
+    public Uri OriginUri { get; }
+
+    private Uri DestinationUri { get; }
+
+    public Task<string?> DestinationRequest => _destinationRequest.Task;
+
+    private async Task ServeOriginAsync()
+    {
+        try
+        {
+            using var client = await _originListener.AcceptTcpClientAsync(_shutdown.Token);
+            await ReadHeadersAsync(client.GetStream(), _shutdown.Token);
+            await WriteResponseAsync(
+                client.GetStream(),
+                $"HTTP/1.1 302 Found\r\nLocation: {DestinationUri}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                _shutdown.Token);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task ServeDestinationAsync()
+    {
+        try
+        {
+            using var client = await _destinationListener.AcceptTcpClientAsync(_shutdown.Token);
+            var headers = await ReadHeadersAsync(client.GetStream(), _shutdown.Token);
+            _destinationRequest.TrySetResult(GetHeader(headers, "x-api-key"));
+            await WriteResponseAsync(
+                client.GetStream(),
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
+                _shutdown.Token);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+    }
+
+    private static async Task<string> ReadHeadersAsync(NetworkStream stream, CancellationToken cancellationToken)
+    {
+        using var buffer = new MemoryStream();
+        var chunk = new byte[1024];
+        while (buffer.Length < 16 * 1024)
+        {
+            var count = await stream.ReadAsync(chunk.AsMemory(), cancellationToken);
+            if (count == 0)
+            {
+                break;
+            }
+
+            buffer.Write(chunk, 0, count);
+            var text = Encoding.ASCII.GetString(buffer.GetBuffer(), 0, checked((int)buffer.Length));
+            if (text.Contains("\r\n\r\n", StringComparison.Ordinal))
+            {
+                return text;
+            }
+        }
+
+        return Encoding.ASCII.GetString(buffer.ToArray());
+    }
+
+    private static async Task WriteResponseAsync(
+        NetworkStream stream,
+        string response,
+        CancellationToken cancellationToken)
+    {
+        var bytes = Encoding.ASCII.GetBytes(response);
+        await stream.WriteAsync(bytes.AsMemory(), cancellationToken);
+        await stream.FlushAsync(cancellationToken);
+    }
+
+    private static string? GetHeader(string headers, string name)
+    {
+        foreach (var line in headers.Split("\r\n", StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = line.IndexOf(':');
+            if (separator > 0 && string.Equals(line[..separator], name, StringComparison.OrdinalIgnoreCase))
+            {
+                return line[(separator + 1)..].Trim();
+            }
+        }
+
+        return null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _shutdown.Cancel();
+        _originListener.Stop();
+        _destinationListener.Stop();
+        await Task.WhenAll(_originTask, _destinationTask);
+        _shutdown.Dispose();
     }
 }

@@ -33,6 +33,9 @@ public static class ProvidersServiceCollectionExtensions
             client.BaseAddress = new Uri("https://api.anthropic.com/", UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AllowAutoRedirect = false
         });
 
         services.AddHttpClient(KimiProvider.HttpClientName, client =>

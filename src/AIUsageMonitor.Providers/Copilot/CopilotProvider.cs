@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -212,10 +211,12 @@ public sealed class CopilotProvider : ProviderAdapterBase
 
     private QuotaWindow? MapUsageItem(CopilotUsageItem item, int index)
     {
-        var quantity = TryReadNumber(item.GrossQuantity) ?? TryReadNumber(item.NetQuantity);
+        var grossQuantity = TryReadNumber(item.GrossQuantity);
+        var netQuantity = TryReadNumber(item.NetQuantity);
+        var quantity = grossQuantity ?? netQuantity;
         if (!quantity.HasValue)
         {
-            return null;
+            throw new JsonException("Copilot usage item has no quantity.");
         }
 
         var unitType = item.UnitType?.Trim().ToLowerInvariant();
@@ -253,23 +254,18 @@ public sealed class CopilotProvider : ProviderAdapterBase
 
     private static double? TryReadNumber(JsonElement value)
     {
-        if (value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        if (value.ValueKind == JsonValueKind.Undefined)
         {
             return null;
         }
 
-        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number))
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) &&
+            number >= 0 && double.IsFinite(number))
         {
-            return number >= 0 && double.IsFinite(number) ? number : throw new JsonException("Invalid usage quantity.");
+            return number;
         }
 
-        if (value.ValueKind == JsonValueKind.String &&
-            double.TryParse(value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out number))
-        {
-            return number >= 0 && double.IsFinite(number) ? number : throw new JsonException("Invalid usage quantity.");
-        }
-
-        return null;
+        throw new JsonException("Invalid usage quantity.");
     }
 
     private static string FirstNonBlank(params string?[] values) =>
