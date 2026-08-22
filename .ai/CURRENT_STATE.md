@@ -598,7 +598,7 @@ options directly. No environment-variable or plaintext `appsettings` secret stor
 | `git diff --check` | SUCCESS; only benign LF/CRLF normalization warnings from Git |
 | Secret-pattern and secret-content review | SUCCESS; no provider secret literals in source/docs; test secrets remain sanitized test-only data; unsafe Kimi tests proved zero credential/HTTP use |
 
-**Remediation implementation commit:** to be recorded after the bounded remediation commit.
+**Remediation implementation commit:** `fc1bc6f` (`fix: address APO-31 provider truthfulness review`).
 
 **Next authority:** GPT-5.6 Sol must verify this remediation delta and decide the scheduled
 periodic/critical independent review checkpoint. PR #3 remains draft/unmerged; do not merge, invoke
