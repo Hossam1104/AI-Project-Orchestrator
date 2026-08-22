@@ -5,7 +5,7 @@
 **Branch:** `feat/APO-31-provider-capacity-adapters`
 **Implementation commit:** `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`
 **Draft PR:** [#3](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/3)
-**PR head:** `7a5bd9b7ec84866bd7e4ded603337dbb59d57299`
+**PR head:** Latest pushed branch tip; includes the implementation and final handoff checkpoint
 **Base:** `main` at `40f62f98787df80368eeeca454b223edf8dbd5d9`
 **Merge state:** Intentionally unmerged; awaits GPT-5.6 Sol acceptance
 
