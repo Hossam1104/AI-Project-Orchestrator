@@ -1,3 +1,4 @@
+using System.IO;
 using AIUsageMonitor.Application.Providers;
 using AIUsageMonitor.Desktop.ViewModels;
 using AIUsageMonitor.Domain.Common;
@@ -23,6 +24,49 @@ public sealed class CapacityViewModelTests
         Assert.Equal(
             ["Codex", "Claude / Anthropic", "Kimi", "GitHub Copilot", "Antigravity"],
             viewModel.Cards.Select(card => card.DisplayName));
+    }
+
+    [Fact]
+    public async Task DegradedWorkspace_UsesOnlyLocalExecutableDetectionAndDisablesConfiguredActions()
+    {
+        var locator = new FakeExecutableLocator("codex", "claude", "kimi", "agy");
+        var viewModel = new AiCapacityViewModel(locator);
+
+        await viewModel.InitializeDegradedAsync();
+
+        Assert.True(viewModel.IsDegraded);
+        Assert.All(
+            new[] { ProviderCode.Codex, ProviderCode.Claude, ProviderCode.Kimi, ProviderCode.Antigravity },
+            code => Assert.Equal("Local Detected", Assert.Single(viewModel.Cards, card => card.Code == code).StatusText));
+        Assert.Equal("Not Configured", Assert.Single(viewModel.Cards, card => card.Code == ProviderCode.Copilot).StatusText);
+        Assert.All(viewModel.Cards, card => Assert.False(card.CanEditConnection));
+        Assert.False(viewModel.RefreshAllCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task DegradedWorkspace_LeavesManualProvidersExplicitWhenNoExecutableIsFound()
+    {
+        var viewModel = new AiCapacityViewModel(new FakeExecutableLocator());
+
+        await viewModel.InitializeDegradedAsync();
+
+        Assert.Equal("Unsupported / Manual", Assert.Single(viewModel.Cards, card => card.Code == ProviderCode.Codex).StatusText);
+        Assert.Equal("Unsupported / Manual", Assert.Single(viewModel.Cards, card => card.Code == ProviderCode.Antigravity).StatusText);
+        Assert.Equal("Not Configured", Assert.Single(viewModel.Cards, card => card.Code == ProviderCode.Claude).StatusText);
+        Assert.Equal("Not Configured", Assert.Single(viewModel.Cards, card => card.Code == ProviderCode.Kimi).StatusText);
+    }
+
+    [Fact]
+    public async Task DegradedShell_ExposesWarningStateAndDoesNotClaimPersistenceReady()
+    {
+        var viewModel = new MainWindowViewModel(new AiCapacityViewModel(new FakeExecutableLocator()));
+
+        viewModel.SetPersistenceAvailability(false);
+        await viewModel.InitializeDegradedAsync();
+
+        Assert.False(viewModel.Overview.IsPersistenceAvailable);
+        Assert.Equal("Degraded mode", viewModel.Overview.PersistenceStateText);
+        Assert.Contains("unavailable", viewModel.Overview.PersistenceText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -164,6 +208,100 @@ public sealed class CapacityViewModelTests
     }
 
     [Fact]
+    public void AuthenticationRequired_ReplacesPreviousProviderValuesWithCurrentEmptyResult()
+    {
+        var card = new ProviderCapacityCardViewModel(ProviderCode.Copilot, "GitHub Copilot", new FakeProvider(ProviderCode.Copilot));
+        var completedAt = DateTimeOffset.UtcNow;
+        card.ApplyResult(ProviderRefreshResult.Success(
+            ProviderCode.Copilot,
+            CreateAccount("octocat"),
+            CreateSubscription("Copilot Pro"),
+            [CreateWindow(80)],
+            completedAt));
+
+        card.ApplyResult(ProviderRefreshResult.AuthenticationRequired(
+            ProviderCode.Copilot,
+            completedAt.AddMinutes(1)));
+
+        Assert.Equal("Authentication Required", card.StatusText);
+        Assert.Empty(card.QuotaWindows);
+        Assert.Null(card.AccountDisplayName);
+        Assert.Null(card.SubscriptionText);
+    }
+
+    [Fact]
+    public void Unsupported_ReplacesPreviousProviderValuesWithCurrentEmptyResult()
+    {
+        var card = new ProviderCapacityCardViewModel(ProviderCode.Codex, "Codex", new FakeProvider(ProviderCode.Codex));
+        card.ApplyResult(ProviderRefreshResult.Success(
+            ProviderCode.Codex,
+            CreateAccount("codex-user"),
+            CreateSubscription("Codex Plus"),
+            [CreateWindow(75)],
+            DateTimeOffset.UtcNow));
+
+        card.ApplyResult(ProviderRefreshResult.Unsupported(ProviderCode.Codex, DateTimeOffset.UtcNow.AddMinutes(1)));
+
+        Assert.Equal("Unsupported / Manual", card.StatusText);
+        Assert.Empty(card.QuotaWindows);
+        Assert.Null(card.AccountDisplayName);
+        Assert.Null(card.SubscriptionText);
+    }
+
+    [Fact]
+    public void FreshSuccessWithZeroQuotaWindows_DisplaysZeroCurrentWindows()
+    {
+        var card = new ProviderCapacityCardViewModel(ProviderCode.Copilot, "GitHub Copilot", new FakeProvider(ProviderCode.Copilot));
+        card.ApplyResult(ProviderRefreshResult.Success(
+            ProviderCode.Copilot,
+            CreateAccount("octocat"),
+            CreateSubscription("Copilot Pro"),
+            [CreateWindow(60)],
+            DateTimeOffset.UtcNow));
+
+        card.ApplyResult(ProviderRefreshResult.Success(
+            ProviderCode.Copilot,
+            null,
+            null,
+            [],
+            DateTimeOffset.UtcNow.AddMinutes(1)));
+
+        Assert.Empty(card.QuotaWindows);
+        Assert.Null(card.AccountDisplayName);
+        Assert.Null(card.SubscriptionText);
+    }
+
+    [Fact]
+    public void StaleResult_UsesTheStalePayloadAndPreservesLastSuccessfulRefresh()
+    {
+        var provider = new FakeProvider(ProviderCode.Copilot);
+        var card = new ProviderCapacityCardViewModel(ProviderCode.Copilot, "GitHub Copilot", provider);
+        var firstCompletedAt = DateTimeOffset.UtcNow;
+        var staleCompletedAt = firstCompletedAt.AddMinutes(1);
+        var window = CreateWindow(80);
+
+        card.ApplyResult(ProviderRefreshResult.Success(
+            ProviderCode.Copilot,
+            CreateAccount("octocat"),
+            CreateSubscription("Copilot Pro"),
+            [window],
+            firstCompletedAt));
+        card.ApplyResult(ProviderRefreshResult.Stale(
+            ProviderCode.Copilot,
+            CreateAccount("octocat-stale"),
+            CreateSubscription("Copilot Pro stale"),
+            [window],
+            staleCompletedAt));
+
+        Assert.Equal("Stale", card.StatusText);
+        Assert.Single(card.QuotaWindows);
+        Assert.Equal("80% remaining", card.QuotaWindows[0].RemainingText);
+        Assert.Equal("octocat-stale", card.AccountDisplayName);
+        Assert.Equal("Copilot Pro stale", card.SubscriptionText);
+        Assert.Equal(firstCompletedAt, card.LastSuccessfulRefresh);
+    }
+
+    [Fact]
     public void AuthenticationAndUnsupportedStates_RemainDistinct()
     {
         var authCard = new ProviderCapacityCardViewModel(ProviderCode.Copilot, "GitHub Copilot", new FakeProvider(ProviderCode.Copilot));
@@ -212,6 +350,34 @@ public sealed class CapacityViewModelTests
         await card.RefreshAsync();
 
         Assert.Equal(1, provider.RefreshCount);
+        Assert.Single(card.QuotaWindows);
+    }
+
+    [Fact]
+    public async Task RefreshResultRemainsTruthfulWhenConnectionMetadataPersistenceFails()
+    {
+        var provider = new FakeProvider(ProviderCode.Copilot)
+        {
+            Result = ProviderRefreshResult.Partial(
+                ProviderCode.Copilot,
+                null,
+                null,
+                [CreateWindow(70)],
+                "Usage-only.",
+                DateTimeOffset.UtcNow)
+        };
+        var connectionService = new FakeConnectionService { ThrowOnRecordRefresh = true };
+        var card = new ProviderCapacityCardViewModel(
+            ProviderCode.Copilot,
+            "GitHub Copilot",
+            provider,
+            connectionService);
+
+        await card.RefreshAsync();
+
+        Assert.StartsWith("Connected", card.StatusText, StringComparison.Ordinal);
+        Assert.Contains("Partial", card.StatusText, StringComparison.Ordinal);
+        Assert.Contains("local connection state could not be saved", card.StatusDetail, StringComparison.Ordinal);
         Assert.Single(card.QuotaWindows);
     }
 
@@ -272,6 +438,43 @@ public sealed class CapacityViewModelTests
         DataSource.OfficialApi,
         ConfidenceLevel.Official,
         DateTimeOffset.UtcNow);
+
+    private static ProviderAccount CreateAccount(string displayName) => new(
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        displayName,
+        displayName,
+        DataSource.OfficialApi,
+        ConfidenceLevel.Official,
+        DateTimeOffset.UtcNow);
+
+    private static Subscription CreateSubscription(string planName) => new(
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        planName,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        DataSource.OfficialApi,
+        ConfidenceLevel.Official,
+        DateTimeOffset.UtcNow);
+
+    private sealed class FakeExecutableLocator : IExecutableLocator
+    {
+        private readonly HashSet<string> _commands;
+
+        public FakeExecutableLocator(params string[] commands) =>
+            _commands = new HashSet<string>(commands, StringComparer.OrdinalIgnoreCase);
+
+        public string? Find(string commandName) =>
+            _commands.Contains(commandName) ? $"C:\\test-tools\\{commandName}.exe" : null;
+    }
 
     private sealed class FakeProvider : IAiUsageProvider
     {
@@ -342,6 +545,8 @@ public sealed class CapacityViewModelTests
     {
         public ProviderConnection? Connection { get; init; }
 
+        public bool ThrowOnRecordRefresh { get; init; }
+
         public int RetrieveCount { get; private set; }
 
         public Task<ProviderConnection?> GetAsync(ProviderCode code, CancellationToken cancellationToken = default) =>
@@ -352,5 +557,15 @@ public sealed class CapacityViewModelTests
 
         public Task<ProviderConnection> SaveAsync(ProviderConnectionEdit edit, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<ProviderConnection?> RecordRefreshAsync(ProviderRefreshResult result, CancellationToken cancellationToken = default)
+        {
+            if (ThrowOnRecordRefresh)
+            {
+                throw new IOException("synthetic local persistence failure");
+            }
+
+            return Task.FromResult(Connection);
+        }
     }
 }

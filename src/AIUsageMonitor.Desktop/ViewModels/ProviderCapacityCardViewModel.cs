@@ -97,7 +97,8 @@ public sealed class ProviderCapacityCardViewModel : ObservableObject
         }
     }
 
-    public bool CanEditConnection => Code is ProviderCode.Copilot or ProviderCode.Claude or ProviderCode.Kimi;
+    public bool CanEditConnection => _connectionService is not null &&
+        Code is ProviderCode.Copilot or ProviderCode.Claude or ProviderCode.Kimi;
 
     public bool HasCredentialSaved => !string.IsNullOrWhiteSpace(_connection?.CredentialReference);
 
@@ -176,6 +177,17 @@ public sealed class ProviderCapacityCardViewModel : ObservableObject
         {
             var result = await _provider.RefreshAsync(cancellationToken).ConfigureAwait(true);
             ApplyResult(result);
+            if (_connectionService is not null)
+            {
+                try
+                {
+                    await _connectionService.RecordRefreshAsync(result, cancellationToken).ConfigureAwait(true);
+                }
+                catch
+                {
+                    StatusDetail = $"{StatusDetail} Provider refreshed; local connection state could not be saved.";
+                }
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -194,20 +206,16 @@ public sealed class ProviderCapacityCardViewModel : ObservableObject
 
     public void ApplyResult(ProviderRefreshResult result)
     {
-        if (result.QuotaWindows.Count > 0)
+        _quotaWindows.Clear();
+        foreach (var quota in result.QuotaWindows)
         {
-            _quotaWindows.Clear();
-            foreach (var quota in result.QuotaWindows)
-            {
-                _quotaWindows.Add(new QuotaWindowViewModel(quota));
-            }
+            _quotaWindows.Add(new QuotaWindowViewModel(quota));
         }
 
-        AccountDisplayName = result.Account?.DisplayName ?? AccountDisplayName;
-        if (result.Subscription is not null)
-        {
-            SubscriptionText = result.Subscription.PlanName ?? "Subscription details reported";
-        }
+        AccountDisplayName = result.Account?.DisplayName;
+        SubscriptionText = result.Subscription is null
+            ? null
+            : result.Subscription.PlanName ?? "Subscription details reported";
 
         if (result.Outcome is ProviderRefreshOutcome.Success or ProviderRefreshOutcome.Partial)
         {

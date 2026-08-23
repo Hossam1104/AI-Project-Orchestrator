@@ -14,4 +14,8 @@ public interface IProviderConnectionService
     Task<ProviderConnection> SaveAsync(
         ProviderConnectionEdit edit,
         CancellationToken cancellationToken = default);
+
+    Task<ProviderConnection?> RecordRefreshAsync(
+        ProviderRefreshResult result,
+        CancellationToken cancellationToken = default);
 }

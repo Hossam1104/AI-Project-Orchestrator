@@ -2,14 +2,48 @@ using System.Windows.Input;
 
 namespace AIUsageMonitor.Desktop.ViewModels;
 
-public sealed class OverviewViewModel
+public sealed class OverviewViewModel : ObservableObject
 {
-    public string PersistenceText { get; set; } = "LocalAppData is available for the foundation.";
+    private string _persistenceText = "LocalAppData is available for the foundation.";
+    private string _persistenceStateText = "Ready";
+    private string _shellStatusText = "The branded shell is ready. AI Capacity is the first usable APO workspace.";
+    private bool _isPersistenceAvailable = true;
 
-    public string PersistenceStateText { get; set; } = "Ready";
+    public string PersistenceText
+    {
+        get => _persistenceText;
+        private set => SetProperty(ref _persistenceText, value);
+    }
 
-    public string ShellStatusText { get; set; } =
-        "The branded shell is ready. AI Capacity is the first usable APO workspace.";
+    public string PersistenceStateText
+    {
+        get => _persistenceStateText;
+        private set => SetProperty(ref _persistenceStateText, value);
+    }
+
+    public string ShellStatusText
+    {
+        get => _shellStatusText;
+        private set => SetProperty(ref _shellStatusText, value);
+    }
+
+    public bool IsPersistenceAvailable
+    {
+        get => _isPersistenceAvailable;
+        private set => SetProperty(ref _isPersistenceAvailable, value);
+    }
+
+    internal void SetPersistenceAvailability(bool persistenceAvailable)
+    {
+        IsPersistenceAvailable = persistenceAvailable;
+        PersistenceStateText = persistenceAvailable ? "Ready" : "Degraded mode";
+        PersistenceText = persistenceAvailable
+            ? "LocalAppData is available for the foundation."
+            : "LocalAppData is unavailable; no local state will be written.";
+        ShellStatusText = persistenceAvailable
+            ? "The branded shell is ready. AI Capacity is the first usable APO workspace."
+            : "Local persistence is unavailable. AI Capacity is running in safe degraded mode.";
+    }
 }
 
 public sealed class MainWindowViewModel : ObservableObject
@@ -62,16 +96,12 @@ public sealed class MainWindowViewModel : ObservableObject
     public Task InitializeAsync(CancellationToken cancellationToken = default) =>
         AiCapacity.InitializeAsync(cancellationToken);
 
+    public Task InitializeDegradedAsync(CancellationToken cancellationToken = default) =>
+        AiCapacity.InitializeDegradedAsync(cancellationToken);
+
     public void SetPersistenceAvailability(bool persistenceAvailable)
     {
-        Overview.PersistenceStateText = persistenceAvailable ? "Ready" : "Degraded mode";
-        Overview.PersistenceText = persistenceAvailable
-            ? "LocalAppData is available for the foundation."
-            : "LocalAppData is unavailable; no local state will be written.";
-        Overview.ShellStatusText = persistenceAvailable
-            ? "The branded shell is ready. AI Capacity is the first usable APO workspace."
-            : "Local persistence is unavailable. AI Capacity is running in safe degraded mode.";
-        OnPropertyChanged(nameof(Overview));
+        Overview.SetPersistenceAvailability(persistenceAvailable);
     }
 
     private void ShowOverview()

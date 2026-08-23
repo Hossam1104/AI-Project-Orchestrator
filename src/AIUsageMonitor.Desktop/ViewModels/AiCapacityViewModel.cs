@@ -1,21 +1,31 @@
 using System.Collections.ObjectModel;
 using AIUsageMonitor.Application.Providers;
 using AIUsageMonitor.Domain.Providers;
+using AIUsageMonitor.Providers.Common;
 
 namespace AIUsageMonitor.Desktop.ViewModels;
 
 public sealed class AiCapacityViewModel : ObservableObject
 {
     private readonly IProviderConnectionService? _connectionService;
+    private readonly IExecutableLocator? _executableLocator;
+    private readonly bool _isDegraded;
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private string _refreshStateText = "Ready to refresh";
     private DateTimeOffset? _lastRefresh;
     private bool _isRefreshing;
 
     public AiCapacityViewModel()
+        : this(new SystemExecutableLocator())
     {
+    }
+
+    public AiCapacityViewModel(IExecutableLocator executableLocator)
+    {
+        _executableLocator = executableLocator ?? throw new ArgumentNullException(nameof(executableLocator));
+        _isDegraded = true;
         Cards = new ObservableCollection<ProviderCapacityCardViewModel>(CreateDegradedCards());
-        RefreshAllCommand = new AsyncCommand(() => RefreshAllAsync(), () => !IsRefreshing && Cards.Count > 0);
+        RefreshAllCommand = new AsyncCommand(() => RefreshAllAsync(), () => !_isDegraded && !IsRefreshing && Cards.Count > 0);
     }
 
     public AiCapacityViewModel(
@@ -37,6 +47,8 @@ public sealed class AiCapacityViewModel : ObservableObject
     public ObservableCollection<ProviderCapacityCardViewModel> Cards { get; }
 
     internal IProviderConnectionService? ConnectionService => _connectionService;
+
+    public bool IsDegraded => _isDegraded;
 
     public AsyncCommand RefreshAllCommand { get; }
 
@@ -123,6 +135,35 @@ public sealed class AiCapacityViewModel : ObservableObject
         }
     }
 
+    public Task InitializeDegradedAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_isDegraded)
+        {
+            return Task.CompletedTask;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var card in Cards)
+        {
+            var executableName = ExecutableNameFor(card.Code);
+            var detected = executableName is not null && _executableLocator!.Find(executableName) is not null;
+            var detail = detected
+                ? $"Official {executableName} CLI detected locally; configured capacity requires persistence."
+                : card.Code is ProviderCode.Codex or ProviderCode.Antigravity
+                    ? "No documented machine-readable capacity surface detected; local persistence is unavailable."
+                    : "Local persistence is unavailable; configured provider state cannot be reconstructed.";
+
+            card.ApplyDetection(new ProviderDetectionResult(
+                card.Code,
+                detected,
+                detail,
+                DateTimeOffset.UtcNow));
+            card.MarkInitialized();
+        }
+
+        return Task.CompletedTask;
+    }
+
     public void SetEditorLauncher(Func<ProviderCapacityCardViewModel, Task> launcher)
     {
         ArgumentNullException.ThrowIfNull(launcher);
@@ -138,6 +179,12 @@ public sealed class AiCapacityViewModel : ObservableObject
 
     public async Task RefreshAllAsync(CancellationToken cancellationToken = default)
     {
+        if (_isDegraded)
+        {
+            RefreshStateText = "Refresh unavailable while local persistence is degraded.";
+            return;
+        }
+
         if (!await _refreshGate.WaitAsync(0, cancellationToken).ConfigureAwait(true))
         {
             return;
@@ -167,6 +214,16 @@ public sealed class AiCapacityViewModel : ObservableObject
     private static IEnumerable<ProviderCapacityCardViewModel> CreateDegradedCards() =>
         Enum.GetValues<ProviderCode>().OrderBy(code => code)
             .Select(code => new ProviderCapacityCardViewModel(code, DisplayNameFor(code)));
+
+    private static string? ExecutableNameFor(ProviderCode code) => code switch
+    {
+        ProviderCode.Codex => "codex",
+        ProviderCode.Claude => "claude",
+        ProviderCode.Kimi => "kimi",
+        ProviderCode.Antigravity => "agy",
+        ProviderCode.Copilot => null,
+        _ => null
+    };
 
     public static string DisplayNameFor(ProviderCode code) => code switch
     {

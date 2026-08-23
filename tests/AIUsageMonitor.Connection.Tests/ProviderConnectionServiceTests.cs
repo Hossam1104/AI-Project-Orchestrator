@@ -80,9 +80,173 @@ public sealed class ProviderConnectionServiceTests
             removeCredential: true));
 
         Assert.Null(saved.CredentialReference);
+        Assert.Equal(ProviderConnectionStatus.NotConfigured, saved.Status);
         Assert.Null(repository.Current!.CredentialReference);
+        Assert.Equal(ProviderConnectionStatus.NotConfigured, repository.Current.Status);
         Assert.Equal(["old-reference"], credentials.RemovedReferences);
         Assert.Null(await credentials.RetrieveAsync("old-reference"));
+    }
+
+    [Fact]
+    public async Task ReplacingCredential_DoesNotPreserveConnectedStatusBeforeVerification()
+    {
+        var repository = new InMemoryConnectionRepository { Current = CreateConnection("old-reference") };
+        var credentials = new FakeCredentialStore();
+        await credentials.StoreAsync("old-reference", "old-secret");
+        var service = CreateService(repository, credentials, new FakeRuntimeSettingsUpdater());
+
+        var saved = await service.SaveAsync(new ProviderConnectionEdit(
+            ProviderCode.Copilot,
+            ProviderConnectionType.OfficialApi,
+            new Dictionary<string, string?>(),
+            secret: "new-secret"));
+
+        Assert.Equal(ProviderConnectionStatus.Updating, saved.Status);
+        Assert.NotEqual(ProviderConnectionStatus.Connected, repository.Current!.Status);
+    }
+
+    [Fact]
+    public async Task EditingConfiguration_DoesNotPreserveConnectedStatusBeforeVerification()
+    {
+        var repository = new InMemoryConnectionRepository { Current = CreateConnection("old-reference") };
+        var credentials = new FakeCredentialStore();
+        await credentials.StoreAsync("old-reference", "old-secret");
+        var service = CreateService(repository, credentials, new FakeRuntimeSettingsUpdater());
+
+        var saved = await service.SaveAsync(new ProviderConnectionEdit(
+            ProviderCode.Copilot,
+            ProviderConnectionType.OfficialApi,
+            new Dictionary<string, string?>
+            {
+                [ProviderConnectionConfigurationKeys.CopilotScope] = "Organization",
+                [ProviderConnectionConfigurationKeys.CopilotOrganization] = "new-org"
+            }));
+
+        Assert.Equal(ProviderConnectionStatus.Updating, saved.Status);
+        Assert.Equal("old-reference", saved.CredentialReference);
+        Assert.Equal("new-org", saved.Configuration[ProviderConnectionConfigurationKeys.CopilotOrganization]);
+    }
+
+    [Fact]
+    public async Task SuccessRefresh_PersistsConnectedAndBothRefreshTimestamps()
+    {
+        var repository = new InMemoryConnectionRepository { Current = CreateConnection("opaque-reference") };
+        var credentials = new FakeCredentialStore();
+        var service = CreateService(repository, credentials, new FakeRuntimeSettingsUpdater());
+        var completedAt = new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero);
+
+        var saved = await service.RecordRefreshAsync(ProviderRefreshResult.Success(
+            ProviderCode.Copilot,
+            CreateAccount("fresh-account"),
+            null,
+            [],
+            completedAt));
+
+        Assert.NotNull(saved);
+        Assert.Equal(ProviderConnectionStatus.Connected, saved!.Status);
+        Assert.Equal(completedAt, saved.LastAttempt);
+        Assert.Equal(completedAt, saved.LastSuccessfulSync);
+        Assert.Equal("fresh-account", saved.AccountDisplayName);
+    }
+
+    [Fact]
+    public async Task AuthenticationFailure_UpdatesAttemptAndPreservesPreviousSuccessfulSync()
+    {
+        var previousSuccess = new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero);
+        var repository = new InMemoryConnectionRepository
+        {
+            Current = CreateConnection("opaque-reference", previousSuccess, previousSuccess)
+        };
+        var service = CreateService(repository, new FakeCredentialStore(), new FakeRuntimeSettingsUpdater());
+        var attemptedAt = previousSuccess.AddMinutes(5);
+
+        var saved = await service.RecordRefreshAsync(
+            ProviderRefreshResult.AuthenticationRequired(ProviderCode.Copilot, attemptedAt));
+
+        Assert.NotNull(saved);
+        Assert.Equal(ProviderConnectionStatus.AuthenticationRequired, saved!.Status);
+        Assert.Equal(attemptedAt, saved.LastAttempt);
+        Assert.Equal(previousSuccess, saved.LastSuccessfulSync);
+    }
+
+    [Fact]
+    public async Task StaleRefresh_UpdatesAttemptAndPreservesPreviousSuccessfulSync()
+    {
+        var previousSuccess = new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero);
+        var repository = new InMemoryConnectionRepository
+        {
+            Current = CreateConnection("opaque-reference", previousSuccess, previousSuccess)
+        };
+        var service = CreateService(repository, new FakeCredentialStore(), new FakeRuntimeSettingsUpdater());
+        var attemptedAt = previousSuccess.AddMinutes(5);
+
+        var saved = await service.RecordRefreshAsync(ProviderRefreshResult.Stale(
+            ProviderCode.Copilot,
+            null,
+            null,
+            [],
+            attemptedAt));
+
+        Assert.NotNull(saved);
+        Assert.Equal(ProviderConnectionStatus.Stale, saved!.Status);
+        Assert.Equal(attemptedAt, saved.LastAttempt);
+        Assert.Equal(previousSuccess, saved.LastSuccessfulSync);
+    }
+
+    [Fact]
+    public async Task RefreshMetadata_PreservesCredentialReferenceAndConfiguration()
+    {
+        var configuration = new Dictionary<string, string?>
+        {
+            [ProviderConnectionConfigurationKeys.CopilotScope] = "Organization",
+            [ProviderConnectionConfigurationKeys.CopilotOrganization] = "preserved-org"
+        };
+        var repository = new InMemoryConnectionRepository
+        {
+            Current = CreateConnection("opaque-reference", null, null, configuration)
+        };
+        var credentials = new FakeCredentialStore();
+        var service = CreateService(repository, credentials, new FakeRuntimeSettingsUpdater());
+
+        var saved = await service.RecordRefreshAsync(ProviderRefreshResult.Partial(
+            ProviderCode.Copilot,
+            null,
+            null,
+            [],
+            "Usage-only.",
+            new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero)));
+
+        Assert.NotNull(saved);
+        Assert.Equal(ProviderConnectionStatus.Partial, saved!.Status);
+        Assert.Equal(new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero), saved.LastAttempt);
+        Assert.Equal("opaque-reference", saved!.CredentialReference);
+        Assert.Equal(configuration, saved.Configuration);
+        Assert.Equal(0, credentials.RetrieveCount);
+    }
+
+    [Fact]
+    public async Task ProviderErrorRefresh_PersistsErrorMetadataAndPreservesPreviousSuccessfulSync()
+    {
+        var previousSuccess = new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero);
+        var repository = new InMemoryConnectionRepository
+        {
+            Current = CreateConnection("opaque-reference", previousSuccess, previousSuccess)
+        };
+        var service = CreateService(repository, new FakeCredentialStore(), new FakeRuntimeSettingsUpdater());
+        var attemptedAt = previousSuccess.AddMinutes(5);
+
+        var saved = await service.RecordRefreshAsync(ProviderRefreshResult.Failed(
+            ProviderCode.Copilot,
+            "provider_error",
+            "The provider failed.",
+            attemptedAt));
+
+        Assert.NotNull(saved);
+        Assert.Equal(ProviderConnectionStatus.Error, saved!.Status);
+        Assert.Equal(attemptedAt, saved.LastAttempt);
+        Assert.Equal(previousSuccess, saved.LastSuccessfulSync);
+        Assert.Equal("provider_error", saved.LastErrorCode);
+        Assert.Equal("The provider failed.", saved.LastErrorMessage);
     }
 
     private static ProviderConnectionService CreateService(
@@ -91,17 +255,31 @@ public sealed class ProviderConnectionServiceTests
         IProviderRuntimeSettingsUpdater runtime) =>
         new(repository, new FixedIdentityCatalog(), credentials, runtime, new SystemClock());
 
-    private static ProviderConnection CreateConnection(string credentialReference) => new(
+    private static ProviderConnection CreateConnection(
+        string credentialReference,
+        DateTimeOffset? lastSuccessfulSync = null,
+        DateTimeOffset? lastAttempt = null,
+        IReadOnlyDictionary<string, string?>? configuration = null) => new(
         Guid.NewGuid(),
         FixedIdentityCatalog.CopilotId,
         ProviderConnectionType.OfficialApi,
         ProviderConnectionStatus.Connected,
         "test-account",
+        lastSuccessfulSync,
+        lastAttempt,
         null,
         null,
-        null,
-        null,
-        credentialReference);
+        credentialReference,
+        configuration);
+
+    private static ProviderAccount CreateAccount(string displayName) => new(
+        Guid.NewGuid(),
+        FixedIdentityCatalog.CopilotId,
+        displayName,
+        displayName,
+        AIUsageMonitor.Domain.Common.DataSource.OfficialApi,
+        AIUsageMonitor.Domain.Common.ConfidenceLevel.Official,
+        DateTimeOffset.UtcNow);
 
     private sealed class TemporaryStore : IDisposable
     {
@@ -167,6 +345,8 @@ public sealed class ProviderConnectionServiceTests
 
         public List<string> RemovedReferences { get; } = [];
 
+        public int RetrieveCount { get; private set; }
+
         public Task StoreAsync(string credentialReference, string secret, CancellationToken cancellationToken = default)
         {
             _values[credentialReference] = secret;
@@ -174,7 +354,13 @@ public sealed class ProviderConnectionServiceTests
         }
 
         public Task<string?> RetrieveAsync(string credentialReference, CancellationToken cancellationToken = default) =>
-            Task.FromResult(_values.TryGetValue(credentialReference, out var secret) ? secret : null);
+            RetrieveAndCount(credentialReference);
+
+        private Task<string?> RetrieveAndCount(string credentialReference)
+        {
+            RetrieveCount++;
+            return Task.FromResult(_values.TryGetValue(credentialReference, out var secret) ? secret : null);
+        }
 
         public Task RemoveAsync(string credentialReference, CancellationToken cancellationToken = default)
         {

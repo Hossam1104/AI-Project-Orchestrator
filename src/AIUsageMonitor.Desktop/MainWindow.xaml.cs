@@ -35,6 +35,10 @@ public partial class MainWindow : Window
             _viewModel.AiCapacity.SetEditorLauncher(OpenConnectionEditorAsync);
             await _viewModel.InitializeAsync();
         }
+        else
+        {
+            await _viewModel.InitializeDegradedAsync();
+        }
     }
 
     private async Task OpenConnectionEditorAsync(ProviderCapacityCardViewModel card)

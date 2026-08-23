@@ -44,7 +44,18 @@
                                 <TextBlock Text="{Binding ShellStatusText}" Margin="0,16,20,0" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
                                 <Border Margin="0,20,0,0" HorizontalAlignment="Left" Style="{StaticResource StatusChipStyle}">
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="8" Height="8" Fill="{StaticResource BrandSuccessBrush}" VerticalAlignment="Center" />
+                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center">
+                                            <Ellipse.Style>
+                                                <Style TargetType="Ellipse">
+                                                    <Setter Property="Fill" Value="{StaticResource BrandSuccessBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsPersistenceAvailable}" Value="False">
+                                                            <Setter Property="Fill" Value="{StaticResource BrandWarningBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Ellipse.Style>
+                                        </Ellipse>
                                         <TextBlock Text="{Binding PersistenceStateText}" Margin="8,0,0,0" Foreground="{StaticResource BrandTextBrush}" FontWeight="SemiBold" />
                                     </StackPanel>
                                 </Border>

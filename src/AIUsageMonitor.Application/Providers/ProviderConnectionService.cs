@@ -95,9 +95,9 @@ public sealed class ProviderConnectionService : IProviderConnectionService
             previous?.Id ?? Guid.NewGuid(),
             providerId,
             edit.ConnectionType,
-            previous?.Status ?? (newCredentialReference is null
+            newCredentialReference is null
                 ? ProviderConnectionStatus.NotConfigured
-                : ProviderConnectionStatus.AuthenticationRequired),
+                : ProviderConnectionStatus.Updating,
             previous?.AccountDisplayName,
             previous?.LastSuccessfulSync,
             previous?.LastAttempt,
@@ -135,6 +135,49 @@ public sealed class ProviderConnectionService : IProviderConnectionService
 
         return connection;
     }
+
+    public async Task<ProviderConnection?> RecordRefreshAsync(
+        ProviderRefreshResult result,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        var providerId = _identityCatalog.GetProviderId(result.Code);
+        var previous = await _repository.GetByProviderIdAsync(providerId, cancellationToken)
+            .ConfigureAwait(false);
+        if (previous is null)
+        {
+            return null;
+        }
+
+        var successful = result.Outcome is ProviderRefreshOutcome.Success or ProviderRefreshOutcome.Partial;
+        var connection = new ProviderConnection(
+            previous.Id,
+            previous.ProviderId,
+            previous.ConnectionType,
+            MapRefreshStatus(result.Outcome),
+            result.Account?.DisplayName ?? previous.AccountDisplayName,
+            successful ? result.CompletedAt : previous.LastSuccessfulSync,
+            result.CompletedAt,
+            result.ErrorCode,
+            result.ErrorMessage,
+            previous.CredentialReference,
+            previous.Configuration);
+
+        await _repository.UpsertAsync(connection, cancellationToken).ConfigureAwait(false);
+        return connection;
+    }
+
+    private static ProviderConnectionStatus MapRefreshStatus(ProviderRefreshOutcome outcome) => outcome switch
+    {
+        ProviderRefreshOutcome.Success => ProviderConnectionStatus.Connected,
+        ProviderRefreshOutcome.Partial => ProviderConnectionStatus.Partial,
+        ProviderRefreshOutcome.AuthenticationRequired => ProviderConnectionStatus.AuthenticationRequired,
+        ProviderRefreshOutcome.Unsupported => ProviderConnectionStatus.Unsupported,
+        ProviderRefreshOutcome.Stale => ProviderConnectionStatus.Stale,
+        ProviderRefreshOutcome.ProviderError => ProviderConnectionStatus.Error,
+        _ => ProviderConnectionStatus.Error
+    };
 
     private static string CreateCredentialReference(ProviderCode code) =>
         $"apo-{code.ToString().ToLowerInvariant()}-{Guid.NewGuid():N}";
