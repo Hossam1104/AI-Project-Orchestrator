@@ -57,6 +57,12 @@ public sealed class JsonFileStore
         _logger = logger;
     }
 
+    /// <summary>
+    /// Infrastructure-test seam for deterministic read-failure classification. Production code
+    /// leaves this unset so reads use the real file system.
+    /// </summary>
+    internal Func<string, Exception?>? ReadFailureInjector { get; set; }
+
     public static JsonSerializerOptions SerializerOptions { get; } = CreateSerializerOptions();
 
     public static JsonSerializerOptions JsonlSerializerOptions { get; } = CreateSerializerOptions(writeIndented: false);
@@ -81,6 +87,12 @@ public sealed class JsonFileStore
 
         try
         {
+            var injectedFailure = ReadFailureInjector?.Invoke(path);
+            if (injectedFailure is not null)
+            {
+                throw injectedFailure;
+            }
+
             if (!File.Exists(path))
             {
                 return new FileReadResult<T>(FileReadStatus.Missing, default, path);

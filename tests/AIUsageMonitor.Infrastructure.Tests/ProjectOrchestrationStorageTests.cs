@@ -165,6 +165,164 @@ public sealed class ProjectOrchestrationStorageTests
     }
 
     [Fact]
+    public async Task ProjectRegistry_IoFailureDuringUpsertFailsClosedAndPreservesAuthoritativeFile()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var existingProjects = new[]
+        {
+            CreateProject("Existing A"),
+            CreateProject("Existing B")
+        };
+
+        foreach (var project in existingProjects)
+        {
+            await repository.UpsertAsync(project);
+        }
+
+        var beforeBytes = await File.ReadAllBytesAsync(store.Paths.ProjectsFile);
+        var newProject = CreateProject("Incoming");
+        store.Files.ReadFailureInjector = _ => new IOException("synthetic transient read fault");
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(() => repository.UpsertAsync(newProject));
+        }
+        finally
+        {
+            store.Files.ReadFailureInjector = null;
+        }
+
+        var afterBytes = await File.ReadAllBytesAsync(store.Paths.ProjectsFile);
+        Assert.Equal(beforeBytes, afterBytes);
+
+        var loaded = await repository.GetAllAsync();
+        Assert.Equal(existingProjects.Select(project => project.Id).OrderBy(id => id), loaded.Select(project => project.Id).OrderBy(id => id));
+        Assert.DoesNotContain(loaded, project => project.Id == newProject.Id);
+    }
+
+    [Fact]
+    public async Task ProjectRegistry_PermissionFailureDuringUpsertFailsClosedAndPreservesAuthoritativeFile()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var existingProjects = new[]
+        {
+            CreateProject("Existing A"),
+            CreateProject("Existing B")
+        };
+
+        foreach (var project in existingProjects)
+        {
+            await repository.UpsertAsync(project);
+        }
+
+        var beforeBytes = await File.ReadAllBytesAsync(store.Paths.ProjectsFile);
+        var newProject = CreateProject("Incoming");
+        store.Files.ReadFailureInjector = _ => new UnauthorizedAccessException("synthetic permission fault");
+
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => repository.UpsertAsync(newProject));
+        }
+        finally
+        {
+            store.Files.ReadFailureInjector = null;
+        }
+
+        var afterBytes = await File.ReadAllBytesAsync(store.Paths.ProjectsFile);
+        Assert.Equal(beforeBytes, afterBytes);
+
+        var loaded = await repository.GetAllAsync();
+        Assert.Equal(existingProjects.Select(project => project.Id).OrderBy(id => id), loaded.Select(project => project.Id).OrderBy(id => id));
+        Assert.DoesNotContain(loaded, project => project.Id == newProject.Id);
+    }
+
+    [Fact]
+    public async Task AgentRegistry_TransientReadFailureDuringUpsertFailsClosedAndPreservesAuthoritativeFile()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonAgentRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonAgentRepository>.Instance);
+        var existingAgents = new[]
+        {
+            CreateAgent("Existing A"),
+            CreateAgent("Existing B")
+        };
+
+        foreach (var agent in existingAgents)
+        {
+            await repository.UpsertAsync(agent);
+        }
+
+        var beforeBytes = await File.ReadAllBytesAsync(store.Paths.AgentsFile);
+        var newAgent = CreateAgent("Incoming");
+        store.Files.ReadFailureInjector = _ => new IOException("synthetic transient read fault");
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(() => repository.UpsertAsync(newAgent));
+        }
+        finally
+        {
+            store.Files.ReadFailureInjector = null;
+        }
+
+        var afterBytes = await File.ReadAllBytesAsync(store.Paths.AgentsFile);
+        Assert.Equal(beforeBytes, afterBytes);
+
+        var loaded = await repository.GetAllAsync();
+        Assert.Equal(existingAgents.Select(agent => agent.Id).OrderBy(id => id), loaded.Select(agent => agent.Id).OrderBy(id => id));
+        Assert.DoesNotContain(loaded, agent => agent.Id == newAgent.Id);
+    }
+
+    [Fact]
+    public async Task ResultBearingUpdate_IoFailureDoesNotInvokeDelegateOrReplaceAuthoritativeFile()
+    {
+        using var store = new TemporaryStore();
+        var path = Path.Combine(store.Paths.RootDirectory, "result-bearing.json");
+        var records = new VersionedJsonCollectionStore<string>(store.Files);
+
+        await records.UpdateAsync(path, items =>
+        {
+            items.Add("original");
+            return items;
+        });
+
+        var beforeBytes = await File.ReadAllBytesAsync(path);
+        var delegateInvoked = false;
+        store.Files.ReadFailureInjector = _ => new IOException("synthetic transient read fault");
+
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(() => records.UpdateAsync(
+                path,
+                items =>
+                {
+                    delegateInvoked = true;
+                    return (new List<string> { "replacement" }, "result");
+                }));
+        }
+        finally
+        {
+            store.Files.ReadFailureInjector = null;
+        }
+
+        var afterBytes = await File.ReadAllBytesAsync(path);
+        Assert.False(delegateInvoked);
+        Assert.Equal(beforeBytes, afterBytes);
+        Assert.Equal(["original"], await records.ReadAsync(path));
+    }
+
+    [Fact]
     public async Task ProjectRegistry_ArchivedAndNoRepositoryProjectRoundTripWithNullableDefaultBranch()
     {
         using var store = new TemporaryStore();
@@ -1281,6 +1439,33 @@ public sealed class ProjectOrchestrationStorageTests
         createdAt = agent.CreatedAt,
         updatedAt = agent.UpdatedAt
     };
+
+    private static Project CreateProject(string name, Guid? id = null)
+    {
+        var now = new DateTimeOffset(2026, 8, 23, 10, 0, 0, TimeSpan.Zero);
+        return new Project(
+            id ?? Guid.NewGuid(),
+            name,
+            $"C:\\{name.Replace(' ', '-')}",
+            null,
+            ProjectStatus.Active,
+            now,
+            now);
+    }
+
+    private static AgentDefinition CreateAgent(string name, Guid? id = null)
+    {
+        var now = new DateTimeOffset(2026, 8, 23, 10, 0, 0, TimeSpan.Zero);
+        return new AgentDefinition(
+            id ?? Guid.NewGuid(),
+            name,
+            "review",
+            AgentConnectionMode.Manual,
+            AgentAvailability.Available,
+            enabled: true,
+            now,
+            now);
+    }
 
     private static JsonProjectOrchestrationStore CreateOrchestrationStore(
         TemporaryStore store,
