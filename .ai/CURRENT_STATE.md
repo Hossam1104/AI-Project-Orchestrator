@@ -16,14 +16,14 @@
 **APO-27:** COMPLETE / SOL ACCEPTED (COMMENT 11793) / MERGED
 **APO-27 Merge main SHA:** `d0efaf01b07b31effa7a432c225e7c913a86258a`
 **APO-5:** IN PROGRESS
-**APO-35:** IMPLEMENTATION COMPLETE / AWAITING SOL ACCEPTANCE
+**APO-35:** SOL-35-01 REMEDIATED / SOL-35-02 EVIDENCE BLOCKED (PRE-EXISTING UNRELATED DEFECT) / AWAITING SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-35 (Implementation complete / awaiting Sol acceptance)
+**Current Story:** APO-35 (SOL-35-01 bounded remediation delivered; SOL-35-02 evidence blocked; awaiting Sol acceptance)
 **Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
-**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
-**Next implementation:** GPT-5.6 Sol acceptance of the exact final pushed APO-35 feature-branch SHA; do not start another Story automatically
+**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. Sol's review requested SOL-35-01 (edit-target integrity) and SOL-35-02 (visual evidence); SOL-35-01 is fixed and regression-tested, SOL-35-02 could not be captured because of an unrelated, pre-existing `AiCapacityViewModel` DI defect (see section -3a). The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
+**Next implementation:** GPT-5.6 Sol acceptance of the exact final pushed APO-35 feature-branch SHA, including a decision on the blocked SOL-35-02 evidence and the newly discovered `AiCapacityViewModel` defect; do not start another Story automatically
 **Release state:** APO-35 is delivered on a Draft PR while `main` remains unchanged; the accepted APO-27 project registry foundation now has a user-facing Projects workspace, while Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete
 
 ## -3. APO-35 First Usable Projects Workspace
@@ -78,6 +78,70 @@ captured and no visual evidence is claimed for APO-35.
 
 **Opus cadence:** Prompt 3/5 complete. No Claude Opus review was performed, as explicitly required
 by the execution contract. Next gate: GPT-5.6 Sol acceptance.
+
+---
+
+## -3a. APO-35 Delta Remediation: SOL-35-01 / SOL-35-02 (Prompt 4)
+
+**Scope authority:** Sol's review of the APO-35 draft (PR #6) confirmed one defect and one missing
+evidence item, and authorized Claude Sonnet 5, as bounded executor, to fix exactly those two items
+with no scope expansion.
+
+**SOL-35-01 (edit-target integrity) — FIXED.** `ProjectsViewModel` previously resolved the save
+target from `SelectedProject?.Id` at save time, so if selection changed while an edit was open, a
+save could silently update the wrong project. The fix adds an immutable `_editingProjectId` field
+captured when `EditSelectedProject()` runs; `SaveAsync()` uses only that captured id, fails closed
+with a truthful `ErrorMessage` if it is missing, and leaves it untouched on a failed save so a retry
+still targets the original project. It is cleared only on cancel or a successful save. A new
+`IsRegistryInteractionEnabled` property (`!IsEditing && !IsSaving && !IsLoading`) now gates the
+project `ListBox`, search `TextBox`, and status filter `ComboBox` in `MainWindow.xaml`, and the
+`New project`/`Refresh` command predicates were extended with the same `!IsEditing` guard, so the
+registry list cannot change under an in-progress edit. The fix is confined to
+`AIUsageMonitor.Desktop.ViewModels.ProjectsViewModel`; `ProjectRegistryService` (Application layer)
+was not touched, since it already takes an explicit `projectId` parameter and was never the source
+of the defect.
+
+Six new regression tests were added to `ProjectsWorkspaceTests.cs`:
+`EditTarget_DoesNotFollowSelectionChange`, `EditTarget_DoesNotFollowFilterSelectionLoss`,
+`FailedSave_RetryUsesOriginalEditTarget`, `NewAndRefreshCommandsDisabledWhileEditing`,
+`CancelClearsEditTargetAndRestoresRegistryInteraction`,
+`SuccessfulSaveClearsEditTargetAndRestoresRegistryInteraction`. Full-suite validation is 214/214
+passing (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 44, up from 208/38).
+Build is 0 warnings / 0 errors; `git diff --check` reported only benign LF/CRLF notices; a
+secret-pattern scan of the diff found nothing. `win-x64` self-contained single-file publish
+succeeded and the published executable stayed alive through a runtime smoke launch/stop cycle. x86
+and ARM64 publish were not rerun; no configuration affecting them changed.
+
+**SOL-35-02 (sanitized visual evidence) — BLOCKED, NOT FABRICATED.** Evidence capture used
+Windows-native UI Automation (`System.Windows.Automation`) to drive the real published `win-x64`
+executable and GDI (`System.Drawing.Graphics.CopyFromScreen`) to capture the screen, per the
+required no-new-packages/no-browser-automation constraint. During capture, the published shell was
+found to start in a fully degraded, no-persistence fallback mode on **every** launch, for both the
+Projects and AI Capacity workspaces, not only Projects. Root cause, confirmed via a temporary,
+reverted diagnostic in `App.xaml.cs` and removed before delivery: `AiCapacityViewModel` has two
+applicable public constructors, `(IProviderRegistry, IProviderConnectionService)` and
+`(IExecutableLocator)`. The .NET generic host's DI activator cannot disambiguate them when resolving
+`MainWindow` from the service container, throws
+`InvalidOperationException: ... constructors are ambiguous` inside `App.OnStartup` → `ShowShell`,
+and the existing outer `catch` silently falls back to `new MainWindow()` with null-backed,
+non-persistent view models. `git log --oneline -- src/AIUsageMonitor.Desktop/ViewModels/AiCapacityViewModel.cs`
+shows this file has been touched by exactly one commit, `4b393b3` (APO-34, already merged to `main`
+before the APO-35 branch was created at `34569abee50bdb708770e134e9db7db18752a80d`), so this is a
+pre-existing regression unrelated to `ProjectsViewModel`/SOL-35-01 and outside the authorized
+SOL-35-01/SOL-35-02 scope. Because the automation could only reach a degraded shell, no
+functionally real screenshot of the Projects workspace or its editor exists to sanitize and commit.
+Per the explicit no-fabrication instruction, **no image was added to `docs/evidence/`** and none is
+claimed. This is reported as `APO-35 VISUAL EVIDENCE COULD NOT BE CAPTURED SAFELY` for Sol
+disposition; recommended follow-up is a small, separately scoped Jira item to remove the ambiguous
+`AiCapacityViewModel` constructor before SOL-35-02 evidence is re-attempted.
+
+**Out of scope, not performed (per contract):** no rebase/force-push/reset/merge; PR #6 left
+OPEN/DRAFT/UNMERGED; `main` untouched; APO-35/APO-5 not marked Done; no other Story started; no
+`AiCapacityViewModel` fix applied; no APO-27 P3 deferred findings addressed; no Application-layer
+change.
+
+**Jira synchronization:** remediation comment posted to APO-35, comment `11798`. No Jira status
+transition was made.
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.

@@ -1,4 +1,4 @@
-# APO-35 SOL ACCEPTANCE HANDOFF
+# APO-35 SOL DELTA ACCEPTANCE HANDOFF
 
 Story: APO-35 — Implement First Usable Projects Workspace and Project Registry Management
 
@@ -10,131 +10,121 @@ Feature branch: `feat/APO-35-projects-workspace`
 
 Draft PR: [#6](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/6), OPEN / DRAFT / UNMERGED
 
-Functional SHA: `6f3cd6d` (`feat(APO-35): implement first usable Projects workspace`)
+Prior functional SHA: `6f3cd6d` (`feat(APO-35): implement first usable Projects workspace`)
 
-Final branch SHA: to be verified after the documentation/handoff commit and recorded in the final report
+Prior handoff SHA: `dbfd080` (`docs(APO-35): record Sol acceptance handoff`)
 
-## Architecture summary
+Delta remediation SHA: to be verified after this commit is pushed and recorded in the final report
 
-The vertical slice reuses the accepted APO-27 `Project` model and `IProjectRepository` contract.
-The dependency direction remains WPF/Desktop -> Application -> Domain, with Infrastructure owning
-JSON persistence and file paths. Desktop does not parse `projects.json`, know LocalAppData paths, or
-instantiate `JsonProjectRepository`.
+## Remediation scope (Sol-authorized, no scope expansion)
 
-## Application use-case/service design
+This handoff covers exactly two Sol-identified items on top of the existing APO-35 delivery:
+SOL-35-01 (edit-target integrity defect) and SOL-35-02 (sanitized runtime visual evidence). No
+other file, feature, or unrelated deferred finding was touched.
 
-`IProjectRegistryService` and `ProjectRegistryService` provide `GetProjectsAsync`,
-`CreateProjectAsync`, and `UpdateProjectAsync`. Create generates a non-empty Guid and assigns one
-clock value to `CreatedAt` and `UpdatedAt`. Update loads the existing project first, preserves its
-Id and CreatedAt, assigns the current clock value to UpdatedAt, and carries forward hidden
-`RepositoryMetadata` and `TrackerMetadata`. Governance references are trimmed and blank lines are
-ignored. The existing `Project` constructor remains final validation authority.
+## SOL-35-01 — edit-target integrity (FIXED)
 
-## Time handling
+`ProjectsViewModel.SaveAsync()` previously read `SelectedProject?.Id` at save time, so changing the
+list selection (directly, or indirectly through a status-filter change that dropped the in-progress
+item from view) while an edit was open could redirect the save to the wrong project.
 
-The service uses the accepted Application `IClock` seam; Infrastructure registers `SystemClock`.
-Tests use a fixed clock. Internal timestamps remain `DateTimeOffset`; UI display uses local Windows
-time formatting.
+Fix, confined to `src/AIUsageMonitor.Desktop/ViewModels/ProjectsViewModel.cs`:
 
-## ProjectsViewModel
+- A new `_editingProjectId` field is captured once, in `EditSelectedProject()`, from the project
+  being edited, and is the only source used by `SaveAsync()` to resolve the update target.
+- `SaveAsync()` fails closed with `Project could not be saved because the edit target is no longer
+  available.` if `_editingProjectId` is unexpectedly absent for an edit (not create).
+- On a failed save (validation exception, not-found, cancellation, or unexpected error),
+  `_editingProjectId` and the editor contents are left untouched, so retrying the save targets the
+  same original project.
+- `_editingProjectId` is cleared only in `CancelEdit()` and on a successful save.
+- A new `IsRegistryInteractionEnabled` property (`!IsEditing && !IsSaving && !IsLoading`) gates the
+  project list, search box, and status filter in `MainWindow.xaml`, and the `New project`/`Refresh`
+  command `CanExecute` predicates were extended with the same `!IsEditing` guard, so the registry
+  cannot be mutated out from under an in-progress edit.
+- `ProjectRegistryService` (Application layer) was not changed; it already takes an explicit
+  `projectId` parameter and was never the source of the defect.
 
-`ProjectsViewModel` owns asynchronous registry loading/saving, project and filtered collections,
-selection, editor state, search text, lifecycle filter, loading/saving flags, validation, bounded
-errors, and commands. It uses in-memory search over Name and LocalPath and never scans the file
-system.
+### New regression tests (`tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`)
 
-## Navigation integration
+- `EditTarget_DoesNotFollowSelectionChange`
+- `EditTarget_DoesNotFollowFilterSelectionLoss`
+- `FailedSave_RetryUsesOriginalEditTarget`
+- `NewAndRefreshCommandsDisabledWhileEditing`
+- `CancelClearsEditTargetAndRestoresRegistryInteraction`
+- `SuccessfulSaveClearsEditTargetAndRestoresRegistryInteraction`
 
-Main window now exposes `Projects`, `IsProjectsSelected`, and `ShowProjectsCommand`. Selecting
-Overview, Projects, or AI Capacity resets the other selected flags. AI Capacity remains the default
-startup workspace. Agents and Activity remain disabled/planned.
+## SOL-35-02 — sanitized visual evidence (BLOCKED, NOT FABRICATED)
 
-## Workspace behavior
+Evidence capture used Windows-native UI Automation
+(`System.Windows.Automation.AutomationElement`/`InvokePattern`) to drive the real published
+`win-x64` self-contained executable, and GDI (`System.Drawing.Graphics.CopyFromScreen`) for the
+screenshot, per the no-new-packages/no-browser-automation constraint.
 
-- Header/actions: Projects title, Refresh, New project, search, and lifecycle status filter.
-- Project list: cards show name, lifecycle text, local path, repository/tracker summaries, and local
-  UpdatedAt. Unconfigured values say `Not configured`; no connectivity is inferred.
-- Detail view: name, status, local path, repository metadata fields, tracker metadata fields,
-  governance references, routing/safety references, and CreatedAt/UpdatedAt.
-- New project: clean in-workspace editor with all approved visible registration fields.
-- Edit project: loads visible fields from the selected project and preserves hidden metadata.
-- Search: case-insensitive Name/LocalPath in-memory search.
-- Status filter: All, Active, Paused, Blocked, Archived; archived projects are discoverable by
-  default through All and explicitly through Archived.
+The capture found that the published shell starts in a fully degraded, no-persistence fallback mode
+on **every** launch, for both the Projects workspace and the AI Capacity workspace — not a
+Projects-specific or automation-specific issue. Root cause, isolated with a temporary diagnostic in
+`App.xaml.cs` that was reverted before this commit: `AiCapacityViewModel` has two applicable public
+constructors — `(IProviderRegistry, IProviderConnectionService)` and `(IExecutableLocator)`. The
+.NET generic host's DI activator cannot disambiguate them while resolving `MainWindow`, throws
+`InvalidOperationException: ... constructors are ambiguous` inside `App.OnStartup` → `ShowShell`,
+and the existing outer `catch` silently falls back to a null-backed `new MainWindow()`.
+`git log --oneline -- src/AIUsageMonitor.Desktop/ViewModels/AiCapacityViewModel.cs` shows exactly
+one commit touching that file, `4b393b3` (APO-34), already merged to `main` before the APO-35
+branch existed — this is a pre-existing regression unrelated to `ProjectsViewModel`/SOL-35-01, and
+fixing it is outside the SOL-35-01/SOL-35-02 authorization.
 
-## Lifecycle
+Because automation could only reach the degraded shell, no functionally real screenshot of the
+working Projects workspace or its editor exists to sanitize. Per the explicit no-fabrication
+instruction, **no file was added to `docs/evidence/`** and none is claimed as APO-35 evidence.
 
-Active, Paused, Blocked, and Archived are editable status values. Archive and restore are ordinary
-status edits. There is no Delete, Remove permanently, or Purge command.
-
-## Validation
-
-- Blank Name: `Project name is required.`
-- Blank LocalPath: `Local path is required.`
-- Repository metadata without DefaultBranch: `Default branch is required when repository
-  information is configured.`
-- Application `Project` construction remains the final invariant authority.
-
-## Persistence and degraded behavior
-
-Loading is asynchronous and duplicate refresh/save invocation is guarded. Empty registry and
-no-match states are distinct. Read failures show `Projects could not be loaded.` with Retry. Write
-failures show `Project could not be saved.`, retain the editor and entered values, and do not mutate
-the visible collection before persistence succeeds. Raw exceptions, stack traces, JSON, internal
-storage paths, tokens, and credentials are not rendered. If LocalAppData startup is unavailable,
-Projects shows `Project storage unavailable.` and does not create an alternate in-memory registry.
-
-## Project isolation and privacy
-
-Selection and editing use one project record at a time. No project content, Git state, tracker
-payload, credentials, prompts, conversations, or source code is read or persisted. Repository and
-tracker fields are metadata-only registration values; no GitHub/Jira/Azure DevOps calls occur.
+**Result: `APO-35 VISUAL EVIDENCE COULD NOT BE CAPTURED SAFELY`.** Recommended follow-up: a small,
+separately scoped Jira item under Epic APO-5 to remove the ambiguous `AiCapacityViewModel`
+constructor, after which SOL-35-02 evidence capture should be re-attempted.
 
 ## Tests
 
-Focused Desktop suite: 38 executed, 38 passed, 0 failed, 0 skipped. Coverage includes Application
-service create/edit semantics, identity/time behavior, default-branch invariant, hidden metadata
-preservation, loading/empty/no-match states, search, status filters, selection isolation, clean new
-editor, create/edit success, archive/restore, validation, read/write failures, editor preservation,
-degraded storage, duplicate-save prevention, and MainWindow navigation.
-
-Full solution: 208 executed, 208 passed, 0 failed, 0 skipped — Domain 28, Provider 46,
-Infrastructure 86, Connection 10, Desktop 38.
+Full solution: 214 executed, 214 passed, 0 failed, 0 skipped — Domain 28, Provider 46,
+Infrastructure 86, Connection 10, Desktop 44 (up from 208 total / 38 Desktop).
 
 ## Build / publish / runtime smoke
 
-- `dotnet restore AIUsageMonitor.sln`: passed.
-- `dotnet build AIUsageMonitor.sln --no-restore`: passed, 0 warnings, 0 errors.
-- `win-x64`: existing self-contained single-file publish passed.
-- `win-x86` / `win-arm64`: not rerun because project/package/publish configuration was unchanged;
-  prior accepted compile/publish evidence remains historical and no hardware runtime claim is made.
-- Published x64 executable launched and remained alive for five seconds with window title `AI Project
-  Orchestrator`, then was stopped by the smoke harness.
-- Bundled Computer Use native helper was unavailable, so no APO-35 visual screenshot was captured.
+- `dotnet build AIUsageMonitor.sln -c Release`: passed, 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln -c Release --no-build`: 214/214 passed.
+- `win-x64`: self-contained single-file publish passed.
+- `win-x86` / `win-arm64`: not rerun; no project/package/publish configuration changed.
+- Published x64 executable launched and remained alive through a launch/stop smoke cycle. It runs
+  in the pre-existing degraded no-persistence mode described above; this is not a SOL-35-01
+  regression.
+- `git diff --check`: only benign LF/CRLF notices. Diff secret-pattern scan: clean.
 
 ## Markdown files changed
 
-- `.ai/CURRENT_STATE.md` — current APO-35 implementation and acceptance state.
-- `TASK.md` — this Sol acceptance handoff.
-- `README.md` — factual feature-state and capability wording.
-- `docs/IMPLEMENTATION_PLAN.md` — APO-35 delivery boundary and Sol acceptance pending.
+- `.ai/CURRENT_STATE.md` — new `-3a` section recording the SOL-35-01/SOL-35-02 delta remediation.
+- `TASK.md` — this delta acceptance handoff (replaces the prior APO-35 Sol acceptance handoff).
+- `README.md` — updated Desktop/full-suite test counts (44 / 214).
+- `docs/IMPLEMENTATION_PLAN.md` — new section 11 recording the delta remediation and the blocked
+  evidence item.
 - `AGENTS.md`, `CLAUDE.md`, `docs/BRD.md`, `docs/SESSION_PROMPTS.md`,
   `docs/LEGACY_IMPLEMENTATION_MAP.md`, and `docs/APO-31_PROVIDER_EVIDENCE.md` reviewed and
   intentionally unchanged.
 
 ## Jira completion comment
 
-Jira completion comment pending Sol synchronization. APO-35 and APO-5 remain In Progress. No Jira
-status transition was made.
+Jira remediation comment posted: APO-35 comment `11798`. APO-35 and APO-5 remain In Progress. No
+Jira status transition was made.
 
 ## Out-of-scope confirmation
 
 No Git/GitHub integration, Jira/Azure DevOps integration, Agent UI, routing, execution runtime,
 validation engine, independent review engine, acceptance engine, Activity workspace, orchestration
-controls, database, cloud backend, storage redesign, LocalAppData migration, provider changes, or
-technical namespace rename was performed.
+controls, database, cloud backend, storage redesign, LocalAppData migration, provider changes,
+technical namespace rename, or `AiCapacityViewModel` fix was performed. No deferred APO-27 P3
+finding was addressed. No Application-layer change was made.
 
-Opus cadence: Prompt 3/5. No Opus review performed, as explicitly required by the execution
-contract.
+Opus cadence: Prompt 4/5. No Opus review performed, as explicitly required by the execution
+contract (this remediation was executed and reported by Claude Sonnet 5 only).
 
-Next gate: GPT-5.6 Sol acceptance of the exact final pushed feature-branch SHA.
+Next gate: GPT-5.6 Sol acceptance of the exact final pushed feature-branch SHA, including
+disposition of the blocked SOL-35-02 evidence and the newly discovered `AiCapacityViewModel`
+defect.

@@ -293,3 +293,39 @@ call Jira/Azure DevOps, read credentials, scan repository contents, implement ro
 orchestration runtime. Delivery state is **IMPLEMENTATION COMPLETE / AWAITING SOL ACCEPTANCE** on
 `feat/APO-35-projects-workspace` from main base
 `34569abee50bdb708770e134e9db7db18752a80d`. The next planner boundary is GPT-5.6 Sol acceptance.
+See section 11 for the SOL-35-01/SOL-35-02 bounded delta remediation applied on top of this delivery.
+
+## 11. APO-35 Delta Remediation (SOL-35-01 / SOL-35-02)
+
+Sol's review of the APO-35 draft identified one confirmed defect (SOL-35-01: `ProjectsViewModel`
+resolved its save target from live selection instead of an immutable edit-target captured at
+edit-start, allowing a save to redirect to the wrong project if selection changed mid-edit) and
+requested sanitized runtime visual evidence (SOL-35-02). The bounded remediation, executed by
+Claude Sonnet 5 as executor under the same Story/PR, is:
+
+- `ProjectsViewModel` now captures `_editingProjectId` when editing starts and uses it exclusively
+  as the save/update target, independent of later selection or filter changes; save fails closed
+  with a truthful error if the edit target becomes unavailable; the edit target and editor contents
+  are preserved on a failed save so retry targets the original project; the edit target clears only
+  on successful save or cancel.
+- A new `IsRegistryInteractionEnabled` property disables the project list, search box, and status
+  filter while editing, and the existing `New project`/`Refresh` command predicates were extended
+  to stay disabled while editing, so the registry cannot be mutated out from under an in-progress
+  edit through the UI.
+- Six new focused regression tests were added covering selection-change isolation, filter-driven
+  selection loss, failed-save retry targeting, command disablement while editing, and edit-target
+  clearing on cancel/successful save. Full-suite validation is 214/214 passing (Desktop 44, up from
+  38).
+- SOL-35-02 visual evidence was attempted using Windows-native UI Automation and GDI screen capture
+  against the real published `win-x64` self-contained executable. Capture revealed that the
+  published shell starts in a fully degraded, no-persistence fallback mode on every launch, for both
+  the Projects and AI Capacity workspaces, because of an unrelated, pre-existing DI constructor
+  ambiguity in `AiCapacityViewModel` (two applicable public constructors) that makes
+  `_host.Services.GetService<MainWindow>()` throw during startup and fall back to a null-backed
+  shell. This defect was introduced in the APO-34 delivery commit and is unrelated to
+  `ProjectsViewModel`/SOL-35-01; per the bounded remediation's no-scope-expansion constraint it was
+  not fixed here. Because no privacy-safe, functionally real screenshot of the Projects workspace
+  could be captured, no image was added to `docs/evidence/`, and this limitation is reported
+  truthfully rather than substituting degraded-mode captures. Fixing the `AiCapacityViewModel`
+  constructor ambiguity is recommended as a follow-up Jira item under Epic APO-5 before SOL-35-02
+  evidence can be captured or before the workspace is considered release-qualified.
