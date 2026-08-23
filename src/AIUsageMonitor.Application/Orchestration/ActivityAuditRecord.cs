@@ -15,7 +15,9 @@ public sealed class ActivityAuditRecord
         string outcome,
         Guid? runId = null,
         Guid? evidenceId = null,
-        string? summary = null)
+        string? summary = null,
+        string? taskReference = null,
+        IReadOnlyList<Guid>? evidenceIds = null)
     {
         if (projectId == Guid.Empty)
         {
@@ -42,6 +44,11 @@ public sealed class ActivityAuditRecord
             throw new ArgumentException("Activity outcome is required.", nameof(outcome));
         }
 
+        if (evidenceId == Guid.Empty)
+        {
+            throw new ArgumentException("Activity evidence id cannot be empty.", nameof(evidenceId));
+        }
+
         ProjectId = projectId;
         ActivityId = activityId;
         OccurredAt = occurredAt;
@@ -51,6 +58,8 @@ public sealed class ActivityAuditRecord
         RunId = runId;
         EvidenceId = evidenceId;
         Summary = string.IsNullOrWhiteSpace(summary) ? null : summary.Trim();
+        TaskReference = string.IsNullOrWhiteSpace(taskReference) ? null : taskReference.Trim();
+        EvidenceIds = CopyEvidenceIds(evidenceId, evidenceIds);
     }
 
     public Guid ProjectId { get; }
@@ -61,6 +70,10 @@ public sealed class ActivityAuditRecord
 
     public Guid? EvidenceId { get; }
 
+    public string? TaskReference { get; }
+
+    public IReadOnlyList<Guid> EvidenceIds { get; }
+
     public DateTimeOffset OccurredAt { get; }
 
     public string ActorReference { get; }
@@ -70,4 +83,31 @@ public sealed class ActivityAuditRecord
     public string Outcome { get; }
 
     public string? Summary { get; }
+
+    private static IReadOnlyList<Guid> CopyEvidenceIds(Guid? singularEvidenceId, IReadOnlyList<Guid>? evidenceIds)
+    {
+        var result = new List<Guid>();
+        if (singularEvidenceId.HasValue)
+        {
+            result.Add(singularEvidenceId.Value);
+        }
+
+        if (evidenceIds is not null)
+        {
+            foreach (var evidenceId in evidenceIds)
+            {
+                if (evidenceId == Guid.Empty)
+                {
+                    throw new ArgumentException("Activity evidence ids cannot be empty.", nameof(evidenceIds));
+                }
+
+                if (!result.Contains(evidenceId))
+                {
+                    result.Add(evidenceId);
+                }
+            }
+        }
+
+        return result.AsReadOnly();
+    }
 }

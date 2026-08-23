@@ -13,7 +13,7 @@ public sealed class Project
         Guid id,
         string name,
         string localPath,
-        string defaultBranch,
+        string? defaultBranch,
         ProjectStatus status,
         DateTimeOffset createdAt,
         DateTimeOffset updatedAt,
@@ -43,25 +43,33 @@ public sealed class Project
             throw new ArgumentException("Project local path is required.", nameof(localPath));
         }
 
-        if (string.IsNullOrWhiteSpace(defaultBranch))
-        {
-            throw new ArgumentException("Project default branch is required.", nameof(defaultBranch));
-        }
-
         if (updatedAt < createdAt)
         {
             throw new ArgumentException("Project UpdatedAt cannot precede CreatedAt.", nameof(updatedAt));
         }
 
+        if (!Enum.IsDefined(typeof(ProjectStatus), status))
+        {
+            throw new ArgumentException("Project status is undefined.", nameof(status));
+        }
+
         Id = id;
         Name = name.Trim();
         LocalPath = localPath;
-        DefaultBranch = defaultBranch.Trim();
         Status = status;
         RepositoryProvider = NormalizeOptional(repositoryProvider);
         RepositoryUrl = NormalizeOptional(repositoryUrl);
         RepositoryId = NormalizeOptional(repositoryId);
         RepositoryMetadata = MetadataValidation.Copy(repositoryMetadata);
+
+        DefaultBranch = NormalizeOptional(defaultBranch);
+        if (HasRepositoryConfiguration() && DefaultBranch is null)
+        {
+            throw new ArgumentException(
+                "A repository-backed project requires a non-blank default branch.",
+                nameof(defaultBranch));
+        }
+
         TrackerType = NormalizeOptional(trackerType);
         TrackerId = NormalizeOptional(trackerId);
         TrackerMetadata = MetadataValidation.Copy(trackerMetadata);
@@ -78,7 +86,7 @@ public sealed class Project
 
     public string LocalPath { get; }
 
-    public string DefaultBranch { get; }
+    public string? DefaultBranch { get; }
 
     public ProjectStatus Status { get; }
 
@@ -108,6 +116,12 @@ public sealed class Project
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private bool HasRepositoryConfiguration() =>
+        RepositoryProvider is not null ||
+        RepositoryUrl is not null ||
+        RepositoryId is not null ||
+        RepositoryMetadata.Count > 0;
 
     private static IReadOnlyList<string> CopyReferences(IReadOnlyList<string>? references)
     {

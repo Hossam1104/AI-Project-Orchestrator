@@ -316,7 +316,7 @@ internal sealed class ProjectRecord
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string LocalPath { get; set; } = string.Empty;
-    public string DefaultBranch { get; set; } = string.Empty;
+    public string? DefaultBranch { get; set; }
     public ProjectStatus Status { get; set; }
     public string? RepositoryProvider { get; set; }
     public string? RepositoryUrl { get; set; }
@@ -458,6 +458,8 @@ public sealed class ExecutionRunRecord
     public string RecordType { get; set; } = "execution-run";
     public Guid ProjectId { get; set; }
     public Guid RunId { get; set; }
+    public Guid RecordId { get; set; }
+    public DateTimeOffset RecordedAt { get; set; }
     public ExecutionRunStatus Status { get; set; }
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
@@ -473,6 +475,8 @@ public sealed class ExecutionRunRecord
     {
         ProjectId = value.ProjectId,
         RunId = value.RunId,
+        RecordId = value.RecordId,
+        RecordedAt = value.RecordedAt,
         Status = value.Status,
         StartedAt = value.StartedAt,
         CompletedAt = value.CompletedAt,
@@ -497,7 +501,9 @@ public sealed class ExecutionRunRecord
         ModelReference,
         Outcome,
         StopReason,
-        ContractReference);
+        ContractReference,
+        RecordId,
+        RecordedAt);
 }
 
 public sealed class EvidenceMetadataRecord
@@ -514,6 +520,7 @@ public sealed class EvidenceMetadataRecord
     public string? ArtifactReference { get; set; }
     public string? ContentHash { get; set; }
     public string? Summary { get; set; }
+    public List<string> RelatedRequirementReferences { get; set; } = [];
 
     public static EvidenceMetadataRecord FromApplication(EvidenceMetadata value) => new()
     {
@@ -526,7 +533,8 @@ public sealed class EvidenceMetadataRecord
         ValidatorReference = value.ValidatorReference,
         ArtifactReference = value.ArtifactReference,
         ContentHash = value.ContentHash,
-        Summary = value.Summary
+        Summary = value.Summary,
+        RelatedRequirementReferences = value.RelatedRequirementReferences.ToList()
     };
 
     public EvidenceMetadata ToApplication() => new(
@@ -539,6 +547,41 @@ public sealed class EvidenceMetadataRecord
         ValidatorReference,
         ArtifactReference,
         ContentHash,
+        Summary,
+        RelatedRequirementReferences ?? []);
+}
+
+public sealed class ReviewFindingMetadataRecord
+{
+    public string FindingId { get; set; } = string.Empty;
+    public string Severity { get; set; } = string.Empty;
+    public string AffectedReference { get; set; } = string.Empty;
+    public string Disposition { get; set; } = string.Empty;
+    public bool Blocking { get; set; }
+    public List<Guid> EvidenceIds { get; set; } = [];
+    public List<string> EvidenceReferences { get; set; } = [];
+    public string? Summary { get; set; }
+
+    public static ReviewFindingMetadataRecord FromApplication(ReviewFindingMetadata value) => new()
+    {
+        FindingId = value.FindingId,
+        Severity = value.Severity,
+        AffectedReference = value.AffectedReference,
+        Disposition = value.Disposition,
+        Blocking = value.Blocking,
+        EvidenceIds = value.EvidenceIds.ToList(),
+        EvidenceReferences = value.EvidenceReferences.ToList(),
+        Summary = value.Summary
+    };
+
+    public ReviewFindingMetadata ToApplication() => new(
+        FindingId,
+        Severity,
+        AffectedReference,
+        Disposition,
+        Blocking,
+        EvidenceIds ?? [],
+        EvidenceReferences ?? [],
         Summary);
 }
 
@@ -557,6 +600,7 @@ public sealed class ReviewMetadataRecord
     public int FindingCount { get; set; }
     public string? EvidenceReference { get; set; }
     public string? Summary { get; set; }
+    public List<ReviewFindingMetadataRecord> Findings { get; set; } = [];
 
     public static ReviewMetadataRecord FromApplication(ReviewMetadata value) => new()
     {
@@ -570,7 +614,8 @@ public sealed class ReviewMetadataRecord
         Blocking = value.Blocking,
         FindingCount = value.FindingCount,
         EvidenceReference = value.EvidenceReference,
-        Summary = value.Summary
+        Summary = value.Summary,
+        Findings = value.Findings.Select(ReviewFindingMetadataRecord.FromApplication).ToList()
     };
 
     public ReviewMetadata ToApplication() => new(
@@ -584,7 +629,8 @@ public sealed class ReviewMetadataRecord
         RunId,
         FindingCount,
         EvidenceReference,
-        Summary);
+        Summary,
+        (Findings ?? []).Select(static finding => finding.ToApplication()).ToArray());
 }
 
 public sealed class ActivityAuditRecordFile
@@ -595,6 +641,8 @@ public sealed class ActivityAuditRecordFile
     public Guid ActivityId { get; set; }
     public Guid? RunId { get; set; }
     public Guid? EvidenceId { get; set; }
+    public string? TaskReference { get; set; }
+    public List<Guid> EvidenceIds { get; set; } = [];
     public DateTimeOffset OccurredAt { get; set; }
     public string ActorReference { get; set; } = string.Empty;
     public string Action { get; set; } = string.Empty;
@@ -607,6 +655,8 @@ public sealed class ActivityAuditRecordFile
         ActivityId = value.ActivityId,
         RunId = value.RunId,
         EvidenceId = value.EvidenceId,
+        TaskReference = value.TaskReference,
+        EvidenceIds = value.EvidenceIds.ToList(),
         OccurredAt = value.OccurredAt,
         ActorReference = value.ActorReference,
         Action = value.Action,
@@ -623,5 +673,7 @@ public sealed class ActivityAuditRecordFile
         Outcome,
         RunId,
         EvidenceId,
-        Summary);
+        Summary,
+        TaskReference,
+        EvidenceIds ?? []);
 }

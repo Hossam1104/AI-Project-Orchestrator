@@ -27,6 +27,11 @@ public sealed class ProjectOrchestrationStorageTests
         Assert.Equal(projectId, projectPaths.ProjectId);
         Assert.Contains(projectId.ToString("D"), projectPaths.RootDirectory, StringComparison.OrdinalIgnoreCase);
         Assert.StartsWith(store.Paths.ProjectsDirectory, projectPaths.RootDirectory, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(projectPaths.OrchestrationDirectory, store.Paths.GetProjectOrchestrationDirectory(projectId));
+        Assert.EndsWith(
+            Path.Combine(projectId.ToString("D"), "orchestration"),
+            projectPaths.OrchestrationDirectory,
+            StringComparison.OrdinalIgnoreCase);
         Assert.EndsWith("routing-policy.json", projectPaths.RoutingPolicyFile, StringComparison.OrdinalIgnoreCase);
         Assert.EndsWith("runs", projectPaths.RunsDirectory, StringComparison.OrdinalIgnoreCase);
         Assert.EndsWith("evidence", projectPaths.EvidenceDirectory, StringComparison.OrdinalIgnoreCase);
@@ -36,6 +41,7 @@ public sealed class ProjectOrchestrationStorageTests
         await store.Paths.EnsureProjectDirectoriesAsync(projectId);
 
         Assert.True(Directory.Exists(projectPaths.RootDirectory));
+        Assert.True(Directory.Exists(projectPaths.OrchestrationDirectory));
         Assert.True(Directory.Exists(projectPaths.RunsDirectory));
         Assert.True(Directory.Exists(projectPaths.EvidenceDirectory));
         Assert.True(Directory.Exists(projectPaths.ReviewsDirectory));
@@ -116,6 +122,281 @@ public sealed class ProjectOrchestrationStorageTests
         Assert.DoesNotContain("password", projectJson, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("credential", agentJson, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(Directory.EnumerateFiles(store.Paths.RootDirectory, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task ProjectRegistry_UpsertSameIdReplacesOneLogicalRecord()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var projectId = Guid.NewGuid();
+        var createdAt = new DateTimeOffset(2026, 8, 20, 10, 0, 0, TimeSpan.Zero);
+        var first = new Project(
+            projectId,
+            "Initial",
+            "C:\\workspace",
+            null,
+            ProjectStatus.Active,
+            createdAt,
+            createdAt);
+        var latest = new Project(
+            projectId,
+            "Latest",
+            "C:\\workspace-2",
+            null,
+            ProjectStatus.Paused,
+            createdAt,
+            createdAt.AddHours(1));
+
+        await repository.UpsertAsync(first);
+        await repository.UpsertAsync(latest);
+
+        var all = await repository.GetAllAsync();
+        var loaded = await repository.GetByIdAsync(projectId);
+
+        Assert.Single(all);
+        Assert.NotNull(loaded);
+        Assert.Equal("Latest", loaded!.Name);
+        Assert.Equal("C:\\workspace-2", loaded.LocalPath);
+        Assert.Equal(ProjectStatus.Paused, loaded.Status);
+    }
+
+    [Fact]
+    public async Task ProjectRegistry_ArchivedAndNoRepositoryProjectRoundTripWithNullableDefaultBranch()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var now = DateTimeOffset.UtcNow;
+        var project = new Project(
+            Guid.NewGuid(),
+            "Archived notes project",
+            "C:\\notes",
+            "   ",
+            ProjectStatus.Archived,
+            now,
+            now);
+
+        await repository.UpsertAsync(project);
+        var loaded = await repository.GetByIdAsync(project.Id);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(ProjectStatus.Archived, loaded!.Status);
+        Assert.Null(loaded.DefaultBranch);
+    }
+
+    [Fact]
+    public void RepositoryBackedProject_RequiresDefaultBranch()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        Assert.Throws<ArgumentException>(() => new Project(
+            Guid.NewGuid(),
+            "Repository project",
+            "C:\\workspace",
+            null,
+            ProjectStatus.Active,
+            now,
+            now,
+            repositoryProvider: "GitHub"));
+
+        var project = new Project(
+            Guid.NewGuid(),
+            "Repository project",
+            "C:\\workspace",
+            "main",
+            ProjectStatus.Active,
+            now,
+            now,
+            repositoryProvider: "GitHub");
+
+        Assert.Equal("main", project.DefaultBranch);
+    }
+
+    [Fact]
+    public async Task ProjectRegistry_ConcurrentDistinctUpsertsDoNotDropRecords()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var now = DateTimeOffset.UtcNow;
+        var projects = Enumerable.Range(0, 12)
+            .Select(index => new Project(
+                Guid.NewGuid(),
+                $"Project {index}",
+                $"C:\\workspace-{index}",
+                null,
+                ProjectStatus.Active,
+                now,
+                now))
+            .ToArray();
+
+        await Task.WhenAll(projects.Select(project => repository.UpsertAsync(project)));
+
+        var loaded = await repository.GetAllAsync();
+        Assert.Equal(projects.Length, loaded.Count);
+        Assert.Equal(
+            projects.Select(project => project.Id).OrderBy(id => id),
+            loaded.Select(project => project.Id).OrderBy(id => id));
+    }
+
+    [Fact]
+    public async Task ProjectRegistry_InvalidPersistedStatusFailsClosedWhileValidSiblingRemainsReadable()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var now = DateTimeOffset.UtcNow;
+        var valid = new Project(
+            Guid.NewGuid(),
+            "Valid",
+            "C:\\valid",
+            null,
+            ProjectStatus.Active,
+            now,
+            now);
+        var invalidId = Guid.NewGuid();
+        var payload = new
+        {
+            schemaVersion = JsonFileStore.CurrentSchemaVersion,
+            payload = new
+            {
+                items = new object[]
+                {
+                    ProjectRecordForJson(valid),
+                    new
+                    {
+                        id = invalidId,
+                        name = "Invalid status",
+                        localPath = "C:\\invalid",
+                        defaultBranch = (string?)null,
+                        status = 999,
+                        createdAt = now,
+                        updatedAt = now
+                    }
+                }
+            }
+        };
+        await File.WriteAllTextAsync(
+            store.Paths.ProjectsFile,
+            JsonSerializer.Serialize(payload, JsonFileStore.SerializerOptions));
+
+        var loaded = await repository.GetAllAsync();
+
+        Assert.Single(loaded);
+        Assert.Equal(valid.Id, loaded[0].Id);
+        Assert.Null(await repository.GetByIdAsync(invalidId));
+    }
+
+    [Fact]
+    public async Task ProjectRegistry_CorruptAndUnsupportedDocumentsQuarantineAndFutureWriteWorks()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonProjectRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonProjectRepository>.Instance);
+        var now = DateTimeOffset.UtcNow;
+        var project = new Project(
+            Guid.NewGuid(),
+            "Recoverable",
+            "C:\\recoverable",
+            null,
+            ProjectStatus.Active,
+            now,
+            now);
+
+        await File.WriteAllTextAsync(store.Paths.ProjectsFile, "{ not-json");
+        Assert.Empty(await repository.GetAllAsync());
+        Assert.False(File.Exists(store.Paths.ProjectsFile));
+        Assert.NotEmpty(Directory.EnumerateFiles(store.Paths.RootDirectory, "projects.json.corrupt-*.bak"));
+
+        await repository.UpsertAsync(project);
+        Assert.NotNull(await repository.GetByIdAsync(project.Id));
+
+        await File.WriteAllTextAsync(
+            store.Paths.ProjectsFile,
+            "{ \"schemaVersion\": 999, \"payload\": { \"items\": [] } }");
+        Assert.Empty(await repository.GetAllAsync());
+        Assert.False(File.Exists(store.Paths.ProjectsFile));
+        Assert.NotEmpty(Directory.EnumerateFiles(store.Paths.RootDirectory, "projects.json.unsupported-schema-*.bak"));
+
+        await repository.UpsertAsync(project);
+        Assert.NotNull(await repository.GetByIdAsync(project.Id));
+    }
+
+    [Fact]
+    public async Task AgentRegistry_InvalidEnumValuesFailClosedWhileValidSiblingRemainsReadable()
+    {
+        using var store = new TemporaryStore();
+        var repository = new JsonAgentRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonAgentRepository>.Instance);
+        var now = DateTimeOffset.UtcNow;
+        var valid = new AgentDefinition(
+            Guid.NewGuid(),
+            "Valid agent",
+            "review",
+            AgentConnectionMode.Api,
+            AgentAvailability.Available,
+            enabled: true,
+            now,
+            now);
+        var invalidModeId = Guid.NewGuid();
+        var invalidAvailabilityId = Guid.NewGuid();
+        var payload = new
+        {
+            schemaVersion = JsonFileStore.CurrentSchemaVersion,
+            payload = new
+            {
+                items = new object[]
+                {
+                    AgentRecordForJson(valid),
+                    new
+                    {
+                        id = invalidModeId,
+                        name = "Invalid mode",
+                        role = "unknown",
+                        connectionMode = 999,
+                        availability = (int)AgentAvailability.Available,
+                        enabled = true,
+                        createdAt = now,
+                        updatedAt = now
+                    },
+                    new
+                    {
+                        id = invalidAvailabilityId,
+                        name = "Invalid availability",
+                        role = "unknown",
+                        connectionMode = (int)AgentConnectionMode.Manual,
+                        availability = 999,
+                        enabled = true,
+                        createdAt = now,
+                        updatedAt = now
+                    }
+                }
+            }
+        };
+        await File.WriteAllTextAsync(
+            store.Paths.AgentsFile,
+            JsonSerializer.Serialize(payload, JsonFileStore.SerializerOptions));
+
+        var loaded = await repository.GetAllAsync();
+
+        Assert.Single(loaded);
+        Assert.Equal(valid.Id, loaded[0].Id);
+        Assert.Null(await repository.GetByIdAsync(invalidModeId));
+        Assert.Null(await repository.GetByIdAsync(invalidAvailabilityId));
     }
 
     [Fact]
@@ -223,7 +504,9 @@ public sealed class ProjectOrchestrationStorageTests
             validatorReference: "dotnet test",
             artifactReference: "artifacts/test-result.xml",
             contentHash: "sha256:abc",
-            summary: "focused storage tests passed");
+            summary: "focused storage tests passed",
+            relatedRequirementReferences: ["FR-PROJ-003", "FR-REV-003"]);
+        var secondEvidenceId = Guid.NewGuid();
         var reviewA = new ReviewMetadata(
             projectA,
             Guid.NewGuid(),
@@ -233,9 +516,30 @@ public sealed class ProjectOrchestrationStorageTests
             "medium",
             blocking: true,
             runA2.RunId,
-            findingCount: 1,
+            findingCount: 2,
             evidenceReference: evidenceA.EvidenceId.ToString("D"),
-            summary: "one bounded finding");
+            summary: "two bounded findings",
+            findings:
+            [
+                new ReviewFindingMetadata(
+                    "OPUS-01",
+                    "high",
+                    "FR-REV-003",
+                    "Remediated",
+                    blocking: true,
+                    evidenceIds: [evidenceA.EvidenceId],
+                    evidenceReferences: ["EV-PRIMARY"],
+                    summary: "finding one"),
+                new ReviewFindingMetadata(
+                    "OPUS-02",
+                    "medium",
+                    "acceptance:R-02",
+                    "Deferred",
+                    blocking: false,
+                    evidenceIds: [secondEvidenceId],
+                    evidenceReferences: ["EV-SECONDARY"],
+                    summary: "finding two")
+            ]);
         var activityA = new ActivityAuditRecord(
             projectA,
             Guid.NewGuid(),
@@ -245,7 +549,9 @@ public sealed class ProjectOrchestrationStorageTests
             "success",
             runA2.RunId,
             evidenceA.EvidenceId,
-            "review metadata appended");
+            "review metadata appended",
+            taskReference: "APO-27",
+            evidenceIds: [evidenceA.EvidenceId, secondEvidenceId]);
 
         await orchestration.AppendExecutionRunAsync(runA);
         await orchestration.AppendExecutionRunAsync(runB);
@@ -265,6 +571,15 @@ public sealed class ProjectOrchestrationStorageTests
         Assert.Equal([evidenceA.EvidenceId], evidence.Select(value => value.EvidenceId));
         Assert.Equal([reviewA.ReviewId], reviews.Select(value => value.ReviewId));
         Assert.Equal([activityA.ActivityId], activity.Select(value => value.ActivityId));
+        Assert.Equal(["FR-PROJ-003", "FR-REV-003"], evidence[0].RelatedRequirementReferences);
+        Assert.Equal(["OPUS-01", "OPUS-02"], reviews[0].Findings.Select(finding => finding.FindingId));
+        Assert.Equal(["FR-REV-003", "acceptance:R-02"], reviews[0].Findings.Select(finding => finding.AffectedReference));
+        Assert.Equal(["Remediated", "Deferred"], reviews[0].Findings.Select(finding => finding.Disposition));
+        Assert.Equal([true, false], reviews[0].Findings.Select(finding => finding.Blocking));
+        Assert.Equal([evidenceA.EvidenceId], reviews[0].Findings[0].EvidenceIds);
+        Assert.Equal(["EV-SECONDARY"], reviews[0].Findings[1].EvidenceReferences);
+        Assert.Equal("APO-27", activity[0].TaskReference);
+        Assert.Equal([evidenceA.EvidenceId, secondEvidenceId], activity[0].EvidenceIds);
 
         var runAugust = store.Paths.GetMonthlyPartition(store.Paths.GetProjectRunsDirectory(projectA), august);
         var runSeptember = store.Paths.GetMonthlyPartition(store.Paths.GetProjectRunsDirectory(projectA), september);
@@ -273,6 +588,290 @@ public sealed class ProjectOrchestrationStorageTests
         Assert.All(
             Directory.EnumerateFiles(store.Paths.GetProjectDirectory(projectA), "*.jsonl", SearchOption.AllDirectories),
             path => Assert.DoesNotContain(projectB.ToString("D"), File.ReadAllText(path), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExecutionRun_SameLifecycleUsesIndependentRecordIdsAndRecordedAtPartitions()
+    {
+        using var store = new TemporaryStore();
+        var orchestration = CreateOrchestrationStore(store);
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var startedAt = new DateTimeOffset(2026, 8, 31, 23, 0, 0, TimeSpan.Zero);
+        var startedRecordId = Guid.NewGuid();
+        var reviewRecordId = Guid.NewGuid();
+        var started = new ExecutionRun(
+            projectId,
+            runId,
+            ExecutionRunStatus.Running,
+            startedAt,
+            recordId: startedRecordId,
+            recordedAt: new DateTimeOffset(2026, 8, 31, 23, 1, 0, TimeSpan.Zero));
+        var reviewed = new ExecutionRun(
+            projectId,
+            runId,
+            ExecutionRunStatus.Review,
+            startedAt,
+            recordId: reviewRecordId,
+            recordedAt: new DateTimeOffset(2026, 9, 1, 0, 5, 0, TimeSpan.Zero));
+
+        await orchestration.AppendExecutionRunAsync(started);
+        await orchestration.AppendExecutionRunAsync(reviewed);
+
+        var augustPath = store.Paths.GetMonthlyPartition(
+            store.Paths.GetProjectRunsDirectory(projectId),
+            started.RecordedAt);
+        var septemberPath = store.Paths.GetMonthlyPartition(
+            store.Paths.GetProjectRunsDirectory(projectId),
+            reviewed.RecordedAt);
+        var septemberRead = await orchestration.ReadExecutionRunsAsync(
+            projectId,
+            reviewed.RecordedAt.AddMinutes(-1),
+            reviewed.RecordedAt.AddMinutes(1));
+        var all = await orchestration.ReadExecutionRunsAsync(
+            projectId,
+            started.RecordedAt.AddMinutes(-1),
+            reviewed.RecordedAt.AddMinutes(1));
+
+        Assert.True(File.Exists(augustPath));
+        Assert.True(File.Exists(septemberPath));
+        Assert.Single(septemberRead);
+        Assert.Equal(reviewRecordId, septemberRead[0].RecordId);
+        Assert.Equal([startedRecordId, reviewRecordId], all.Select(value => value.RecordId));
+        Assert.Equal(runId, all[0].RunId);
+        Assert.Equal(runId, all[1].RunId);
+        Assert.NotEqual(all[0].RecordId, all[1].RecordId);
+        Assert.Equal(ExecutionRunStatus.Review, all[1].Status);
+    }
+
+    [Fact]
+    public void ExecutionRun_RejectsEmptyRecordIdAndRecordedTimeBeforeStart()
+    {
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var startedAt = new DateTimeOffset(2026, 8, 31, 23, 0, 0, TimeSpan.Zero);
+
+        Assert.Throws<ArgumentException>(() => new ExecutionRun(
+            projectId,
+            runId,
+            ExecutionRunStatus.Running,
+            startedAt,
+            recordId: Guid.Empty));
+        Assert.Throws<ArgumentException>(() => new ExecutionRun(
+            projectId,
+            runId,
+            ExecutionRunStatus.Running,
+            startedAt,
+            recordedAt: startedAt.AddSeconds(-1)));
+    }
+
+    [Fact]
+    public async Task ExecutionRun_InvalidPersistedStatusIsSkippedWithoutHidingValidCheckpoint()
+    {
+        using var store = new TemporaryStore();
+        var orchestration = CreateOrchestrationStore(store);
+        var projectId = Guid.NewGuid();
+        var recordedAt = new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero);
+        var valid = new ExecutionRun(
+            projectId,
+            Guid.NewGuid(),
+            ExecutionRunStatus.Completed,
+            recordedAt,
+            recordId: Guid.NewGuid(),
+            recordedAt: recordedAt);
+        var path = store.Paths.GetMonthlyPartition(
+            store.Paths.GetProjectRunsDirectory(projectId),
+            recordedAt);
+        Directory.CreateDirectory(store.Paths.GetProjectRunsDirectory(projectId));
+        var invalid = new
+        {
+            schemaVersion = JsonFileStore.CurrentSchemaVersion,
+            recordType = "execution-run",
+            projectId,
+            runId = Guid.NewGuid(),
+            recordId = Guid.NewGuid(),
+            recordedAt,
+            status = 999,
+            startedAt = recordedAt
+        };
+        await File.WriteAllTextAsync(
+            path,
+            JsonSerializer.Serialize(invalid, JsonFileStore.JsonlSerializerOptions) + Environment.NewLine +
+            JsonSerializer.Serialize(ExecutionRunRecord.FromApplication(valid), JsonFileStore.JsonlSerializerOptions) + Environment.NewLine);
+
+        var loaded = await orchestration.ReadExecutionRunsAsync(
+            projectId,
+            recordedAt.AddMinutes(-1),
+            recordedAt.AddMinutes(1));
+
+        Assert.Single(loaded);
+        Assert.Equal(valid.RecordId, loaded[0].RecordId);
+        Assert.Equal(valid.Status, loaded[0].Status);
+    }
+
+    [Fact]
+    public async Task Reviews_RemainProjectIsolatedWithFindingLevelTraceability()
+    {
+        using var store = new TemporaryStore();
+        var orchestration = CreateOrchestrationStore(store);
+        var projectA = Guid.NewGuid();
+        var projectB = Guid.NewGuid();
+        var occurredAt = new DateTimeOffset(2026, 8, 23, 13, 0, 0, TimeSpan.Zero);
+        var evidenceA = Guid.NewGuid();
+        var reviewA = new ReviewMetadata(
+            projectA,
+            Guid.NewGuid(),
+            occurredAt,
+            "opus-5",
+            "changes-required",
+            "high",
+            blocking: true,
+            findingCount: 2,
+            findings:
+            [
+                new ReviewFindingMetadata(
+                    "OPUS-01",
+                    "high",
+                    "FR-REV-003",
+                    "Open",
+                    blocking: true,
+                    evidenceIds: [evidenceA]),
+                new ReviewFindingMetadata(
+                    "SOL-02",
+                    "medium",
+                    "acceptance:R-07",
+                    "Accepted",
+                    blocking: false,
+                    evidenceReferences: ["validation:focused-tests"])
+            ]);
+        var reviewB = new ReviewMetadata(
+            projectB,
+            Guid.NewGuid(),
+            occurredAt.AddMinutes(1),
+            "opus-5",
+            "accepted",
+            "none",
+            blocking: false,
+            findingCount: 0);
+
+        await orchestration.AppendReviewAsync(reviewA);
+        await orchestration.AppendReviewAsync(reviewB);
+
+        var loadedA = await orchestration.ReadReviewsAsync(projectA, occurredAt.AddMinutes(-1), occurredAt.AddMinutes(2));
+        var loadedB = await orchestration.ReadReviewsAsync(projectB, occurredAt.AddMinutes(-1), occurredAt.AddMinutes(2));
+
+        Assert.Single(loadedA);
+        Assert.Single(loadedB);
+        Assert.Equal(reviewA.ReviewId, loadedA[0].ReviewId);
+        Assert.Equal(reviewB.ReviewId, loadedB[0].ReviewId);
+        Assert.Equal(["OPUS-01", "SOL-02"], loadedA[0].Findings.Select(finding => finding.FindingId));
+        Assert.Equal(["FR-REV-003", "acceptance:R-07"], loadedA[0].Findings.Select(finding => finding.AffectedReference));
+        Assert.Equal(["Open", "Accepted"], loadedA[0].Findings.Select(finding => finding.Disposition));
+        Assert.Equal([true, false], loadedA[0].Findings.Select(finding => finding.Blocking));
+        Assert.Equal([evidenceA], loadedA[0].Findings[0].EvidenceIds);
+        Assert.Equal(["validation:focused-tests"], loadedA[0].Findings[1].EvidenceReferences);
+    }
+
+    [Fact]
+    public void EvidenceMetadata_RelatedRequirementReferencesAreBoundedAndNonSecret()
+    {
+        var evidence = new EvidenceMetadata(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            "test",
+            "passed",
+            relatedRequirementReferences: ["FR-PROJ-003", "FR-REV-003", "FR-PROJ-003"]);
+
+        var record = EvidenceMetadataRecord.FromApplication(evidence);
+        var json = JsonSerializer.Serialize(record, JsonFileStore.JsonlSerializerOptions);
+
+        Assert.Equal(["FR-PROJ-003", "FR-REV-003"], evidence.RelatedRequirementReferences);
+        Assert.Equal(["FR-PROJ-003", "FR-REV-003"], record.RelatedRequirementReferences);
+        Assert.DoesNotContain("raw-output-fixture", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("password", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("token", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Activity_RoundTripsTaskAndMultipleEvidenceIdsAndPreservesChronologicalRange()
+    {
+        using var store = new TemporaryStore();
+        var orchestration = CreateOrchestrationStore(store);
+        var projectId = Guid.NewGuid();
+        var earlyAt = new DateTimeOffset(2026, 8, 23, 14, 0, 0, TimeSpan.Zero);
+        var lateAt = earlyAt.AddMinutes(2);
+        var firstEvidence = Guid.NewGuid();
+        var secondEvidence = Guid.NewGuid();
+        var early = new ActivityAuditRecord(
+            projectId,
+            Guid.NewGuid(),
+            earlyAt,
+            "apo",
+            "validation-started",
+            "success",
+            taskReference: "APO-27",
+            evidenceIds: [firstEvidence, secondEvidence]);
+        var late = new ActivityAuditRecord(
+            projectId,
+            Guid.NewGuid(),
+            lateAt,
+            "apo",
+            "validation-finished",
+            "success",
+            taskReference: "APO-27",
+            evidenceIds: [secondEvidence]);
+
+        await orchestration.AppendActivityAsync(late);
+        await orchestration.AppendActivityAsync(early);
+
+        var loaded = await orchestration.ReadActivityAsync(
+            projectId,
+            earlyAt.AddMinutes(-1),
+            lateAt.AddMinutes(1));
+
+        Assert.Equal([early.ActivityId, late.ActivityId], loaded.Select(value => value.ActivityId));
+        Assert.Equal("APO-27", loaded[0].TaskReference);
+        Assert.Equal([firstEvidence, secondEvidence], loaded[0].EvidenceIds);
+        Assert.Equal([secondEvidence], loaded[1].EvidenceIds);
+        Assert.NotSame(early.EvidenceIds, loaded[0].EvidenceIds);
+    }
+
+    [Fact]
+    public async Task Activity_MalformedAndUnsupportedRecordsDoNotHideValidRecords()
+    {
+        using var store = new TemporaryStore();
+        var orchestration = CreateOrchestrationStore(store);
+        var projectId = Guid.NewGuid();
+        var occurredAt = new DateTimeOffset(2026, 8, 23, 15, 0, 0, TimeSpan.Zero);
+        var valid = new ActivityAuditRecord(
+            projectId,
+            Guid.NewGuid(),
+            occurredAt,
+            "apo",
+            "recorded",
+            "success",
+            taskReference: "APO-27");
+        var path = store.Paths.GetMonthlyPartition(
+            store.Paths.GetProjectActivityDirectory(projectId),
+            occurredAt);
+        Directory.CreateDirectory(store.Paths.GetProjectActivityDirectory(projectId));
+        var validLine = JsonSerializer.Serialize(
+            ActivityAuditRecordFile.FromApplication(valid),
+            JsonFileStore.JsonlSerializerOptions);
+        await File.WriteAllTextAsync(
+            path,
+            "{ definitely-not-json\n" +
+            "{\"schemaVersion\":999,\"recordType\":\"activity-audit\"}\n" +
+            validLine + Environment.NewLine);
+
+        var loaded = await orchestration.ReadActivityAsync(
+            projectId,
+            occurredAt.AddMinutes(-1),
+            occurredAt.AddMinutes(1));
+
+        Assert.Single(loaded);
+        Assert.Equal(valid.ActivityId, loaded[0].ActivityId);
     }
 
     [Fact]
@@ -316,19 +915,26 @@ public sealed class ProjectOrchestrationStorageTests
         var orchestration = CreateOrchestrationStore(store);
         var projectId = Guid.NewGuid();
         var capturedAt = new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero);
+        var runId = Guid.NewGuid();
         var runs = Enumerable.Range(0, 24)
             .Select(index => new ExecutionRun(
                 projectId,
-                Guid.NewGuid(),
+                runId,
                 ExecutionRunStatus.Completed,
-                capturedAt.AddSeconds(index)))
+                capturedAt,
+                recordId: Guid.NewGuid(),
+                recordedAt: capturedAt.AddSeconds(index)))
             .ToArray();
 
         await Task.WhenAll(runs.Select(run => orchestration.AppendExecutionRunAsync(run)));
 
         var loaded = await orchestration.ReadExecutionRunsAsync(projectId, capturedAt.AddMinutes(-1), capturedAt.AddMinutes(1));
         Assert.Equal(runs.Length, loaded.Count);
-        Assert.Equal(runs.Select(value => value.RunId).OrderBy(value => value), loaded.Select(value => value.RunId).OrderBy(value => value));
+        Assert.Equal(
+            runs.Select(value => value.RecordId).OrderBy(value => value),
+            loaded.Select(value => value.RecordId).OrderBy(value => value));
+        Assert.Single(loaded.Select(value => value.RunId).Distinct());
+        Assert.Equal(runs.Length, loaded.Select(value => value.RecordId).Distinct().Count());
 
         var path = store.Paths.GetMonthlyPartition(store.Paths.GetProjectRunsDirectory(projectId), capturedAt);
         Assert.All(await File.ReadAllLinesAsync(path), line =>
@@ -369,6 +975,33 @@ public sealed class ProjectOrchestrationStorageTests
 
         Assert.NotNull(await policies.GetGlobalAsync());
     }
+
+    private static object ProjectRecordForJson(Project project) => new
+    {
+        id = project.Id,
+        name = project.Name,
+        localPath = project.LocalPath,
+        defaultBranch = project.DefaultBranch,
+        status = (int)project.Status,
+        createdAt = project.CreatedAt,
+        updatedAt = project.UpdatedAt
+    };
+
+    private static object AgentRecordForJson(AgentDefinition agent) => new
+    {
+        id = agent.Id,
+        name = agent.Name,
+        role = agent.Role,
+        provider = agent.Provider,
+        connectionMode = (int)agent.ConnectionMode,
+        availability = (int)agent.Availability,
+        enabled = agent.Enabled,
+        capabilities = agent.Capabilities,
+        limitations = agent.Limitations,
+        costAndQuotaMetadata = agent.CostAndQuotaMetadata,
+        createdAt = agent.CreatedAt,
+        updatedAt = agent.UpdatedAt
+    };
 
     private static JsonProjectOrchestrationStore CreateOrchestrationStore(TemporaryStore store) =>
         new(

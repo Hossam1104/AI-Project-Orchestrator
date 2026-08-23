@@ -41,7 +41,7 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
         await _paths.EnsureProjectDirectoriesAsync(run.ProjectId, cancellationToken).ConfigureAwait(false);
         await _runs.AppendAsync(
                 _paths.GetProjectRunsDirectory(run.ProjectId),
-                run.StartedAt,
+                run.RecordedAt,
                 ExecutionRunRecord.FromApplication(run),
                 cancellationToken)
             .ConfigureAwait(false);
@@ -58,7 +58,7 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
                            _paths.GetProjectRunsDirectory(projectId),
                            from,
                            to,
-                           static value => value.StartedAt,
+                           static value => value.RecordedAt,
                            cancellationToken).ConfigureAwait(false))
         {
             if (record.ProjectId != projectId || !string.Equals(record.RecordType, "execution-run", StringComparison.Ordinal))
@@ -70,8 +70,8 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
         }
 
         return records
-            .OrderBy(static value => value.StartedAt)
-            .ThenBy(static value => value.RunId)
+            .OrderBy(static value => value.RecordedAt)
+            .ThenBy(static value => value.RecordId)
             .ToArray();
     }
 

@@ -42,6 +42,16 @@ public sealed class AgentDefinition
             throw new ArgumentException("Agent UpdatedAt cannot precede CreatedAt.", nameof(updatedAt));
         }
 
+        if (!Enum.IsDefined(typeof(AgentConnectionMode), connectionMode))
+        {
+            throw new ArgumentException("Agent connection mode is undefined.", nameof(connectionMode));
+        }
+
+        if (!Enum.IsDefined(typeof(AgentAvailability), availability))
+        {
+            throw new ArgumentException("Agent availability is undefined.", nameof(availability));
+        }
+
         Id = id;
         Name = name.Trim();
         Role = role.Trim();

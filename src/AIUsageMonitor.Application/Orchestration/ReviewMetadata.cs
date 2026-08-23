@@ -17,7 +17,8 @@ public sealed class ReviewMetadata
         Guid? runId = null,
         int findingCount = 0,
         string? evidenceReference = null,
-        string? summary = null)
+        string? summary = null,
+        IReadOnlyList<ReviewFindingMetadata>? findings = null)
     {
         if (projectId == Guid.Empty)
         {
@@ -60,6 +61,7 @@ public sealed class ReviewMetadata
         FindingCount = findingCount;
         EvidenceReference = NormalizeOptional(evidenceReference);
         Summary = NormalizeOptional(summary);
+        Findings = CopyFindings(findings);
     }
 
     public Guid ProjectId { get; }
@@ -84,6 +86,34 @@ public sealed class ReviewMetadata
 
     public string? Summary { get; }
 
+    public IReadOnlyList<ReviewFindingMetadata> Findings { get; }
+
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static IReadOnlyList<ReviewFindingMetadata> CopyFindings(
+        IReadOnlyList<ReviewFindingMetadata>? findings)
+    {
+        if (findings is null || findings.Count == 0)
+        {
+            return Array.Empty<ReviewFindingMetadata>();
+        }
+
+        var result = new List<ReviewFindingMetadata>(findings.Count);
+        var findingIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var finding in findings)
+        {
+            ArgumentNullException.ThrowIfNull(finding);
+            if (!findingIds.Add(finding.FindingId))
+            {
+                throw new ArgumentException(
+                    $"Review finding id '{finding.FindingId}' is duplicated.",
+                    nameof(findings));
+            }
+
+            result.Add(finding);
+        }
+
+        return result.AsReadOnly();
+    }
 }

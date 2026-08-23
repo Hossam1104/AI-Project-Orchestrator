@@ -101,6 +101,9 @@ public sealed class ApplicationDataPaths
 
     public string GetProjectDirectory(Guid projectId) => GetProjectPaths(projectId).RootDirectory;
 
+    public string GetProjectOrchestrationDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).OrchestrationDirectory;
+
     public string GetProjectRoutingPolicyFile(Guid projectId) => GetProjectPaths(projectId).RoutingPolicyFile;
 
     public string GetProjectRunsDirectory(Guid projectId) => GetProjectPaths(projectId).RunsDirectory;
@@ -116,6 +119,7 @@ public sealed class ApplicationDataPaths
         var projectPaths = GetProjectPaths(projectId);
         EnsureDirectories();
         Directory.CreateDirectory(projectPaths.RootDirectory);
+        Directory.CreateDirectory(projectPaths.OrchestrationDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
@@ -145,16 +149,19 @@ public sealed class ProjectDataPaths
     {
         ProjectId = projectId;
         RootDirectory = rootDirectory;
-        RunsDirectory = Path.Combine(rootDirectory, "runs");
-        EvidenceDirectory = Path.Combine(rootDirectory, "evidence");
-        ReviewsDirectory = Path.Combine(rootDirectory, "reviews");
-        ActivityDirectory = Path.Combine(rootDirectory, "activity");
+        OrchestrationDirectory = Path.Combine(rootDirectory, "orchestration");
+        RunsDirectory = Path.Combine(OrchestrationDirectory, "runs");
+        EvidenceDirectory = Path.Combine(OrchestrationDirectory, "evidence");
+        ReviewsDirectory = Path.Combine(OrchestrationDirectory, "reviews");
+        ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
     }
 
     public Guid ProjectId { get; }
 
     public string RootDirectory { get; }
+
+    public string OrchestrationDirectory { get; }
 
     public string RunsDirectory { get; }
 

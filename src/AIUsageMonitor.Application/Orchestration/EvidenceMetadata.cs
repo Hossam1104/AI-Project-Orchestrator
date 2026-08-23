@@ -16,7 +16,8 @@ public sealed class EvidenceMetadata
         string? validatorReference = null,
         string? artifactReference = null,
         string? contentHash = null,
-        string? summary = null)
+        string? summary = null,
+        IReadOnlyList<string>? relatedRequirementReferences = null)
     {
         if (projectId == Guid.Empty)
         {
@@ -48,6 +49,7 @@ public sealed class EvidenceMetadata
         ArtifactReference = NormalizeOptional(artifactReference);
         ContentHash = NormalizeOptional(contentHash);
         Summary = NormalizeOptional(summary);
+        RelatedRequirementReferences = CopyReferences(relatedRequirementReferences);
     }
 
     public Guid ProjectId { get; }
@@ -70,6 +72,35 @@ public sealed class EvidenceMetadata
 
     public string? Summary { get; }
 
+    public IReadOnlyList<string> RelatedRequirementReferences { get; }
+
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static IReadOnlyList<string> CopyReferences(IReadOnlyList<string>? references)
+    {
+        if (references is null || references.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var result = new List<string>(references.Count);
+        foreach (var reference in references)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                throw new ArgumentException(
+                    "Related requirement references cannot contain blank values.",
+                    nameof(references));
+            }
+
+            var normalized = reference.Trim();
+            if (!result.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+            {
+                result.Add(normalized);
+            }
+        }
+
+        return result.AsReadOnly();
+    }
 }
