@@ -1095,9 +1095,9 @@ SHA references and prior Story records remain preserved as historical evidence; 
 APO-27 execution reference remains.
 
 Jira remains authoritative and unchanged by this executor: APO-27 = In Progress, APO-3 = In
-Progress, owner approval comment `11778`; no duplicate status transition was made. If the
-configured Jira connector is unavailable for the single completion comment, the factual result is
-`Jira completion comment pending Sol synchronization`.
+Progress, owner approval comment `11778`; no duplicate status transition was made. Completion
+comment `11787` was added through the configured Jira connector with the final remediation and
+validation evidence.
 
 ### Next exact lifecycle gate
 

@@ -242,11 +242,10 @@ Authoritative Jira state remains:
 - APO-3: In Progress; and
 - owner approval comment: 11778.
 
-No duplicate Jira status transition was made and neither issue was marked Done. If a configured
-Jira connector is available, Sol should add one concise completion comment containing this
-functional SHA, final branch SHA, blocker resolutions, 32/32 focused tests, 186/186 full tests,
-publish/smoke evidence, Markdown synchronization, deferred P3 observations, and the next gate.
-Otherwise: Jira completion comment pending Sol synchronization.
+No duplicate Jira status transition was made and neither issue was marked Done. Completion comment
+`11787` was added through the configured Jira connector and records this functional SHA, final
+branch SHA, blocker resolutions, 32/32 focused tests, 186/186 full tests, publish/smoke evidence,
+Markdown synchronization, deferred P3 observations, and the next gate.
 
 ## Deferred non-blocking P3 observations
 
