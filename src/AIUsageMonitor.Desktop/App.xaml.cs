@@ -1,6 +1,7 @@
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Providers;
+using AIUsageMonitor.Application.Projects;
 using AIUsageMonitor.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -58,7 +59,9 @@ public partial class App : System.Windows.Application
                 {
                     services.AddInfrastructure(_paths.RootDirectory);
                     services.AddProviders();
+                    services.AddSingleton<IProjectRegistryService, ProjectRegistryService>();
                     services.AddSingleton<AiCapacityViewModel>();
+                    services.AddSingleton<ProjectsViewModel>();
                     services.AddSingleton<MainWindowViewModel>();
                     services.AddSingleton<MainWindow>();
                 })
