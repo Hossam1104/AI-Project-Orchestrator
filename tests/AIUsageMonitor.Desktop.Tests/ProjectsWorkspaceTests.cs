@@ -367,6 +367,143 @@ public sealed class ProjectsWorkspaceTests
     }
 
     [Fact]
+    public async Task EditTarget_DoesNotFollowSelectionChange()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var beta = CreateProject("Beta", "C:\\beta");
+        var repository = new FakeProjectRepository(alpha, beta);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Alpha edited";
+
+        viewModel.SelectedProjectCard = viewModel.FilteredProjects.Single(card => card.Project.Id == beta.Id);
+
+        await viewModel.SaveAsync();
+
+        Assert.Equal("Alpha edited", repository.Projects.Single(project => project.Id == alpha.Id).Name);
+        Assert.Equal("Beta", repository.Projects.Single(project => project.Id == beta.Id).Name);
+    }
+
+    [Fact]
+    public async Task EditTarget_DoesNotFollowFilterSelectionLoss()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var beta = CreateProject("Beta", "C:\\beta");
+        var repository = new FakeProjectRepository(alpha, beta);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Alpha edited";
+
+        viewModel.SearchText = "beta";
+        Assert.Null(viewModel.SelectedProjectCard);
+
+        await viewModel.SaveAsync();
+
+        Assert.Equal("Alpha edited", repository.Projects.Single(project => project.Id == alpha.Id).Name);
+        Assert.Equal("Beta", repository.Projects.Single(project => project.Id == beta.Id).Name);
+    }
+
+    [Fact]
+    public async Task FailedSave_RetryUsesOriginalEditTarget()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var beta = CreateProject("Beta", "C:\\beta");
+        var repository = new FakeProjectRepository(alpha, beta) { WriteException = new IOException("private path") };
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Alpha edited";
+
+        await viewModel.SaveAsync();
+
+        Assert.True(viewModel.IsEditing);
+        Assert.Equal("Alpha edited", viewModel.EditorName);
+        Assert.Equal("Alpha", repository.Projects.Single(project => project.Id == alpha.Id).Name);
+
+        repository.WriteException = null;
+        viewModel.SelectedProjectCard = viewModel.FilteredProjects.Single(card => card.Project.Id == beta.Id);
+
+        await viewModel.SaveAsync();
+
+        Assert.False(viewModel.IsEditing);
+        Assert.Equal("Alpha edited", repository.Projects.Single(project => project.Id == alpha.Id).Name);
+        Assert.Equal("Beta", repository.Projects.Single(project => project.Id == beta.Id).Name);
+    }
+
+    [Fact]
+    public async Task NewAndRefreshCommandsDisabledWhileEditing()
+    {
+        var viewModel = CreateViewModel(new FakeProjectRepository(CreateProject("Alpha", "C:\\alpha")));
+        await viewModel.InitializeAsync();
+
+        Assert.True(viewModel.RefreshCommand.CanExecute(null));
+        Assert.True(viewModel.NewProjectCommand.CanExecute(null));
+
+        viewModel.EditProjectCommand.Execute(null);
+
+        Assert.False(viewModel.RefreshCommand.CanExecute(null));
+        Assert.False(viewModel.NewProjectCommand.CanExecute(null));
+        Assert.False(viewModel.IsRegistryInteractionEnabled);
+    }
+
+    [Fact]
+    public async Task CancelClearsEditTargetAndRestoresRegistryInteraction()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var beta = CreateProject("Beta", "C:\\beta");
+        var repository = new FakeProjectRepository(alpha, beta);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Alpha edited";
+
+        viewModel.CancelEditCommand.Execute(null);
+
+        Assert.False(viewModel.IsEditing);
+        Assert.True(viewModel.RefreshCommand.CanExecute(null));
+        Assert.True(viewModel.NewProjectCommand.CanExecute(null));
+        Assert.True(viewModel.IsRegistryInteractionEnabled);
+
+        viewModel.SelectProject(beta.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Beta edited";
+        await viewModel.SaveAsync();
+
+        Assert.Equal("Alpha", repository.Projects.Single(project => project.Id == alpha.Id).Name);
+        Assert.Equal("Beta edited", repository.Projects.Single(project => project.Id == beta.Id).Name);
+    }
+
+    [Fact]
+    public async Task SuccessfulSaveClearsEditTargetAndRestoresRegistryInteraction()
+    {
+        var viewModel = CreateViewModel(new FakeProjectRepository(CreateProject("Alpha", "C:\\alpha")));
+        await viewModel.InitializeAsync();
+
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Alpha edited";
+
+        Assert.False(viewModel.RefreshCommand.CanExecute(null));
+        Assert.False(viewModel.NewProjectCommand.CanExecute(null));
+
+        await viewModel.SaveAsync();
+
+        Assert.False(viewModel.IsEditing);
+        Assert.True(viewModel.RefreshCommand.CanExecute(null));
+        Assert.True(viewModel.NewProjectCommand.CanExecute(null));
+        Assert.True(viewModel.IsRegistryInteractionEnabled);
+    }
+
+    [Fact]
     public void MainWindowNavigation_ProjectsAndExistingWorkspacesRemainIndependent()
     {
         var viewModel = new MainWindowViewModel(new AiCapacityViewModel(), new ProjectsViewModel());

@@ -11,6 +11,7 @@ namespace AIUsageMonitor.Desktop.ViewModels;
 public sealed class ProjectsViewModel : ObservableObject
 {
     private readonly IProjectRegistryService? _registryService;
+    private Guid? _editingProjectId;
     private bool _isStorageAvailable;
     private bool _hasLoadedSuccessfully;
     private bool _hasLoadError;
@@ -49,8 +50,8 @@ public sealed class ProjectsViewModel : ObservableObject
 
         RefreshCommand = new AsyncCommand(
             () => RefreshAsync(),
-            () => _registryService is not null && !IsSaving && !IsLoading);
-        NewProjectCommand = new RelayCommand(NewProject, CanEditWorkspace);
+            () => _registryService is not null && !IsSaving && !IsLoading && !IsEditing);
+        NewProjectCommand = new RelayCommand(NewProject, CanInteractWithRegistry);
         EditProjectCommand = new RelayCommand(EditSelectedProject, CanEditSelectedProject);
         SaveProjectCommand = new AsyncCommand(SaveAsync, CanSaveProject);
         CancelEditCommand = new RelayCommand(CancelEdit, () => IsEditing && !IsSaving);
@@ -253,6 +254,8 @@ public sealed class ProjectsViewModel : ObservableObject
 
     public bool IsEditorVisible => IsEditing;
 
+    public bool IsRegistryInteractionEnabled => !IsEditing && !IsSaving && !IsLoading;
+
     public string SavingStateText => IsSaving ? "Saving project…" : string.Empty;
 
     public string EditorTitle => IsCreating ? "Register a project" : "Edit project";
@@ -425,6 +428,7 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private void NewProject()
     {
+        _editingProjectId = null;
         SelectedProjectCard = null;
         IsCreating = true;
         IsEditing = true;
@@ -435,27 +439,29 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private void EditSelectedProject()
     {
-        if (SelectedProject is null)
+        var target = SelectedProject;
+        if (target is null)
         {
             return;
         }
 
+        _editingProjectId = target.Id;
         IsCreating = false;
         IsEditing = true;
-        EditorName = SelectedProject.Name;
-        EditorLocalPath = SelectedProject.LocalPath;
-        EditorStatus = SelectedProject.Status;
-        EditorRepositoryProvider = SelectedProject.RepositoryProvider ?? string.Empty;
-        EditorRepositoryUrl = SelectedProject.RepositoryUrl ?? string.Empty;
-        EditorRepositoryId = SelectedProject.RepositoryId ?? string.Empty;
-        EditorDefaultBranch = SelectedProject.DefaultBranch ?? string.Empty;
-        EditorTrackerType = SelectedProject.TrackerType ?? string.Empty;
-        EditorTrackerId = SelectedProject.TrackerId ?? string.Empty;
+        EditorName = target.Name;
+        EditorLocalPath = target.LocalPath;
+        EditorStatus = target.Status;
+        EditorRepositoryProvider = target.RepositoryProvider ?? string.Empty;
+        EditorRepositoryUrl = target.RepositoryUrl ?? string.Empty;
+        EditorRepositoryId = target.RepositoryId ?? string.Empty;
+        EditorDefaultBranch = target.DefaultBranch ?? string.Empty;
+        EditorTrackerType = target.TrackerType ?? string.Empty;
+        EditorTrackerId = target.TrackerId ?? string.Empty;
         EditorGovernanceReferencesText = string.Join(
             Environment.NewLine,
-            SelectedProject.GovernanceReferences);
-        EditorRoutingPolicyReference = SelectedProject.RoutingPolicyReference ?? string.Empty;
-        EditorSafetyPolicyReference = SelectedProject.SafetyPolicyReference ?? string.Empty;
+            target.GovernanceReferences);
+        EditorRoutingPolicyReference = target.RoutingPolicyReference ?? string.Empty;
+        EditorSafetyPolicyReference = target.SafetyPolicyReference ?? string.Empty;
         ValidationMessage = null;
         ErrorMessage = null;
     }
@@ -472,8 +478,14 @@ public sealed class ProjectsViewModel : ObservableObject
             return;
         }
 
+        if (!IsCreating && _editingProjectId is null)
+        {
+            ErrorMessage = "Project could not be saved because the edit target is no longer available.";
+            return;
+        }
+
         var edit = BuildEditorRequest();
-        var editingProjectId = SelectedProject?.Id;
+        var targetProjectId = _editingProjectId;
         IsSaving = true;
         ValidationMessage = null;
         ErrorMessage = null;
@@ -482,11 +494,12 @@ public sealed class ProjectsViewModel : ObservableObject
         {
             var saved = IsCreating
                 ? await _registryService.CreateProjectAsync(edit).ConfigureAwait(true)
-                : await _registryService.UpdateProjectAsync(editingProjectId!.Value, edit).ConfigureAwait(true);
+                : await _registryService.UpdateProjectAsync(targetProjectId!.Value, edit).ConfigureAwait(true);
 
             ReplaceProject(saved);
             IsCreating = false;
             IsEditing = false;
+            _editingProjectId = null;
             _hasLoadedSuccessfully = true;
         }
         catch (ArgumentException exception)
@@ -515,6 +528,7 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private void CancelEdit()
     {
+        _editingProjectId = null;
         IsCreating = false;
         IsEditing = false;
         ValidationMessage = null;
@@ -638,6 +652,8 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private bool CanEditSelectedProject() => CanEditWorkspace() && SelectedProject is not null;
 
+    private bool CanInteractWithRegistry() => CanEditWorkspace() && !IsEditing;
+
     private bool CanSaveProject() =>
         CanEditWorkspace() && IsEditing && !IsSaving;
 
@@ -677,6 +693,7 @@ public sealed class ProjectsViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowRegistrySurface));
         OnPropertyChanged(nameof(ShowEmptyRegistryState));
         OnPropertyChanged(nameof(ShowNoMatchState));
+        OnPropertyChanged(nameof(IsRegistryInteractionEnabled));
         RefreshCommand.NotifyCanExecuteChanged();
         NewProjectCommand.NotifyCanExecuteChanged();
         EditProjectCommand.NotifyCanExecuteChanged();

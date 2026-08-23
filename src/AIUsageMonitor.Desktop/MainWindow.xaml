@@ -323,8 +323,8 @@
                                 </Grid>
 
                                 <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Search projects" ToolTip="Search by project name or local path" />
-                                    <ComboBox ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Filter projects by status" Margin="0,8,0,0" />
+                                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Search projects" ToolTip="Search by project name or local path" />
+                                    <ComboBox ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Filter projects by status" Margin="0,8,0,0" />
 
                                     <Grid Margin="0,14,0,0">
                                         <StackPanel Visibility="{Binding ShowEmptyRegistryState, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -340,7 +340,7 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <ListBox ItemsSource="{Binding FilteredProjects}" SelectedItem="{Binding SelectedProjectCard, Mode=TwoWay}" Background="Transparent" BorderThickness="0" Margin="0,14,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Registered projects">
+                                    <ListBox ItemsSource="{Binding FilteredProjects}" SelectedItem="{Binding SelectedProjectCard, Mode=TwoWay}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Background="Transparent" BorderThickness="0" Margin="0,14,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Registered projects">
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
                                                 <Setter Property="Padding" Value="0" />
