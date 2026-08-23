@@ -1,0 +1,180 @@
+using System.Collections.ObjectModel;
+using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Domain.Providers;
+
+namespace AIUsageMonitor.Desktop.ViewModels;
+
+public sealed class AiCapacityViewModel : ObservableObject
+{
+    private readonly IProviderConnectionService? _connectionService;
+    private readonly SemaphoreSlim _refreshGate = new(1, 1);
+    private string _refreshStateText = "Ready to refresh";
+    private DateTimeOffset? _lastRefresh;
+    private bool _isRefreshing;
+
+    public AiCapacityViewModel()
+    {
+        Cards = new ObservableCollection<ProviderCapacityCardViewModel>(CreateDegradedCards());
+        RefreshAllCommand = new AsyncCommand(() => RefreshAllAsync(), () => !IsRefreshing && Cards.Count > 0);
+    }
+
+    public AiCapacityViewModel(
+        IProviderRegistry registry,
+        IProviderConnectionService connectionService)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        _connectionService = connectionService ?? throw new ArgumentNullException(nameof(connectionService));
+        Cards = new ObservableCollection<ProviderCapacityCardViewModel>(
+            registry.GetAll().OrderBy(provider => provider.Code)
+                .Select(provider => new ProviderCapacityCardViewModel(
+                    provider.Code,
+                    DisplayNameFor(provider.Code),
+                    provider,
+                    connectionService)));
+        RefreshAllCommand = new AsyncCommand(() => RefreshAllAsync(), () => !IsRefreshing && Cards.Count > 0);
+    }
+
+    public ObservableCollection<ProviderCapacityCardViewModel> Cards { get; }
+
+    internal IProviderConnectionService? ConnectionService => _connectionService;
+
+    public AsyncCommand RefreshAllCommand { get; }
+
+    public string RefreshStateText
+    {
+        get => _refreshStateText;
+        private set => SetProperty(ref _refreshStateText, value);
+    }
+
+    public DateTimeOffset? LastRefresh
+    {
+        get => _lastRefresh;
+        private set
+        {
+            if (SetProperty(ref _lastRefresh, value))
+            {
+                OnPropertyChanged(nameof(LastRefreshText));
+            }
+        }
+    }
+
+    public string LastRefreshText => LastRefresh is { } value
+        ? $"Last refresh: {value.ToLocalTime():MMM d, h:mm tt}"
+        : "Last refresh: not yet";
+
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        private set
+        {
+            if (SetProperty(ref _isRefreshing, value))
+            {
+                RefreshAllCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_connectionService is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _ = await _connectionService.LoadAllAsync(cancellationToken).ConfigureAwait(true);
+            foreach (var card in Cards)
+            {
+                var connection = await _connectionService.GetAsync(card.Code, cancellationToken).ConfigureAwait(true);
+                card.SetConnection(connection);
+            }
+
+            await Task.WhenAll(Cards.Select(async card =>
+            {
+                var actual = card;
+                var providerAdapter = GetProvider(actual);
+                if (providerAdapter is not null)
+                {
+                    try
+                    {
+                        actual.ApplyDetection(await providerAdapter.DetectAsync(cancellationToken).ConfigureAwait(true));
+                    }
+                    catch
+                    {
+                        actual.ApplyResult(ProviderRefreshResult.Failed(
+                            actual.Code,
+                            "detection_failed",
+                            "Provider detection failed.",
+                            DateTimeOffset.UtcNow));
+                    }
+                }
+
+                actual.MarkInitialized();
+            })).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            RefreshStateText = "Some saved connection state was unavailable; showing safe defaults.";
+        }
+    }
+
+    public void SetEditorLauncher(Func<ProviderCapacityCardViewModel, Task> launcher)
+    {
+        ArgumentNullException.ThrowIfNull(launcher);
+        foreach (var card in Cards)
+        {
+            if (card.CanEditConnection)
+            {
+                var command = new AsyncCommand(() => launcher(card), () => !card.IsRefreshing);
+                card.SetEditorCommand(command);
+            }
+        }
+    }
+
+    public async Task RefreshAllAsync(CancellationToken cancellationToken = default)
+    {
+        if (!await _refreshGate.WaitAsync(0, cancellationToken).ConfigureAwait(true))
+        {
+            return;
+        }
+
+        IsRefreshing = true;
+        RefreshStateText = "Refreshing all providers…";
+        try
+        {
+            await Task.WhenAll(Cards.Select(card => card.RefreshAsync(cancellationToken))).ConfigureAwait(true);
+            LastRefresh = DateTimeOffset.UtcNow;
+            RefreshStateText = "Refresh complete; each provider is shown independently.";
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            RefreshStateText = "Refresh cancelled.";
+        }
+        finally
+        {
+            IsRefreshing = false;
+            _refreshGate.Release();
+        }
+    }
+
+    private static IAiUsageProvider? GetProvider(ProviderCapacityCardViewModel card) => card.Provider;
+
+    private static IEnumerable<ProviderCapacityCardViewModel> CreateDegradedCards() =>
+        Enum.GetValues<ProviderCode>().OrderBy(code => code)
+            .Select(code => new ProviderCapacityCardViewModel(code, DisplayNameFor(code)));
+
+    public static string DisplayNameFor(ProviderCode code) => code switch
+    {
+        ProviderCode.Codex => "Codex",
+        ProviderCode.Claude => "Claude / Anthropic",
+        ProviderCode.Kimi => "Kimi",
+        ProviderCode.Copilot => "GitHub Copilot",
+        ProviderCode.Antigravity => "Antigravity",
+        _ => code.ToString()
+    };
+}

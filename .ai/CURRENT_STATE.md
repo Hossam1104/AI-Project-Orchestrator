@@ -14,11 +14,11 @@
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-31 - Official Provider Capacity Adapters
-**Current Epic:** APO-4 - Provider Integrations & Usage Collection
-**Status:** APO-31 implementation plus final bounded independent-review remediation delivered on `feat/APO-31-provider-capacity-adapters`; Draft PR #3 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
-**Next implementation:** GPT-5.6 Sol final delta acceptance; do not execute another Story automatically
-**Release state:** Officially supported provider surfaces are adapted with explicit unsupported/manual states; full product release qualification is not complete
+**Current Story:** APO-34 - First Usable AI Capacity Workspace
+**Current Epic:** APO-15 - Dashboard / AI Capacity Workspace
+**Status:** APO-34 implementation delivered on `feat/APO-34-ai-capacity-workspace`; validation is complete, commit and Draft PR delivery are pending final handoff actions; do not merge
+**Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-34; do not execute another Story automatically
+**Release state:** First usable local WPF AI Capacity workspace is implemented with secure connection editing, truthful provider states, and self-contained publish evidence; full product release qualification is not complete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
@@ -658,3 +658,73 @@ PR #3 still `OPEN`, `DRAFT`, and `UNMERGED`. `main` remains at
 **Next planner boundary:** GPT-5.6 Sol final delta acceptance against the exact final branch SHA.
 Do not merge, modify `main`, invoke another reviewer, start another Story, or authorize Provider
 Settings or the Capacity Dashboard from this checkpoint.
+
+## 12. APO-34 First Usable AI Capacity Workspace
+
+**Starting baseline:** `a585ed40ea0e8652c50e4627ee66f7109c67d591`, verified as the exact local
+`main` and `origin/main` head before implementation.
+
+**Branch:** `feat/APO-34-ai-capacity-workspace`
+
+**Implementation status:** COMPLETE on the feature branch; awaiting GPT-5.6 Sol acceptance. No
+merge, Jira write, or independent Opus review was performed.
+
+**Implemented scope:**
+
+- Added additive non-secret provider connection configuration to the existing
+  `ProviderConnection` JSON record and reused the existing repository, atomic JSON store, and
+  Windows Credential Manager adapter.
+- Added `ProviderConnectionService` with the permanent
+  `AIProjectOrchestrator:Credential:` vault boundary, opaque references, staged credential
+  replacement, atomic JSON commit ordering, rollback cleanup, old-reference cleanup, and
+  remove-credential ordering.
+- Added Copilot personal/organization scope configuration, optional personal username,
+  organization validation, Anthropic organization Admin API labelling, and Kimi loopback
+  HTTP(S) server validation with the documented default `http://127.0.0.1:58627/`.
+- Added an immutable copy-on-write runtime settings snapshot seam. Connection saves and startup
+  loading apply settings to the already registered singleton adapters for the next refresh
+  without restart; providers capture one snapshot per refresh.
+- Replaced the static shell body with the bounded MVVM Overview + AI Capacity workspace. AI
+  Capacity is the initial workspace; Overview remains navigable; Projects, Agents, and Activity
+  remain visibly disabled/planned.
+- Added five stable capacity cards in enum order, truthful configured/detected/unsupported/
+  authentication/error/stale states, usage-only rendering without invented remaining values,
+  remaining-percentage presentation, local reset display, isolated asynchronous refresh, and
+  no-overlap Refresh All behavior.
+- Added connection editor windows for Copilot, Claude/Anthropic organization API, and Kimi. The
+  editor never reads a saved secret back and only sends a newly entered secret to the secure
+  save service.
+- Added runtime evidence at `docs/evidence/APO-34-ai-capacity-workspace.png`.
+
+**Validation evidence:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| Baseline Domain / Provider / Infrastructure tests | SUCCESS; **123/123** (28 / 45 / 50) |
+| New desktop tests | SUCCESS; **12/12** |
+| New connection transaction tests | SUCCESS; **3/3** |
+| WPF solution test host | SUCCESS under x64 mapping; final test/build pass had 0 warnings or errors |
+| x64 self-contained single-file publish | SUCCESS; `win-x64` profile |
+| x86 self-contained single-file publish | SUCCESS; `win-x86` profile; compile/publish evidence only |
+| ARM64 self-contained single-file publish | SUCCESS; `win-arm64` profile; compile/publish evidence only |
+| x64 runtime smoke | SUCCESS; published executable launched and rendered the AI Capacity workspace |
+| Runtime screenshot | SUCCESS; inspected `docs/evidence/APO-34-ai-capacity-workspace.png` |
+| Secret/diff review | No real credential; only synthetic test fixture text, never persisted or logged |
+| Live authenticated provider calls | NOT RUN; prohibited by the execution contract |
+
+**Known limitations:**
+
+- The computer-use native helper was unavailable in this environment. The runtime screenshot was
+  captured from the launched local x64 process with a local window-capture fallback and visually
+  inspected; no authenticated provider interaction was attempted.
+- x86 and ARM64 were publish-validated from the x64 Windows development machine; no corresponding
+  hardware runtime execution is claimed.
+- Provider capacity remains subject to the official/manual boundaries documented by APO-31;
+  no new provider or speculative endpoint was added.
+- Full release qualification, signing, installer/updater work, and the future orchestration
+  runtime remain outside APO-34.
+
+**Acceptance boundary:** GPT-5.6 Sol must inspect the implementation and evidence, then accept or
+request bounded remediation. Do not merge this branch, invoke Opus, write Jira, or execute another
+Story automatically from this checkpoint.

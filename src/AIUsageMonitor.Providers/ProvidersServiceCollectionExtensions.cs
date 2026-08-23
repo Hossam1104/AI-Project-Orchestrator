@@ -19,6 +19,14 @@ public static class ProvidersServiceCollectionExtensions
         services.AddSingleton<CopilotOptions>();
         services.AddSingleton<AnthropicOptions>();
         services.AddSingleton<KimiOptions>();
+        services.AddSingleton<IProviderRuntimeSettingsAccessor>(provider =>
+            new ProviderRuntimeSettingsAccessor(
+                provider.GetRequiredService<CopilotOptions>(),
+                provider.GetRequiredService<AnthropicOptions>(),
+                provider.GetRequiredService<KimiOptions>()));
+        services.AddSingleton<IProviderRuntimeSettingsUpdater>(provider =>
+            provider.GetRequiredService<IProviderRuntimeSettingsAccessor>());
+        services.AddSingleton<IProviderIdentityCatalog, ProviderIdentityCatalog>();
 
         services.AddHttpClient(CopilotProvider.HttpClientName, client =>
         {
@@ -44,9 +52,23 @@ public static class ProvidersServiceCollectionExtensions
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
         });
 
-        services.AddSingleton<CopilotProvider>();
-        services.AddSingleton<ClaudeProvider>();
-        services.AddSingleton<KimiProvider>();
+        services.AddSingleton<CopilotProvider>(provider => new CopilotProvider(
+            provider.GetRequiredService<AIUsageMonitor.Application.Time.IClock>(),
+            provider.GetRequiredService<IHttpClientFactory>(),
+            provider.GetRequiredService<AIUsageMonitor.Application.Security.ISecureCredentialStore>(),
+            provider.GetRequiredService<IProviderRuntimeSettingsAccessor>()));
+        services.AddSingleton<ClaudeProvider>(provider => new ClaudeProvider(
+            provider.GetRequiredService<AIUsageMonitor.Application.Time.IClock>(),
+            provider.GetRequiredService<IHttpClientFactory>(),
+            provider.GetRequiredService<AIUsageMonitor.Application.Security.ISecureCredentialStore>(),
+            provider.GetRequiredService<IExecutableLocator>(),
+            provider.GetRequiredService<IProviderRuntimeSettingsAccessor>()));
+        services.AddSingleton<KimiProvider>(provider => new KimiProvider(
+            provider.GetRequiredService<AIUsageMonitor.Application.Time.IClock>(),
+            provider.GetRequiredService<IHttpClientFactory>(),
+            provider.GetRequiredService<AIUsageMonitor.Application.Security.ISecureCredentialStore>(),
+            provider.GetRequiredService<IExecutableLocator>(),
+            provider.GetRequiredService<IProviderRuntimeSettingsAccessor>()));
         services.AddSingleton<CodexProvider>();
         services.AddSingleton<AntigravityProvider>();
 

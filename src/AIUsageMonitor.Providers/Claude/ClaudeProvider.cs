@@ -9,7 +9,9 @@ using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Domain.Common;
 using AIUsageMonitor.Domain.Providers;
 using AIUsageMonitor.Domain.Quotas;
+using AIUsageMonitor.Providers.Copilot;
 using AIUsageMonitor.Providers.Common;
+using AIUsageMonitor.Providers.Kimi;
 
 namespace AIUsageMonitor.Providers.Claude;
 
@@ -26,7 +28,7 @@ public sealed class ClaudeProvider : ProviderAdapterBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISecureCredentialStore _credentialStore;
     private readonly IExecutableLocator _executableLocator;
-    private readonly AnthropicOptions _options;
+    private readonly IProviderRuntimeSettingsAccessor _settings;
 
     public ClaudeProvider(
         IClock clock,
@@ -34,13 +36,25 @@ public sealed class ClaudeProvider : ProviderAdapterBase
         ISecureCredentialStore credentialStore,
         IExecutableLocator executableLocator,
         AnthropicOptions options)
+        : this(clock, httpClientFactory, credentialStore, executableLocator,
+            new ProviderRuntimeSettingsAccessor(
+                new CopilotOptions(), options, new KimiOptions()))
+    {
+    }
+
+    public ClaudeProvider(
+        IClock clock,
+        IHttpClientFactory httpClientFactory,
+        ISecureCredentialStore credentialStore,
+        IExecutableLocator executableLocator,
+        IProviderRuntimeSettingsAccessor settings)
         : base(clock)
     {
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
         _executableLocator = executableLocator ?? throw new ArgumentNullException(nameof(executableLocator));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     public override ProviderCode Code => ProviderCode.Claude;
@@ -48,7 +62,8 @@ public sealed class ClaudeProvider : ProviderAdapterBase
     public override Task<ProviderDetectionResult> DetectAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var apiConfigured = !string.IsNullOrWhiteSpace(_options.CredentialReference);
+        var options = _settings.Current.Anthropic;
+        var apiConfigured = !string.IsNullOrWhiteSpace(options.CredentialReference);
         var cliDetected = _executableLocator.Find("claude") is not null;
         return Task.FromResult(new ProviderDetectionResult(
             Code,
@@ -64,9 +79,10 @@ public sealed class ClaudeProvider : ProviderAdapterBase
     public override async Task<ProviderConnectionStatus> GetConnectionStatusAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!string.IsNullOrWhiteSpace(_options.CredentialReference))
+        var options = _settings.Current.Anthropic;
+        if (!string.IsNullOrWhiteSpace(options.CredentialReference))
         {
-            var token = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
+            var token = await _credentialStore.RetrieveAsync(options.CredentialReference, cancellationToken)
                 .ConfigureAwait(false);
             return string.IsNullOrWhiteSpace(token)
                 ? ProviderConnectionStatus.AuthenticationRequired
@@ -80,12 +96,13 @@ public sealed class ClaudeProvider : ProviderAdapterBase
 
     protected override async Task<ProviderRefreshResult> RefreshCoreAsync(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(_options.CredentialReference))
+        var options = _settings.Current.Anthropic;
+        if (string.IsNullOrWhiteSpace(options.CredentialReference))
         {
             return Unsupported();
         }
 
-        var adminKey = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
+        var adminKey = await _credentialStore.RetrieveAsync(options.CredentialReference, cancellationToken)
             .ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(adminKey))
         {
@@ -95,7 +112,7 @@ public sealed class ClaudeProvider : ProviderAdapterBase
         var tokenCount = 0d;
         var nextPage = (string?)null;
         var seenCursors = new HashSet<string>(StringComparer.Ordinal);
-        var startingAt = (_options.StartingAt ?? _clock.UtcNow.AddDays(-1)).ToUniversalTime();
+        var startingAt = (options.StartingAt ?? _clock.UtcNow.AddDays(-1)).ToUniversalTime();
         var client = _httpClientFactory.CreateClient(HttpClientName);
 
         while (true)

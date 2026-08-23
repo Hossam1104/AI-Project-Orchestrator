@@ -1,90 +1,91 @@
-# APO-31 SOL FINAL ACCEPTANCE CHECKPOINT
+# APO-34 — SOL ACCEPTANCE CHECKPOINT
 
-**Story:** APO-31 - Official Provider Capacity Adapters
-**Branch:** `feat/APO-31-provider-capacity-adapters`
-**Original reviewed head:** `11ba9ddc085a886f27db5c9bb5632982042217ed`
-**Independent review verdict:** `CHANGES REQUIRED`
-**Draft PR:** [#3](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/3)
-**Base:** `main` at `40f62f98787df80368eeeca454b223edf8dbd5d9`
-**Remediation implementation commit:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
-**Final pushed remediation branch head:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
+**Story:** APO-34 — First Usable AI Capacity Workspace
 
-## Independent-review findings
+**Branch:** `feat/APO-34-ai-capacity-workspace`
 
-- **O-01 MAJOR - Anthropic Messages Usage query:** the previous `limit=1000` request
-  was not valid for every documented `bucket_width`. The adapter now omits `limit`, captures
-  `starting_at` once per refresh, and preserves it and every other non-pagination parameter on
-  every cursor page. Only the URL-encoded `page` cursor is added after page one.
-- **O-02 MAJOR - Anthropic Admin API redirect safety:** the named Anthropic HttpClient now uses
-  `HttpClientHandler.AllowAutoRedirect = false`. A 3xx response is an existing typed
-  `provider_error`; no `Location`, response body, or API key is exposed, and no redirect is
-  followed.
-- **O-03 MAJOR - strict numeric provider parsing:** Claude and GitHub Copilot now reject present
-  malformed, null, negative, non-finite, or non-numeric numeric values as `malformed_response`.
-  Copilot validates both `grossQuantity` and `netQuantity` before preserving the existing
-  gross-over-net selection. Malformed mixed refreshes never publish a partial smaller total and
-  retain the previous complete data as `Stale`.
-- **O-04 MINOR - evidence synchronization:** `docs/APO-31_PROVIDER_EVIDENCE.md` now records the
-  corrected Anthropic semantics, redirect boundary, and actual validation totals.
+**Exact baseline:** `a585ed40ea0e8652c50e4627ee66f7109c67d591`
 
-## Final request and parsing behavior
+**Base:** `main` and `origin/main` were verified at the exact baseline before implementation.
 
-### Anthropic Messages Usage
+**Authority:** GPT-5.6 Sol is the acceptance authority. This checkpoint is not a merge approval.
 
-- First-party rule verified against the current Anthropic Messages Usage API reference:
-  `limit` is optional and its default/max values depend on `bucket_width` (`1d` 31, `1h` 168,
-  `1m` 1440 maximum buckets).
-- Final request shape contains the captured `starting_at`; it omits `limit` and uses `page` only
-  for later cursor requests.
-- Pagination regression proves `100 + 200 = 300`, exact `starting_at` preservation, cursor URL
-  encoding, clock mutation safety, malformed blank/repeated cursors, later-page failure,
-  cancellation, and stale retention.
+## Delivered scope
 
-### Redirect protection
+APO-34 implements the first usable local WPF workspace for AI capacity decisions while staying
+inside the approved C# / .NET 10 / WPF / MVVM / JSON / Credential Manager architecture.
 
-- The named Anthropic Admin API client disables automatic redirects.
-- 3xx responses are not success and map to the stable `provider_error` path.
-- The loopback regression uses a disposable local redirect origin/destination and proves the
-  synthetic `x-api-key` is not sent to the destination or included in result/error output.
+- The bounded shell contains Overview and AI Capacity. AI Capacity is the initial workspace;
+  Overview remains navigable. Projects, Agents, and Activity are visibly disabled/planned.
+- AI Capacity shows exactly Codex, Claude / Anthropic, Kimi, GitHub Copilot, and Antigravity in
+  stable enum order.
+- Cards distinguish configured, local-detected, unsupported/manual, authentication-required,
+  error, and stale states. One provider failure does not hide another provider.
+- Capacity cards render arbitrary quota windows, remaining percentage as remaining, usage-only
+  values without invented limits or progress, local reset times, source/confidence, and explicit
+  unavailable values.
+- Refresh All and per-provider refresh are asynchronous, isolated, cancellation-aware, and
+  protected against overlapping refreshes.
+- Copilot connection editing supports PersonalUser and Organization scope; personal username is
+  optional and organization is required for organization scope.
+- Claude/Anthropic editing is explicitly labelled as the organization Admin API channel and does
+  not conflate it with Claude consumer subscription capacity.
+- Kimi editing defaults to `http://127.0.0.1:58627/` and validates absolute loopback HTTP/HTTPS
+  before credential retrieval or HTTP use.
+- Connection persistence stores only non-secret configuration plus an opaque credential reference.
+  Credential replacement stages the new secure value, persists the JSON reference atomically,
+  removes the staged value on persistence failure, and removes the previous value only after the
+  new state is committed. Removing a credential persists the null reference before cleanup.
+- Startup loading and saves update immutable runtime settings snapshots used by the already
+  registered provider adapters on the next refresh without restart. Providers capture one
+  complete snapshot per refresh.
+- The connection editor never reads saved secret material back; a saved credential is represented
+  only by truthful “credential saved” state.
 
-### Claude and Copilot malformed numbers
-
-- Claude present non-number token fields fail as `malformed_response`; no partial token total is
-  published. A later malformed refresh retains the previous complete usage as stale.
-- Copilot validates both official usage quantity fields, does not silently discard an item, and
-  does not fall back past a malformed present field. A later malformed mixed refresh retains the
-  previous complete usage as stale.
-
-## Validation evidence
+## Required validation completed
 
 | Check | Result |
 |---|---|
-| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
-| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
-| Focused provider test project | SUCCESS; 45/45 passing |
-| Domain tests | SUCCESS; 28/28 passing |
-| Provider tests | SUCCESS; 45/45 passing |
-| Infrastructure tests | SUCCESS; 50/50 passing |
-| Full solution tests | SUCCESS; 123/123 passing |
-| `git diff --check` | SUCCESS; only benign Git LF/CRLF normalization notices |
-| Secret-pattern / known-secret review | SUCCESS; no real credentials or provider secret literals; only sanitized test fixture secret |
-| `win-x64` self-contained single-file publish | SUCCESS; `win-x64` profile |
-| `win-x86` and `win-arm64` publish | Not rerun; project/package/publish configuration unchanged and prior APO-31 evidence retained |
-| Live authenticated provider calls | Not run; prohibited by the test contract |
+| Restore | `dotnet restore AIUsageMonitor.sln` — SUCCESS |
+| Baseline tests | **123/123** — Domain 28, Provider 45, Infrastructure 50 |
+| New desktop tests | **12/12** |
+| New connection transaction tests | **3/3** |
+| Solution/WPF test build | SUCCESS; x64 desktop test mapping; 0 warnings, 0 errors in final build/test pass |
+| Self-contained publish | SUCCESS for `win-x64`, `win-x86`, and `win-arm64`; single-file, trimmed false |
+| x64 runtime smoke | SUCCESS; published executable launched and rendered AI Capacity |
+| Runtime evidence | [APO-34-ai-capacity-workspace.png](docs/evidence/APO-34-ai-capacity-workspace.png) inspected |
+| Secret review | No real credentials; only sanitized synthetic fixture text in tests |
+| Live provider calls | NOT RUN; no authenticated credentials or live calls are allowed in CI/validation |
 
-## Evidence and scope
+## Files and areas changed
 
-- Corrected evidence: `docs/APO-31_PROVIDER_EVIDENCE.md`.
-- No Provider Settings UI, AI Capacity Dashboard, Project Registry, GitHub project orchestration,
-  Jira/Azure runtime, routing, autonomy, database/ORM, browser scraping, TUI scraping, cookie
-  extraction, private endpoint reverse engineering, or additional provider was implemented.
-- Accepted Codex, Claude consumer, Kimi, Copilot, and Antigravity boundaries remain unchanged.
+- Application provider connection service, edit model, configuration keys, identity catalog seam,
+  and runtime-settings updater contract.
+- Domain provider connection configuration and truthful `NotConfigured` status.
+- Infrastructure connection record mapping, repository/service DI registration, and secure-save
+  transaction tests in the separate connection test project.
+- Providers runtime snapshot accessor and live settings injection for Claude, Copilot, and Kimi.
+- Desktop MVVM workspace, capacity cards, quota presentation, navigation, connection editor,
+  startup compatibility guard, and WPF resources/bindings.
+- Solution configuration for x64 WPF test execution and new focused test projects.
+- Runtime screenshot evidence and this handoff metadata.
 
-## PR and authority
+## Explicitly out of scope
 
-- PR #3 remains `OPEN`, `DRAFT`, and `UNMERGED`.
-- No merge, rebase, force push, main-branch modification, new branch, new PR, Jira write, or
-  second Opus review is authorized or performed.
-- Next authority: **GPT-5.6 Sol** for final delta acceptance against the exact final branch SHA.
+No new provider, speculative provider endpoint, browser-cookie extraction, conversation/prompt
+collection, AI chat, routing/orchestration runtime, Jira/GitHub adapter, project registry,
+database/ORM, cloud backend, Node/Angular/Electron/Tauri/embedded browser, LocalAppData migration,
+installer/signing/updater, or full product release qualification was added.
 
-This checkpoint does not authorize Provider Settings, Capacity Dashboard, or any next Story.
+## Review and delivery boundary
+
+- Do not invoke Claude Opus for this work item.
+- Do not create or update Jira from this executor checkpoint.
+- Do not merge, rebase, force-push, modify `main`, or create a second PR.
+- The executor must commit and push this feature branch, create exactly one Draft PR against
+  `main`, and stop for GPT-5.6 Sol acceptance.
+- Sol may request bounded remediation or accept the feature. No next Story is authorized by this
+  file.
+
+**Expected next planner boundary:** GPT-5.6 Sol acceptance of APO-34 against the pushed feature
+branch and Draft PR, with the implementation intentionally unmerged.
