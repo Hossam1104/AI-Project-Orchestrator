@@ -13,9 +13,7 @@ public sealed class ReviewMetadata
         string reviewerReference,
         string verdict,
         string severity,
-        bool blocking,
         Guid? runId = null,
-        int findingCount = 0,
         string? evidenceReference = null,
         string? summary = null,
         IReadOnlyList<ReviewFindingMetadata>? findings = null)
@@ -45,11 +43,6 @@ public sealed class ReviewMetadata
             throw new ArgumentException("Review severity is required.", nameof(severity));
         }
 
-        if (findingCount < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(findingCount), findingCount, "Finding count cannot be negative.");
-        }
-
         ProjectId = projectId;
         ReviewId = reviewId;
         RunId = runId;
@@ -57,8 +50,6 @@ public sealed class ReviewMetadata
         ReviewerReference = reviewerReference.Trim();
         Verdict = verdict.Trim();
         Severity = severity.Trim();
-        Blocking = blocking;
-        FindingCount = findingCount;
         EvidenceReference = NormalizeOptional(evidenceReference);
         Summary = NormalizeOptional(summary);
         Findings = CopyFindings(findings);
@@ -78,9 +69,15 @@ public sealed class ReviewMetadata
 
     public string Severity { get; }
 
-    public bool Blocking { get; }
+    /// <summary>
+    /// Gets whether any detailed finding is blocking. A review with no findings is non-blocking.
+    /// </summary>
+    public bool Blocking => Findings.Count > 0 && Findings.Any(static finding => finding.Blocking);
 
-    public int FindingCount { get; }
+    /// <summary>
+    /// Gets the number of detailed findings. The finding collection is the sole source of truth.
+    /// </summary>
+    public int FindingCount => Findings.Count;
 
     public string? EvidenceReference { get; }
 

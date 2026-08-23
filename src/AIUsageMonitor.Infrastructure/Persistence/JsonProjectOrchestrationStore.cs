@@ -47,32 +47,35 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
             .ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<ExecutionRun>> ReadExecutionRunsAsync(
+    public async Task<HistoryReadResult<ExecutionRun>> ReadExecutionRunsAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
+        var raw = await _runs.ReadRangeWithStatusAsync(
+                _paths.GetProjectRunsDirectory(projectId),
+                from,
+                to,
+                static value => value.RecordedAt,
+                cancellationToken)
+            .ConfigureAwait(false);
         var records = new List<ExecutionRun>();
-        await foreach (var record in _runs.ReadRangeAsync(
-                           _paths.GetProjectRunsDirectory(projectId),
-                           from,
-                           to,
-                           static value => value.RecordedAt,
-                           cancellationToken).ConfigureAwait(false))
+        var issues = raw.Issues.ToList();
+        foreach (var record in raw.Records)
         {
             if (record.ProjectId != projectId || !string.Equals(record.RecordType, "execution-run", StringComparison.Ordinal))
             {
                 continue;
             }
 
-            TryAdd(record, records);
+            TryAdd(record, records, issues);
         }
 
-        return records
-            .OrderBy(static value => value.RecordedAt)
-            .ThenBy(static value => value.RecordId)
-            .ToArray();
+        return BuildResult(
+            raw.Status,
+            records.OrderBy(static value => value.RecordedAt).ThenBy(static value => value.RecordId).ToArray(),
+            issues);
     }
 
     public async Task AppendEvidenceAsync(
@@ -89,32 +92,35 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
             .ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<EvidenceMetadata>> ReadEvidenceAsync(
+    public async Task<HistoryReadResult<EvidenceMetadata>> ReadEvidenceAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
+        var raw = await _evidence.ReadRangeWithStatusAsync(
+                _paths.GetProjectEvidenceDirectory(projectId),
+                from,
+                to,
+                static value => value.CapturedAt,
+                cancellationToken)
+            .ConfigureAwait(false);
         var records = new List<EvidenceMetadata>();
-        await foreach (var record in _evidence.ReadRangeAsync(
-                           _paths.GetProjectEvidenceDirectory(projectId),
-                           from,
-                           to,
-                           static value => value.CapturedAt,
-                           cancellationToken).ConfigureAwait(false))
+        var issues = raw.Issues.ToList();
+        foreach (var record in raw.Records)
         {
             if (record.ProjectId != projectId || !string.Equals(record.RecordType, "evidence-metadata", StringComparison.Ordinal))
             {
                 continue;
             }
 
-            TryAdd(record, records);
+            TryAdd(record, records, issues);
         }
 
-        return records
-            .OrderBy(static value => value.CapturedAt)
-            .ThenBy(static value => value.EvidenceId)
-            .ToArray();
+        return BuildResult(
+            raw.Status,
+            records.OrderBy(static value => value.CapturedAt).ThenBy(static value => value.EvidenceId).ToArray(),
+            issues);
     }
 
     public async Task AppendReviewAsync(
@@ -131,32 +137,35 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
             .ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<ReviewMetadata>> ReadReviewsAsync(
+    public async Task<HistoryReadResult<ReviewMetadata>> ReadReviewsAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
+        var raw = await _reviews.ReadRangeWithStatusAsync(
+                _paths.GetProjectReviewsDirectory(projectId),
+                from,
+                to,
+                static value => value.OccurredAt,
+                cancellationToken)
+            .ConfigureAwait(false);
         var records = new List<ReviewMetadata>();
-        await foreach (var record in _reviews.ReadRangeAsync(
-                           _paths.GetProjectReviewsDirectory(projectId),
-                           from,
-                           to,
-                           static value => value.OccurredAt,
-                           cancellationToken).ConfigureAwait(false))
+        var issues = raw.Issues.ToList();
+        foreach (var record in raw.Records)
         {
             if (record.ProjectId != projectId || !string.Equals(record.RecordType, "review-metadata", StringComparison.Ordinal))
             {
                 continue;
             }
 
-            TryAdd(record, records);
+            TryAdd(record, records, issues);
         }
 
-        return records
-            .OrderBy(static value => value.OccurredAt)
-            .ThenBy(static value => value.ReviewId)
-            .ToArray();
+        return BuildResult(
+            raw.Status,
+            records.OrderBy(static value => value.OccurredAt).ThenBy(static value => value.ReviewId).ToArray(),
+            issues);
     }
 
     public async Task AppendActivityAsync(
@@ -173,35 +182,41 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
             .ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<ActivityAuditRecord>> ReadActivityAsync(
+    public async Task<HistoryReadResult<ActivityAuditRecord>> ReadActivityAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
+        var raw = await _activity.ReadRangeWithStatusAsync(
+                _paths.GetProjectActivityDirectory(projectId),
+                from,
+                to,
+                static value => value.OccurredAt,
+                cancellationToken)
+            .ConfigureAwait(false);
         var records = new List<ActivityAuditRecord>();
-        await foreach (var record in _activity.ReadRangeAsync(
-                           _paths.GetProjectActivityDirectory(projectId),
-                           from,
-                           to,
-                           static value => value.OccurredAt,
-                           cancellationToken).ConfigureAwait(false))
+        var issues = raw.Issues.ToList();
+        foreach (var record in raw.Records)
         {
             if (record.ProjectId != projectId || !string.Equals(record.RecordType, "activity-audit", StringComparison.Ordinal))
             {
                 continue;
             }
 
-            TryAdd(record, records);
+            TryAdd(record, records, issues);
         }
 
-        return records
-            .OrderBy(static value => value.OccurredAt)
-            .ThenBy(static value => value.ActivityId)
-            .ToArray();
+        return BuildResult(
+            raw.Status,
+            records.OrderBy(static value => value.OccurredAt).ThenBy(static value => value.ActivityId).ToArray(),
+            issues);
     }
 
-    private void TryAdd(ExecutionRunRecord record, ICollection<ExecutionRun> destination)
+    private void TryAdd(
+        ExecutionRunRecord record,
+        ICollection<ExecutionRun> destination,
+        ICollection<HistoryReadIssue> issues)
     {
         try
         {
@@ -210,10 +225,14 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
         catch (ArgumentException exception)
         {
             _logger.LogWarning(exception, "Skipping invalid execution run record {RunId}", record.RunId);
+            issues.Add(CreateMappingIssue(record.RecordedAt, "Invalid execution run record was skipped."));
         }
     }
 
-    private void TryAdd(EvidenceMetadataRecord record, ICollection<EvidenceMetadata> destination)
+    private void TryAdd(
+        EvidenceMetadataRecord record,
+        ICollection<EvidenceMetadata> destination,
+        ICollection<HistoryReadIssue> issues)
     {
         try
         {
@@ -222,10 +241,14 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
         catch (ArgumentException exception)
         {
             _logger.LogWarning(exception, "Skipping invalid evidence record {EvidenceId}", record.EvidenceId);
+            issues.Add(CreateMappingIssue(record.CapturedAt, "Invalid evidence record was skipped."));
         }
     }
 
-    private void TryAdd(ReviewMetadataRecord record, ICollection<ReviewMetadata> destination)
+    private void TryAdd(
+        ReviewMetadataRecord record,
+        ICollection<ReviewMetadata> destination,
+        ICollection<HistoryReadIssue> issues)
     {
         try
         {
@@ -234,10 +257,14 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
         catch (ArgumentException exception)
         {
             _logger.LogWarning(exception, "Skipping invalid review record {ReviewId}", record.ReviewId);
+            issues.Add(CreateMappingIssue(record.OccurredAt, "Invalid review record was skipped."));
         }
     }
 
-    private void TryAdd(ActivityAuditRecordFile record, ICollection<ActivityAuditRecord> destination)
+    private void TryAdd(
+        ActivityAuditRecordFile record,
+        ICollection<ActivityAuditRecord> destination,
+        ICollection<HistoryReadIssue> issues)
     {
         try
         {
@@ -246,6 +273,26 @@ public sealed class JsonProjectOrchestrationStore : IProjectOrchestrationStore
         catch (ArgumentException exception)
         {
             _logger.LogWarning(exception, "Skipping invalid activity record {ActivityId}", record.ActivityId);
+            issues.Add(CreateMappingIssue(record.OccurredAt, "Invalid activity record was skipped."));
         }
     }
+
+    private static HistoryReadResult<T> BuildResult<T>(
+        HistoryReadStatus status,
+        IReadOnlyList<T> records,
+        IReadOnlyList<HistoryReadIssue> issues)
+    {
+        if (status == HistoryReadStatus.Success && issues.Count > 0)
+        {
+            status = HistoryReadStatus.Partial;
+        }
+
+        return new HistoryReadResult<T>(records, status, issues);
+    }
+
+    private static HistoryReadIssue CreateMappingIssue(DateTimeOffset timestamp, string message) =>
+        new(
+            HistoryReadIssueKind.CorruptRecord,
+            $"{timestamp.UtcDateTime:yyyy-MM}.jsonl",
+            message);
 }

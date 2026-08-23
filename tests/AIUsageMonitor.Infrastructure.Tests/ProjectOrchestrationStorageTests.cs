@@ -514,9 +514,7 @@ public sealed class ProjectOrchestrationStorageTests
             "opus-5",
             "changes-required",
             "medium",
-            blocking: true,
-            runA2.RunId,
-            findingCount: 2,
+            runId: runA2.RunId,
             evidenceReference: evidenceA.EvidenceId.ToString("D"),
             summary: "two bounded findings",
             findings:
@@ -566,20 +564,25 @@ public sealed class ProjectOrchestrationStorageTests
         var reviews = await orchestration.ReadReviewsAsync(projectA, august, september.AddHours(1));
         var activity = await orchestration.ReadActivityAsync(projectA, august, september.AddHours(1));
 
-        Assert.Equal([runA.RunId, runA2.RunId], runsA.Select(value => value.RunId));
-        Assert.Equal([runB.RunId], runsB.Select(value => value.RunId));
-        Assert.Equal([evidenceA.EvidenceId], evidence.Select(value => value.EvidenceId));
-        Assert.Equal([reviewA.ReviewId], reviews.Select(value => value.ReviewId));
-        Assert.Equal([activityA.ActivityId], activity.Select(value => value.ActivityId));
-        Assert.Equal(["FR-PROJ-003", "FR-REV-003"], evidence[0].RelatedRequirementReferences);
-        Assert.Equal(["OPUS-01", "OPUS-02"], reviews[0].Findings.Select(finding => finding.FindingId));
-        Assert.Equal(["FR-REV-003", "acceptance:R-02"], reviews[0].Findings.Select(finding => finding.AffectedReference));
-        Assert.Equal(["Remediated", "Deferred"], reviews[0].Findings.Select(finding => finding.Disposition));
-        Assert.Equal([true, false], reviews[0].Findings.Select(finding => finding.Blocking));
-        Assert.Equal([evidenceA.EvidenceId], reviews[0].Findings[0].EvidenceIds);
-        Assert.Equal(["EV-SECONDARY"], reviews[0].Findings[1].EvidenceReferences);
-        Assert.Equal("APO-27", activity[0].TaskReference);
-        Assert.Equal([evidenceA.EvidenceId, secondEvidenceId], activity[0].EvidenceIds);
+        Assert.Equal(HistoryReadStatus.Success, runsA.Status);
+        Assert.Equal(HistoryReadStatus.Success, runsB.Status);
+        Assert.Equal(HistoryReadStatus.Success, evidence.Status);
+        Assert.Equal(HistoryReadStatus.Success, reviews.Status);
+        Assert.Equal(HistoryReadStatus.Success, activity.Status);
+        Assert.Equal([runA.RunId, runA2.RunId], runsA.Records.Select(value => value.RunId));
+        Assert.Equal([runB.RunId], runsB.Records.Select(value => value.RunId));
+        Assert.Equal([evidenceA.EvidenceId], evidence.Records.Select(value => value.EvidenceId));
+        Assert.Equal([reviewA.ReviewId], reviews.Records.Select(value => value.ReviewId));
+        Assert.Equal([activityA.ActivityId], activity.Records.Select(value => value.ActivityId));
+        Assert.Equal(["FR-PROJ-003", "FR-REV-003"], evidence.Records[0].RelatedRequirementReferences);
+        Assert.Equal(["OPUS-01", "OPUS-02"], reviews.Records[0].Findings.Select(finding => finding.FindingId));
+        Assert.Equal(["FR-REV-003", "acceptance:R-02"], reviews.Records[0].Findings.Select(finding => finding.AffectedReference));
+        Assert.Equal(["Remediated", "Deferred"], reviews.Records[0].Findings.Select(finding => finding.Disposition));
+        Assert.Equal([true, false], reviews.Records[0].Findings.Select(finding => finding.Blocking));
+        Assert.Equal([evidenceA.EvidenceId], reviews.Records[0].Findings[0].EvidenceIds);
+        Assert.Equal(["EV-SECONDARY"], reviews.Records[0].Findings[1].EvidenceReferences);
+        Assert.Equal("APO-27", activity.Records[0].TaskReference);
+        Assert.Equal([evidenceA.EvidenceId, secondEvidenceId], activity.Records[0].EvidenceIds);
 
         var runAugust = store.Paths.GetMonthlyPartition(store.Paths.GetProjectRunsDirectory(projectA), august);
         var runSeptember = store.Paths.GetMonthlyPartition(store.Paths.GetProjectRunsDirectory(projectA), september);
@@ -588,6 +591,275 @@ public sealed class ProjectOrchestrationStorageTests
         Assert.All(
             Directory.EnumerateFiles(store.Paths.GetProjectDirectory(projectA), "*.jsonl", SearchOption.AllDirectories),
             path => Assert.DoesNotContain(projectB.ToString("D"), File.ReadAllText(path), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ReviewMetadata_DerivesFindingCountAndBlockingFromDetailedFindings()
+    {
+        var projectId = Guid.NewGuid();
+        var occurredAt = new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero);
+        var review = new ReviewMetadata(
+            projectId,
+            Guid.NewGuid(),
+            occurredAt,
+            "opus-5",
+            "changes-required",
+            "high",
+            findings:
+            [
+                new ReviewFindingMetadata("OPUS-01", "high", "FR-REV-003", "Open", blocking: true),
+                new ReviewFindingMetadata("OPUS-02", "medium", "FR-REV-004", "Deferred", blocking: false)
+            ]);
+        var emptyReview = new ReviewMetadata(
+            projectId,
+            Guid.NewGuid(),
+            occurredAt,
+            "opus-5",
+            "accepted",
+            "none",
+            findings: []);
+
+        Assert.Equal(2, review.FindingCount);
+        Assert.True(review.Blocking);
+        Assert.Equal(0, emptyReview.FindingCount);
+        Assert.False(emptyReview.Blocking);
+    }
+
+    [Fact]
+    public void ReviewMetadata_RejectsBlankNullAndCaseInsensitiveDuplicateFindings()
+    {
+        var projectId = Guid.NewGuid();
+        var occurredAt = new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero);
+        var finding = new ReviewFindingMetadata("OPUS-01", "high", "FR-REV-003", "Open", blocking: true);
+
+        Assert.Throws<ArgumentException>(() => new ReviewFindingMetadata(
+            " ",
+            "high",
+            "FR-REV-003",
+            "Open",
+            blocking: true));
+        Assert.ThrowsAny<ArgumentException>(() => new ReviewMetadata(
+            projectId,
+            Guid.NewGuid(),
+            occurredAt,
+            "opus-5",
+            "changes-required",
+            "high",
+            findings: [finding, new ReviewFindingMetadata("opus-01", "medium", "FR-REV-004", "Open", blocking: false)]));
+        Assert.ThrowsAny<ArgumentException>(() => new ReviewMetadata(
+            projectId,
+            Guid.NewGuid(),
+            occurredAt,
+            "opus-5",
+            "changes-required",
+            "high",
+            findings: new ReviewFindingMetadata[] { null! }));
+    }
+
+    [Fact]
+    public void ReviewMetadataRecord_DerivedAggregateFieldsRoundTripWithoutContradiction()
+    {
+        var review = new ReviewMetadata(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero),
+            "opus-5",
+            "changes-required",
+            "high",
+            findings:
+            [
+                new ReviewFindingMetadata("OPUS-01", "high", "FR-REV-003", "Open", blocking: true),
+                new ReviewFindingMetadata("OPUS-02", "medium", "FR-REV-004", "Deferred", blocking: false)
+            ]);
+        var record = ReviewMetadataRecord.FromApplication(review);
+        var json = JsonSerializer.Serialize(record, JsonFileStore.JsonlSerializerOptions);
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(review.Findings.Count, record.FindingCount);
+        Assert.Equal(review.Blocking, record.Blocking);
+        Assert.Equal(2, document.RootElement.GetProperty("findingCount").GetInt32());
+        Assert.True(document.RootElement.GetProperty("blocking").GetBoolean());
+
+        var roundTrip = record.ToApplication();
+        Assert.Equal(2, roundTrip.FindingCount);
+        Assert.True(roundTrip.Blocking);
+        Assert.Equal(review.Findings.Select(finding => finding.FindingId), roundTrip.Findings.Select(finding => finding.FindingId));
+    }
+
+    [Fact]
+    public void ReviewMetadataRecord_RejectsContradictoryPersistedAggregateFields()
+    {
+        var review = new ReviewMetadata(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            new DateTimeOffset(2026, 8, 23, 11, 0, 0, TimeSpan.Zero),
+            "opus-5",
+            "accepted",
+            "none",
+            findings:
+            [new ReviewFindingMetadata("OPUS-01", "none", "FR-REV-003", "Accepted", blocking: false)]);
+
+        var countMismatch = ReviewMetadataRecord.FromApplication(review);
+        countMismatch.FindingCount = 2;
+        Assert.Throws<ArgumentException>(() => countMismatch.ToApplication());
+
+        var blockingMismatch = ReviewMetadataRecord.FromApplication(review);
+        blockingMismatch.Blocking = true;
+        Assert.Throws<ArgumentException>(() => blockingMismatch.ToApplication());
+    }
+
+    [Fact]
+    public async Task HistoryRead_NoProjectHistoryDirectoryIsSuccessWithEmptyRecords()
+    {
+        using var store = new TemporaryStore();
+        var orchestration = CreateOrchestrationStore(store);
+        var from = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var result = await orchestration.ReadReviewsAsync(Guid.NewGuid(), from, from.AddDays(1));
+
+        Assert.Equal(HistoryReadStatus.Success, result.Status);
+        Assert.Empty(result.Records);
+        Assert.Empty(result.Issues);
+    }
+
+    [Fact]
+    public async Task HistoryRead_ExistingEmptyPartitionIsSuccessWithEmptyRecords()
+    {
+        using var store = new TemporaryStore();
+        var projectId = Guid.NewGuid();
+        var capturedAt = new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero);
+        var directory = store.Paths.GetProjectRunsDirectory(projectId);
+        var path = store.Paths.GetMonthlyPartition(directory, capturedAt);
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(path, string.Empty);
+
+        var result = await CreateOrchestrationStore(store).ReadExecutionRunsAsync(
+            projectId,
+            capturedAt.AddMinutes(-1),
+            capturedAt.AddMinutes(1));
+
+        Assert.Equal(HistoryReadStatus.Success, result.Status);
+        Assert.Empty(result.Records);
+        Assert.Empty(result.Issues);
+    }
+
+    [Fact]
+    public async Task HistoryRead_MalformedAndUnsupportedRecordsPreserveValidSiblingAndReportPartial()
+    {
+        using var store = new TemporaryStore();
+        var projectId = Guid.NewGuid();
+        var capturedAt = new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero);
+        var valid = new ExecutionRun(projectId, Guid.NewGuid(), ExecutionRunStatus.Completed, capturedAt);
+        var directory = store.Paths.GetProjectRunsDirectory(projectId);
+        var path = store.Paths.GetMonthlyPartition(directory, capturedAt);
+        Directory.CreateDirectory(directory);
+        var validLine = JsonSerializer.Serialize(
+            ExecutionRunRecord.FromApplication(valid),
+            JsonFileStore.JsonlSerializerOptions);
+        await File.WriteAllTextAsync(
+            path,
+            "{ not-json\n" +
+            "{\"schemaVersion\":999,\"recordType\":\"execution-run\"}\n" +
+            validLine + Environment.NewLine);
+
+        var result = await CreateOrchestrationStore(store).ReadExecutionRunsAsync(
+            projectId,
+            capturedAt.AddMinutes(-1),
+            capturedAt.AddMinutes(1));
+
+        Assert.Equal(HistoryReadStatus.Partial, result.Status);
+        Assert.Single(result.Records);
+        Assert.Equal(valid.RunId, result.Records[0].RunId);
+        Assert.Contains(result.Issues, issue => issue.Kind == HistoryReadIssueKind.CorruptRecord);
+        Assert.Contains(result.Issues, issue => issue.Kind == HistoryReadIssueKind.UnsupportedSchema);
+        Assert.All(result.Issues, issue =>
+        {
+            Assert.Equal("2026-08.jsonl", issue.Partition);
+            Assert.DoesNotContain("not-json", issue.NonSecretMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("{", issue.NonSecretMessage, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public async Task HistoryRead_OneValidMonthAndOneIoFailurePreservesRecordsAsPartial()
+    {
+        using var store = new TemporaryStore();
+        var projectId = Guid.NewGuid();
+        var august = new DateTimeOffset(2026, 8, 31, 23, 0, 0, TimeSpan.Zero);
+        var september = new DateTimeOffset(2026, 9, 1, 1, 0, 0, TimeSpan.Zero);
+        var valid = new ExecutionRun(projectId, Guid.NewGuid(), ExecutionRunStatus.Completed, august);
+        var writer = CreateOrchestrationStore(store);
+        await writer.AppendExecutionRunAsync(valid);
+
+        var failedPath = store.Paths.GetMonthlyPartition(
+            store.Paths.GetProjectRunsDirectory(projectId),
+            september);
+        var reader = new FaultingJsonlPartitionReader(failedPath, static () => new IOException("synthetic I/O failure"));
+        var result = await CreateOrchestrationStore(store, reader).ReadExecutionRunsAsync(
+            projectId,
+            august.AddMinutes(-1),
+            september.AddMinutes(1));
+
+        Assert.Equal(HistoryReadStatus.Partial, result.Status);
+        Assert.Single(result.Records);
+        Assert.Equal(valid.RecordId, result.Records[0].RecordId);
+        Assert.Contains(result.Issues, issue => issue.Kind == HistoryReadIssueKind.IoFailure);
+        Assert.DoesNotContain(result.Issues, issue => issue.NonSecretMessage.Contains("synthetic", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task HistoryRead_PermissionFailureWithNoReadablePartitionIsUnavailable()
+    {
+        using var store = new TemporaryStore();
+        var projectId = Guid.NewGuid();
+        var capturedAt = new DateTimeOffset(2026, 8, 23, 12, 0, 0, TimeSpan.Zero);
+        var directory = store.Paths.GetProjectRunsDirectory(projectId);
+        var path = store.Paths.GetMonthlyPartition(directory, capturedAt);
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(path, "placeholder");
+        var reader = new FaultingJsonlPartitionReader(path, static () => new UnauthorizedAccessException("synthetic permission failure"));
+
+        var result = await CreateOrchestrationStore(store, reader).ReadExecutionRunsAsync(
+            projectId,
+            capturedAt.AddMinutes(-1),
+            capturedAt.AddMinutes(1));
+
+        Assert.Equal(HistoryReadStatus.Unavailable, result.Status);
+        Assert.Empty(result.Records);
+        Assert.Contains(result.Issues, issue => issue.Kind == HistoryReadIssueKind.PermissionFailure);
+        Assert.DoesNotContain(result.Issues, issue => issue.NonSecretMessage.Contains("synthetic", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task HistoryRead_PartialFailureStillEnforcesProjectIsolation()
+    {
+        using var store = new TemporaryStore();
+        var projectA = Guid.NewGuid();
+        var projectB = Guid.NewGuid();
+        var august = new DateTimeOffset(2026, 8, 31, 23, 0, 0, TimeSpan.Zero);
+        var september = new DateTimeOffset(2026, 9, 1, 1, 0, 0, TimeSpan.Zero);
+        var recordA = new ExecutionRun(projectA, Guid.NewGuid(), ExecutionRunStatus.Completed, august);
+        var foreign = new ExecutionRun(projectB, Guid.NewGuid(), ExecutionRunStatus.Completed, august.AddMinutes(1));
+        var directory = store.Paths.GetProjectRunsDirectory(projectA);
+        var augustPath = store.Paths.GetMonthlyPartition(directory, august);
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(
+            augustPath,
+            JsonSerializer.Serialize(ExecutionRunRecord.FromApplication(recordA), JsonFileStore.JsonlSerializerOptions) + "\n" +
+            JsonSerializer.Serialize(ExecutionRunRecord.FromApplication(foreign), JsonFileStore.JsonlSerializerOptions) + "\n");
+        var failedPath = store.Paths.GetMonthlyPartition(directory, september);
+        var reader = new FaultingJsonlPartitionReader(failedPath, static () => new IOException("synthetic I/O failure"));
+
+        var result = await CreateOrchestrationStore(store, reader).ReadExecutionRunsAsync(
+            projectA,
+            august.AddMinutes(-1),
+            september.AddMinutes(1));
+
+        Assert.Equal(HistoryReadStatus.Partial, result.Status);
+        Assert.Single(result.Records);
+        Assert.Equal(recordA.RecordId, result.Records[0].RecordId);
+        Assert.DoesNotContain(result.Records, value => value.ProjectId == projectB);
+        Assert.Contains(result.Issues, issue => issue.Kind == HistoryReadIssueKind.IoFailure);
     }
 
     [Fact]
@@ -635,13 +907,14 @@ public sealed class ProjectOrchestrationStorageTests
 
         Assert.True(File.Exists(augustPath));
         Assert.True(File.Exists(septemberPath));
-        Assert.Single(septemberRead);
-        Assert.Equal(reviewRecordId, septemberRead[0].RecordId);
-        Assert.Equal([startedRecordId, reviewRecordId], all.Select(value => value.RecordId));
-        Assert.Equal(runId, all[0].RunId);
-        Assert.Equal(runId, all[1].RunId);
-        Assert.NotEqual(all[0].RecordId, all[1].RecordId);
-        Assert.Equal(ExecutionRunStatus.Review, all[1].Status);
+        Assert.Equal(HistoryReadStatus.Success, septemberRead.Status);
+        Assert.Single(septemberRead.Records);
+        Assert.Equal(reviewRecordId, septemberRead.Records[0].RecordId);
+        Assert.Equal([startedRecordId, reviewRecordId], all.Records.Select(value => value.RecordId));
+        Assert.Equal(runId, all.Records[0].RunId);
+        Assert.Equal(runId, all.Records[1].RunId);
+        Assert.NotEqual(all.Records[0].RecordId, all.Records[1].RecordId);
+        Assert.Equal(ExecutionRunStatus.Review, all.Records[1].Status);
     }
 
     [Fact]
@@ -704,9 +977,11 @@ public sealed class ProjectOrchestrationStorageTests
             recordedAt.AddMinutes(-1),
             recordedAt.AddMinutes(1));
 
-        Assert.Single(loaded);
-        Assert.Equal(valid.RecordId, loaded[0].RecordId);
-        Assert.Equal(valid.Status, loaded[0].Status);
+        Assert.Equal(HistoryReadStatus.Partial, loaded.Status);
+        Assert.Single(loaded.Records);
+        Assert.Equal(valid.RecordId, loaded.Records[0].RecordId);
+        Assert.Equal(valid.Status, loaded.Records[0].Status);
+        Assert.Contains(loaded.Issues, issue => issue.Kind == HistoryReadIssueKind.CorruptRecord);
     }
 
     [Fact]
@@ -725,8 +1000,6 @@ public sealed class ProjectOrchestrationStorageTests
             "opus-5",
             "changes-required",
             "high",
-            blocking: true,
-            findingCount: 2,
             findings:
             [
                 new ReviewFindingMetadata(
@@ -751,8 +1024,7 @@ public sealed class ProjectOrchestrationStorageTests
             "opus-5",
             "accepted",
             "none",
-            blocking: false,
-            findingCount: 0);
+            findings: []);
 
         await orchestration.AppendReviewAsync(reviewA);
         await orchestration.AppendReviewAsync(reviewB);
@@ -760,16 +1032,18 @@ public sealed class ProjectOrchestrationStorageTests
         var loadedA = await orchestration.ReadReviewsAsync(projectA, occurredAt.AddMinutes(-1), occurredAt.AddMinutes(2));
         var loadedB = await orchestration.ReadReviewsAsync(projectB, occurredAt.AddMinutes(-1), occurredAt.AddMinutes(2));
 
-        Assert.Single(loadedA);
-        Assert.Single(loadedB);
-        Assert.Equal(reviewA.ReviewId, loadedA[0].ReviewId);
-        Assert.Equal(reviewB.ReviewId, loadedB[0].ReviewId);
-        Assert.Equal(["OPUS-01", "SOL-02"], loadedA[0].Findings.Select(finding => finding.FindingId));
-        Assert.Equal(["FR-REV-003", "acceptance:R-07"], loadedA[0].Findings.Select(finding => finding.AffectedReference));
-        Assert.Equal(["Open", "Accepted"], loadedA[0].Findings.Select(finding => finding.Disposition));
-        Assert.Equal([true, false], loadedA[0].Findings.Select(finding => finding.Blocking));
-        Assert.Equal([evidenceA], loadedA[0].Findings[0].EvidenceIds);
-        Assert.Equal(["validation:focused-tests"], loadedA[0].Findings[1].EvidenceReferences);
+        Assert.Equal(HistoryReadStatus.Success, loadedA.Status);
+        Assert.Equal(HistoryReadStatus.Success, loadedB.Status);
+        Assert.Single(loadedA.Records);
+        Assert.Single(loadedB.Records);
+        Assert.Equal(reviewA.ReviewId, loadedA.Records[0].ReviewId);
+        Assert.Equal(reviewB.ReviewId, loadedB.Records[0].ReviewId);
+        Assert.Equal(["OPUS-01", "SOL-02"], loadedA.Records[0].Findings.Select(finding => finding.FindingId));
+        Assert.Equal(["FR-REV-003", "acceptance:R-07"], loadedA.Records[0].Findings.Select(finding => finding.AffectedReference));
+        Assert.Equal(["Open", "Accepted"], loadedA.Records[0].Findings.Select(finding => finding.Disposition));
+        Assert.Equal([true, false], loadedA.Records[0].Findings.Select(finding => finding.Blocking));
+        Assert.Equal([evidenceA], loadedA.Records[0].Findings[0].EvidenceIds);
+        Assert.Equal(["validation:focused-tests"], loadedA.Records[0].Findings[1].EvidenceReferences);
     }
 
     [Fact]
@@ -830,11 +1104,12 @@ public sealed class ProjectOrchestrationStorageTests
             earlyAt.AddMinutes(-1),
             lateAt.AddMinutes(1));
 
-        Assert.Equal([early.ActivityId, late.ActivityId], loaded.Select(value => value.ActivityId));
-        Assert.Equal("APO-27", loaded[0].TaskReference);
-        Assert.Equal([firstEvidence, secondEvidence], loaded[0].EvidenceIds);
-        Assert.Equal([secondEvidence], loaded[1].EvidenceIds);
-        Assert.NotSame(early.EvidenceIds, loaded[0].EvidenceIds);
+        Assert.Equal(HistoryReadStatus.Success, loaded.Status);
+        Assert.Equal([early.ActivityId, late.ActivityId], loaded.Records.Select(value => value.ActivityId));
+        Assert.Equal("APO-27", loaded.Records[0].TaskReference);
+        Assert.Equal([firstEvidence, secondEvidence], loaded.Records[0].EvidenceIds);
+        Assert.Equal([secondEvidence], loaded.Records[1].EvidenceIds);
+        Assert.NotSame(early.EvidenceIds, loaded.Records[0].EvidenceIds);
     }
 
     [Fact]
@@ -870,8 +1145,10 @@ public sealed class ProjectOrchestrationStorageTests
             occurredAt.AddMinutes(-1),
             occurredAt.AddMinutes(1));
 
-        Assert.Single(loaded);
-        Assert.Equal(valid.ActivityId, loaded[0].ActivityId);
+        Assert.Equal(HistoryReadStatus.Partial, loaded.Status);
+        Assert.Single(loaded.Records);
+        Assert.Equal(valid.ActivityId, loaded.Records[0].ActivityId);
+        Assert.Equal(2, loaded.Issues.Count);
     }
 
     [Fact]
@@ -901,11 +1178,12 @@ public sealed class ProjectOrchestrationStorageTests
         var loaded = await orchestration.ReadExecutionRunsAsync(projectA, capturedAt.AddMinutes(-1), capturedAt.AddMinutes(3));
         var persisted = await File.ReadAllTextAsync(path);
 
-        Assert.Equal([first.RunId, second.RunId], loaded.Select(value => value.RunId));
+        Assert.Equal(HistoryReadStatus.Partial, loaded.Status);
+        Assert.Equal([first.RunId, second.RunId], loaded.Records.Select(value => value.RunId));
         Assert.Contains("schemaVersion", persisted, StringComparison.Ordinal);
         Assert.Contains("{\"schemaVersion\":1\n", persisted, StringComparison.Ordinal);
         Assert.Contains(JsonSerializer.Serialize(ExecutionRunRecord.FromApplication(second), JsonFileStore.JsonlSerializerOptions), persisted, StringComparison.Ordinal);
-        Assert.DoesNotContain(foreign.RunId.ToString("D"), string.Join(Environment.NewLine, loaded.Select(value => value.RunId)), StringComparison.Ordinal);
+        Assert.DoesNotContain(foreign.RunId.ToString("D"), string.Join(Environment.NewLine, loaded.Records.Select(value => value.RunId)), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -929,12 +1207,13 @@ public sealed class ProjectOrchestrationStorageTests
         await Task.WhenAll(runs.Select(run => orchestration.AppendExecutionRunAsync(run)));
 
         var loaded = await orchestration.ReadExecutionRunsAsync(projectId, capturedAt.AddMinutes(-1), capturedAt.AddMinutes(1));
-        Assert.Equal(runs.Length, loaded.Count);
+        Assert.Equal(HistoryReadStatus.Success, loaded.Status);
+        Assert.Equal(runs.Length, loaded.Records.Count);
         Assert.Equal(
             runs.Select(value => value.RecordId).OrderBy(value => value),
-            loaded.Select(value => value.RecordId).OrderBy(value => value));
-        Assert.Single(loaded.Select(value => value.RunId).Distinct());
-        Assert.Equal(runs.Length, loaded.Select(value => value.RecordId).Distinct().Count());
+            loaded.Records.Select(value => value.RecordId).OrderBy(value => value));
+        Assert.Single(loaded.Records.Select(value => value.RunId).Distinct());
+        Assert.Equal(runs.Length, loaded.Records.Select(value => value.RecordId).Distinct().Count());
 
         var path = store.Paths.GetMonthlyPartition(store.Paths.GetProjectRunsDirectory(projectId), capturedAt);
         Assert.All(await File.ReadAllLinesAsync(path), line =>
@@ -1003,24 +1282,59 @@ public sealed class ProjectOrchestrationStorageTests
         updatedAt = agent.UpdatedAt
     };
 
-    private static JsonProjectOrchestrationStore CreateOrchestrationStore(TemporaryStore store) =>
+    private static JsonProjectOrchestrationStore CreateOrchestrationStore(
+        TemporaryStore store,
+        IJsonlPartitionReader? partitionReader = null) =>
         new(
             store.Paths,
-            new JsonlEventStore<ExecutionRunRecord>(
-                store.Paths,
-                store.Files,
-                NullLogger<JsonlEventStore<ExecutionRunRecord>>.Instance),
-            new JsonlEventStore<EvidenceMetadataRecord>(
-                store.Paths,
-                store.Files,
-                NullLogger<JsonlEventStore<EvidenceMetadataRecord>>.Instance),
-            new JsonlEventStore<ReviewMetadataRecord>(
-                store.Paths,
-                store.Files,
-                NullLogger<JsonlEventStore<ReviewMetadataRecord>>.Instance),
-            new JsonlEventStore<ActivityAuditRecordFile>(
-                store.Paths,
-                store.Files,
-                NullLogger<JsonlEventStore<ActivityAuditRecordFile>>.Instance),
+            CreateJsonlStore<ExecutionRunRecord>(store, partitionReader),
+            CreateJsonlStore<EvidenceMetadataRecord>(store, partitionReader),
+            CreateJsonlStore<ReviewMetadataRecord>(store, partitionReader),
+            CreateJsonlStore<ActivityAuditRecordFile>(store, partitionReader),
             NullLogger<JsonProjectOrchestrationStore>.Instance);
+
+    private static JsonlEventStore<TRecord> CreateJsonlStore<TRecord>(
+        TemporaryStore store,
+        IJsonlPartitionReader? partitionReader)
+        where TRecord : class =>
+        partitionReader is null
+            ? new JsonlEventStore<TRecord>(
+                store.Paths,
+                store.Files,
+                NullLogger<JsonlEventStore<TRecord>>.Instance)
+            : new JsonlEventStore<TRecord>(
+                store.Paths,
+                store.Files,
+                NullLogger<JsonlEventStore<TRecord>>.Instance,
+                partitionReader);
+
+    private sealed class FaultingJsonlPartitionReader : IJsonlPartitionReader
+    {
+        private readonly string _failingPath;
+        private readonly Func<Exception> _failureFactory;
+
+        public FaultingJsonlPartitionReader(string failingPath, Func<Exception> failureFactory)
+        {
+            _failingPath = failingPath;
+            _failureFactory = failureFactory;
+        }
+
+        public Task<Stream> OpenReadAsync(string path, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.Equals(path, _failingPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return Task.FromException<Stream>(_failureFactory());
+            }
+
+            Stream stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                bufferSize: 16 * 1024,
+                options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return Task.FromResult(stream);
+        }
+    }
 }

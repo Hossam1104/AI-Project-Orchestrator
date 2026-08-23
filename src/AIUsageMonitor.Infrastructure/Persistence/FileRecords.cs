@@ -611,26 +611,57 @@ public sealed class ReviewMetadataRecord
         ReviewerReference = value.ReviewerReference,
         Verdict = value.Verdict,
         Severity = value.Severity,
-        Blocking = value.Blocking,
-        FindingCount = value.FindingCount,
+        // These aggregate fields remain serialized for human inspection and unmerged-schema
+        // compatibility, but they are written only from the detailed finding collection.
+        Blocking = value.Findings.Count > 0 && value.Findings.Any(static finding => finding.Blocking),
+        FindingCount = value.Findings.Count,
         EvidenceReference = value.EvidenceReference,
         Summary = value.Summary,
         Findings = value.Findings.Select(ReviewFindingMetadataRecord.FromApplication).ToList()
     };
 
-    public ReviewMetadata ToApplication() => new(
-        ProjectId,
-        ReviewId,
-        OccurredAt,
-        ReviewerReference,
-        Verdict,
-        Severity,
-        Blocking,
-        RunId,
-        FindingCount,
-        EvidenceReference,
-        Summary,
-        (Findings ?? []).Select(static finding => finding.ToApplication()).ToArray());
+    public ReviewMetadata ToApplication()
+    {
+        var findingRecords = Findings ?? [];
+        var findings = new List<ReviewFindingMetadata>(findingRecords.Count);
+        foreach (var finding in findingRecords)
+        {
+            if (finding is null)
+            {
+                throw new ArgumentException("Review finding records cannot contain null values.", nameof(Findings));
+            }
+
+            findings.Add(finding.ToApplication());
+        }
+
+        var expectedFindingCount = findings.Count;
+        var expectedBlocking = expectedFindingCount > 0 && findings.Any(static finding => finding.Blocking);
+        if (FindingCount != expectedFindingCount)
+        {
+            throw new ArgumentException(
+                "Persisted review finding count contradicts the detailed findings.",
+                nameof(FindingCount));
+        }
+
+        if (Blocking != expectedBlocking)
+        {
+            throw new ArgumentException(
+                "Persisted review blocking state contradicts the detailed findings.",
+                nameof(Blocking));
+        }
+
+        return new ReviewMetadata(
+            ProjectId,
+            ReviewId,
+            OccurredAt,
+            ReviewerReference,
+            Verdict,
+            Severity,
+            RunId,
+            EvidenceReference,
+            Summary,
+            findings);
+    }
 }
 
 public sealed class ActivityAuditRecordFile

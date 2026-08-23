@@ -8,7 +8,7 @@ public interface IProjectOrchestrationStore
 {
     Task AppendExecutionRunAsync(ExecutionRun run, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ExecutionRun>> ReadExecutionRunsAsync(
+    Task<HistoryReadResult<ExecutionRun>> ReadExecutionRunsAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
@@ -16,7 +16,7 @@ public interface IProjectOrchestrationStore
 
     Task AppendEvidenceAsync(EvidenceMetadata evidence, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<EvidenceMetadata>> ReadEvidenceAsync(
+    Task<HistoryReadResult<EvidenceMetadata>> ReadEvidenceAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
@@ -24,7 +24,7 @@ public interface IProjectOrchestrationStore
 
     Task AppendReviewAsync(ReviewMetadata review, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ReviewMetadata>> ReadReviewsAsync(
+    Task<HistoryReadResult<ReviewMetadata>> ReadReviewsAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
@@ -32,7 +32,7 @@ public interface IProjectOrchestrationStore
 
     Task AppendActivityAsync(ActivityAuditRecord activity, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ActivityAuditRecord>> ReadActivityAsync(
+    Task<HistoryReadResult<ActivityAuditRecord>> ReadActivityAsync(
         Guid projectId,
         DateTimeOffset from,
         DateTimeOffset to,
