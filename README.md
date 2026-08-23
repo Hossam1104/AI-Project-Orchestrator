@@ -81,7 +81,7 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Provider-independent quota, subscription, usage, alert, and refresh contracts |
 | :white_check_mark: Implemented / validated | Windows Credential Manager adapter with opaque credential references and focused security tests |
 | :white_check_mark: Implemented / validated | Self-contained multi-RID publish configuration for `win-x64`, `win-x86`, and `win-arm64` |
-| :construction: In progress / under review | APO-27 storage implementation is complete at the executor boundary, including fail-closed project/agent registry updates on transient read failures; Draft PR #5 remains open, draft, and unmerged pending Sol delta acceptance and the bounded review gates |
+| :construction: In progress / under review | APO-27 storage implementation is complete, OPUS-01 is closed, and Sol delta acceptance is complete (Jira comment 11793); PR #5 is awaiting final squash merge into main |
 | :white_check_mark: Implemented / validated | Focused xUnit foundation suite; the current APO-27 branch validation is 36 focused storage tests and 190 full-suite tests, all passing |
 | :construction: In progress / planned | Official provider capacity adapters for Codex, Claude, Kimi, GitHub Copilot, and Antigravity |
 | :construction: In progress / planned | Project Registry, Git/GitHub and Jira/Azure DevOps awareness |
