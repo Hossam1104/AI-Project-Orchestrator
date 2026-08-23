@@ -16,7 +16,7 @@
 **Default Branch:** `main`
 **Current Story:** APO-34 - First Usable AI Capacity Workspace
 **Current Epic:** APO-15 - Dashboard / AI Capacity Workspace
-**Status:** APO-34 implementation delivered on `feat/APO-34-ai-capacity-workspace`; validation is complete, commit and Draft PR delivery are pending final handoff actions; do not merge
+**Status:** APO-34 implementation delivered at `5e3d9ca` on `feat/APO-34-ai-capacity-workspace`; Draft PR #4 is open against `main`, awaiting GPT-5.6 Sol acceptance and remains unmerged
 **Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-34; do not execute another Story automatically
 **Release state:** First usable local WPF AI Capacity workspace is implemented with secure connection editing, truthful provider states, and self-contained publish evidence; full product release qualification is not complete
 
@@ -666,8 +666,9 @@ Settings or the Capacity Dashboard from this checkpoint.
 
 **Branch:** `feat/APO-34-ai-capacity-workspace`
 
-**Implementation status:** COMPLETE on the feature branch; awaiting GPT-5.6 Sol acceptance. No
-merge, Jira write, or independent Opus review was performed.
+**Implementation status:** COMPLETE at `5e3d9ca` on the feature branch; awaiting GPT-5.6 Sol
+acceptance. Draft PR #4 is open against `main` and remains unmerged. No Jira write or independent
+Opus review was performed.
 
 **Implemented scope:**
 

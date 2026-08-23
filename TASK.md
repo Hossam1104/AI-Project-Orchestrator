@@ -6,6 +6,10 @@
 
 **Exact baseline:** `a585ed40ea0e8652c50e4627ee66f7109c67d591`
 
+**Implementation commit:** `5e3d9ca`
+
+**Draft PR:** [#4](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/4), open and unmerged
+
 **Base:** `main` and `origin/main` were verified at the exact baseline before implementation.
 
 **Authority:** GPT-5.6 Sol is the acceptance authority. This checkpoint is not a merge approval.
