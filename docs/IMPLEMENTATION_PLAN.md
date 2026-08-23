@@ -271,6 +271,10 @@ code is changed or claimed as APO-refactored.
 ## 9. Current Planning Boundary
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
-move. The root `TASK.md` contains the safe Sol planner checkpoint and does not authorize any
-implementation Story. GPT-5.6 Sol must review the final state, synchronize Jira, and issue a fresh
-execution contract before any implementation Story begins.
+move. APO-27 is the active owner-approved storage remediation on
+`feat/APO-27-orchestration-storage`; its functional remediation is complete at
+`0ea0c65ec7dac7ec09d30a6b25156353b714298f`, and Draft PR #5 remains open, draft, and unmerged.
+The root `TASK.md` is now the real Claude Opus 5 independent-review handoff for this bounded Story.
+It does not authorize a merge, a new Story, or downstream orchestration work. Claude Opus 5 must
+review the exact final functional SHA, after which GPT-5.6 Sol remains the acceptance authority
+and Jira/Git synchronization follows the approved lifecycle.

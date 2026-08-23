@@ -13,14 +13,14 @@
 **APO-31:** COMPLETE / MERGED / DONE
 **APO-34:** COMPLETE / MERGED / DONE
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
-**APO-27:** IMPLEMENTATION COMPLETE / SOL REMEDIATION COMPLETE / AWAITING GPT-5.6 SOL DELTA ACCEPTANCE
+**APO-27:** OWNER-APPROVED FINAL REMEDIATION COMPLETE / AWAITING REAL CLAUDE OPUS 5 INDEPENDENT REVIEW
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
 **Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation
-**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`; Sol acceptance remediation delivered at `dcfa922b58c0282311ec1e027d1187bee771651b` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
-**Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-27, followed by one independent Opus 5 architecture review if Sol accepts; do not execute another Story automatically
+**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`; Sol acceptance remediation delivered at `dcfa922b58c0282311ec1e027d1187bee771651b`; owner-approved final functional remediation delivered at `0ea0c65ec7dac7ec09d30a6b25156353b714298f` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, remains unmerged and draft, and is awaiting the required real Claude Opus 5 review
+**Next implementation:** Claude Opus 5 independent architecture review against the exact final functional remediation SHA, followed by Sol acceptance and repository/Jira synchronization; do not merge, mark PR ready, or execute another Story automatically
 **Release state:** APO-34 is merged and done; APO-27 adds the local project/orchestration storage foundation while full orchestration runtime and product release qualification remain incomplete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -979,6 +979,131 @@ routing, classification, execution runtime, validation/review engines, activity 
 changes, tracker/GitHub execution, cloud sync, database/ORM, LocalAppData migration, installer,
 signing, updater, and APO-33 CI remain deferred.
 
-GPT-5.6 Sol must perform delta acceptance against the exact pushed remediated functional head.
-After Sol accepts the remediated head, the required independent Claude Opus 5 architecture review
-remains pending. No Jira write, Opus invocation, merge, or downstream Story work has been performed.
+GPT-5.6 Sol's delta acceptance was recorded in Jira comment `11776`. Owner approval comment `11778`
+authorized the bounded final remediation recorded in Section 13.2. The exact final functional
+review target is `0ea0c65ec7dac7ec09d30a6b25156353b714298f`. The required real Claude Opus 5
+independent architecture review is now pending against that exact SHA. No Jira status transition,
+Opus invocation, merge, or downstream Story work has been performed.
+
+## 13.2 APO-27 Owner-Approved Final Storage Remediation
+
+**Lifecycle:** APO-27 initial implementation -> Sol CHANGES REQUIRED -> Luna R-01..R-07
+remediation -> Sol delta ACCEPTED FOR INDEPENDENT REVIEW -> Sol-equivalent independent
+architecture review identified two approved P2 blockers -> owner approved bounded remediation
+comment `11778` -> this final storage remediation -> real Claude Opus 5 review pending.
+
+### Exact delivery identity
+
+| Item | Value |
+|---|---|
+| Required start head | `a6ef753143996f31591d300dfc56fbfa9bbb50a4` |
+| Exact merged main base | `4b393b3e3cf732dd1f0e861a734e3c311327e2af` |
+| Original APO-27 implementation | `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e` |
+| Prior Sol remediation | `dcfa922b58c0282311ec1e027d1187bee771651b` |
+| Owner-approved remediation start | `a6ef753143996f31591d300dfc56fbfa9bbb50a4` |
+| New functional remediation | `0ea0c65ec7dac7ec09d30a6b25156353b714298f` |
+| Final handoff / exact Opus review target | `0ea0c65ec7dac7ec09d30a6b25156353b714298f` |
+| Branch | `feat/APO-27-orchestration-storage` |
+| Draft PR | #5, OPEN / DRAFT / UNMERGED, base `main` |
+| Jira Story | APO-27, In Progress |
+| Jira parent Epic | APO-3, In Progress |
+| Owner approval comment | `11778` |
+
+### Blocker A - review aggregate truthfulness
+
+- `ReviewMetadata.Findings` is the authoritative detailed collection.
+- `FindingCount` is derived from `Findings.Count` and is no longer independently writable.
+- `Blocking` is derived from finding-level blocking flags; a zero-finding review is always
+  non-blocking.
+- Duplicate `FindingId` values are rejected case-insensitively, blank IDs are rejected, null
+  finding entries are rejected, and finding evidence references remain bounded and normalized.
+- `ReviewMetadataRecord` retains `FindingCount` and aggregate `Blocking` only as derived serialized
+  inspection/compatibility fields. `FromApplication` writes them from the detailed findings and
+  `ToApplication` rejects any persisted contradiction before an Application model is created.
+- No verdict-text workflow semantics were inferred and no review engine was added.
+
+### Blocker B - orchestration history read truthfulness
+
+- Added the provider-independent Application contract `HistoryReadResult<T>` with `Records`,
+  `HistoryReadStatus`, and bounded `HistoryReadIssue` values.
+- `Success` means requested partitions were read without storage or record-integrity issues;
+  missing files and legitimately empty partitions are `Success` with empty records.
+- `Partial` means valid records were preserved but one or more malformed/unsupported records or
+  storage partitions may make the requested history incomplete.
+- `Unavailable` means no requested partition was reliably read because of permission/I/O failure.
+- Issues expose only a safe kind, partition filename, and fixed non-secret message. Exception text,
+  absolute paths, raw JSONL records, prompts, source code, and credentials do not cross into
+  Application.
+- Added additive `JsonlEventStore.ReadRangeWithStatusAsync`; the accepted usage-history
+  `ReadRangeAsync` behavior and signature remain unchanged.
+- Valid records survive malformed/unsupported siblings and partial month failures. Project ID and
+  derived GUID-directory isolation remain enforced before records reach consumers.
+- Permission/I/O tests use a small Infrastructure-internal partition-reader seam; no ACL mutation
+  or generic filesystem framework was introduced.
+
+### Compatibility and scope
+
+- The legacy `%LOCALAPPDATA%\AIUsageMonitor\` root, existing provider/capacity documents, and
+  accepted non-APO-27 filenames/schemas remain unchanged.
+- The APO-27 unmerged review record representation remains compatible with its existing derived
+  aggregate fields while now failing closed on contradiction.
+- No Projects UI, routing engine, execution runtime, validation/review engine, provider change,
+  tracker/GitHub execution, cloud backend, database/ORM, LocalAppData migration, installer,
+  signing, updater, or APO-33 CI work was performed.
+
+### Deferred non-blocking P3 observations
+
+- **P3-01 Metadata value boundary:** deferred; future integration adapters need explicit metadata
+  contracts/allowlists and secret scanning/redaction.
+- **P3-02 FilePathLocks lifetime:** deferred; the V1 expected scale does not justify a ref-counted
+  keyed-lock redesign.
+- **P3-03 RecordId idempotency:** deferred to the future execution runtime; storage append does not
+  globally deduplicate an explicitly reused RecordId.
+
+### Final validation evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all projects up to date |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused APO-27 storage tests | SUCCESS; 32 executed, 32 passed, 0 failed, 0 skipped |
+| Full solution tests | SUCCESS; 186 executed, 186 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 82 Infrastructure, 10 Connection, 20 Desktop) |
+| `git diff --check` | SUCCESS; no whitespace errors; only normal Windows LF/CRLF notices |
+| Added-line secret scan | SUCCESS; 668 tracked added lines scanned, 0 high-confidence credential literals; new contract files reviewed with the same result |
+| `win-x64` self-contained single-file publish | SUCCESS; executable produced from the existing profile |
+| `win-x86` / `win-arm64` publish | Not rerun; prior accepted evidence retained because project/package/publish configuration did not change |
+| x64 startup smoke | SUCCESS; published executable alive after 5 seconds and closed cleanly |
+| Live authenticated provider calls | NOT RUN; prohibited by the execution contract |
+
+### Markdown and tracker synchronization state
+
+All tracked Markdown files were enumerated before editing:
+`.ai/CURRENT_STATE.md`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `TASK.md`,
+`docs/APO-31_PROVIDER_EVIDENCE.md`, `docs/BRD.md`, `docs/IMPLEMENTATION_PLAN.md`,
+`docs/LEGACY_IMPLEMENTATION_MAP.md`, and `docs/SESSION_PROMPTS.md`.
+
+The APO-27 factual state was synchronized in `.ai/CURRENT_STATE.md`, `TASK.md`, `README.md`, and
+the current-planning boundary of `docs/IMPLEMENTATION_PLAN.md`. `AGENTS.md`, `CLAUDE.md`,
+`docs/BRD.md`, `docs/APO-31_PROVIDER_EVIDENCE.md`, `docs/LEGACY_IMPLEMENTATION_MAP.md`, and
+`docs/SESSION_PROMPTS.md` remain intentionally unchanged because they contain permanent rules,
+requirements, prior-provider evidence, historical mapping, or no stale APO-27 current-state claim.
+README does not advertise autonomous orchestration, routing completion, a review engine, or a
+Projects UI; it records APO-27 as a storage-foundation change pending review/merge.
+
+Current-state language no longer claims that GPT-5.6 Sol delta acceptance is pending. Historical
+SHA references and prior Story records remain preserved as historical evidence; no stale current
+APO-27 execution reference remains.
+
+Jira remains authoritative and unchanged by this executor: APO-27 = In Progress, APO-3 = In
+Progress, owner approval comment `11778`; no duplicate status transition was made. If the
+configured Jira connector is unavailable for the single completion comment, the factual result is
+`Jira completion comment pending Sol synchronization`.
+
+### Next exact lifecycle gate
+
+Claude Opus 5 must independently review the actual final pushed branch state against
+`0ea0c65ec7dac7ec09d30a6b25156353b714298f`, including both blockers, zero-prerequisite consumer
+behavior, cross-Windows compatibility, project isolation, persistence integrity, privacy, and
+the validation evidence. This executor did not perform that review. After the real Opus gate,
+GPT-5.6 Sol remains the acceptance authority. PR #5 must remain open, draft, and unmerged; main
+must remain untouched; no downstream Story may start automatically.
