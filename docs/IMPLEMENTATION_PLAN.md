@@ -271,10 +271,12 @@ code is changed or claimed as APO-refactored.
 ## 9. Current Planning Boundary
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
-move. APO-27 is the active owner-approved storage remediation on
-`feat/APO-27-orchestration-storage`; its functional remediation is complete at
-`0ea0c65ec7dac7ec09d30a6b25156353b714298f`, and Draft PR #5 remains open, draft, and unmerged.
-The root `TASK.md` is now the real Claude Opus 5 independent-review handoff for this bounded Story.
-It does not authorize a merge, a new Story, or downstream orchestration work. Claude Opus 5 must
-review the exact final functional SHA, after which GPT-5.6 Sol remains the acceptance authority
-and Jira/Git synchronization follows the approved lifecycle.
+move. APO-27 is the active owner-approved OPUS-01 durability remediation on
+`feat/APO-27-orchestration-storage`; the fail-closed functional remediation is complete at
+`9350ae53edd4ed75d0158d8da78e4a8cc81ad291`, and Draft PR #5 remains open, draft, and unmerged.
+The real Claude Opus 5 review against `0ea0c65ec7dac7ec09d30a6b25156353b714298f` returned
+`CHANGES REQUIRED`; Sol accepted OPUS-01 as the blocking finding in adjudication `11790`, with
+current review state `11791`. The root `TASK.md` is now the GPT-5.6 Sol delta-acceptance handoff
+for this bounded remediation. It does not authorize a merge, a new Story, or downstream
+orchestration work. After Sol delta acceptance, the bounded real Opus re-review and Sol final
+acceptance remain required before merge or any downstream Story.

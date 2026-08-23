@@ -1,271 +1,223 @@
-# APO-27 REAL CLAUDE OPUS 5 REVIEW HANDOFF
+# APO-27 OPUS-01 SOL DELTA ACCEPTANCE HANDOFF
 
 **Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
-**Status:** READY FOR REAL CLAUDE OPUS 5 INDEPENDENT ARCHITECTURE REVIEW
+**Status:** READY FOR GPT-5.6 SOL DELTA ACCEPTANCE
 **Owner:** Hossam
-**Planner / acceptance authority:** GPT-5.6 Sol
-**Executor:** GPT-5.6 Luna xHigh - bounded storage-remediation executor
-**Branch:** feat/APO-27-orchestration-storage
+**Planner / architect / acceptance authority:** GPT-5.6 Sol
+**Executor:** GPT-5.6 Luna xHigh - bounded persistence-correctness remediation executor
+**Branch:** `feat/APO-27-orchestration-storage`
 **Draft PR:** #5 - OPEN / DRAFT / UNMERGED
 **Jira:** APO-27 - In Progress
 **Parent Epic:** APO-3 - In Progress
-**Owner approval comment:** 11778
 
-This file is the next executable contract only for the required independent Claude Opus 5 review.
-It does not authorize implementation of another Story, merge, PR readiness, main-branch changes,
-Jira status transitions, or downstream orchestration work.
+This is the next gate for the completed OPUS-01 remediation. It authorizes Sol to inspect and
+accept the exact functional remediation evidence below. It does not authorize a merge, a PR-ready
+transition, a main-branch change, a Jira status transition, another Story, or downstream
+orchestration work. A bounded real Claude Opus 5 re-review is the following gate after Sol delta
+acceptance; its prompt is not prepared in this file.
 
-## Exact repository and commit identity
+## Exact repository and review identity
 
 | Item | Exact value |
 |---|---|
-| Required remediation start head | a6ef753143996f31591d300dfc56fbfa9bbb50a4 |
-| Exact main base | 4b393b3e3cf732dd1f0e861a734e3c311327e2af |
-| Original APO-27 implementation SHA | d38817f96050b0decfd0a8328f8ef2cd33bc5a5e |
-| Prior Sol remediation target/start SHA | 5e2caa596ba8e67d14ee359302f210149eadb397 |
-| Prior functional remediation SHA | dcfa922b58c0282311ec1e027d1187bee771651b |
-| Owner-approved remediation start SHA | a6ef753143996f31591d300dfc56fbfa9bbb50a4 |
-| New functional remediation SHA | 0ea0c65ec7dac7ec09d30a6b25156353b714298f |
-| Final pushed SHA / exact Opus review target | 0ea0c65ec7dac7ec09d30a6b25156353b714298f |
+| Exact main base | `4b393b3e3cf732dd1f0e861a734e3c311327e2af` |
+| Original real Opus reviewed target | `0ea0c65ec7dac7ec09d30a6b25156353b714298f` |
+| Pre-remediation branch head | `66bd4505861bbdc831a4909d6c0da9082c433a55` |
+| Real Opus verdict | `CHANGES REQUIRED` |
+| Accepted blocker | `OPUS-01 - P2` |
+| Sol adjudication comment | `11790` |
+| Current-review state comment | `11791` |
+| Functional remediation SHA | `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` |
+| Documentation/handoff SHA | Recorded by final Git verification after this handoff commit |
+| Final branch SHA | Recorded by final Git verification and delivery report |
 
-The final pushed SHA above is the exact functional remediation target. The branch may contain the
-separate documentation/handoff commit after that functional commit; the documentation-only
-commit must not change the functional review target. Verify the final branch head with
-git rev-parse HEAD and git rev-parse origin/feat/APO-27-orchestration-storage before review.
+The functional remediation SHA is the reviewable code/test target. Any later documentation-only
+commit must not change that functional target.
 
-## Full architecture summary
+## OPUS-01 root cause and decision
 
-APO-27 is a local persistence foundation on the approved C# / .NET 10 / WPF / MVVM architecture.
-Application owns provider-independent orchestration contracts. Infrastructure owns JSON/JSONL
-files, monthly partitions, safe writes, path derivation, logging, and OS/file-system details.
-The existing %LOCALAPPDATA%\AIUsageMonitor\ root and accepted provider/capacity storage remain
-unchanged. V1 still has no database, ORM, cloud backend, embedded browser, Node/npm prerequisite,
-provider CLI prerequisite, or LocalAppData migration.
+`VersionedJsonCollectionStore<TRecord>.ReadAsync` intentionally retains the existing read-only
+behavior of collapsing every non-usable `FileReadResult` to an empty collection. Both
+`UpdateAsync` overloads previously reused that read method. Consequently, an `IoFailure` or
+`PermissionFailure` during an update could be interpreted as a new empty registry, invoke the
+caller delegate, and atomically replace a healthy authoritative registry with only the incoming
+record.
 
-The project layout remains GUID-derived and isolated:
+Sol accepted OPUS-01 as a blocking data-loss defect. The remediation is deliberately limited to
+the shared Infrastructure collection-store update path and deterministic Infrastructure tests.
+OPUS-02 through OPUS-07 remain deferred as documented below.
 
-    %LOCALAPPDATA%\AIUsageMonitor\
-        projects\
-            {project-guid}\
-                routing-policy.json
-                orchestration\
-                    runs\YYYY-MM.jsonl
-                    evidence\YYYY-MM.jsonl
-                    reviews\YYYY-MM.jsonl
-                    activity\YYYY-MM.jsonl
+## VersionedJsonCollectionStore fix
 
-No Projects UI, activity UI, routing engine, execution runtime, task classifier, model selector,
-validation engine, review engine, acceptance engine, provider change, tracker/GitHub executor,
-cloud backend, database/ORM, migration, installer, signing, updater, or APO-33 CI was added.
+Both overloads now share the private `ReadForUpdateAsync` helper:
 
-## Blocker A remediation - review truthfulness
+```text
+UpdateAsync(string path, Func<List<TRecord>, List<TRecord>> update, ...)
+UpdateAsync<TResult>(
+    string path,
+    Func<List<TRecord>, (List<TRecord> Items, TResult Result)> update,
+    ...)
+```
 
-ReviewMetadata.Findings is authoritative.
+The helper preserves the accepted recovery semantics for `Missing`, `Empty`, `Corrupt`, and
+`UnsupportedSchema`, and uses valid persisted items for `Valid`. It fails closed for transient
+read failures before the update delegate is called or `WriteCoreAsync` can run.
 
-- FindingCount is derived from Findings.Count and is no longer independently writable.
-- Blocking is derived from finding-level blocking flags. A review with zero findings is
-  non-blocking.
-- Blank finding IDs, null finding entries, and case-insensitive duplicate finding IDs are rejected.
-- Finding evidence IDs/references remain normalized and bounded; finding summaries remain optional.
-- Verdict text such as accepted, changes-required, or rejected remains metadata and is not
-  interpreted as a workflow engine.
+### Failure semantics
 
-ReviewMetadataRecord retains aggregate FindingCount and Blocking as derived serialized
-inspection/compatibility fields. FromApplication always writes both from the detailed finding
-collection. ToApplication derives the expected count and blocking state from the persisted
-finding collection and rejects any contradictory persisted value before constructing Application
-state. Invalid review records are skipped by the project store with a CorruptRecord read issue.
+- `IoFailure` throws a bounded safe `IOException`.
+- `PermissionFailure` throws a bounded safe `UnauthorizedAccessException`.
+- The raw file path, raw exception text, registry contents, credentials, and authenticated data
+  are not included in the surfaced message.
+- Cancellation continues to propagate normally.
+- Transient read failures do not quarantine, move, delete, truncate, or replace the authoritative
+  file.
+- Corrupt and unsupported-schema reads retain the existing quarantine/recovery behavior; a later
+  write may recreate the authoritative destination.
 
-Required truthfulness coverage is present:
+The only deterministic fault seam is an Infrastructure-internal read-failure injector on
+`JsonFileStore`. It is unset in production and is not exposed to Application or Domain.
 
-- two findings produce FindingCount == 2;
-- one blocking plus one non-blocking finding produces aggregate Blocking == true;
-- zero findings produce count zero and non-blocking state;
-- duplicate IDs are rejected case-insensitively;
-- blank and null findings are rejected;
-- contradictory persisted count and blocking fields are rejected fail-closed;
-- a valid derived aggregate round-trips without contradiction.
+## Regression evidence
 
-## Blocker B remediation - history read truthfulness
+### Project registry
 
-The Application contract now returns HistoryReadResult<T> from all four orchestration read methods:
+- Persisted two valid projects before each injected-failure attempt.
+- `IoFailure` caused `JsonProjectRepository.UpsertAsync` to fail with `IOException`.
+- `PermissionFailure` caused `JsonProjectRepository.UpsertAsync` to fail with
+  `UnauthorizedAccessException`.
+- Before/after `projects.json` byte arrays are asserted identical for both failures.
+- The incoming project is absent and both original project IDs remain readable after the injected
+  fault is removed.
 
-    IProjectOrchestrationStore
-        ReadExecutionRunsAsync -> HistoryReadResult<ExecutionRun>
-        ReadEvidenceAsync      -> HistoryReadResult<EvidenceMetadata>
-        ReadReviewsAsync       -> HistoryReadResult<ReviewMetadata>
-        ReadActivityAsync      -> HistoryReadResult<ActivityAuditRecord>
+### Agent registry
 
-Each result contains Records, HistoryReadStatus Status, and HistoryReadIssue Issues.
+- Persisted two valid agents before an injected `IoFailure`.
+- `JsonAgentRepository.UpsertAsync` failed with `IOException`.
+- Before/after `agents.json` byte arrays are asserted identical.
+- The incoming agent is absent and both original agent IDs remain readable after recovery.
 
-### Status semantics
+### Shared result-bearing update overload
 
-- Success: requested partitions were read without storage or record-integrity failure. Missing
-  history directories, missing monthly files, and empty partitions are normal absence and return
-  Success with empty records.
-- Partial: readable records are preserved but one or more malformed/unsupported records or
-  permission/I/O failures may make the requested history incomplete.
-- Unavailable: permission/I/O failure prevented every requested partition from being reliably
-  read. No empty result is allowed to hide that failure.
+- `VersionedJsonCollectionStore.UpdateAsync<TResult>` was exercised directly.
+- An injected `IoFailure` throws before the update delegate runs.
+- The delegate-side-effect flag remains false.
+- The authoritative collection file bytes remain identical and the original item remains readable.
 
-### Issue semantics and privacy
+### Existing recovery and normal updates
 
-HistoryReadIssue contains only Kind, a partition filename such as 2026-08.jsonl, and a bounded
-NonSecretMessage. The kinds are CorruptRecord, UnsupportedSchema, PermissionFailure, and IoFailure.
-Exception objects, exception text, absolute paths, raw JSONL lines, prompts, source code,
-authenticated payloads, and credentials never cross the Application boundary. Logging may retain
-safe diagnostics according to the existing policy.
+- Existing corrupt-document and unsupported-schema quarantine tests remain green, including future
+  write recovery.
+- Existing normal project upsert coverage remains green: same IDs are replaced, distinct IDs are
+  added, and concurrent distinct upserts preserve all siblings.
 
-JsonlEventStore.ReadRangeWithStatusAsync is additive. Existing accepted usage-history
-ReadRangeAsync remains available with its original signature and behavior. Orchestration storage
-uses the richer API, preserves valid records beside malformed/unsupported siblings, reports
-unterminated-tail corruption as degraded, and maps Infrastructure failures into provider-neutral
-issues. A small Infrastructure-internal partition-reader seam makes permission/I/O tests
-deterministic without ACL mutation or a generic filesystem abstraction.
+## Validation evidence
 
-## Compatibility and project isolation
+### Focused persistence/storage tests
 
-- Legacy %LOCALAPPDATA%\AIUsageMonitor\ identity is preserved.
-- Existing provider/capacity files and schemas are untouched.
-- APO-27's unmerged review record schema keeps its serialized derived aggregate fields but rejects
-  contradictions before Application construction.
-- Paths are projects\{guid}\; no names, local paths, repository URLs, or tracker identifiers
-  select a storage directory.
-- Records are checked against both the derived project directory and their persisted ProjectId.
-- Foreign ProjectId records remain filtered even when the read result is Partial.
-- Valid records from a readable month are retained when another requested month fails.
+Command:
 
-## Focused and regression tests
+```powershell
+dotnet test tests\AIUsageMonitor.Infrastructure.Tests\AIUsageMonitor.Infrastructure.Tests.csproj `
+  --no-restore --filter FullyQualifiedName~ProjectOrchestrationStorageTests
+```
 
-The focused command is:
+| Executed | Passed | Failed | Skipped |
+|---:|---:|---:|---:|
+| 36 | 36 | 0 | 0 |
 
-    dotnet test tests\AIUsageMonitor.Infrastructure.Tests\AIUsageMonitor.Infrastructure.Tests.csproj --no-restore --filter FullyQualifiedName~ProjectOrchestrationStorageTests
+### Full solution tests
 
-Result: 32 executed, 32 passed, 0 failed, 0 skipped.
+Command:
 
-The 32-test class covers the original 22 storage regressions plus:
+```powershell
+dotnet test AIUsageMonitor.sln --no-restore
+```
 
-- derived review count/blocking truth;
-- blank, null, and duplicate finding rejection;
-- persisted review aggregate round-trip;
-- persisted count/blocking mismatch rejection;
-- missing project history directory as Success + empty;
-- existing empty partition as Success + empty;
-- malformed and unsupported sibling preservation with Partial issues;
-- unterminated JSONL tail recovery with valid records preserved;
-- one valid month plus I/O failure as Partial;
-- permission failure with no readable partition as Unavailable; and
-- project isolation under a degraded/partial read.
+| Executed | Passed | Failed | Skipped |
+|---:|---:|---:|---:|
+| 190 | 190 | 0 | 0 |
 
-## Full solution validation
+Breakdown: Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 20.
 
-    dotnet restore AIUsageMonitor.sln
-    dotnet build AIUsageMonitor.sln --no-restore
-    dotnet test AIUsageMonitor.sln --no-restore
+### Restore and build
 
-All succeeded. Build result: 0 warnings, 0 errors. Full test result: 186 executed, 186
-passed, 0 failed, 0 skipped.
+- `dotnet restore AIUsageMonitor.sln` - SUCCESS; all projects up to date.
+- `dotnet build AIUsageMonitor.sln --no-restore` - SUCCESS; 0 warnings, 0 errors.
 
-| Test project | Passed |
-|---|---:|
-| Domain | 28 |
-| Provider | 46 |
-| Infrastructure | 82 |
-| Connection | 10 |
-| Desktop | 20 |
+### Publish and runtime smoke
 
-## Build, publish, and runtime
+- `win-x64` self-contained single-file publish - SUCCESS using the unchanged
+  `win-x64.pubxml` profile.
+- x64 startup smoke - SUCCESS; published executable remained alive for five seconds and was
+  stopped cleanly.
+- `win-x86` and `win-arm64` publish evidence is retained from the accepted baseline because no
+  project, package, or publish configuration changed. No x86/ARM64 hardware runtime is claimed.
+- No screenshot was required; no visible UI change was expected.
 
-The existing project/package/publish configuration did not change.
+### Diff, secret, and artifact checks
 
-### win-x64
+- `git diff --check` - SUCCESS; no whitespace errors, with only normal Windows LF/CRLF notices.
+- Targeted added-line secret scan - SUCCESS; no real secrets, tokens, cookies, prompts,
+  conversations, source code, authenticated payloads, or generated artifacts were added.
+- Build and publish outputs remain ignored and are not part of the commits.
 
-    dotnet publish src\AIUsageMonitor.Desktop\AIUsageMonitor.Desktop.csproj -c Release -p:PublishProfile=win-x64 --no-restore
+## Markdown, BRD, and governance synchronization
 
-Succeeded and produced the self-contained single-file AIUsageMonitor.Desktop.exe. Startup smoke
-on the Windows x64 development machine confirmed the published executable remained alive after a
-five-second interval and closed cleanly. No visible UI changed, so no screenshot was required.
+All tracked Markdown files were enumerated and searched for APO-27 lifecycle references. The
+current factual state is synchronized in `.ai/CURRENT_STATE.md`, `TASK.md`, `README.md`, and the
+current-planning boundary of `docs/IMPLEMENTATION_PLAN.md`.
 
-### win-x86 and win-arm64
+`AGENTS.md`, `CLAUDE.md`, and `docs/BRD.md` remain unchanged. BRD requirement changes: NONE.
+The permanent execution contract, product requirements, historical/provider evidence, and
+stable mapping documents were reviewed and did not require rewriting.
 
-Not rerun. Prior accepted compile/publish evidence remains valid because no project, package, or
-publish configuration changed. No x86 or ARM64 hardware runtime is claimed.
+Required current lifecycle:
 
-## Diff, secret, and artifact checks
+```text
+APO-27 implementation
+  -> Sol findings
+  -> R-01..R-07 remediation
+  -> Sol delta acceptance
+  -> owner-approved storage truthfulness remediation
+  -> real Claude Opus 5 review
+  -> Opus verdict CHANGES REQUIRED
+  -> Sol accepted OPUS-01 as blocking
+  -> this OPUS-01 remediation
+  -> Sol delta acceptance pending
+  -> bounded Opus re-review pending
+  -> Sol final acceptance pending
+```
 
-- git diff --check: passed; no whitespace errors, only normal Windows LF/CRLF notices.
-- Added-line secret scan: 668 tracked added lines scanned with 0 high-confidence credential
-  literals; the four new Application contract files were separately inspected with the same
-  result. No real credentials, tokens, cookies, prompts, conversations, source code, or
-  authenticated payloads were added.
-- Generated build/publish output is ignored and no generated artifacts are part of the commit.
+## Jira and Draft PR #5 evidence
 
-## Markdown synchronization
+- APO-27 remains `In Progress`.
+- APO-3 remains `In Progress`.
+- No Jira status transition was made.
+- One concise APO-27 completion comment records the functional remediation SHA, final branch SHA,
+  fail-closed semantics, byte-preservation evidence, project/agent/result-bearing tests, full
+  validation, publish/smoke evidence, Markdown synchronization, and the next gate.
+- PR #5 remains OPEN, DRAFT, UNMERGED, and based on `main`.
+- The PR body records the real Opus verdict, OPUS-01 non-deferral, remediation design, exact
+  functional SHA, final branch SHA, no-truncation tests, validation, P3 deferrals, and next gate.
 
-All tracked Markdown files were enumerated and reviewed:
+If the configured Jira or GitHub connector cannot complete a write, the final delivery report
+must state the specific synchronization item as pending rather than claiming it was performed.
 
-- .ai/CURRENT_STATE.md
-- AGENTS.md
-- CLAUDE.md
-- README.md
-- TASK.md
-- docs/APO-31_PROVIDER_EVIDENCE.md
-- docs/BRD.md
-- docs/IMPLEMENTATION_PLAN.md
-- docs/LEGACY_IMPLEMENTATION_MAP.md
-- docs/SESSION_PROMPTS.md
+## Deferred Opus findings
 
-### Changed
-
-- .ai/CURRENT_STATE.md: current APO-27 lifecycle, exact SHAs, two fixed blockers, three deferred
-  P3 observations, validation, and Opus boundary synchronized.
-- TASK.md: replaced the prior Sol-delta handoff with this full real Claude Opus 5 review contract.
-- README.md: current status now records APO-27 storage as under review and updates the branch
-  validation count without advertising future orchestration capability.
-- docs/IMPLEMENTATION_PLAN.md: current planning boundary now points to the Opus handoff.
-
-### Intentionally unchanged
-
-AGENTS.md, CLAUDE.md, docs/BRD.md, docs/APO-31_PROVIDER_EVIDENCE.md,
-docs/LEGACY_IMPLEMENTATION_MAP.md, and docs/SESSION_PROMPTS.md contain permanent governance,
-requirements, prior-provider evidence, historical mapping, or no stale APO-27 current-state claim.
-They were reviewed and not rewritten. BRD review result: no requirement changes required.
-
-Historical APO-27 SHAs remain where needed as factual history. No stale current APO-27 execution
-state remains, including the obsolete “awaiting GPT-5.6 Sol delta acceptance” wording.
-
-## Jira synchronization
-
-Authoritative Jira state remains:
-
-- APO-27: In Progress;
-- APO-3: In Progress; and
-- owner approval comment: 11778.
-
-No duplicate Jira status transition was made and neither issue was marked Done. Completion comment
-`11787` was added through the configured Jira connector and records this functional SHA, final
-branch SHA, blocker resolutions, 32/32 focused tests, 186/186 full tests, publish/smoke evidence,
-Markdown synchronization, deferred P3 observations, and the next gate.
-
-## Deferred non-blocking P3 observations
-
-- Metadata value secret hardening remains deferred to future explicit metadata contracts/allowlists
-  and secret scanning/redaction in integration adapters.
-- FilePathLocks keyed semaphore lifetime remains deferred; no ref-counted lock redesign was
-  authorized.
-- Explicitly reused RecordId global deduplication remains deferred to the future execution runtime;
-  storage append does not own idempotency/replay behavior.
+- **OPUS-02:** Summary/reference length hardening - DEFER.
+- **OPUS-03:** Generic metadata-value secret detection - DEFER / CALLER BOUNDARY.
+- **OPUS-04:** FilePathLocks lifetime - DEFER.
+- **OPUS-05:** RecordId idempotency - DEFER TO EXECUTION RUNTIME.
+- **OPUS-06:** Dead JSONL `lineNumber` - DEFER.
+- **OPUS-07:** Repository metadata / `DefaultBranch` semantic refinement - DEFER.
 
 ## Exact next gate
 
-The real Claude Opus 5 independent architecture review must target:
-
-    0ea0c65ec7dac7ec09d30a6b25156353b714298f
-
-The reviewer must independently inspect the actual code, diff, evidence, zero-prerequisite
-consumer contract, cross-Windows behavior, provider-neutral truthfulness, file persistence,
-credential/privacy boundaries, project isolation, and the human-approval/release gates. Opus has
-not reviewed this remediation yet. After Opus, GPT-5.6 Sol remains the acceptance authority.
-
-No merge, PR-ready transition, main-branch modification, Jira status transition, or downstream
-Story work was performed.
+GPT-5.6 Sol delta acceptance of functional remediation
+`9350ae53edd4ed75d0158d8da78e4a8cc81ad291` is the next gate. Sol must inspect the actual diff,
+tests, persistence semantics, architecture boundary, and evidence. After Sol delta acceptance,
+the bounded real Claude Opus 5 re-review is required; after that, Sol remains the final acceptance
+authority. No Opus re-review, final Sol acceptance, merge, main-branch change, or downstream Story
+work was performed in this remediation.

@@ -13,14 +13,14 @@
 **APO-31:** COMPLETE / MERGED / DONE
 **APO-34:** COMPLETE / MERGED / DONE
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
-**APO-27:** OWNER-APPROVED FINAL REMEDIATION COMPLETE / AWAITING REAL CLAUDE OPUS 5 INDEPENDENT REVIEW
+**APO-27:** OPUS-01 FUNCTIONAL REMEDIATION COMPLETE / AWAITING GPT-5.6 SOL DELTA ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
 **Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation
-**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`; Sol acceptance remediation delivered at `dcfa922b58c0282311ec1e027d1187bee771651b`; owner-approved final functional remediation delivered at `0ea0c65ec7dac7ec09d30a6b25156353b714298f` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, remains unmerged and draft, and is awaiting the required real Claude Opus 5 review
-**Next implementation:** Claude Opus 5 independent architecture review against the exact final functional remediation SHA, followed by Sol acceptance and repository/Jira synchronization; do not merge, mark PR ready, or execute another Story automatically
+**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`; Sol acceptance remediation delivered at `dcfa922b58c0282311ec1e027d1187bee771651b`; owner-approved final functional remediation delivered at `0ea0c65ec7dac7ec09d30a6b25156353b714298f`; real Claude Opus 5 reviewed that target and returned `CHANGES REQUIRED`; Sol accepted OPUS-01 as the blocking P2 finding in adjudication `11790` with current-review state `11791`; this bounded functional remediation is complete at `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, remains unmerged and draft, and is awaiting Sol delta acceptance
+**Next implementation:** GPT-5.6 Sol delta acceptance of `9350ae53edd4ed75d0158d8da78e4a8cc81ad291`, followed by the bounded real Claude Opus 5 re-review, Sol final acceptance, and repository/Jira synchronization; do not merge, mark PR ready, modify `main`, or execute another Story automatically
 **Release state:** APO-34 is merged and done; APO-27 adds the local project/orchestration storage foundation while full orchestration runtime and product release qualification remain incomplete
 
 > SINGLE MUTABLE HANDOFF FILE.
@@ -779,7 +779,7 @@ this checkpoint. No APO-34 follow-up commit was made; the next active authority 
 APO-27 acceptance. No Jira write, Opus review, or downstream Story work is authorized from this
 checkpoint.
 
-## 13. APO-27 Project / Orchestration Storage Foundation (Current Delivery)
+## 13. APO-27 Project / Orchestration Storage Foundation (Historical Initial Delivery)
 
 **Exact merged main base:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`.
 
@@ -799,7 +799,7 @@ checkpoint.
 - The synchronized solution contains both APO-34 test projects and retains the Desktop Any CPU
   `x64` mappings. No APO-34 follow-up commit was made.
 
-### APO-27 implementation
+### APO-27 implementation (Historical baseline)
 
 **Branch:** `feat/APO-27-orchestration-storage`
 **Implementation commit:** `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`
@@ -858,7 +858,7 @@ UI, routing engine, executor runtime, or tracker/GitHub execution.
   one independent Claude Opus 5 architecture review is required by the APO-27 contract. No Jira
   writes, Opus invocation, merge, or downstream Story work has been performed.
 
-## 13.1 APO-27 SOL Acceptance Remediation
+## 13.1 APO-27 SOL Acceptance Remediation (Historical Pre-Opus Baseline)
 
 **Sol acceptance verdict:** CHANGES REQUIRED, recorded in Jira Sol acceptance comment `11776`.
 
@@ -985,12 +985,16 @@ review target is `0ea0c65ec7dac7ec09d30a6b25156353b714298f`. The required real C
 independent architecture review is now pending against that exact SHA. No Jira status transition,
 Opus invocation, merge, or downstream Story work has been performed.
 
-## 13.2 APO-27 Owner-Approved Final Storage Remediation
+## 13.2 APO-27 Owner-Approved Final Storage Remediation (Pre-OPUS-01 Baseline)
 
-**Lifecycle:** APO-27 initial implementation -> Sol CHANGES REQUIRED -> Luna R-01..R-07
-remediation -> Sol delta ACCEPTED FOR INDEPENDENT REVIEW -> Sol-equivalent independent
+**Lifecycle at this checkpoint:** APO-27 initial implementation -> Sol CHANGES REQUIRED -> Luna
+R-01..R-07 remediation -> Sol delta ACCEPTED FOR INDEPENDENT REVIEW -> Sol-equivalent independent
 architecture review identified two approved P2 blockers -> owner approved bounded remediation
-comment `11778` -> this final storage remediation -> real Claude Opus 5 review pending.
+comment `11778` -> the prior final storage remediation -> real Claude Opus 5 review pending.
+
+This section records the factual pre-OPUS-01 baseline. Its `0ea0c65ec7dac7ec09d30a6b25156353b714298f`
+target and `32/32` focused-test evidence remain historical review evidence; the current lifecycle
+and next gate are recorded in Section 13.3.
 
 ### Exact delivery identity
 
@@ -1090,20 +1094,127 @@ requirements, prior-provider evidence, historical mapping, or no stale APO-27 cu
 README does not advertise autonomous orchestration, routing completion, a review engine, or a
 Projects UI; it records APO-27 as a storage-foundation change pending review/merge.
 
-Current-state language no longer claims that GPT-5.6 Sol delta acceptance is pending. Historical
-SHA references and prior Story records remain preserved as historical evidence; no stale current
-APO-27 execution reference remains.
+At the pre-OPUS-01 checkpoint, current-state language recorded that Sol delta acceptance had
+already been completed for independent review. Historical SHA references and prior Story records
+remain preserved as evidence; the current post-OPUS-01 lifecycle is recorded in Section 13.3.
 
-Jira remains authoritative and unchanged by this executor: APO-27 = In Progress, APO-3 = In
-Progress, owner approval comment `11778`; no duplicate status transition was made. Completion
-comment `11787` was added through the configured Jira connector with the final remediation and
-validation evidence.
+At that pre-OPUS-01 checkpoint, Jira remained authoritative and unchanged by that executor:
+APO-27 = In Progress, APO-3 = In Progress, owner approval comment `11778`; no duplicate status
+transition was made. Completion comment `11787` recorded the prior final-remediation evidence.
 
-### Next exact lifecycle gate
+### Historical next exact lifecycle gate
 
 Claude Opus 5 must independently review the actual final pushed branch state against
 `0ea0c65ec7dac7ec09d30a6b25156353b714298f`, including both blockers, zero-prerequisite consumer
 behavior, cross-Windows compatibility, project isolation, persistence integrity, privacy, and
-the validation evidence. This executor did not perform that review. After the real Opus gate,
-GPT-5.6 Sol remains the acceptance authority. PR #5 must remain open, draft, and unmerged; main
-must remain untouched; no downstream Story may start automatically.
+the validation evidence. This was the next gate at that pre-OPUS-01 checkpoint. After the real
+Opus gate, GPT-5.6 Sol remains the acceptance authority. PR #5 must remain open, draft, and
+unmerged; main must remain untouched; no downstream Story may start automatically.
+
+## 13.3 APO-27 OPUS-01 Final Durability Remediation (Current Delivery)
+
+**Lifecycle:** APO-27 implementation -> Sol findings -> R-01..R-07 remediation -> Sol delta
+acceptance -> owner-approved storage truthfulness remediation -> real Claude Opus 5 review -> Opus
+verdict `CHANGES REQUIRED` -> Sol accepted OPUS-01 as blocking -> this OPUS-01 remediation -> Sol
+delta acceptance pending -> bounded Opus re-review pending -> Sol final acceptance pending.
+
+### Exact delivery identity
+
+| Item | Value |
+|---|---|
+| Exact main base | `4b393b3e3cf732dd1f0e861a734e3c311327e2af` |
+| Real Opus reviewed target | `0ea0c65ec7dac7ec09d30a6b25156353b714298f` |
+| Pre-remediation branch head | `66bd4505861bbdc831a4909d6c0da9082c433a55` |
+| Real Opus verdict | `CHANGES REQUIRED` |
+| Accepted blocker | `OPUS-01 - P2` |
+| Sol adjudication | Jira comment `11790` |
+| Current-review state | Jira comment `11791` |
+| Functional remediation SHA | `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` |
+| Documentation/handoff SHA | Recorded by final Git verification after this handoff commit |
+| Final branch SHA | Recorded by final Git verification and delivery report |
+| Branch | `feat/APO-27-orchestration-storage` |
+| Draft PR | #5, OPEN / DRAFT / UNMERGED, base `main` |
+| Jira Story / Epic | APO-27 In Progress / APO-3 In Progress |
+
+### OPUS-01 root cause
+
+`VersionedJsonCollectionStore<TRecord>.ReadAsync` retains the accepted read-only behavior of
+collapsing every non-usable `FileReadResult` to an empty collection. Both update overloads reused
+that method, so `IoFailure` and `PermissionFailure` could become `[]`, invoke the update delegate,
+and replace a healthy authoritative registry with only the incoming record.
+
+### VersionedJsonCollectionStore fix
+
+Both update overloads now call one shared private `ReadForUpdateAsync` helper:
+
+- `UpdateAsync(string path, Func<List<TRecord>, List<TRecord>> update, ...)`;
+- `UpdateAsync<TResult>(string path, Func<List<TRecord>, (List<TRecord> Items, TResult Result)> update, ...)`.
+
+The helper uses valid items and treats missing/empty documents as safe empty collections. It
+preserves the existing corrupt/unsupported-schema quarantine and recovery behavior. It throws a
+bounded safe `IOException` for `IoFailure` and a bounded safe `UnauthorizedAccessException` for
+`PermissionFailure` before the update delegate or `WriteCoreAsync` can run.
+
+Transient read failures do not quarantine, delete, truncate, or replace the authoritative file.
+Cancellation propagates normally. No raw exception text, file path, registry content, credentials,
+or authenticated payload crosses the caller boundary. The deterministic read-failure injector is
+Infrastructure-internal and unset in production; Application and Domain contracts are unchanged.
+
+### Regression evidence
+
+- Project registry: two valid projects were persisted; injected I/O and permission failures made
+  `UpsertAsync` fail; before/after `projects.json` bytes were identical; the incoming project was
+  not persisted; both originals remained readable after fault removal.
+- Agent registry: two valid agents were persisted; injected I/O failure made `UpsertAsync` fail;
+  before/after `agents.json` bytes were identical; the incoming agent was not persisted; both
+  originals remained readable after fault removal.
+- Shared result-bearing overload: injected I/O failure prevented the delegate from running and
+  preserved the exact collection file bytes.
+- Existing corrupt/unsupported recovery and normal same-ID replacement/distinct-ID sibling
+  preservation tests remain green.
+
+### Validation evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all projects up to date |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused storage tests | SUCCESS; 36 executed, 36 passed, 0 failed, 0 skipped |
+| Full solution tests | SUCCESS; 190 executed, 190 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 86 Infrastructure, 10 Connection, 20 Desktop) |
+| `win-x64` self-contained single-file publish | SUCCESS; unchanged profile |
+| x64 startup smoke | SUCCESS; published executable alive after 5 seconds and stopped cleanly |
+| `win-x86` / `win-arm64` publish | Prior accepted evidence retained; no project/package/publish configuration changed |
+| `git diff --check` | SUCCESS; no whitespace errors, only normal Windows LF/CRLF notices |
+| Added-line secret scan | SUCCESS; no real secrets or sensitive payloads added |
+| Live authenticated provider calls | NOT RUN; prohibited by the execution contract |
+
+### Deferred Opus findings
+
+- **OPUS-02:** Summary/reference length hardening - DEFER.
+- **OPUS-03:** Generic metadata-value secret detection - DEFER / CALLER BOUNDARY.
+- **OPUS-04:** FilePathLocks lifetime - DEFER.
+- **OPUS-05:** RecordId idempotency - DEFER TO EXECUTION RUNTIME.
+- **OPUS-06:** Dead JSONL `lineNumber` - DEFER.
+- **OPUS-07:** Repository metadata / `DefaultBranch` semantic refinement - DEFER.
+
+### Markdown, BRD, and governance synchronization
+
+All tracked Markdown files were enumerated and searched. Current APO-27 facts were synchronized in
+`.ai/CURRENT_STATE.md`, `TASK.md`, `README.md`, and `docs/IMPLEMENTATION_PLAN.md`. `AGENTS.md`,
+`CLAUDE.md`, and `docs/BRD.md` were reviewed and intentionally unchanged; BRD requirement changes
+are NONE. Stable historical/provider/mapping Markdown was reviewed and did not require rewriting.
+
+### Jira and PR state
+
+APO-27 and APO-3 remain In Progress. One concise APO-27 completion comment records this functional
+SHA, final branch SHA, fail-closed semantics, byte-preservation evidence, project/agent/result-
+bearing tests, full validation, publish/smoke evidence, Markdown synchronization, and the next
+gate. Draft PR #5 remains OPEN, DRAFT, UNMERGED, and based on `main`; its body records the real Opus
+verdict, OPUS-01 non-deferral, remediation design, validation, P3 deferrals, and next gate.
+
+### Current next exact lifecycle gate
+
+GPT-5.6 Sol delta acceptance of the exact functional remediation SHA
+`9350ae53edd4ed75d0158d8da78e4a8cc81ad291`. After Sol delta acceptance, the bounded real Claude
+Opus 5 re-review is pending, followed by Sol final acceptance. No Opus re-review, final Sol
+acceptance, merge, main-branch change, or downstream Story work was performed in this remediation.
