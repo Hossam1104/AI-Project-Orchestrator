@@ -17,6 +17,7 @@ public sealed class ApplicationDataPaths
         AlertsDirectory = Path.Combine(RootDirectory, "alerts");
         SyncDirectory = Path.Combine(RootDirectory, "sync");
         LogsDirectory = Path.Combine(RootDirectory, "logs");
+        ProjectsDirectory = Path.Combine(RootDirectory, "projects");
     }
 
     public string RootDirectory { get; }
@@ -29,6 +30,12 @@ public sealed class ApplicationDataPaths
 
     public string LogsDirectory { get; }
 
+    /// <summary>
+    /// Root directory for GUID-scoped project state. The legacy root and all existing stores are
+    /// intentionally preserved; this is an additive APO-27 layout extension.
+    /// </summary>
+    public string ProjectsDirectory { get; }
+
     public string SettingsFile => Path.Combine(RootDirectory, "settings.json");
 
     public string ProvidersFile => Path.Combine(RootDirectory, "providers.json");
@@ -40,6 +47,12 @@ public sealed class ApplicationDataPaths
     public string QuotaDefinitionsFile => Path.Combine(RootDirectory, "quota-definitions.json");
 
     public string AlertRulesFile => Path.Combine(RootDirectory, "alert-rules.json");
+
+    public string ProjectsFile => Path.Combine(RootDirectory, "projects.json");
+
+    public string AgentsFile => Path.Combine(RootDirectory, "agents.json");
+
+    public string RoutingPolicyFile => Path.Combine(RootDirectory, "routing-policy.json");
 
     public static ApplicationDataPaths CreateDefault()
     {
@@ -61,6 +74,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(AlertsDirectory);
         Directory.CreateDirectory(SyncDirectory);
         Directory.CreateDirectory(LogsDirectory);
+        Directory.CreateDirectory(ProjectsDirectory);
     }
 
     public Task EnsureDirectoriesAsync(CancellationToken cancellationToken = default)
@@ -70,6 +84,92 @@ public sealed class ApplicationDataPaths
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Resolves the complete project-scoped layout without creating it. The only project path
+    /// component accepted is a canonical GUID, so a caller cannot inject a relative path.
+    /// </summary>
+    public ProjectDataPaths GetProjectPaths(Guid projectId)
+    {
+        if (projectId == Guid.Empty)
+        {
+            throw new ArgumentException("Project id cannot be empty.", nameof(projectId));
+        }
+
+        var projectDirectory = Path.Combine(ProjectsDirectory, projectId.ToString("D"));
+        return new ProjectDataPaths(projectId, projectDirectory);
+    }
+
+    public string GetProjectDirectory(Guid projectId) => GetProjectPaths(projectId).RootDirectory;
+
+    public string GetProjectOrchestrationDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).OrchestrationDirectory;
+
+    public string GetProjectRoutingPolicyFile(Guid projectId) => GetProjectPaths(projectId).RoutingPolicyFile;
+
+    public string GetProjectRunsDirectory(Guid projectId) => GetProjectPaths(projectId).RunsDirectory;
+
+    public string GetProjectEvidenceDirectory(Guid projectId) => GetProjectPaths(projectId).EvidenceDirectory;
+
+    public string GetProjectReviewsDirectory(Guid projectId) => GetProjectPaths(projectId).ReviewsDirectory;
+
+    public string GetProjectActivityDirectory(Guid projectId) => GetProjectPaths(projectId).ActivityDirectory;
+
+    public void EnsureProjectDirectories(Guid projectId)
+    {
+        var projectPaths = GetProjectPaths(projectId);
+        EnsureDirectories();
+        Directory.CreateDirectory(projectPaths.RootDirectory);
+        Directory.CreateDirectory(projectPaths.OrchestrationDirectory);
+        Directory.CreateDirectory(projectPaths.RunsDirectory);
+        Directory.CreateDirectory(projectPaths.EvidenceDirectory);
+        Directory.CreateDirectory(projectPaths.ReviewsDirectory);
+        Directory.CreateDirectory(projectPaths.ActivityDirectory);
+    }
+
+    public Task EnsureProjectDirectoriesAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureProjectDirectories(projectId);
+        return Task.CompletedTask;
+    }
+
     public string GetMonthlyPartition(string directory, DateTimeOffset timestamp) =>
         Path.Combine(directory, $"{timestamp.UtcDateTime:yyyy-MM}.jsonl");
+}
+
+/// <summary>
+/// Paths beneath one registered project's GUID directory. These paths are derived, never loaded
+/// from project metadata, so project records cannot redirect one project's stream to another.
+/// </summary>
+public sealed class ProjectDataPaths
+{
+    internal ProjectDataPaths(Guid projectId, string rootDirectory)
+    {
+        ProjectId = projectId;
+        RootDirectory = rootDirectory;
+        OrchestrationDirectory = Path.Combine(rootDirectory, "orchestration");
+        RunsDirectory = Path.Combine(OrchestrationDirectory, "runs");
+        EvidenceDirectory = Path.Combine(OrchestrationDirectory, "evidence");
+        ReviewsDirectory = Path.Combine(OrchestrationDirectory, "reviews");
+        ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
+        RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
+    }
+
+    public Guid ProjectId { get; }
+
+    public string RootDirectory { get; }
+
+    public string OrchestrationDirectory { get; }
+
+    public string RunsDirectory { get; }
+
+    public string EvidenceDirectory { get; }
+
+    public string ReviewsDirectory { get; }
+
+    public string ActivityDirectory { get; }
+
+    public string RoutingPolicyFile { get; }
 }

@@ -81,15 +81,17 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Provider-independent quota, subscription, usage, alert, and refresh contracts |
 | :white_check_mark: Implemented / validated | Windows Credential Manager adapter with opaque credential references and focused security tests |
 | :white_check_mark: Implemented / validated | Self-contained multi-RID publish configuration for `win-x64`, `win-x86`, and `win-arm64` |
-| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; current baseline is 85 passing tests |
+| :construction: In progress / under review | APO-27 storage implementation is complete, OPUS-01 is closed, and Sol delta acceptance is complete (Jira comment 11793); PR #5 is awaiting final squash merge into main |
+| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; the current APO-27 branch validation is 36 focused storage tests and 190 full-suite tests, all passing |
 | :construction: In progress / planned | Official provider capacity adapters for Codex, Claude, Kimi, GitHub Copilot, and Antigravity |
 | :construction: In progress / planned | Project Registry, Git/GitHub and Jira/Azure DevOps awareness |
 | :construction: In progress / planned | Agent registry, routing, bounded execution, validation, review, and acceptance services |
 | :compass: Roadmap | Full command center, activity/audit experience, notifications, CI, and release qualification |
 
-Not yet implemented: provider adapters, the autonomous runtime, the routing engine, tracker
-automation, the Project Registry backend, and the full APO-15 dashboard. APO does not fabricate
-provider numbers or claim CI status before the CI Story is delivered.
+Not yet implemented: provider adapters beyond their bounded foundation, the autonomous runtime,
+the routing engine, tracker automation, the user-facing Projects UI, the review/acceptance engines,
+and the full APO-15 dashboard. APO does not fabricate provider numbers or claim CI status before
+the relevant Story is delivered.
 
 ## WPF shell preview
 

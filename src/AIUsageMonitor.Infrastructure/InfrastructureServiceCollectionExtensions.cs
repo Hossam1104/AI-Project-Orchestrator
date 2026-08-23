@@ -1,6 +1,10 @@
 using AIUsageMonitor.Application.Alerts;
+using AIUsageMonitor.Application.Agents;
+using AIUsageMonitor.Application.Orchestration;
 using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Application.Projects;
 using AIUsageMonitor.Application.Quotas;
+using AIUsageMonitor.Application.Routing;
 using AIUsageMonitor.Application.Security;
 using AIUsageMonitor.Application.Settings;
 using AIUsageMonitor.Application.Subscriptions;
@@ -31,6 +35,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<JsonlEventStore<UsageSnapshotRecord>>();
         services.AddSingleton<JsonlEventStore<AlertEventRecord>>();
         services.AddSingleton<JsonlEventStore<SyncEventRecord>>();
+        services.AddSingleton<JsonlEventStore<ExecutionRunRecord>>();
+        services.AddSingleton<JsonlEventStore<EvidenceMetadataRecord>>();
+        services.AddSingleton<JsonlEventStore<ReviewMetadataRecord>>();
+        services.AddSingleton<JsonlEventStore<ActivityAuditRecordFile>>();
 
         services.AddSingleton<IUsageSnapshotRepository, JsonUsageSnapshotRepository>();
         services.AddSingleton<IProviderRepository, JsonProviderRepository>();
@@ -42,6 +50,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IAlertEventRepository, JsonAlertEventRepository>();
         services.AddSingleton<ISyncEventRepository, JsonSyncEventRepository>();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
+        services.AddSingleton<IProjectRepository, JsonProjectRepository>();
+        services.AddSingleton<IAgentRepository, JsonAgentRepository>();
+        services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
+        services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
 
         // Stateless native-call wrapper; singleton avoids re-allocating it per resolution while
         // matching the lifetime of every other adapter registered here.
