@@ -274,6 +274,22 @@ APO-20 completed the repository identity rename under APO-1, including the physi
 move. APO-27 delivered and merged the project and orchestration storage foundation on `main` at
 squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. The real Claude Opus 5
 review satisfied the independent-review gate, and Sol accepted and closed OPUS-01 in Jira comment
-`11793`. APO-27 is marked Done in Jira while parent Epic APO-3 remains In Progress. The next
-planning boundary is GPT-5.6 Sol designing and creating the first usable Projects workspace Story
-under Epic APO-5.
+`11793`. APO-27 is marked Done in Jira while parent Epic APO-3 remains In Progress. APO-35 has now
+been delivered on a feature branch under Epic APO-5; the implementation is awaiting GPT-5.6 Sol
+acceptance. The feature branch remains open, draft, and unmerged, and no later Epic or Story is
+authorized from this boundary.
+
+## 10. APO-35 Delivery Boundary
+
+APO-35 implements the first usable Projects workspace over the accepted APO-27 project registry
+foundation. The bounded delivery includes an Application `ProjectRegistryService`, testable clock
+semantics through the existing `IClock`, DI-backed `ProjectsViewModel`, enabled Projects shell
+navigation, project list/detail/editor UX, in-memory search/status filtering, lifecycle state
+editing including archive/restore, hidden metadata preservation, truthful empty/loading/error and
+degraded-storage states, and focused regression coverage.
+
+Repository and tracker fields remain metadata-only. APO-35 does not inspect local paths, invoke Git,
+call Jira/Azure DevOps, read credentials, scan repository contents, implement routing, or start the
+orchestration runtime. Delivery state is **IMPLEMENTATION COMPLETE / AWAITING SOL ACCEPTANCE** on
+`feat/APO-35-projects-workspace` from main base
+`34569abee50bdb708770e134e9db7db18752a80d`. The next planner boundary is GPT-5.6 Sol acceptance.

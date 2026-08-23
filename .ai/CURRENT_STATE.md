@@ -1,6 +1,6 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 23 August 2026
+**Last Updated:** 24 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
@@ -15,14 +15,69 @@
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
 **APO-27:** COMPLETE / SOL ACCEPTED (COMMENT 11793) / MERGED
 **APO-27 Merge main SHA:** `d0efaf01b07b31effa7a432c225e7c913a86258a`
+**APO-5:** IN PROGRESS
+**APO-35:** IMPLEMENTATION COMPLETE / AWAITING SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-27 (Merged / Done) — Next Story: APO-5 First Usable Projects Workspace (Planning)
-**Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation (In Progress)
-**Status:** APO-27 implementation delivered, reviewed by Claude Opus 5, remediated under OPUS-01, delta-accepted by GPT-5.6 Sol (Jira comment 11793), and squash-merged to `main` via PR #5 (`d0efaf01b07b31effa7a432c225e7c913a86258a`). Real Opus review is complete and satisfies the independent review checkpoint (Prompt 2/5 cadence). OPUS-01 is closed. APO-27 is Done in Jira. Parent Epic APO-3 remains In Progress.
-**Next implementation:** GPT-5.6 Sol designs and creates the first usable Projects workspace Story under Epic APO-5; do not start implementation or execute another Story automatically
-**Release state:** APO-34 and APO-27 are merged; APO-27 provides the local project/orchestration storage foundation on `main` while full orchestration runtime, user-facing project workspace UI, and product release qualification remain incomplete
+**Current Story:** APO-35 (Implementation complete / awaiting Sol acceptance)
+**Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
+**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
+**Next implementation:** GPT-5.6 Sol acceptance of the exact final pushed APO-35 feature-branch SHA; do not start another Story automatically
+**Release state:** APO-35 is delivered on a Draft PR while `main` remains unchanged; the accepted APO-27 project registry foundation now has a user-facing Projects workspace, while Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete
+
+## -3. APO-35 First Usable Projects Workspace
+
+**Exact starting main SHA:** `34569abee50bdb708770e134e9db7db18752a80d`
+
+**Branch:** `feat/APO-35-projects-workspace`
+
+**Functional implementation SHA:** `6f3cd6d` (`feat(APO-35): implement first usable Projects workspace`)
+
+**Draft PR:** [#6](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/6), OPEN / DRAFT / UNMERGED
+
+**Story / Epic:** APO-35 / APO-5
+
+**Delivery state:** IMPLEMENTATION COMPLETE / AWAITING GPT-5.6 SOL ACCEPTANCE; the final
+documentation/handoff commit SHA is reported in `TASK.md` and the executor completion report
+after the handoff commit is pushed
+
+APO-35 adds the first usable project registry workspace over the accepted APO-27 storage
+foundation. The Application layer now exposes `IProjectRegistryService` and
+`ProjectRegistryService`, which generate project identity and creation timestamps, preserve
+existing identity/creation time and hidden `RepositoryMetadata`/`TrackerMetadata` on edit, normalize
+governance-reference lines, and reuse the existing `IProjectRepository` contract. Time behavior
+uses the accepted testable `IClock` seam; Infrastructure continues to provide `SystemClock`.
+
+The WPF shell now enables only Projects while retaining AI Capacity as the startup workspace and
+keeping Agents/Activity disabled. `ProjectsViewModel` owns asynchronous loading/saving, selection,
+search over name/local path, All/Active/Paused/Blocked/Archived filtering, create/edit/cancel/save
+commands, archive/restore through lifecycle status, bounded validation, read/write failure states,
+and degraded no-persistence behavior. The UI provides list cards, metadata-only detail, in-workspace
+editor, truthful empty/no-match/loading/error states, readable local timestamps, status text, and
+accessible labels for critical controls.
+
+Repository and tracker values are registration metadata only. No local path probing, Git, tracker
+calls, credentials, repository content, routing, execution, validation, review, acceptance, activity,
+or orchestration runtime was added. No destructive Delete command exists.
+
+**Focused validation:** 38 Desktop tests pass, including service create/edit semantics, hidden
+metadata preservation, search/filter/selection, lifecycle transitions, validation, read/write failure
+handling, degraded mode, duplicate-save prevention, and shell navigation. Full solution validation
+is 208/208 passing: Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 38.
+
+**Build/publish:** restore and solution build pass with 0 warnings and 0 errors. The existing
+`win-x64` self-contained single-file publish profile passed. x86 and ARM64 publish evidence was not
+rerun because project/package/publish configuration did not change; prior accepted compile/publish
+evidence remains historical and no hardware runtime claim is made.
+
+**Runtime smoke:** the published x64 executable launched and remained alive for five seconds with
+window title `AI Project Orchestrator`; it was then stopped by the smoke harness. The bundled
+Computer Use native helper was unavailable in this environment, so no new visual screenshot was
+captured and no visual evidence is claimed for APO-35.
+
+**Opus cadence:** Prompt 3/5 complete. No Claude Opus review was performed, as explicitly required
+by the execution contract. Next gate: GPT-5.6 Sol acceptance.
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
