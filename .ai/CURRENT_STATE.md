@@ -10,13 +10,14 @@
 **APO-20:** COMPLETE — repository and physical local-root rename complete
 **APO-22:** COMPLETE — Sol-accepted PR #1 merged into main
 **APO-23:** COMPLETE — PR #2 merged to `main` at `40f62f9`
-**APO-31:** REMEDIATION COMPLETE — AWAITING GPT-5.6 SOL VERIFICATION
+**APO-31:** COMPLETE / MERGED / DONE
+**APO-31 Merge main SHA:** `a585ed40ea0e8652c50e4627ee66f7109c67d591`
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-34 - First Usable AI Capacity Workspace
-**Current Epic:** APO-15 - Dashboard / AI Capacity Workspace
-**Status:** APO-34 implementation delivered at `5e3d9ca` on `feat/APO-34-ai-capacity-workspace`; Draft PR #4 is open against `main`, awaiting GPT-5.6 Sol acceptance and remains unmerged
+**Current Epic:** APO-4 - AI Usage, Subscription & Capacity Monitoring
+**Status:** APO-34 implementation plus Sol acceptance remediation delivered at `02c7ee3b91f08d0903aef620cd616675ee8f859b` on `feat/APO-34-ai-capacity-workspace`; Draft PR #4 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
 **Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-34; do not execute another Story automatically
 **Release state:** First usable local WPF AI Capacity workspace is implemented with secure connection editing, truthful provider states, and self-contained publish evidence; full product release qualification is not complete
 
@@ -472,7 +473,7 @@ Completed 21 August 2026. Conducted complete code inspection, categorized all co
 | APO-20 | `docs/APO-20-finalize-local-root` | `138c51f` | `138c51f` (fast-forward) | 21 Aug 2026 | COMPLETE |
 | APO-22 | `feat/APO-22-windows-credential-manager` | `de2290a`, `55e1b74`, `b1b97de` | `f6f04dc` (PR #1 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
 | APO-23 | `feat/APO-23-branding` | `4b7a060`, `fe95991` | `40f62f9` (PR #2 squash) | 22 Aug 2026 | COMPLETE / SOL-ACCEPTED |
-| APO-31 | `feat/APO-31-provider-capacity-adapters` | `7a5bd9b` | Draft PR #3; intentionally unmerged | 22 Aug 2026 | COMPLETE IMPLEMENTATION / AWAITING SOL ACCEPTANCE |
+| APO-31 | `feat/APO-31-provider-capacity-adapters` | `7a5bd9b` | `a585ed4` (main) | 22 Aug 2026 | COMPLETE / MERGED / DONE |
 
 ---
 
@@ -729,3 +730,48 @@ Opus review was performed.
 **Acceptance boundary:** GPT-5.6 Sol must inspect the implementation and evidence, then accept or
 request bounded remediation. Do not merge this branch, invoke Opus, write Jira, or execute another
 Story automatically from this checkpoint.
+
+## 12.1 APO-34 SOL acceptance remediation
+
+**Starting implementation head:** `cf0a2241c92fbf1200ec3e5ca886672657d0813a`.
+
+**Sol verdict:** CHANGES REQUIRED; bounded remediation was performed on the same
+`feat/APO-34-ai-capacity-workspace` branch and Draft PR #4.
+
+**Remediation implementation commit:** `02c7ee3b91f08d0903aef620cd616675ee8f859b`.
+
+**Parent Epic correction:** APO-34 is under APO-4 - AI Usage, Subscription & Capacity Monitoring.
+APO-31 is recorded above as COMPLETE / MERGED / DONE at main SHA
+`a585ed40ea0e8652c50e4627ee66f7109c67d591`; its historical remediation and evidence sections are
+preserved.
+
+**R-01 result lifecycle:** every non-stale provider result replaces quota windows, including empty
+results; account and subscription values clear when absent; stale results display their supplied
+payload and retain the last successful timestamp.
+
+**R-02 refresh persistence:** connection edits now produce `Updating` when a credential/configuration
+edit remains configured and `NotConfigured` when removed. `RecordRefreshAsync` maps the already
+completed provider result without another provider call or secure-store read, preserves credential
+and configuration values, records attempt/success/error metadata, and isolates local persistence
+failure from truthful provider status.
+
+**R-03 live settings:** the Copilot regression test uses one provider instance and one runtime
+settings accessor across organization A and organization B and verifies both request paths.
+
+**R-04 degraded startup:** the five-card surface is safe when persistence is unavailable. Detection
+uses only the executable locator for `codex`, `claude`, `kimi`, and `agy`; it does not read or write
+credentials/persistence or call providers/network, and disables editing and refresh. Overview now
+exposes an observable persistence warning state.
+
+**Validation:** final solution validation records Domain 28, Provider 46, Infrastructure 50,
+Desktop 20, and Connection 10 tests (154 total), a successful restore/build with 0 warnings and 0
+errors, diff/secret review, and a successful x64 self-contained single-file publish. x86 and ARM64
+publish evidence is retained because no project, package, or publish configuration changed. The
+published x64 executable opened with a live `AI Project Orchestrator` window; direct Computer Use
+visual inspection was unavailable after native-helper retry/reset, and no live authenticated
+provider calls were run.
+
+**Delivery state:** Draft PR #4 remains OPEN / DRAFT / UNMERGED; main remains unchanged. The final
+pushed branch SHA is recorded in the delivery report after the handoff metadata commit. Next
+authority is GPT-5.6 Sol for delta acceptance; no Jira write, Opus review, merge, or next Story is
+authorized from this checkpoint.

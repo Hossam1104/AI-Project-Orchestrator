@@ -1,95 +1,78 @@
-# APO-34 — SOL ACCEPTANCE CHECKPOINT
+# APO-34 SOL DELTA ACCEPTANCE CHECKPOINT
 
-**Story:** APO-34 — First Usable AI Capacity Workspace
+**Story:** APO-34 - Implement First Usable AI Capacity Workspace and Secure Provider Connections
+
+**Parent Epic:** APO-4 - AI Usage, Subscription & Capacity Monitoring
 
 **Branch:** `feat/APO-34-ai-capacity-workspace`
 
-**Exact baseline:** `a585ed40ea0e8652c50e4627ee66f7109c67d591`
+**Original implementation head:** `cf0a2241c92fbf1200ec3e5ca886672657d0813a`
 
-**Implementation commit:** `5e3d9ca`
+**Original implementation commit:** `5e3d9ca`
 
-**Draft PR:** [#4](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/4), open and unmerged
+**Sol verdict:** CHANGES REQUIRED
 
-**Base:** `main` and `origin/main` were verified at the exact baseline before implementation.
+**Draft PR:** #4 OPEN / DRAFT / UNMERGED
 
-**Authority:** GPT-5.6 Sol is the acceptance authority. This checkpoint is not a merge approval.
+**Base:** main at `a585ed40ea0e8652c50e4627ee66f7109c67d591`
 
-## Delivered scope
+**Remediation implementation commit:** `02c7ee3b91f08d0903aef620cd616675ee8f859b`
 
-APO-34 implements the first usable local WPF workspace for AI capacity decisions while staying
-inside the approved C# / .NET 10 / WPF / MVVM / JSON / Credential Manager architecture.
+**Authority:** GPT-5.6 Sol delta acceptance authority. This checkpoint is not merge approval.
 
-- The bounded shell contains Overview and AI Capacity. AI Capacity is the initial workspace;
-  Overview remains navigable. Projects, Agents, and Activity are visibly disabled/planned.
-- AI Capacity shows exactly Codex, Claude / Anthropic, Kimi, GitHub Copilot, and Antigravity in
-  stable enum order.
-- Cards distinguish configured, local-detected, unsupported/manual, authentication-required,
-  error, and stale states. One provider failure does not hide another provider.
-- Capacity cards render arbitrary quota windows, remaining percentage as remaining, usage-only
-  values without invented limits or progress, local reset times, source/confidence, and explicit
-  unavailable values.
-- Refresh All and per-provider refresh are asynchronous, isolated, cancellation-aware, and
-  protected against overlapping refreshes.
-- Copilot connection editing supports PersonalUser and Organization scope; personal username is
-  optional and organization is required for organization scope.
-- Claude/Anthropic editing is explicitly labelled as the organization Admin API channel and does
-  not conflate it with Claude consumer subscription capacity.
-- Kimi editing defaults to `http://127.0.0.1:58627/` and validates absolute loopback HTTP/HTTPS
-  before credential retrieval or HTTP use.
-- Connection persistence stores only non-secret configuration plus an opaque credential reference.
-  Credential replacement stages the new secure value, persists the JSON reference atomically,
-  removes the staged value on persistence failure, and removes the previous value only after the
-  new state is committed. Removing a credential persists the null reference before cleanup.
-- Startup loading and saves update immutable runtime settings snapshots used by the already
-  registered provider adapters on the next refresh without restart. Providers capture one
-  complete snapshot per refresh.
-- The connection editor never reads saved secret material back; a saved credential is represented
-  only by truthful “credential saved” state.
+## Findings remediated
 
-## Required validation completed
+### R-01 - Truthful result replacement
 
-| Check | Result |
-|---|---|
-| Restore | `dotnet restore AIUsageMonitor.sln` — SUCCESS |
-| Baseline tests | **123/123** — Domain 28, Provider 45, Infrastructure 50 |
-| New desktop tests | **12/12** |
-| New connection transaction tests | **3/3** |
-| Solution/WPF test build | SUCCESS; x64 desktop test mapping; 0 warnings, 0 errors in final build/test pass |
-| Self-contained publish | SUCCESS for `win-x64`, `win-x86`, and `win-arm64`; single-file, trimmed false |
-| x64 runtime smoke | SUCCESS; published executable launched and rendered AI Capacity |
-| Runtime evidence | [APO-34-ai-capacity-workspace.png](docs/evidence/APO-34-ai-capacity-workspace.png) inspected |
-| Secret review | No real credentials; only sanitized synthetic fixture text in tests |
-| Live provider calls | NOT RUN; no authenticated credentials or live calls are allowed in CI/validation |
+- Every non-stale result replaces quota windows, including an empty result.
+- Null account and subscription values clear old displayed values.
+- Stale results display the supplied payload while preserving the last successful refresh timestamp.
+- Focused tests cover authentication-required clearing, unsupported clearing, zero-window success,
+  stale payload display, and persistence-failure truthfulness.
 
-## Files and areas changed
+### R-02 - Refresh persistence and connection lifecycle
 
-- Application provider connection service, edit model, configuration keys, identity catalog seam,
-  and runtime-settings updater contract.
-- Domain provider connection configuration and truthful `NotConfigured` status.
-- Infrastructure connection record mapping, repository/service DI registration, and secure-save
-  transaction tests in the separate connection test project.
-- Providers runtime snapshot accessor and live settings injection for Claude, Copilot, and Kimi.
-- Desktop MVVM workspace, capacity cards, quota presentation, navigation, connection editor,
-  startup compatibility guard, and WPF resources/bindings.
-- Solution configuration for x64 WPF test execution and new focused test projects.
-- Runtime screenshot evidence and this handoff metadata.
+- Removing a credential persists `NotConfigured`; editing a configured credential or configuration
+  persists `Updating`.
+- `RecordRefreshAsync` maps the already-returned provider result without another provider call or
+  secure-store read, preserves credential/configuration values, and records attempt/success/error
+  metadata with the correct outcome semantics.
+- Local persistence failure does not convert a truthful provider result into a provider error.
 
-## Explicitly out of scope
+### R-03 - Live Copilot settings
 
-No new provider, speculative provider endpoint, browser-cookie extraction, conversation/prompt
-collection, AI chat, routing/orchestration runtime, Jira/GitHub adapter, project registry,
-database/ORM, cloud backend, Node/Angular/Electron/Tauri/embedded browser, LocalAppData migration,
-installer/signing/updater, or full product release qualification was added.
+- A single live Copilot provider instance and settings accessor are exercised across organization A
+  and organization B; the request paths use both current organizations without restart.
 
-## Review and delivery boundary
+### R-04 - Degraded startup
 
-- Do not invoke Claude Opus for this work item.
-- Do not create or update Jira from this executor checkpoint.
-- Do not merge, rebase, force-push, modify `main`, or create a second PR.
-- The executor must commit and push this feature branch, create exactly one Draft PR against
-  `main`, and stop for GPT-5.6 Sol acceptance.
-- Sol may request bounded remediation or accept the feature. No next Story is authorized by this
-  file.
+- Five cards are always available.
+- Degraded detection uses only the executable locator for `codex`, `claude`, `kimi`, and `agy`.
+- No credential-store read, persistence write, or provider/network call occurs in degraded startup.
+- Editing and refresh are unavailable, and Overview exposes a warning state instead of a static
+  green persistence indicator.
 
-**Expected next planner boundary:** GPT-5.6 Sol acceptance of APO-34 against the pushed feature
-branch and Draft PR, with the implementation intentionally unmerged.
+### R-05 - Governance state
+
+- APO-31 is recorded as COMPLETE / MERGED / DONE at main SHA
+  `a585ed40ea0e8652c50e4627ee66f7109c67d591`.
+- APO-34 is recorded under parent Epic APO-4; historical evidence remains preserved in
+  `.ai/CURRENT_STATE.md`.
+
+## Validation evidence
+
+Restore succeeds. The solution build succeeds with 0 warnings and 0 errors. Final solution tests
+are expected to report Domain 28, Provider 46, Infrastructure 50, Desktop 20, and Connection 10
+for a total of 154 tests. Diff and secret-pattern review are required before handoff. The x64
+self-contained single-file publish is required; x86 and ARM64 remain retained evidence because no
+project, package, or publish configuration changed in this remediation. Live authenticated provider
+calls are not run.
+
+## Delivery boundary
+
+The remediation stays on the same feature branch and Draft PR #4. Do not create a branch or PR,
+rebase, force-push, merge, modify main, update Jira, invoke Opus, or begin another Story. Commit and
+push the remediation plus this handoff metadata, then stop for GPT-5.6 Sol delta acceptance.
+
+**Next planner boundary:** GPT-5.6 Sol acceptance of APO-34 against the exact final pushed branch
+SHA, with Draft PR #4 intentionally unmerged.
