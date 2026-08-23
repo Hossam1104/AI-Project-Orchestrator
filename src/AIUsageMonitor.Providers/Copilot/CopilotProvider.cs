@@ -9,7 +9,9 @@ using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Domain.Common;
 using AIUsageMonitor.Domain.Providers;
 using AIUsageMonitor.Domain.Quotas;
+using AIUsageMonitor.Providers.Claude;
 using AIUsageMonitor.Providers.Common;
+using AIUsageMonitor.Providers.Kimi;
 
 namespace AIUsageMonitor.Providers.Copilot;
 
@@ -24,30 +26,41 @@ public sealed class CopilotProvider : ProviderAdapterBase
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISecureCredentialStore _credentialStore;
-    private readonly CopilotOptions _options;
+    private readonly IProviderRuntimeSettingsAccessor _settings;
 
     public CopilotProvider(
         IClock clock,
         IHttpClientFactory httpClientFactory,
         ISecureCredentialStore credentialStore,
         CopilotOptions options)
+        : this(clock, httpClientFactory, credentialStore,
+            new ProviderRuntimeSettingsAccessor(options, new AnthropicOptions(), new KimiOptions()))
+    {
+    }
+
+    public CopilotProvider(
+        IClock clock,
+        IHttpClientFactory httpClientFactory,
+        ISecureCredentialStore credentialStore,
+        IProviderRuntimeSettingsAccessor settings)
         : base(clock)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     public override ProviderCode Code => ProviderCode.Copilot;
 
-    private bool HasSupportedScope =>
-        _options.Scope == CopilotBillingScope.PersonalUser ||
-        (_options.Scope == CopilotBillingScope.Organization && !string.IsNullOrWhiteSpace(_options.Organization));
+    private static bool HasSupportedScope(CopilotOptions options) =>
+        options.Scope == CopilotBillingScope.PersonalUser ||
+        (options.Scope == CopilotBillingScope.Organization && !string.IsNullOrWhiteSpace(options.Organization));
 
     public override Task<ProviderDetectionResult> DetectAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var configured = HasSupportedScope && !string.IsNullOrWhiteSpace(_options.CredentialReference);
+        var options = _settings.Current.Copilot;
+        var configured = HasSupportedScope(options) && !string.IsNullOrWhiteSpace(options.CredentialReference);
         return Task.FromResult(new ProviderDetectionResult(
             Code,
             configured,
@@ -60,17 +73,18 @@ public sealed class CopilotProvider : ProviderAdapterBase
     public override async Task<ProviderConnectionStatus> GetConnectionStatusAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!HasSupportedScope)
+        var options = _settings.Current.Copilot;
+        if (!HasSupportedScope(options))
         {
             return ProviderConnectionStatus.Unsupported;
         }
 
-        if (string.IsNullOrWhiteSpace(_options.CredentialReference))
+        if (string.IsNullOrWhiteSpace(options.CredentialReference))
         {
             return ProviderConnectionStatus.AuthenticationRequired;
         }
 
-        var token = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
+        var token = await _credentialStore.RetrieveAsync(options.CredentialReference, cancellationToken)
             .ConfigureAwait(false);
         return string.IsNullOrWhiteSpace(token)
             ? ProviderConnectionStatus.AuthenticationRequired
@@ -79,17 +93,18 @@ public sealed class CopilotProvider : ProviderAdapterBase
 
     protected override async Task<ProviderRefreshResult> RefreshCoreAsync(CancellationToken cancellationToken)
     {
-        if (!HasSupportedScope)
+        var options = _settings.Current.Copilot;
+        if (!HasSupportedScope(options))
         {
             return Unsupported();
         }
 
-        if (string.IsNullOrWhiteSpace(_options.CredentialReference))
+        if (string.IsNullOrWhiteSpace(options.CredentialReference))
         {
             return AuthenticationRequired();
         }
 
-        var token = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
+        var token = await _credentialStore.RetrieveAsync(options.CredentialReference, cancellationToken)
             .ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -100,7 +115,7 @@ public sealed class CopilotProvider : ProviderAdapterBase
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
-        var subjectResolution = await ResolveSubjectAsync(client, cancellationToken).ConfigureAwait(false);
+        var subjectResolution = await ResolveSubjectAsync(options, client, cancellationToken).ConfigureAwait(false);
         if (subjectResolution.StatusCode is { } subjectStatusCode)
         {
             return MapHttpFailure(subjectStatusCode);
@@ -113,7 +128,7 @@ public sealed class CopilotProvider : ProviderAdapterBase
                 "GitHub identity was unavailable; Copilot billing usage cannot be mapped safely.");
         }
 
-        using var response = await client.GetAsync(BuildUsagePath(subject), cancellationToken).ConfigureAwait(false);
+        using var response = await client.GetAsync(BuildUsagePath(options, subject), cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             return MapHttpFailure(response.StatusCode);
@@ -136,7 +151,7 @@ public sealed class CopilotProvider : ProviderAdapterBase
             UtcNow);
 
         var windows = payload.UsageItems
-            .Select((item, index) => MapUsageItem(item, index))
+            .Select((item, index) => MapUsageItem(options, item, index))
             .Where(window => window is not null)
             .Cast<QuotaWindow>()
             .ToArray();
@@ -151,18 +166,21 @@ public sealed class CopilotProvider : ProviderAdapterBase
             "Official Copilot usage was retrieved, but the selected billing surface does not expose a corresponding allowance.");
     }
 
-    private async Task<SubjectResolution> ResolveSubjectAsync(HttpClient client, CancellationToken cancellationToken)
+    private async Task<SubjectResolution> ResolveSubjectAsync(
+        CopilotOptions options,
+        HttpClient client,
+        CancellationToken cancellationToken)
     {
-        if (_options.Scope != CopilotBillingScope.PersonalUser)
+        if (options.Scope != CopilotBillingScope.PersonalUser)
         {
             return new SubjectResolution(
-                _options.Scope == CopilotBillingScope.Organization ? _options.Organization : _options.Enterprise,
+                options.Scope == CopilotBillingScope.Organization ? options.Organization : options.Enterprise,
                 null);
         }
 
-        if (!string.IsNullOrWhiteSpace(_options.Username))
+        if (!string.IsNullOrWhiteSpace(options.Username))
         {
-            return new SubjectResolution(_options.Username, null);
+            return new SubjectResolution(options.Username, null);
         }
 
         using var response = await client.GetAsync("user", cancellationToken).ConfigureAwait(false);
@@ -183,10 +201,10 @@ public sealed class CopilotProvider : ProviderAdapterBase
             null);
     }
 
-    private string BuildUsagePath(string subject)
+    private static string BuildUsagePath(CopilotOptions options, string subject)
     {
         var escaped = Uri.EscapeDataString(subject);
-        return _options.Scope switch
+        return options.Scope switch
         {
             CopilotBillingScope.PersonalUser => $"users/{escaped}/settings/billing/ai_credit/usage",
             CopilotBillingScope.Organization => $"organizations/{escaped}/settings/billing/ai_credit/usage",
@@ -209,7 +227,7 @@ public sealed class CopilotProvider : ProviderAdapterBase
         _ => Failure(ProviderErrorCodes.ProviderError, "GitHub rejected the Copilot usage request.")
     };
 
-    private QuotaWindow? MapUsageItem(CopilotUsageItem item, int index)
+    private QuotaWindow? MapUsageItem(CopilotOptions options, CopilotUsageItem item, int index)
     {
         var grossQuantity = TryReadNumber(item.GrossQuantity);
         var netQuantity = TryReadNumber(item.NetQuantity);
@@ -237,7 +255,7 @@ public sealed class CopilotProvider : ProviderAdapterBase
 
         var keyPart = FirstNonBlank(item.Sku, item.Model, item.Product, $"item-{index}");
         return QuotaWindow.Create(
-            $"copilot:{_options.Scope}:{keyPart}",
+            $"copilot:{options.Scope}:{keyPart}",
             type,
             unit,
             usedValue: quantity,

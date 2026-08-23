@@ -1,90 +1,78 @@
-# APO-31 SOL FINAL ACCEPTANCE CHECKPOINT
+# APO-34 SOL DELTA ACCEPTANCE CHECKPOINT
 
-**Story:** APO-31 - Official Provider Capacity Adapters
-**Branch:** `feat/APO-31-provider-capacity-adapters`
-**Original reviewed head:** `11ba9ddc085a886f27db5c9bb5632982042217ed`
-**Independent review verdict:** `CHANGES REQUIRED`
-**Draft PR:** [#3](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/3)
-**Base:** `main` at `40f62f98787df80368eeeca454b223edf8dbd5d9`
-**Remediation implementation commit:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
-**Final pushed remediation branch head:** `40b26ee1d8a9a6a0c4052f45d96185564d99c20d`
+**Story:** APO-34 - Implement First Usable AI Capacity Workspace and Secure Provider Connections
 
-## Independent-review findings
+**Parent Epic:** APO-4 - AI Usage, Subscription & Capacity Monitoring
 
-- **O-01 MAJOR - Anthropic Messages Usage query:** the previous `limit=1000` request
-  was not valid for every documented `bucket_width`. The adapter now omits `limit`, captures
-  `starting_at` once per refresh, and preserves it and every other non-pagination parameter on
-  every cursor page. Only the URL-encoded `page` cursor is added after page one.
-- **O-02 MAJOR - Anthropic Admin API redirect safety:** the named Anthropic HttpClient now uses
-  `HttpClientHandler.AllowAutoRedirect = false`. A 3xx response is an existing typed
-  `provider_error`; no `Location`, response body, or API key is exposed, and no redirect is
-  followed.
-- **O-03 MAJOR - strict numeric provider parsing:** Claude and GitHub Copilot now reject present
-  malformed, null, negative, non-finite, or non-numeric numeric values as `malformed_response`.
-  Copilot validates both `grossQuantity` and `netQuantity` before preserving the existing
-  gross-over-net selection. Malformed mixed refreshes never publish a partial smaller total and
-  retain the previous complete data as `Stale`.
-- **O-04 MINOR - evidence synchronization:** `docs/APO-31_PROVIDER_EVIDENCE.md` now records the
-  corrected Anthropic semantics, redirect boundary, and actual validation totals.
+**Branch:** `feat/APO-34-ai-capacity-workspace`
 
-## Final request and parsing behavior
+**Original implementation head:** `cf0a2241c92fbf1200ec3e5ca886672657d0813a`
 
-### Anthropic Messages Usage
+**Original implementation commit:** `5e3d9ca`
 
-- First-party rule verified against the current Anthropic Messages Usage API reference:
-  `limit` is optional and its default/max values depend on `bucket_width` (`1d` 31, `1h` 168,
-  `1m` 1440 maximum buckets).
-- Final request shape contains the captured `starting_at`; it omits `limit` and uses `page` only
-  for later cursor requests.
-- Pagination regression proves `100 + 200 = 300`, exact `starting_at` preservation, cursor URL
-  encoding, clock mutation safety, malformed blank/repeated cursors, later-page failure,
-  cancellation, and stale retention.
+**Sol verdict:** CHANGES REQUIRED
 
-### Redirect protection
+**Draft PR:** #4 OPEN / DRAFT / UNMERGED
 
-- The named Anthropic Admin API client disables automatic redirects.
-- 3xx responses are not success and map to the stable `provider_error` path.
-- The loopback regression uses a disposable local redirect origin/destination and proves the
-  synthetic `x-api-key` is not sent to the destination or included in result/error output.
+**Base:** main at `a585ed40ea0e8652c50e4627ee66f7109c67d591`
 
-### Claude and Copilot malformed numbers
+**Remediation implementation commit:** `02c7ee3b91f08d0903aef620cd616675ee8f859b`
 
-- Claude present non-number token fields fail as `malformed_response`; no partial token total is
-  published. A later malformed refresh retains the previous complete usage as stale.
-- Copilot validates both official usage quantity fields, does not silently discard an item, and
-  does not fall back past a malformed present field. A later malformed mixed refresh retains the
-  previous complete usage as stale.
+**Authority:** GPT-5.6 Sol delta acceptance authority. This checkpoint is not merge approval.
+
+## Findings remediated
+
+### R-01 - Truthful result replacement
+
+- Every non-stale result replaces quota windows, including an empty result.
+- Null account and subscription values clear old displayed values.
+- Stale results display the supplied payload while preserving the last successful refresh timestamp.
+- Focused tests cover authentication-required clearing, unsupported clearing, zero-window success,
+  stale payload display, and persistence-failure truthfulness.
+
+### R-02 - Refresh persistence and connection lifecycle
+
+- Removing a credential persists `NotConfigured`; editing a configured credential or configuration
+  persists `Updating`.
+- `RecordRefreshAsync` maps the already-returned provider result without another provider call or
+  secure-store read, preserves credential/configuration values, and records attempt/success/error
+  metadata with the correct outcome semantics.
+- Local persistence failure does not convert a truthful provider result into a provider error.
+
+### R-03 - Live Copilot settings
+
+- A single live Copilot provider instance and settings accessor are exercised across organization A
+  and organization B; the request paths use both current organizations without restart.
+
+### R-04 - Degraded startup
+
+- Five cards are always available.
+- Degraded detection uses only the executable locator for `codex`, `claude`, `kimi`, and `agy`.
+- No credential-store read, persistence write, or provider/network call occurs in degraded startup.
+- Editing and refresh are unavailable, and Overview exposes a warning state instead of a static
+  green persistence indicator.
+
+### R-05 - Governance state
+
+- APO-31 is recorded as COMPLETE / MERGED / DONE at main SHA
+  `a585ed40ea0e8652c50e4627ee66f7109c67d591`.
+- APO-34 is recorded under parent Epic APO-4; historical evidence remains preserved in
+  `.ai/CURRENT_STATE.md`.
 
 ## Validation evidence
 
-| Check | Result |
-|---|---|
-| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
-| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
-| Focused provider test project | SUCCESS; 45/45 passing |
-| Domain tests | SUCCESS; 28/28 passing |
-| Provider tests | SUCCESS; 45/45 passing |
-| Infrastructure tests | SUCCESS; 50/50 passing |
-| Full solution tests | SUCCESS; 123/123 passing |
-| `git diff --check` | SUCCESS; only benign Git LF/CRLF normalization notices |
-| Secret-pattern / known-secret review | SUCCESS; no real credentials or provider secret literals; only sanitized test fixture secret |
-| `win-x64` self-contained single-file publish | SUCCESS; `win-x64` profile |
-| `win-x86` and `win-arm64` publish | Not rerun; project/package/publish configuration unchanged and prior APO-31 evidence retained |
-| Live authenticated provider calls | Not run; prohibited by the test contract |
+Restore succeeds. The solution build succeeds with 0 warnings and 0 errors. Final solution tests
+are expected to report Domain 28, Provider 46, Infrastructure 50, Desktop 20, and Connection 10
+for a total of 154 tests. Diff and secret-pattern review are required before handoff. The x64
+self-contained single-file publish is required; x86 and ARM64 remain retained evidence because no
+project, package, or publish configuration changed in this remediation. Live authenticated provider
+calls are not run.
 
-## Evidence and scope
+## Delivery boundary
 
-- Corrected evidence: `docs/APO-31_PROVIDER_EVIDENCE.md`.
-- No Provider Settings UI, AI Capacity Dashboard, Project Registry, GitHub project orchestration,
-  Jira/Azure runtime, routing, autonomy, database/ORM, browser scraping, TUI scraping, cookie
-  extraction, private endpoint reverse engineering, or additional provider was implemented.
-- Accepted Codex, Claude consumer, Kimi, Copilot, and Antigravity boundaries remain unchanged.
+The remediation stays on the same feature branch and Draft PR #4. Do not create a branch or PR,
+rebase, force-push, merge, modify main, update Jira, invoke Opus, or begin another Story. Commit and
+push the remediation plus this handoff metadata, then stop for GPT-5.6 Sol delta acceptance.
 
-## PR and authority
-
-- PR #3 remains `OPEN`, `DRAFT`, and `UNMERGED`.
-- No merge, rebase, force push, main-branch modification, new branch, new PR, Jira write, or
-  second Opus review is authorized or performed.
-- Next authority: **GPT-5.6 Sol** for final delta acceptance against the exact final branch SHA.
-
-This checkpoint does not authorize Provider Settings, Capacity Dashboard, or any next Story.
+**Next planner boundary:** GPT-5.6 Sol acceptance of APO-34 against the exact final pushed branch
+SHA, with Draft PR #4 intentionally unmerged.

@@ -2,6 +2,7 @@ namespace AIUsageMonitor.Domain.Providers;
 
 public enum ProviderConnectionStatus
 {
+    NotConfigured,
     Connected,
     LocalDetected,
     AuthenticationRequired,

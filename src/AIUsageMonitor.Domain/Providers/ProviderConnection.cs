@@ -13,6 +13,13 @@ public sealed class ProviderConnection
     public string? LastErrorMessage { get; }
 
     /// <summary>
+    /// Small provider-specific non-secret settings needed to reconstruct the configured
+    /// connection. Values may include account scope, organization, username, or a loopback
+    /// server address, but never a password, token, cookie, or authenticated payload.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?> Configuration { get; }
+
+    /// <summary>
     /// An opaque lookup key into secure storage (e.g. "GitHub:Copilot:Primary"), resolved
     /// through <c>ISecureCredentialStore</c>. This must NEVER contain the actual secret —
     /// no password, token, cookie, or OAuth secret. It is case-insensitive: casing must not
@@ -31,7 +38,8 @@ public sealed class ProviderConnection
         DateTimeOffset? lastAttempt,
         string? lastErrorCode,
         string? lastErrorMessage,
-        string? credentialReference = null)
+        string? credentialReference = null,
+        IReadOnlyDictionary<string, string?>? configuration = null)
     {
         if (id == Guid.Empty)
         {
@@ -63,5 +71,7 @@ public sealed class ProviderConnection
         LastErrorCode = lastErrorCode;
         LastErrorMessage = lastErrorMessage;
         CredentialReference = credentialReference;
+        Configuration = new Dictionary<string, string?>(configuration ??
+            new Dictionary<string, string?>(), StringComparer.OrdinalIgnoreCase);
     }
 }

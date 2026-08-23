@@ -1,26 +1,63 @@
+using AIUsageMonitor.Desktop.ViewModels;
 using System.Windows;
-using System.Windows.Media;
 
 namespace AIUsageMonitor.Desktop;
 
 public partial class MainWindow : Window
 {
+    private readonly MainWindowViewModel _viewModel;
+    private bool _persistenceAvailable;
+
     public MainWindow()
+        : this(new MainWindowViewModel())
     {
+    }
+
+    public MainWindow(MainWindowViewModel viewModel)
+    {
+        _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+        DataContext = _viewModel;
         InitializeComponent();
+        Loaded += OnLoaded;
     }
 
     public void SetPersistenceAvailability(bool persistenceAvailable)
     {
-        StatusText.Text = persistenceAvailable
-            ? "The branded shell is ready. Connectors and orchestration surfaces will arrive through their approved capability stories."
-            : "Local persistence is unavailable. The shell is running in degraded no-persistence mode.";
+        _persistenceAvailable = persistenceAvailable;
+        _viewModel.SetPersistenceAvailability(persistenceAvailable);
+    }
 
-        PersistenceCardStateText.Text = persistenceAvailable ? "Ready" : "Degraded mode";
-        PersistenceCardDetailText.Text = persistenceAvailable
-            ? "LocalAppData is available for the foundation."
-            : "LocalAppData is unavailable; no local state will be written.";
-        PersistenceIndicator.Fill = (Brush)FindResource(
-            persistenceAvailable ? "BrandSuccessBrush" : "BrandWarningBrush");
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;
+        if (_persistenceAvailable)
+        {
+            _viewModel.AiCapacity.SetEditorLauncher(OpenConnectionEditorAsync);
+            await _viewModel.InitializeAsync();
+        }
+        else
+        {
+            await _viewModel.InitializeDegradedAsync();
+        }
+    }
+
+    private async Task OpenConnectionEditorAsync(ProviderCapacityCardViewModel card)
+    {
+        if (!card.CanEditConnection || _viewModel.AiCapacity.ConnectionService is null)
+        {
+            return;
+        }
+
+        var connection = await _viewModel.AiCapacity.ConnectionService.GetAsync(card.Code);
+        var editor = new ProviderConnectionEditorWindow(
+            new ProviderConnectionEditorViewModel(card.Code, connection, _viewModel.AiCapacity.ConnectionService))
+        {
+            Owner = this
+        };
+
+        if (editor.ShowDialog() == true)
+        {
+            card.SetConnection(await _viewModel.AiCapacity.ConnectionService.GetAsync(card.Code));
+        }
     }
 }

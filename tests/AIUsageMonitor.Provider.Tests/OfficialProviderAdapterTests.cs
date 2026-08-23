@@ -11,6 +11,7 @@ using AIUsageMonitor.Providers.Antigravity;
 using AIUsageMonitor.Providers.Claude;
 using AIUsageMonitor.Providers.Codex;
 using AIUsageMonitor.Providers;
+using AIUsageMonitor.Providers.Common;
 using AIUsageMonitor.Providers.Copilot;
 using AIUsageMonitor.Providers.Kimi;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,6 +62,57 @@ public sealed class OfficialProviderAdapterTests
         Assert.Equal(QuotaUnit.Credits, quota.Unit);
         Assert.Equal(DataSource.OfficialApi, quota.Source);
         Assert.DoesNotContain(TestSecret, result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Copilot_SameProviderInstanceUsesUpdatedLiveSettingsOnTheNextRefresh()
+    {
+        var requestedPaths = new List<string>();
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            requestedPaths.Add(request.RequestUri!.AbsolutePath.TrimStart('/'));
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                "{\"usageItems\":[{\"sku\":\"credits\",\"unitType\":\"credits\",\"grossQuantity\":10}]}"));
+        });
+        var credentials = new TestCredentialStore();
+        credentials.Add("credential-a", TestSecret);
+        credentials.Add("credential-b", "apo-test-secret-b");
+        var settings = new ProviderRuntimeSettingsAccessor();
+        var provider = new CopilotProvider(
+            new TestClock(),
+            new TestHttpClientFactory(handler),
+            credentials,
+            settings);
+        var sameProviderInstance = provider;
+
+        settings.Apply(
+            ProviderCode.Copilot,
+            "credential-a",
+            new Dictionary<string, string?>
+            {
+                [ProviderConnectionConfigurationKeys.CopilotScope] = CopilotBillingScope.Organization.ToString(),
+                [ProviderConnectionConfigurationKeys.CopilotOrganization] = "org-a"
+            });
+        await provider.RefreshAsync();
+
+        settings.Apply(
+            ProviderCode.Copilot,
+            "credential-b",
+            new Dictionary<string, string?>
+            {
+                [ProviderConnectionConfigurationKeys.CopilotScope] = CopilotBillingScope.Organization.ToString(),
+                [ProviderConnectionConfigurationKeys.CopilotOrganization] = "org-b"
+            });
+        await provider.RefreshAsync();
+
+        Assert.Same(sameProviderInstance, provider);
+        Assert.Equal(
+            "organizations/org-a/settings/billing/ai_credit/usage",
+            requestedPaths[0]);
+        Assert.Equal(
+            "organizations/org-b/settings/billing/ai_credit/usage",
+            requestedPaths[1]);
+        Assert.Equal(2, handler.RequestCount);
     }
 
     [Fact]

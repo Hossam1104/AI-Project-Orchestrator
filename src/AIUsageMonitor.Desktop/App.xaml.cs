@@ -1,6 +1,7 @@
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Providers;
+using AIUsageMonitor.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -13,6 +14,18 @@ public partial class App : System.Windows.Application
 {
     private IHost? _host;
     private ApplicationDataPaths? _paths;
+
+    static App()
+    {
+        // WPF's font cache consults the legacy lower-case windir environment variable on
+        // startup. Some hardened or hosted Windows sessions expose only SystemRoot; keep this
+        // process-local compatibility fallback before any WPF resource is loaded.
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("windir")) &&
+            !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SystemRoot")))
+        {
+            Environment.SetEnvironmentVariable("windir", Environment.GetEnvironmentVariable("SystemRoot"));
+        }
+    }
 
     public App()
     {
@@ -45,6 +58,8 @@ public partial class App : System.Windows.Application
                 {
                     services.AddInfrastructure(_paths.RootDirectory);
                     services.AddProviders();
+                    services.AddSingleton<AiCapacityViewModel>();
+                    services.AddSingleton<MainWindowViewModel>();
                     services.AddSingleton<MainWindow>();
                 })
                 .Build();

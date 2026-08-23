@@ -10,7 +10,9 @@ using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Domain.Common;
 using AIUsageMonitor.Domain.Providers;
 using AIUsageMonitor.Domain.Quotas;
+using AIUsageMonitor.Providers.Claude;
 using AIUsageMonitor.Providers.Common;
+using AIUsageMonitor.Providers.Copilot;
 
 namespace AIUsageMonitor.Providers.Kimi;
 
@@ -26,7 +28,7 @@ public sealed class KimiProvider : ProviderAdapterBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISecureCredentialStore _credentialStore;
     private readonly IExecutableLocator _executableLocator;
-    private readonly KimiOptions _options;
+    private readonly IProviderRuntimeSettingsAccessor _settings;
 
     public KimiProvider(
         IClock clock,
@@ -34,12 +36,23 @@ public sealed class KimiProvider : ProviderAdapterBase
         ISecureCredentialStore credentialStore,
         IExecutableLocator executableLocator,
         KimiOptions options)
+        : this(clock, httpClientFactory, credentialStore, executableLocator,
+            new ProviderRuntimeSettingsAccessor(new CopilotOptions(), new AnthropicOptions(), options))
+    {
+    }
+
+    public KimiProvider(
+        IClock clock,
+        IHttpClientFactory httpClientFactory,
+        ISecureCredentialStore credentialStore,
+        IExecutableLocator executableLocator,
+        IProviderRuntimeSettingsAccessor settings)
         : base(clock)
     {
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
         _executableLocator = executableLocator ?? throw new ArgumentNullException(nameof(executableLocator));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
     public override ProviderCode Code => ProviderCode.Kimi;
@@ -47,15 +60,16 @@ public sealed class KimiProvider : ProviderAdapterBase
     public override Task<ProviderDetectionResult> DetectAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var options = _settings.Current.Kimi;
         var cliDetected = _executableLocator.Find("kimi") is not null;
-        var configured = IsAllowedServerAddress(_options.ServerAddress) &&
-                         !string.IsNullOrWhiteSpace(_options.CredentialReference);
+        var configured = IsAllowedServerAddress(options.ServerAddress) &&
+                         !string.IsNullOrWhiteSpace(options.CredentialReference);
         return Task.FromResult(new ProviderDetectionResult(
             Code,
             cliDetected || configured,
             configured
                 ? "Documented Kimi Code local usage API configured."
-                : !IsAllowedServerAddress(_options.ServerAddress)
+                : !IsAllowedServerAddress(options.ServerAddress)
                     ? "Kimi Code local usage API configuration is invalid."
                 : cliDetected
                     ? "Official Kimi Code CLI detected; configure its documented local API token for structured usage."
@@ -66,14 +80,15 @@ public sealed class KimiProvider : ProviderAdapterBase
     public override async Task<ProviderConnectionStatus> GetConnectionStatusAsync(
         CancellationToken cancellationToken = default)
     {
-        if (!IsAllowedServerAddress(_options.ServerAddress))
+        var options = _settings.Current.Kimi;
+        if (!IsAllowedServerAddress(options.ServerAddress))
         {
             return ProviderConnectionStatus.Error;
         }
 
-        if (!string.IsNullOrWhiteSpace(_options.CredentialReference))
+        if (!string.IsNullOrWhiteSpace(options.CredentialReference))
         {
-            var token = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
+            var token = await _credentialStore.RetrieveAsync(options.CredentialReference, cancellationToken)
                 .ConfigureAwait(false);
             return string.IsNullOrWhiteSpace(token)
                 ? ProviderConnectionStatus.AuthenticationRequired
@@ -87,19 +102,20 @@ public sealed class KimiProvider : ProviderAdapterBase
 
     protected override async Task<ProviderRefreshResult> RefreshCoreAsync(CancellationToken cancellationToken)
     {
-        if (!IsAllowedServerAddress(_options.ServerAddress))
+        var options = _settings.Current.Kimi;
+        if (!IsAllowedServerAddress(options.ServerAddress))
         {
             return Failure(
                 ProviderErrorCodes.InvalidConfiguration,
                 "Kimi Code local usage API requires a loopback HTTP address.");
         }
 
-        if (string.IsNullOrWhiteSpace(_options.CredentialReference))
+        if (string.IsNullOrWhiteSpace(options.CredentialReference))
         {
             return Unsupported();
         }
 
-        var token = await _credentialStore.RetrieveAsync(_options.CredentialReference, cancellationToken)
+        var token = await _credentialStore.RetrieveAsync(options.CredentialReference, cancellationToken)
             .ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -112,6 +128,7 @@ public sealed class KimiProvider : ProviderAdapterBase
 
         var usage = await FetchAsync<KimiUsageData>(
             client,
+            options,
             "api/v1/oauth/usage?provider=managed%3Akimi-code",
             cancellationToken).ConfigureAwait(false);
         if (usage.Malformed)
@@ -136,6 +153,7 @@ public sealed class KimiProvider : ProviderAdapterBase
 
         var userInfo = await FetchAsync<KimiUserInfoData>(
             client,
+            options,
             "api/v1/oauth/userinfo?provider=managed%3Akimi-code",
             cancellationToken).ConfigureAwait(false);
         if (!userInfo.Malformed && !userInfo.StatusCode.HasValue && userInfo.Envelope?.Code == 0 &&
@@ -176,10 +194,11 @@ public sealed class KimiProvider : ProviderAdapterBase
 
     private async Task<KimiCallResult<T>> FetchAsync<T>(
         HttpClient client,
+        KimiOptions options,
         string path,
         CancellationToken cancellationToken)
     {
-        using var response = await client.GetAsync(new Uri(_options.ServerAddress, path), cancellationToken)
+        using var response = await client.GetAsync(new Uri(options.ServerAddress, path), cancellationToken)
             .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {

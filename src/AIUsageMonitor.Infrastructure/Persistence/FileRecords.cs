@@ -44,6 +44,7 @@ internal sealed class ProviderConnectionRecord
     public string? LastErrorCode { get; set; }
     public string? LastErrorMessage { get; set; }
     public string? CredentialReference { get; set; }
+    public Dictionary<string, string?>? Configuration { get; set; }
 
     public static ProviderConnectionRecord FromDomain(ProviderConnection value) => new()
     {
@@ -56,7 +57,11 @@ internal sealed class ProviderConnectionRecord
         LastAttempt = value.LastAttempt,
         LastErrorCode = value.LastErrorCode,
         LastErrorMessage = value.LastErrorMessage,
-        CredentialReference = value.CredentialReference
+        CredentialReference = value.CredentialReference,
+        Configuration = value.Configuration.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value,
+            StringComparer.OrdinalIgnoreCase)
     };
 
     public ProviderConnection ToDomain() => new(
@@ -69,7 +74,8 @@ internal sealed class ProviderConnectionRecord
         LastAttempt,
         LastErrorCode,
         LastErrorMessage,
-        CredentialReference);
+        CredentialReference,
+        Configuration);
 }
 
 internal sealed class QuotaDefinitionRecord

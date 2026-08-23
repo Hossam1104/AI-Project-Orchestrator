@@ -35,6 +35,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IUsageSnapshotRepository, JsonUsageSnapshotRepository>();
         services.AddSingleton<IProviderRepository, JsonProviderRepository>();
         services.AddSingleton<IProviderConnectionRepository, JsonProviderConnectionRepository>();
+        services.AddSingleton<IProviderConnectionService, ProviderConnectionService>();
         services.AddSingleton<ISubscriptionService, JsonSubscriptionService>();
         services.AddSingleton<IQuotaDefinitionRepository, JsonQuotaDefinitionRepository>();
         services.AddSingleton<IAlertRuleRepository, JsonAlertRuleRepository>();
