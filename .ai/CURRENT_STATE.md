@@ -13,15 +13,16 @@
 **APO-31:** COMPLETE / MERGED / DONE
 **APO-34:** COMPLETE / MERGED / DONE
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
-**APO-27:** SOL ACCEPTED (COMMENT 11793) / AWAITING FINAL PR #5 MERGE
+**APO-27:** COMPLETE / SOL ACCEPTED (COMMENT 11793) / MERGED
+**APO-27 Merge main SHA:** `d0efaf01b07b31effa7a432c225e7c913a86258a`
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
-**Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation
-**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`; Sol acceptance remediation delivered at `dcfa922b58c0282311ec1e027d1187bee771651b`; owner-approved final functional remediation delivered at `0ea0c65ec7dac7ec09d30a6b25156353b714298f`; real Claude Opus 5 reviewed that target and returned `CHANGES REQUIRED`; Sol accepted OPUS-01 as the blocking P2 finding in adjudication `11790` with current-review state `11791`; bounded functional remediation is complete at `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` on `feat/APO-27-orchestration-storage`; GPT-5.6 Sol completed delta acceptance in Jira comment `11793`; OPUS-01 is closed; no immediate Opus re-review is required (Prompt 2/5 cadence); PR #5 is open against `main` awaiting final merge
-**Next implementation:** Finalize PR #5 squash merge into `main`, verify merged main SHA, update Jira APO-27 to Done, keep APO-3 In Progress, and hand off to GPT-5.6 Sol for APO-5 planning
-**Release state:** APO-34 is merged and done; APO-27 adds the local project/orchestration storage foundation while full orchestration runtime and product release qualification remain incomplete
+**Current Story:** APO-27 (Merged / Done) — Next Story: APO-5 First Usable Projects Workspace (Planning)
+**Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation (In Progress)
+**Status:** APO-27 implementation delivered, reviewed by Claude Opus 5, remediated under OPUS-01, delta-accepted by GPT-5.6 Sol (Jira comment 11793), and squash-merged to `main` via PR #5 (`d0efaf01b07b31effa7a432c225e7c913a86258a`). Real Opus review is complete and satisfies the independent review checkpoint (Prompt 2/5 cadence). OPUS-01 is closed. APO-27 is Done in Jira. Parent Epic APO-3 remains In Progress.
+**Next implementation:** GPT-5.6 Sol designs and creates the first usable Projects workspace Story under Epic APO-5; do not start implementation or execute another Story automatically
+**Release state:** APO-34 and APO-27 are merged; APO-27 provides the local project/orchestration storage foundation on `main` while full orchestration runtime, user-facing project workspace UI, and product release qualification remain incomplete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
@@ -1111,29 +1112,29 @@ the validation evidence. This was the next gate at that pre-OPUS-01 checkpoint. 
 Opus gate, GPT-5.6 Sol remains the acceptance authority. PR #5 must remain open, draft, and
 unmerged; main must remain untouched; no downstream Story may start automatically.
 
-## 13.3 APO-27 OPUS-01 Final Durability Remediation & Delivery
+## 13.3 APO-27 OPUS-01 Final Durability Remediation & Final Merge
 
 **Lifecycle:** APO-27 implementation -> Sol findings -> R-01..R-07 remediation -> Sol delta
 acceptance -> owner-approved storage truthfulness remediation -> real Claude Opus 5 review -> Opus
-verdict `CHANGES REQUIRED` -> Sol accepted OPUS-01 as blocking -> OPUS-01 remediation at `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` -> Sol delta acceptance COMPLETE (Jira comment `11793`) -> OPUS-01 CLOSED -> PR #5 ready/merge pending.
+verdict `CHANGES REQUIRED` -> Sol accepted OPUS-01 as blocking -> OPUS-01 remediation at `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` -> Sol delta acceptance COMPLETE (Jira comment `11793`) -> OPUS-01 CLOSED -> PR #5 squash-merged into `main` at `d0efaf01b07b31effa7a432c225e7c913a86258a` -> Jira APO-27 Done -> APO-3 In Progress -> GPT-5.6 Sol planning handoff for APO-5.
 
 ### Exact delivery identity
 
 | Item | Value |
 |---|---|
-| Exact main base | `4b393b3e3cf732dd1f0e861a734e3c311327e2af` |
+| Exact main base before merge | `4b393b3e3cf732dd1f0e861a734e3c311327e2af` |
 | Real Opus reviewed target | `0ea0c65ec7dac7ec09d30a6b25156353b714298f` |
-| Pre-remediation branch head | `66bd4505861bbdc831a4909d6c0da9082c433a55` |
 | Real Opus verdict | `CHANGES REQUIRED` (review gate COMPLETE; satisfies APO-27 review checkpoint) |
 | Accepted blocker | `OPUS-01 - P2` (CLOSED via `9350ae53edd4ed75d0158d8da78e4a8cc81ad291`) |
 | Sol adjudication | Jira comment `11790` |
 | Current-review state | Jira comment `11791` |
 | Functional remediation SHA | `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` |
+| Pre-merge feature head | `813afe48ebf3ffc458126b4a5d9a63e33131bc97` |
 | Sol delta acceptance | Jira comment `11793` |
 | Opus re-review required | NO (cadence Prompt 2/5) |
-| Branch | `feat/APO-27-orchestration-storage` |
-| PR | #5, awaiting ready transition and squash merge into `main` |
-| Jira Story / Epic | APO-27 In Progress / APO-3 In Progress |
+| PR | #5, MERGED into `main` |
+| Squash merge main SHA | `d0efaf01b07b31effa7a432c225e7c913a86258a` |
+| Jira Story / Epic | APO-27 Done / APO-3 In Progress |
 
 ### OPUS-01 root cause
 
@@ -1198,21 +1199,18 @@ Infrastructure-internal and unset in production; Application and Domain contract
 
 ### Markdown, BRD, and governance synchronization
 
-All tracked Markdown files were enumerated and searched. Current APO-27 facts were synchronized in
+All tracked Markdown files were enumerated and searched. Current facts were synchronized in
 `.ai/CURRENT_STATE.md`, `TASK.md`, `README.md`, and `docs/IMPLEMENTATION_PLAN.md`. `AGENTS.md`,
 `CLAUDE.md`, and `docs/BRD.md` were reviewed and intentionally unchanged; BRD requirement changes
 are NONE. Stable historical/provider/mapping Markdown was reviewed and did not require rewriting.
 
 ### Jira and PR state
 
-APO-27 and APO-3 remain In Progress until merge verification. Sol completed delta acceptance in
-Jira comment `11793`. OPUS-01 is closed. PR #5 is awaiting ready transition and squash merge into
-`main`.
+PR #5 is MERGED into `main` at squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a`. APO-27
+is transitioned to Done. Parent Epic APO-3 remains In Progress.
 
 ### Current next exact lifecycle gate
 
-GPT-5.6 Sol completed delta acceptance in Jira comment `11793`. OPUS-01 is closed. The real Claude
-Opus review is complete and satisfies the APO-27 independent review checkpoint without requiring an
-immediate re-review (Prompt 2/5 cadence). The next action is transitioning PR #5 to ready,
-executing the squash merge into `main`, verifying the merged main SHA, updating Jira APO-27 to
-Done, keeping APO-3 In Progress, and handing off to GPT-5.6 Sol for APO-5 planning.
+APO-27 is complete, merged, and Done in Jira. The completed Claude Opus review satisfied the
+APO-27 independent review checkpoint (Prompt 2/5 cadence). The next action is GPT-5.6 Sol planning
+and decomposition of the first usable Projects workspace Story under Epic APO-5.

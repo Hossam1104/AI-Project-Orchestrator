@@ -271,9 +271,9 @@ code is changed or claimed as APO-refactored.
 ## 9. Current Planning Boundary
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
-move. APO-27 delivered the storage foundation on `feat/APO-27-orchestration-storage` with
-functional SHA `9350ae53edd4ed75d0158d8da78e4a8cc81ad291`. The real Claude Opus 5 review
-satisfied the independent-review gate, and Sol accepted and closed OPUS-01 with delta acceptance in
-Jira comment `11793`. No immediate Opus re-review is required (Prompt 2/5 cadence). PR #5 is
-ready for squash merge into `main`, after which APO-27 will transition to Done and hand off to
-GPT-5.6 Sol for APO-5 planning.
+move. APO-27 delivered and merged the project and orchestration storage foundation on `main` at
+squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. The real Claude Opus 5
+review satisfied the independent-review gate, and Sol accepted and closed OPUS-01 in Jira comment
+`11793`. APO-27 is marked Done in Jira while parent Epic APO-3 remains In Progress. The next
+planning boundary is GPT-5.6 Sol designing and creating the first usable Projects workspace Story
+under Epic APO-5.

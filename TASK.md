@@ -1,38 +1,61 @@
-# APO-27 FINAL MERGE & HANDOFF
+# APO-5 FIRST USABLE PROJECTS WORKSPACE — SOL PLANNING HANDOFF
 
-**Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
-**Status:** READY FOR FINAL MERGE & DELIVERY SYNCHRONIZATION
-**Owner:** Hossam
-**Planner / architect / acceptance authority:** GPT-5.6 Sol
-**Executor:** Gemini 3.7 - Bounded delivery / Git / Jira / documentation finalization executor
-**Branch:** `feat/APO-27-orchestration-storage`
-**PR:** #5
-**Jira:** APO-27 - In Progress
-**Parent Epic:** APO-3 - In Progress
+**Target Epic:** APO-5 — Project Registry & Workspace Management
+**Status:** TO DO / READY FOR SOL PLANNING & DECOMPOSITION
+**Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
+**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Base Branch:** `main`
+**Merged Main SHA (APO-27 squash merge):** `d0efaf01b07b31effa7a432c225e7c913a86258a`
 
-This execution finalizes APO-27 delivery after Sol delta acceptance (Jira comment 11793). The real Claude Opus 5 review satisfied the independent review checkpoint, and OPUS-01 is closed. No immediate Opus re-review is required (Prompt 2/5 cadence).
+---
 
-## Exact repository and review identity
+## 1. Delivery Context and Baseline
 
-| Item | Exact value |
-|---|---|
-| Exact main base | `4b393b3e3cf732dd1f0e861a734e3c311327e2af` |
-| Original real Opus reviewed target | `0ea0c65ec7dac7ec09d30a6b25156353b714298f` |
-| Real Opus verdict | `CHANGES REQUIRED` (review gate COMPLETE) |
-| Accepted blocker | `OPUS-01 - P2` (CLOSED via `9350ae53edd4ed75d0158d8da78e4a8cc81ad291`) |
-| Sol delta acceptance | Jira comment `11793` |
-| Functional remediation SHA | `9350ae53edd4ed75d0158d8da78e4a8cc81ad291` |
-| Opus re-review required | NO (cadence Prompt 2/5) |
-| Branch | `feat/APO-27-orchestration-storage` |
-| PR | #5 |
+APO-27 is Sol-accepted, merged into `main` via PR #5 (`d0efaf01b07b31effa7a432c225e7c913a86258a`), and finalized as Done in Jira. Parent Epic APO-3 remains In Progress.
 
-## Validation baseline
+The project and orchestration persistence foundation is now live and fully tested on `main`:
+- Project registry store (`projects.json` / `IProjectRepository`)
+- Agent registry store (`agents.json` / `IAgentRepository`)
+- Routing policy store (`routing-policy.json` / `IRoutingPolicyRepository`)
+- Project orchestration history store (`history/{year}-{month}.jsonl` / `IProjectOrchestrationStore`)
+- Validation baseline: 190 executed, 190 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 86 Infrastructure, 10 Connection, 20 Desktop)
+- Real Claude Opus 5 review is COMPLETE (satisfies APO-27 review gate; OPUS-01 closed)
+- Opus cadence: Prompt 2 of 5 complete; next Opus review expected around Prompt 5 of 5 unless critical exception
 
-- Restore: SUCCESS; all projects up to date
-- Build: SUCCESS; 0 warnings, 0 errors
-- Tests: SUCCESS; 190 executed, 190 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 86 Infrastructure, 10 Connection, 20 Desktop)
-- Secret scan: SUCCESS; no secrets
+---
 
-## Next action
+## 2. APO-5 Epic Status & Backlog Inspection
 
-Transition PR #5 to ready, squash merge into `main`, verify merged main SHA, perform post-merge documentation synchronization, transition APO-27 to Done in Jira, leave APO-3 In Progress, and hand off to GPT-5.6 Sol for APO-5 planning.
+- **Epic:** APO-5 — Project Registry & Workspace Management
+- **Epic Status:** To Do
+- **Backlog Inspection:** APO-5 currently has NO existing child Stories in Jira.
+- **Product Direction:**
+  ```text
+  Provider Settings / Connections (APO-31/APO-34)
+        |
+        v
+  AI Capacity Dashboard
+        |
+        v
+  Projects Workspace (APO-5)
+        |
+        v
+  Orchestration Controls
+  ```
+
+The next Story should deliver the first usable Projects workspace over the accepted APO-27 storage foundation.
+
+---
+
+## 3. Next Action — Sol Planning Hand-Off
+
+This document is NOT an implementation prompt.
+
+GPT-5.6 Sol must now:
+1. Inspect `docs/BRD.md`, `docs/IMPLEMENTATION_PLAN.md`, `.ai/CURRENT_STATE.md`, and the live repository on `main`.
+2. Design and decompose the first bounded Projects workspace Story under Epic APO-5.
+3. Establish the Story's acceptance criteria, model routing assignment, and execution contract.
+4. Prepare the executable `TASK.md` for that assigned Story.
+
+Do not start implementation or create speculative Stories before Sol defines the work item.
