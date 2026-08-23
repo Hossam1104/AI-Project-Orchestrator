@@ -13,13 +13,13 @@
 **APO-31:** COMPLETE / MERGED / DONE
 **APO-34:** COMPLETE / MERGED / DONE
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
-**APO-27:** IMPLEMENTATION COMPLETE / AWAITING GPT-5.6 SOL ACCEPTANCE
+**APO-27:** IMPLEMENTATION COMPLETE / SOL REMEDIATION COMPLETE / AWAITING GPT-5.6 SOL DELTA ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
 **Current Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
 **Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation
-**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, awaiting GPT-5.6 Sol acceptance and remains unmerged
+**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`; Sol acceptance remediation delivered at `dcfa922b58c0282311ec1e027d1187bee771651b` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
 **Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-27, followed by one independent Opus 5 architecture review if Sol accepts; do not execute another Story automatically
 **Release state:** APO-34 is merged and done; APO-27 adds the local project/orchestration storage foundation while full orchestration runtime and product release qualification remain incomplete
 
@@ -857,3 +857,128 @@ UI, routing engine, executor runtime, or tracker/GitHub execution.
 - GPT-5.6 Sol must inspect and accept the exact pushed feature-branch state. After Sol acceptance,
   one independent Claude Opus 5 architecture review is required by the APO-27 contract. No Jira
   writes, Opus invocation, merge, or downstream Story work has been performed.
+
+## 13.1 APO-27 SOL Acceptance Remediation
+
+**Sol acceptance verdict:** CHANGES REQUIRED, recorded in Jira Sol acceptance comment `11776`.
+
+**Exact remediation target:**
+
+- Required remediation start SHA: `5e2caa596ba8e67d14ee359302f210149eadb397`.
+- Exact `origin/main` base: `4b393b3e3cf732dd1f0e861a734e3c311327e2af`.
+- Branch: `feat/APO-27-orchestration-storage`.
+- Functional remediation commit: `dcfa922b58c0282311ec1e027d1187bee771651b`.
+- Draft PR #5 remains OPEN / DRAFT / UNMERGED and targets `main`.
+
+The remediation stayed within the storage foundation. It did not add an orchestration execution
+engine, UI, providers, routing, project actions, tracker/GitHub execution, database/ORM, or a
+LocalAppData migration.
+
+### R-01 Execution history identity and time
+
+- `ExecutionRun` and `ExecutionRunRecord` now carry `RecordId`, `ProjectId`, `RunId`, `RecordedAt`,
+  `Status`, `StartedAt`, optional `CompletedAt`, and the existing non-secret references.
+- `RecordId` is generated for new application checkpoints, rejects `Guid.Empty`, and is distinct
+  from the lifecycle `RunId`.
+- `RecordedAt` is the append/history timestamp. Run JSONL partition selection, range filtering,
+  and chronological ordering use `RecordedAt`; `StartedAt` remains lifecycle metadata.
+- Recorded timestamps earlier than `StartedAt` are rejected. A regression proves one RunId can have
+  an August start checkpoint and an independent September review checkpoint in separate monthly
+  partitions, with the September range returning the review checkpoint.
+
+### R-02 Finding-level review traceability
+
+- Added bounded `ReviewFindingMetadata` and persisted `ReviewFindingMetadataRecord`.
+- Each finding preserves a stable nonblank string `FindingId`, `Severity`, `AffectedReference`,
+  separately persisted `Disposition`, `Blocking`, evidence IDs/references, and an optional bounded
+  summary.
+- `ReviewMetadata` retains its aggregate compatibility fields and now carries a normalized,
+  read-only finding collection with duplicate finding IDs rejected.
+- Regressions preserve two findings, affected requirements/acceptance references, dispositions,
+  severity, blocking flags, and evidence references while keeping review records project-isolated.
+
+### R-03 Activity and evidence traceability
+
+- `ActivityAuditRecord` now carries optional `TaskReference` and normalized immutable `EvidenceIds`.
+  The prior singular `EvidenceId` remains readable for compatibility and is folded into the new
+  collection without duplicates; empty evidence IDs are rejected.
+- `EvidenceMetadata` now carries a normalized read-only `RelatedRequirementReferences` list of
+  nonblank metadata-only strings such as `FR-PROJ-003` and `FR-REV-003`.
+- Activity regressions cover task linkage, multiple evidence IDs, chronological range reads, and
+  malformed/unsupported-record isolation. Evidence serialization remains metadata-only and has no
+  raw output or credential payload field.
+
+### R-04 Fail-closed enum validation
+
+Explicit `Enum.IsDefined` validation now protects `ProjectStatus`, `AgentConnectionMode`,
+`AgentAvailability`, and `ExecutionRunStatus`. Invalid numeric values from persisted JSON/JSONL
+throw `ArgumentException`-compatible validation failures at the application mapping boundary, so
+repository/store `TryMap` paths skip them. Tests prove valid sibling project/agent records remain
+readable and invalid execution checkpoints are skipped.
+
+### R-05 DefaultBranch semantics
+
+`Project.DefaultBranch` is now nullable for projects without repository configuration. A meaningful
+repository provider, URL, ID, or metadata configuration still requires a nonblank branch; a
+non-repository project accepts null/blank and round-trips it. Repository-backed `main` remains
+valid.
+
+### R-06 Final storage layout
+
+The legacy root and routing policy location remain unchanged. Project orchestration streams now
+derive from the explicit orchestration seam:
+
+```text
+%LOCALAPPDATA%\AIUsageMonitor\
+    projects\
+        {project-guid}\
+            routing-policy.json
+            orchestration\
+                runs\
+                    YYYY-MM.jsonl
+                evidence\
+                    YYYY-MM.jsonl
+                reviews\
+                    YYYY-MM.jsonl
+                activity\
+                    YYYY-MM.jsonl
+```
+
+`ApplicationDataPaths.GetProjectOrchestrationDirectory(Guid)` and
+`ProjectDataPaths.OrchestrationDirectory` are the explicit path seam. All four JSONL streams
+derive from it; `routing-policy.json` remains directly project-scoped outside `orchestration`.
+
+### R-07 Regression expansion
+
+The focused storage suite increased from 8 to 22 tests and covers the requested project registry,
+agent enum, routing isolation, execution checkpoint, evidence, finding-level review, activity,
+corruption, unsupported-schema, malformed JSONL, unterminated-tail, valid-partition, concurrency,
+atomic-write, and metadata-secret-safety cases.
+
+### Final validation evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all projects up to date |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused APO-27 storage tests | SUCCESS; 22 executed, 22 passed, 0 failed, 0 skipped |
+| Full solution tests | SUCCESS; 176 executed, 176 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 72 Infrastructure, 10 Connection, 20 Desktop) |
+| `git diff --check` | SUCCESS; no whitespace errors; only normal Git LF/CRLF normalization notices |
+| Added-line secret scan | SUCCESS; 1,004 added lines scanned, 0 high-confidence credential literals |
+| `win-x64` self-contained single-file publish | SUCCESS; existing publish profile, executable produced |
+| `win-x86` / `win-arm64` publish | Prior accepted evidence retained; no project/package/publish configuration changed |
+| x64 startup smoke | SUCCESS; published executable stayed alive for 5 seconds and closed cleanly |
+| Live authenticated provider calls | NOT RUN; prohibited by the execution contract |
+
+### Remaining limitations and next boundary
+
+x86 and ARM64 remain compile/publish evidence from the x64 development machine; no corresponding
+hardware runtime is claimed. The storage contracts persist bounded metadata and references only;
+future callers remain responsible for keeping summaries and references non-secret. Projects UI,
+routing, classification, execution runtime, validation/review engines, activity UI, provider
+changes, tracker/GitHub execution, cloud sync, database/ORM, LocalAppData migration, installer,
+signing, updater, and APO-33 CI remain deferred.
+
+GPT-5.6 Sol must perform delta acceptance against the exact pushed remediated functional head.
+After Sol accepts the remediated head, the required independent Claude Opus 5 architecture review
+remains pending. No Jira write, Opus invocation, merge, or downstream Story work has been performed.

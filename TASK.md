@@ -1,367 +1,328 @@
-# APO-27 SOL ACCEPTANCE HANDOFF
+# APO-27 SOL DELTA ACCEPTANCE HANDOFF
 
 **Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
-**Status:** READY FOR GPT-5.6 SOL ACCEPTANCE
-**Assigned executor:** GPT-5.6 Luna Max - substantial bounded implementation executor
-**Base:** `main` at `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
+**Status:** READY FOR GPT-5.6 SOL DELTA ACCEPTANCE
+**Assigned executor:** GPT-5.6 Luna xHigh - bounded storage-correctness remediation executor
 **Branch:** `feat/APO-27-orchestration-storage`
-**Implementation SHA:** `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`
-**Final functional branch SHA:** `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e` before this handoff metadata synchronization
 **Draft PR:** [#5](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/5) - OPEN / DRAFT / UNMERGED
+**Jira:** APO-27
+**Sol acceptance verdict:** CHANGES REQUIRED - Jira Sol comment `11776`
 
-## Result
+## Original APO-27 Head and Base
 
-APO-27 is implemented as a local persistence foundation. The accepted APO-34 merge is treated as
-complete, merged, and done. The old local solution-only owner change was proven to be fully
-subsumed by APO-34, removed safely, and replaced by the exact merged `main` state before the
-feature branch was created.
+- Original APO-27 implementation/remediation target head: `5e2caa596ba8e67d14ee359302f210149eadb397`
+- Exact base `main`: `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
+- Previous accepted test total: 162 / 162
+- No rebase, merge-main, reset, force-push, destructive clean, replacement branch, or replacement PR was used.
 
-## Corrected Local Main Reconciliation
+## Remediation Commits and Final Functional SHA
 
-### Old Local Main
+- Remediation commit: `dcfa922b58c0282311ec1e027d1187bee771651b`
+- Exact final functional pushed SHA: `dcfa922b58c0282311ec1e027d1187bee771651b`
+- The final branch may receive this handoff metadata commit after the functional remediation; the
+  functional SHA above is the exact Sol delta-acceptance target.
+- PR #5 remains OPEN, DRAFT, and UNMERGED against `main`.
 
-- Required old local `main` base: `a585ed40ea0e8652c50e4627ee66f7109c67d591`.
-- Verified branch: `main`.
-- Verified `HEAD` before reconciliation: `a585ed40ea0e8652c50e4627ee66f7109c67d591`.
+## R-01 Execution History
 
-### origin/main
+### Record Identity
 
-- `git fetch origin --prune` completed.
-- Verified `origin/main`: `4b393b3e3cf732dd1f0e861a734e3c311327e2af`.
-- This is the authoritative APO-34 merge SHA.
+Each `ExecutionRun` checkpoint now carries a non-empty unique `RecordId` in addition to its
+lifecycle `RunId`. `RecordId` identifies one durable appended checkpoint; `RunId` correlates the
+same lifecycle across checkpoints. `ProjectId`, status, start/completion metadata, and the existing
+work-item/task/agent/model/outcome/stop/contract references remain persisted.
 
-### Local Working Delta
+### RecordedAt Semantics
 
-`git diff --unified=0 HEAD -- AIUsageMonitor.sln` contained exactly four replacements for the
-existing Desktop project GUID `{AA1BB444-5C7F-4F1E-B376-BFE9AE13D8AC}`:
+`RecordedAt` is the append/history timestamp. It is validated as not earlier than `StartedAt` where
+the lifecycle relationship is meaningful. `StartedAt` remains business lifecycle metadata and is
+not used as the history timestamp.
+
+### Monthly Partitioning
+
+Run append paths select the UTC monthly JSONL partition from `RecordedAt`. Run range filtering and
+chronological ordering also use `RecordedAt`, with `RecordId` as the deterministic tie-breaker.
+
+### Cross-Month Lifecycle Regression
+
+The focused suite proves one `RunId` with an August 31 start checkpoint and a September 1 review
+checkpoint persists to August and September partitions respectively. A September-only range query
+returns the review checkpoint, and both distinct record IDs remain independently reconstructable.
+
+## R-02 Review Finding Traceability
+
+### Finding Identity
+
+`ReviewMetadata` now persists a normalized read-only collection of bounded
+`ReviewFindingMetadata` records. Each finding has a stable nonblank string `FindingId` such as
+`OPUS-01`, `SOL-02`, or `SEC-04`. Duplicate finding IDs within a review are rejected.
+
+### Affected References
+
+Each finding persists a nonblank `AffectedReference` for a BRD requirement, acceptance criterion,
+file/area, or other non-secret traceability identifier.
+
+### Disposition
+
+Each finding persists a separate nonblank `Disposition` such as `Open`, `Accepted`, `Rejected`,
+`Remediated`, or `Deferred`; it is not inferred from or collapsed into the aggregate review
+`Verdict`.
+
+### Blocking
+
+Each finding preserves its independent `Blocking` flag. Aggregate review verdict, severity,
+blocking, finding count, evidence reference, and summary fields remain for compatibility.
+
+### Evidence References
+
+Each finding may preserve typed `EvidenceIds` and bounded non-secret `EvidenceReferences`, plus an
+optional bounded summary. No review workflow behavior, reviewer execution, source code, prompts,
+raw diffs, conversations, or credentials were added or persisted.
+
+## R-03 Activity / Evidence Traceability
+
+### Task Reference
+
+`ActivityAuditRecord` now carries optional `TaskReference` while preserving project, activity, run,
+actor, action, time, outcome, and summary fields.
+
+### Multiple Evidence IDs
+
+Activity records now carry a normalized immutable/read-only `EvidenceIds` collection. Empty IDs are
+rejected and duplicates are removed. The prior singular `EvidenceId` remains readable for existing
+records and is folded into the collection for compatibility; activity is no longer limited to one
+evidence item.
+
+### Requirement References
+
+`EvidenceMetadata` now carries a normalized read-only `RelatedRequirementReferences` list of
+nonblank metadata-only strings, including values such as `FR-PROJ-003`, `FR-REV-003`, and
+`FR-AUD-001`. Evidence remains metadata/reference storage and is not an arbitrary blob store.
+
+## R-04 Enum Validation
+
+The application model boundaries now fail closed with `ArgumentException`-compatible validation
+for undefined persisted values of:
+
+- `ProjectStatus`;
+- `AgentConnectionMode`;
+- `AgentAvailability`; and
+- `ExecutionRunStatus`.
+
+Manually authored invalid numeric project/agent JSON and execution-run JSONL records are skipped by
+the existing repository/store mapping boundaries. Valid sibling records remain readable, and no
+undefined enum reaches Application consumers.
+
+## R-05 DefaultBranch Semantics
+
+### Repository-Backed Project
+
+A meaningful repository provider, URL, ID, or repository metadata configuration requires a nonblank
+`DefaultBranch`. Repository-backed `main` remains valid; a repository-backed project with a blank
+branch is rejected.
+
+### Non-Repository Project
+
+`DefaultBranch` is now nullable/optional when no repository is configured. Null and blank values are
+normalized to null, are accepted, and round-trip through `projects.json`.
+
+## R-06 Storage Layout
+
+### Legacy Root
+
+The application storage identity remains `ApplicationDirectoryName = "AIUsageMonitor"`, and the
+legacy `%LOCALAPPDATA%\AIUsageMonitor\` root and existing non-APO-27 paths are unchanged.
+
+### Project Orchestration Directory
+
+`ApplicationDataPaths.GetProjectOrchestrationDirectory(Guid projectId)` and
+`ProjectDataPaths.OrchestrationDirectory` are the explicit path seam. The final project layout is:
 
 ```text
-Debug|Any CPU.ActiveCfg: x86 -> x64
-Debug|Any CPU.Build.0:  x86 -> x64
-Release|Any CPU.ActiveCfg: x86 -> x64
-Release|Any CPU.Build.0:  x86 -> x64
+%LOCALAPPDATA%\AIUsageMonitor\
+    projects\
+        {project-guid}\
+            routing-policy.json
+            orchestration\
+                runs\
+                    YYYY-MM.jsonl
+                evidence\
+                    YYYY-MM.jsonl
+                reviews\
+                    YYYY-MM.jsonl
+                activity\
+                    YYYY-MM.jsonl
 ```
 
-No project entries, test-project changes, solution-folder changes, other configuration changes,
-or unrelated content were present.
+### Runs
 
-### Incoming APO-34 Delta
+`orchestration\runs\YYYY-MM.jsonl` stores execution checkpoints partitioned and queried by
+`RecordedAt`.
 
-`git diff --unified=0 HEAD..origin/main -- AIUsageMonitor.sln` contained the same four Desktop
-mapping replacements plus the accepted `AIUsageMonitor.Desktop.Tests` and
-`AIUsageMonitor.Connection.Tests` project entries, configurations, and test-folder nesting.
-`git show origin/main:AIUsageMonitor.sln` independently confirmed the four Desktop Any CPU
-mappings resolve to `x64`.
+### Evidence
 
-### Local Delta Fully Subsumed
+`orchestration\evidence\YYYY-MM.jsonl` stores bounded evidence metadata, requirement references,
+validator/artifact/content-hash references, and summaries only.
 
-Every local changed line and target value was present in the committed APO-34 incoming delta.
-The local solution change was therefore redundant overlap, not an unrelated owner change.
+### Reviews
 
-### Redundant Local Change Removed
+`orchestration\reviews\YYYY-MM.jsonl` stores project/run review metadata and finding-level
+traceability only.
 
-`git restore --source=HEAD -- AIUsageMonitor.sln` was run only after the corrected guards passed.
-`git status --short` was empty before the fast-forward.
+### Activity
 
-### Fast-Forward Result
+`orchestration\activity\YYYY-MM.jsonl` stores project/run/task/activity/evidence audit metadata.
+Routing policy remains directly under the GUID project directory outside `orchestration`.
 
-`git pull --ff-only origin main` completed successfully. Local `main` and `origin/main` both became
-`4b393b3e3cf732dd1f0e861a734e3c311327e2af`; the solution diff against `origin/main` was empty.
+## R-07 Regression Expansion
 
-### Final Local Main
+### Project Registry
 
-`main` was verified at `4b393b3e3cf732dd1f0e861a734e3c311327e2af`, with both APO-34 test projects
-present and the Desktop Any CPU mappings still targeting `x64`. APO-34 received no follow-up
-commit.
+Covered same-ID replacement without duplicates, Archived round-trip, non-repository nullable branch,
+repository missing-branch rejection, concurrent distinct upserts, invalid `ProjectStatus`, corrupt
+document quarantine/recovery, and unsupported-schema quarantine/recovery.
 
-### Final Working Tree
+### Agent Registry
 
-The working tree was clean immediately before the APO-27 implementation branch was created and
-again after the implementation commit. The final handoff metadata commit is the only subsequent
-change on the feature branch.
+Covered invalid `AgentConnectionMode` and `AgentAvailability` values failing closed while valid
+siblings remain readable, plus the existing round-trip.
 
-## Branch and Delivery
+### Routing
 
-- Starting SHA: `4b393b3e3cf732dd1f0e861a734e3c311327e2af`.
-- Implementation SHA: `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`.
-- Functional final branch SHA before handoff metadata: `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`.
-- Draft PR: [#5](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/5),
-  `feat/APO-27-orchestration-storage` -> `main`, OPEN / DRAFT / UNMERGED.
-- No Jira writes, merge, force push, rebase, destructive reset, destructive clean, or stash was
-  performed.
+Covered global/project override persistence and project A/project B isolation.
 
-## Storage Layout
+### Execution History
 
-### Legacy Root Compatibility
+Covered unique record identity, same-RunId cross-month checkpoints, `RecordedAt` partition/range
+semantics, invalid status isolation, and parallel checkpoint appends.
 
-The existing per-user root remains `%LOCALAPPDATA%\AIUsageMonitor\`. Existing `settings.json`,
-provider, connection, subscription, quota, alert, history, sync, and log paths remain unchanged.
-`ApplicationDataPaths.CreateDefault()` continues to resolve the Windows
-`Environment.SpecialFolder.LocalApplicationData` location and the `AIUsageMonitor` directory.
+### Evidence
 
-### Global Documents
+Covered related requirement reference round-trip/deduplication and representative serialized
+metadata containing no raw-output fixture or secret payload.
 
-```text
-%LOCALAPPDATA%\AIUsageMonitor\projects.json
-%LOCALAPPDATA%\AIUsageMonitor\agents.json
-%LOCALAPPDATA%\AIUsageMonitor\routing-policy.json
-```
+### Reviews
 
-All three documents use the existing `JsonFileStore` schema-versioned envelope. Project and agent
-documents use the existing synchronized JSON collection store; the global routing policy uses a
-versioned JSON document.
+Covered two findings in one review with IDs, affected references, severity, disposition, blocking,
+evidence IDs/references, and project isolation.
 
-### Project-Scoped Layout
+### Activity
 
-```text
-%LOCALAPPDATA%\AIUsageMonitor\projects\{project-guid}\
-    routing-policy.json
-    runs\
-        yyyy-MM.jsonl
-    evidence\
-        yyyy-MM.jsonl
-    reviews\
-        yyyy-MM.jsonl
-    activity\
-        yyyy-MM.jsonl
-```
+Covered task reference, multiple evidence IDs, chronological range ordering, and malformed/
+unsupported JSONL record isolation.
 
-Every project directory is derived from a non-empty GUID in canonical `D` format. No project
-record can supply a filesystem path for another project's streams.
+### Recovery
 
-### JSON Documents
-
-- `projects.json`: project identity, local workspace path, repository metadata/default branch,
-  tracker metadata, lifecycle status, governance references, routing/safety references, and
-  created/updated timestamps.
-- `agents.json`: agent/model name, role, provider label, capabilities, limitations, connection
-  mode, availability, cost/quota metadata, enabled state, and timestamps.
-- `routing-policy.json`: global routing/safety policy values and non-secret rules.
-- `projects/{guid}/routing-policy.json`: optional project-specific override values/rules.
-
-No document stores passwords, raw tokens, refresh tokens, cookies, authenticated payloads, prompts,
-conversations, source code, or unrelated credentials.
-
-### JSONL Streams
-
-- `runs`: execution-run status/checkpoint metadata.
-- `evidence`: validator/evidence metadata and references, not raw output.
-- `reviews`: reviewer/verdict/severity/finding-count/blocking metadata and references.
-- `activity`: actor/action/outcome/timestamp/run/evidence audit metadata.
-
-Each record includes `schemaVersion`, `recordType`, and `projectId`. Partitions use the UTC month
-of the event timestamp and are read through the existing range-aware JSONL event store.
-
-## Project Registry
-
-`IProjectRepository` and `JsonProjectRepository` persist and round-trip:
-
-- `Id`, `Name`, `LocalPath`, and `ProjectStatus` (`Active`, `Paused`, `Blocked`, `Archived`);
-- repository provider, URL, identifier, metadata, and `DefaultBranch`;
-- tracker type, identifier, and metadata;
-- governance references;
-- routing-policy and safety-policy references; and
-- `CreatedAt` / `UpdatedAt` timestamps with invariant validation.
-
-Metadata dictionaries reject sensitive-looking keys such as token, secret, password, cookie,
-credential, authorization, API-key, prompt, conversation, source-code, or payload.
-
-## Agent Registry Persistence
-
-`IAgentRepository` and `JsonAgentRepository` persist small global registry state for agent/model
-identity, role, provider label, capability and limitation labels, `Api`/`Cli`/`Sdk`/manual/
-interactive/unsupported connection mode, truthful availability, enabled state, cost/quota
-metadata, and timestamps. No secure-store material is loaded or written by these stores.
-
-## Routing Policy Persistence
-
-`IRoutingPolicyRepository` and `JsonRoutingPolicyStore` persist one global policy and optional
-project-specific overrides. Policy values are nullable so a future routing engine can resolve an
-override against global policy without APO-27 inventing execution behavior. Global and project
-documents are separate atomic files, and an override for project A cannot be returned for project B.
-
-## Execution Run History
-
-`IProjectOrchestrationStore.AppendExecutionRunAsync` appends non-secret run identity, project,
-status, start/completion, work-item reference, task title, agent/model reference, outcome,
-stop-reason, and contract-reference metadata to the project's monthly `runs` stream.
-
-## Evidence Metadata
-
-`AppendEvidenceAsync` persists project/run linkage, evidence id, capture time, kind, outcome,
-validator/artifact references, content hash, and a bounded summary. Raw command output, source
-code, prompts, credentials, and authenticated payloads are not modelled or stored.
-
-## Review Metadata
-
-`AppendReviewAsync` persists project/run linkage, reviewer reference, verdict, severity, blocking
-state, finding count, occurrence time, evidence reference, and bounded summary to monthly `reviews`
-partitions. It does not implement review parsing or remediation.
-
-## Activity / Audit
-
-`AppendActivityAsync` persists actor, action, outcome, project/run/evidence identifiers, timestamp,
-and bounded summary to monthly `activity` partitions. Reads return chronological records for the
-requested project and range only.
-
-## Project Isolation
-
-Isolation is enforced in two independent ways:
-
-1. Every append/read path is derived from the requested non-empty project GUID; callers cannot
-   select a project directory by passing arbitrary path text.
-2. Every JSONL record carries `ProjectId`, and the orchestration store filters records whose ID does
-   not equal the directory/request project before mapping them.
-
-Focused tests append project A and B records, manually place a foreign record in project A's
-partition, and verify that project A reads never return project B data. Policy override reads also
-verify project B remains empty when only project A has an override.
-
-## Schema Versioning
-
-Small JSON documents use the existing explicit `schemaVersion` envelope and JSONL records use the
-existing `schemaVersion` plus `recordType` metadata. Unsupported JSON documents are classified and
-quarantined; unsupported JSONL records are skipped without blocking valid records.
-
-## Atomicity / Concurrency
-
-JSON writes reuse temporary-file serialization, flush, and replacement. JSON collection update
-sequences and policy writes use the existing per-file `SemaphoreSlim` synchronization. JSONL appends
-use per-partition exclusive synchronization and flush the stream. The focused suite verifies no
-temporary files remain after concurrent writes and that 24 concurrent run appends remain complete.
-
-## Corruption / Recovery
-
-Corrupt or unsupported JSON documents retain the established quarantine behavior. JSONL readers skip
-malformed/unsupported records and continue with valid records. An unterminated JSONL tail is
-isolated by inserting a newline before the next append, preserving the partial bytes for safe
-diagnosis and allowing subsequent records to be recovered. Focused tests cover unsupported policy
-recovery and an interrupted run tail.
-
-## Secret Safety
-
-The new contracts contain no raw credential/token/password/cookie/prompt/source/payload fields.
-Registry metadata rejects sensitive-looking keys before any write. The staged added-line scan found
-no high-confidence secret literals. Existing secure credential behavior and provider boundaries
-were not changed.
+Preserved and exercised unsupported-schema JSON quarantine, malformed JSONL isolation, unterminated
+tail recovery, valid partition preservation, atomic writes, per-path synchronization, and temporary
+file cleanup.
 
 ## Focused Storage Tests
 
-`dotnet test tests\AIUsageMonitor.Infrastructure.Tests\AIUsageMonitor.Infrastructure.Tests.csproj
---no-restore --filter FullyQualifiedName~ProjectOrchestrationStorageTests`
+Command:
 
-Result: **8 executed, 8 passed, 0 failed, 0 skipped**.
+```text
+dotnet test tests\AIUsageMonitor.Infrastructure.Tests\AIUsageMonitor.Infrastructure.Tests.csproj --no-restore --filter FullyQualifiedName~ProjectOrchestrationStorageTests
+```
+
+Exact result: **22 executed, 22 passed, 0 failed, 0 skipped**.
 
 ## Full Test Suite
 
-`dotnet test AIUsageMonitor.sln --no-restore`
+Command:
 
-Result: **162 executed, 162 passed, 0 failed, 0 skipped**.
+```text
+dotnet test AIUsageMonitor.sln --no-restore
+```
+
+Exact result: **176 executed, 176 passed, 0 failed, 0 skipped**.
 
 | Test project | Passed |
 |---|---:|
 | Domain | 28 |
 | Provider | 46 |
-| Infrastructure | 58 |
+| Infrastructure | 72 |
 | Connection | 10 |
 | Desktop | 20 |
 
 ## Release Build
 
-`dotnet restore AIUsageMonitor.sln` succeeded.
-`dotnet build AIUsageMonitor.sln --no-restore` succeeded with **0 warnings, 0 errors**.
+`dotnet restore AIUsageMonitor.sln` succeeded. `dotnet build AIUsageMonitor.sln --no-restore`
+succeeded with **0 warnings, 0 errors**.
 
 ## Publish
 
 ### win-x64
 
-`dotnet publish src\AIUsageMonitor.Desktop\AIUsageMonitor.Desktop.csproj -c Release
--p:PublishProfile=win-x64 --no-restore` succeeded. The self-contained single-file executable was
-produced under the `win-x64\publish` directory.
+The existing `win-x64` self-contained single-file publish profile succeeded:
+
+```text
+dotnet publish src\AIUsageMonitor.Desktop\AIUsageMonitor.Desktop.csproj -c Release -p:PublishProfile=win-x64 --no-restore
+```
+
+The published `AIUsageMonitor.Desktop.exe` was produced successfully.
 
 ### win-x86
 
-Not rerun for APO-27. Previous accepted evidence is retained because no project, package, or
+Not rerun. Previous accepted compile/publish evidence is retained because no project, package, or
 publish configuration changed.
 
 ### win-arm64
 
-Not rerun for APO-27. Previous accepted evidence is retained because no project, package, or
+Not rerun. Previous accepted compile/publish evidence is retained because no project, package, or
 publish configuration changed.
 
 ## Runtime Smoke
 
-The published `win-x64` executable launched successfully on the Windows x64 development machine,
-stayed running through the smoke interval, and was stopped cleanly. No authenticated provider
-interaction was attempted and no new screenshot was required because APO-27 has no visible UI
-changes.
+The published win-x64 executable launched on the Windows x64 development machine, remained running
+after a five-second startup interval, and closed cleanly. No screenshot was required because this
+remediation has no visible UI change. No live authenticated provider interaction was attempted.
 
 ## git diff --check
 
-Passed. Git reported only normal LF/CRLF normalization notices while staging Windows files; no
-whitespace errors were present.
+Passed with no whitespace errors. Git emitted only normal Windows LF/CRLF normalization notices.
 
 ## Secret Scan
 
-Passed targeted added-line scan for high-confidence provider/API secret patterns, bearer tokens,
-private-key markers, and assigned password/token/secret/API-key literals. No real credentials were
-found. The test suite uses only non-secret sanitized values.
+The targeted added-line scan covered 1,004 added lines and found **0 high-confidence credential
+literals**. No raw credentials, tokens, cookies, prompts, conversations, source code, or
+authenticated payloads were added to persistence contracts or fixtures.
 
-## Working Tree
+## Working Tree and PR
 
-The implementation commit and the documentation handoff are limited to the APO-27 branch scope.
-Final verification must leave `git status --short` empty after the handoff metadata commit. `main`
-was not modified after the corrected fast-forward.
+The functional remediation is committed on the existing feature branch. Draft PR #5 is reused and
+remains OPEN / DRAFT / UNMERGED. No Jira writes, Opus invocation, merge, rebase, force-push, reset,
+destructive clean, replacement branch, or replacement PR was performed.
 
 ## Documentation
 
-`.ai/CURRENT_STATE.md` records APO-34 as COMPLETE / MERGED / DONE at
-`4b393b3e3cf732dd1f0e861a734e3c311327e2af`, the corrected reconciliation, APO-27 architecture,
-validation evidence, limitations, and the post-acceptance Opus 5 architecture-review requirement.
-
-## TASK.md
-
-This file is the complete APO-27 Sol acceptance handoff. It does not contain an Opus prompt.
-
-## PR Description
-
-Draft PR #5 is exactly:
-
-```text
-feat/APO-27-orchestration-storage -> main
-Title: APO-27: extend project and orchestration storage foundation
-State: OPEN / DRAFT / UNMERGED
-```
-
-## Deferred Scope
-
-Projects UI, routing engine, task classifier, executor runtime, autonomous loops, GitHub execution,
-Jira/Azure execution, validation engine, review engine, activity UI, provider changes, cloud
-backend, database/ORM, LocalAppData migration, APO-33 CI, merge, Jira writes, Opus invocation, and
-downstream Stories are deferred.
+`.ai/CURRENT_STATE.md` records the Sol CHANGES REQUIRED verdict/comment, R-01 through R-07
+remediation, exact storage layout, checkpoint identity/time semantics, finding-level review
+contract, activity/evidence traceability, enum fail-closed behavior, DefaultBranch semantics,
+validation counts, publish/smoke evidence, limitations, and the pending Opus review boundary.
 
 ## Known Limitations
 
-- x86 and ARM64 publish evidence is retained from the accepted baseline and is compile/publish
-  evidence from the x64 development machine; no corresponding hardware runtime is claimed.
-- The storage foundation persists metadata/references only; future callers must keep free-form
+- x86 and ARM64 are retained compile/publish evidence from the x64 development machine; no
+  corresponding hardware runtime is claimed.
+- This is a storage foundation only. It does not implement project UI, routing, classification,
+  executor/autonomous runtime, validation/review engines, activity UI, provider changes,
+  tracker/GitHub execution, cloud sync, database/ORM, LocalAppData migration, installer/updater,
+  signing, or APO-33 CI.
+- Storage contracts persist bounded metadata and references only; future callers must keep free-form
   summaries and references non-secret.
-- No live authenticated provider calls, tracker calls, GitHub execution, or orchestration runtime
-  behavior was implemented or tested.
-- The self-contained x64 launch smoke proves startup on this Windows x64 machine only; clean-machine
-  release qualification, signing, installer/updater, and full product release qualification remain
-  outside APO-27.
+
+## Deferred Scope
+
+Projects UI, routing engine, classifier, model selection, executor runtime, autonomous loops,
+GitHub execution, Jira/Azure execution, validation engine, review execution, Activity UI, provider
+changes, cloud backend, database/ORM, LocalAppData migration, installer/updater/signing, APO-33 CI,
+merge, Jira writes, Opus invocation, and downstream Story work remain deferred.
 
 ## Next Planner Boundary
 
-GPT-5.6 Sol must inspect and accept the exact final pushed feature-branch state. After Sol
-acceptance, one independent Claude Opus 5 architecture review is required. The Draft PR remains
-open and unmerged. No Jira writes, Opus invocation, merge, or downstream Story work were performed.
+GPT-5.6 Sol must perform delta acceptance against the exact final functional remediation SHA
+`dcfa922b58c0282311ec1e027d1187bee771651b`. If Sol accepts the remediated head, the required
+independent Claude Opus 5 architecture review remains next. The Draft PR stays open and unmerged.
 
-APO-27 implementation is complete on the feature branch.
-
-The Draft PR remains open and unmerged.
-
-No Jira writes, Opus review, merge, or downstream Story work were performed.
-
-The next step is GPT-5.6 Sol acceptance of the exact final pushed branch SHA.
+No Claude Opus review prompt is included in this file.
