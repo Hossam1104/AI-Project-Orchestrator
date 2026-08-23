@@ -11,15 +11,17 @@
 **APO-22:** COMPLETE — Sol-accepted PR #1 merged into main
 **APO-23:** COMPLETE — PR #2 merged to `main` at `40f62f9`
 **APO-31:** COMPLETE / MERGED / DONE
-**APO-31 Merge main SHA:** `a585ed40ea0e8652c50e4627ee66f7109c67d591`
+**APO-34:** COMPLETE / MERGED / DONE
+**APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
+**APO-27:** IMPLEMENTATION COMPLETE / AWAITING GPT-5.6 SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-34 - First Usable AI Capacity Workspace
-**Current Epic:** APO-4 - AI Usage, Subscription & Capacity Monitoring
-**Status:** APO-34 implementation plus Sol acceptance remediation delivered at `02c7ee3b91f08d0903aef620cd616675ee8f859b` on `feat/APO-34-ai-capacity-workspace`; Draft PR #4 is open against `main`, awaiting GPT-5.6 Sol delta acceptance and remains unmerged
-**Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-34; do not execute another Story automatically
-**Release state:** First usable local WPF AI Capacity workspace is implemented with secure connection editing, truthful provider states, and self-contained publish evidence; full product release qualification is not complete
+**Current Story:** APO-27 - Extend Storage Layout and Stores for APO Projects and Orchestration Records
+**Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation
+**Status:** APO-27 implementation delivered at `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e` on `feat/APO-27-orchestration-storage`; Draft PR #5 is open against `main`, awaiting GPT-5.6 Sol acceptance and remains unmerged
+**Next implementation:** GPT-5.6 Sol acceptance checkpoint for APO-27, followed by one independent Opus 5 architecture review if Sol accepts; do not execute another Story automatically
+**Release state:** APO-34 is merged and done; APO-27 adds the local project/orchestration storage foundation while full orchestration runtime and product release qualification remain incomplete
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
@@ -771,7 +773,87 @@ published x64 executable opened with a live `AI Project Orchestrator` window; di
 visual inspection was unavailable after native-helper retry/reset, and no live authenticated
 provider calls were run.
 
-**Delivery state:** Draft PR #4 remains OPEN / DRAFT / UNMERGED; main remains unchanged. The final
-pushed branch SHA is recorded in the delivery report after the handoff metadata commit. Next
-authority is GPT-5.6 Sol for delta acceptance; no Jira write, Opus review, merge, or next Story is
-authorized from this checkpoint.
+**Delivery state:** APO-34 is COMPLETE / MERGED / DONE on `main` at
+`4b393b3e3cf732dd1f0e861a734e3c311327e2af`. Its accepted Draft PR #4 delivery is historical from
+this checkpoint. No APO-34 follow-up commit was made; the next active authority is GPT-5.6 Sol for
+APO-27 acceptance. No Jira write, Opus review, or downstream Story work is authorized from this
+checkpoint.
+
+## 13. APO-27 Project / Orchestration Storage Foundation (Current Delivery)
+
+**Exact merged main base:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`.
+
+### Corrected APO-34 local-main reconciliation
+
+- Old local `main` before reconciliation was `a585ed40ea0e8652c50e4627ee66f7109c67d591`.
+- `origin/main` was verified after `git fetch origin --prune` at
+  `4b393b3e3cf732dd1f0e861a734e3c311327e2af`.
+- The only working-tree change was `AIUsageMonitor.sln`, and its complete local delta was the
+  four existing Desktop `Debug|Any CPU` / `Release|Any CPU` mappings from `x86` to `x64`.
+- The complete `HEAD..origin/main` APO-34 delta contained those same four replacements plus the
+  accepted `AIUsageMonitor.Desktop.Tests` and `AIUsageMonitor.Connection.Tests` project entries,
+  configurations, and test-folder nesting.
+- Every local changed line was present with the same target value in the incoming APO-34 delta.
+  The redundant local solution edit was restored from old `HEAD`, the working tree became clean,
+  and `git pull --ff-only origin main` fast-forwarded local `main` to the exact merged SHA.
+- The synchronized solution contains both APO-34 test projects and retains the Desktop Any CPU
+  `x64` mappings. No APO-34 follow-up commit was made.
+
+### APO-27 implementation
+
+**Branch:** `feat/APO-27-orchestration-storage`
+**Implementation commit:** `d38817f96050b0decfd0a8328f8ef2cd33bc5a5e`
+**Draft PR:** [#5](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/5)
+**State:** OPEN / DRAFT / UNMERGED
+
+The implementation preserves the legacy `%LOCALAPPDATA%\AIUsageMonitor\` identity and extends
+the existing JSON/JSONL foundation without adding a database, ORM, cloud backend, provider code,
+UI, routing engine, executor runtime, or tracker/GitHub execution.
+
+### Storage architecture and evidence
+
+- `ApplicationDataPaths` now exposes `projects.json`, `agents.json`, `routing-policy.json`, the
+  `projects\` root, and GUID-derived project paths for `routing-policy.json`, `runs\`,
+  `evidence\`, `reviews\`, and `activity\`.
+- Project registry and agent/model registry use the existing versioned JSON collection store,
+  atomic temporary-file replacement, per-file exclusive synchronization, and corruption/schema
+  handling.
+- Global routing policy and project-specific overrides use versioned JSON documents. Override
+  paths are derived only from a validated project GUID.
+- Execution runs, evidence metadata, review metadata, and activity/audit use the existing monthly
+  JSONL event store. Records carry `schemaVersion`, `recordType`, and `projectId`; reads filter
+  both the derived project directory and the record project id.
+- Focused tests cover the layout, project/agent round trips, global and project policy isolation,
+  four isolated JSONL streams, cross-project record rejection, chronological month-range reads,
+  unsupported-schema quarantine, unterminated-tail recovery, concurrent appends, atomic-write
+  cleanup, and sensitive metadata-key rejection.
+
+### Validation evidence
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS; all projects up to date |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused APO-27 storage tests | SUCCESS; 8/8 passing |
+| Full solution tests | SUCCESS; 162/162 passing (28 Domain, 46 Provider, 58 Infrastructure, 10 Connection, 20 Desktop) |
+| `git diff --check` | SUCCESS; no whitespace errors; only normal Git LF/CRLF notices during staging |
+| Added-line targeted secret scan | SUCCESS; no high-confidence secret literals |
+| `win-x64` self-contained single-file publish | SUCCESS; `win-x64` profile |
+| x64 startup smoke | SUCCESS; published executable stayed running during the smoke interval and was stopped cleanly |
+| x86 / ARM64 publish | Previous evidence retained; no project, package, or publish configuration changed |
+| Live authenticated provider calls | NOT RUN; prohibited by the execution contract |
+
+### Limitations and next boundary
+
+- This is a persistence foundation. It does not implement project UI, routing decisions, task
+  classification, executor/autonomous runtime, GitHub/Jira/Azure execution, validation/review
+  engines, activity UI, provider changes, cloud sync, database/ORM, LocalAppData migration, or
+  APO-33 CI.
+- The registry and orchestration contracts intentionally persist metadata and references only;
+  callers must not place secrets, prompts, source code, authenticated payloads, or raw command
+  output in free-form summary/reference values.
+- x86 and ARM64 remain publish evidence from the accepted baseline on the x64 development machine;
+  no x86/ARM64 hardware runtime is claimed.
+- GPT-5.6 Sol must inspect and accept the exact pushed feature-branch state. After Sol acceptance,
+  one independent Claude Opus 5 architecture review is required by the APO-27 contract. No Jira
+  writes, Opus invocation, merge, or downstream Story work has been performed.
