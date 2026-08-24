@@ -82,7 +82,7 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Windows Credential Manager adapter with opaque credential references and focused security tests |
 | :white_check_mark: Implemented / validated | Self-contained multi-RID publish configuration for `win-x64`, `win-x86`, and `win-arm64` |
 | :white_check_mark: Implemented / validated | Project and orchestration storage foundation (APO-27 merged); stores and contracts for projects, agents, routing policies, runs, and review/audit records |
-| :white_check_mark: Implemented / awaiting Sol acceptance | APO-35 Projects workspace on `feat/APO-35-projects-workspace`: project registry list/detail/editor, search/filter, lifecycle state, and truthful local persistence states; APO-36 fixed a DI startup regression that was forcing the shell into degraded mode |
+| :white_check_mark: Implemented / validated | Projects workspace (APO-35 merged); project registry list/detail/editor, search/filter, lifecycle state, and truthful local persistence states; APO-36 fixed DI startup regression |
 | :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-35/APO-36 validation is 55 Desktop tests and 225 full-suite tests, all passing |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
 | :construction: In progress / planned | Git/GitHub and Jira/Azure DevOps awareness; repository and tracker fields in APO-35 remain metadata-only |

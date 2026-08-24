@@ -15,17 +15,20 @@
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
 **APO-27:** COMPLETE / SOL ACCEPTED (COMMENT 11793) / MERGED
 **APO-27 Merge main SHA:** `d0efaf01b07b31effa7a432c225e7c913a86258a`
+**APO-35:** COMPLETE / SOL ACCEPTED (COMMENT 11847) / MERGED / DONE
+**APO-35 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
+**APO-36:** COMPLETE / SOL ACCEPTED / MERGED / DONE
+**APO-36 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
 **APO-5:** IN PROGRESS
-**APO-35:** SOL-35-01 REMEDIATED / SOL-35-02 EVIDENCE COMPLETE (APO-36 FIX APPLIED) / AWAITING SOL ACCEPTANCE
-**APO-36:** FIXED (AiCapacityViewModel DI startup ambiguity) / AWAITING SOL ACCEPTANCE
+**APO-4:** IN PROGRESS
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-35 + APO-36 (SOL-35-01 bounded remediation delivered; APO-36 startup regression fixed; SOL-35-02 evidence captured; awaiting Sol final delta acceptance)
+**Current Story:** APO-35 + APO-36 merged and finalized; next action is GPT-5.6 Sol planning handoff.
 **Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
-**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. Sol's review requested SOL-35-01 (edit-target integrity) and SOL-35-02 (visual evidence); SOL-35-01 is fixed and regression-tested. SOL-35-02 was initially blocked by a pre-existing `AiCapacityViewModel` DI constructor ambiguity (APO-36); APO-36 is now fixed with explicit composition-root registration and regression tests, and SOL-35-02 sanitized visual evidence has been captured from the real, non-degraded published shell (see section -3b). The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
-**Next implementation:** GPT-5.6 Sol final Prompt-4 delta acceptance of the exact final pushed feature-branch SHA (APO-35 + APO-36 + evidence); if accepted, the next checkpoint is Prompt 5/5 Claude Opus independent review; do not start another Story automatically
-**Release state:** APO-35 + APO-36 are delivered on a Draft PR while `main` remains unchanged; the accepted APO-27 project registry foundation now has a user-facing, non-degraded Projects workspace with sanitized visual evidence, while Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete
+**Status:** APO-35 (First Usable Projects Workspace) and APO-36 (AiCapacityViewModel DI constructor ambiguity fix) are Sol-accepted and squash-merged into `main` via PR #6 at merge commit `beab8072551a84aad60df7744135c74c75e51acb`. Full suite validation is 225/225 passing. Claude Opus Prompt 5/5 review was completed, OPUS-01..OPUS-04 findings were remediated and Sol-accepted (Jira comment 11847), and OPUS-05..OPUS-08 are deferred as P3. APO-35 and APO-36 are transitioned to Done in Jira. Parent Epics APO-5 and APO-4 remain In Progress.
+**Next implementation:** GPT-5.6 Sol planning handoff from merged main baseline to select and define the next bounded Story.
+**Release state:** APO-35 and APO-36 are merged into `main`; the Projects workspace provides a non-degraded, user-facing registry with search, filtering, lifecycle management, and truthful local persistence. Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
 
 ## -3. APO-35 First Usable Projects Workspace
 
@@ -391,6 +394,33 @@ deferrals, "Prompt 1/5", next gate). No Jira status transition was made.
 
 **Next planner boundary:** GPT-5.6 Sol delta acceptance of this remediation against the exact final
 pushed branch SHA. Do not invoke Opus, merge, or start another Story from this checkpoint.
+
+---
+
+## -3d. APO-35 + APO-36 Delivery Finalization & Squash Merge (New Opus Cycle, Prompt 2/5)
+
+**Lifecycle at this checkpoint:** OPUS-01..OPUS-04 remediation complete -> Sol accepted remediation in Jira comment `11847` -> PR #6 marked ready -> PR #6 squash-merged into `main` at `beab8072551a84aad60df7744135c74c75e51acb` -> local `main` synchronized -> APO-35 and APO-36 transitioned to Done in Jira -> parent Epics APO-5 and APO-4 remain In Progress -> next action is GPT-5.6 Sol planning handoff.
+
+**Key SHAs & PR Artifacts:**
+- **Pre-Merge main SHA:** `34569abee50bdb708770e134e9db7db18752a80d`
+- **Functional Remediation SHA:** `c06b5163d69daad62402dd7820b3ce7a40498319`
+- **Pre-Merge Feature Head:** `bb719abe0fff9a87e73359437269ec403de42841`
+- **PR #6:** MERGED (squash merge into `main`)
+- **Squash Merge SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
+
+**Validation Baseline:**
+- 225 / 225 passing tests (Domain: 28, Provider: 46, Infrastructure: 86, Connection: 10, Desktop: 55).
+- Build: 0 warnings, 0 errors.
+- `win-x64` self-contained single-file publish verified.
+- `git diff --check` and secret scan clean.
+
+**Opus Cadence:**
+- Previous Claude Opus 5/5 checkpoint: COMPLETE (initial CHANGES REQUIRED verdict).
+- Sol Adjudication (comment `11838`): accepted `OPUS-01`..`OPUS-04` (closed), deferred `OPUS-05`..`OPUS-08` (P3).
+- New Opus Cycle: Prompt 1/5 remediation complete; Prompt 2/5 delivery finalization complete.
+- Next Opus review checkpoint: around Prompt 5/5 (not immediately).
+
+**Next Action:** GPT-5.6 Sol planning handoff from merged `main` baseline to select and define the next bounded Story. Parent Epics APO-5 and APO-4 remain In Progress.
 
 ---
 

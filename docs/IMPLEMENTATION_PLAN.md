@@ -272,12 +272,11 @@ code is changed or claimed as APO-refactored.
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
 move. APO-27 delivered and merged the project and orchestration storage foundation on `main` at
-squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. The real Claude Opus 5
-review satisfied the independent-review gate, and Sol accepted and closed OPUS-01 in Jira comment
-`11793`. APO-27 is marked Done in Jira while parent Epic APO-3 remains In Progress. APO-35 has now
-been delivered on a feature branch under Epic APO-5; the implementation is awaiting GPT-5.6 Sol
-acceptance. The feature branch remains open, draft, and unmerged, and no later Epic or Story is
-authorized from this boundary.
+squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. APO-35 (Projects workspace)
+and APO-36 (AiCapacityViewModel DI startup fix) are Sol-accepted, verified across 225/225 tests,
+and merged into `main` at squash merge SHA `beab8072551a84aad60df7744135c74c75e51acb` via PR #6.
+APO-35 and APO-36 are marked Done in Jira while parent Epics APO-5 and APO-4 remain In Progress.
+The next action is GPT-5.6 Sol planning handoff to select and define the next bounded Story.
 
 ## 10. APO-35 Delivery Boundary
 
@@ -363,3 +362,11 @@ remediation (Prompt 1/5 of a new Opus cadence), which fixed all four findings pl
 `ListBox` rendering regression the `OPUS-01` fix exposed. Full-suite validation is 225/225 passing
 (Desktop 55, up from 219/49). See `TASK.md` and `.ai/CURRENT_STATE.md` for exact SHAs and evidence
 details.
+
+## 13. APO-35 + APO-36 Final Delivery and Merge
+
+APO-35 and APO-36 were finalized, Sol-accepted, and squash-merged into `main` via PR #6 at merge
+commit `beab8072551a84aad60df7744135c74c75e51acb`. Full-suite validation is 225/225 tests passing
+(Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 55). OPUS-01..OPUS-04 findings
+are closed; OPUS-05..OPUS-08 are deferred as P3. APO-35 and APO-36 are transitioned to Done in Jira;
+parent Epics APO-5 and APO-4 remain In Progress.
