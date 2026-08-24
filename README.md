@@ -84,7 +84,7 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Project and orchestration storage foundation (APO-27 merged); stores and contracts for projects, agents, routing policies, runs, and review/audit records |
 | :white_check_mark: Implemented / validated | Projects workspace (APO-35 merged); project registry list/detail/editor, search/filter, Active/Paused/Blocked/Archived lifecycle state, and truthful local persistence states; APO-36 fixed DI startup regression |
 | :white_check_mark: Implemented / validated | APO-37 read-only local Git repository verification with bounded status evidence, cancellation/project isolation, sanitized remotes, and explicit unavailable states |
-| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-37 validation is 70 Desktop tests, 101 Infrastructure tests, and 255 full-suite tests, all passing |
+| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-37 (with SOL-37-01..05 remediation) validation is 70 Desktop tests, 166 Infrastructure tests, and 320 full-suite tests, all passing |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
 | :construction: In progress / planned | GitHub remote operations and Jira/Azure DevOps awareness; APO-37 is local-only and performs no network validation or Git writes |
 | :construction: In progress / planned | Agent registry, routing, bounded execution, validation, review, and acceptance services |

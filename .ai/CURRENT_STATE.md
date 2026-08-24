@@ -28,9 +28,100 @@
 **Default Branch:** `main`
 **Current Story:** APO-37 - Implement Read-Only Local Git Repository Verification in Projects.
 **Current Epic:** APO-6 - Git & GitHub Integration (In Progress)
-**Status:** APO-35 and APO-36 remain Sol-accepted, merged, and Done. APO-37 is implemented on the executor branch with deterministic Infrastructure/Desktop coverage at 255/255 passing; Jira APO-37 and parent APO-6 remain In Progress pending final synchronization and Sol acceptance. No Claude Opus review was performed.
-**Next implementation:** GPT-5.6 Sol acceptance of the exact final pushed APO-37 feature SHA; no downstream Story work was started.
+**Status:** APO-35 and APO-36 remain Sol-accepted, merged, and Done. APO-37 has completed a Sol-directed bounded remediation (SOL-37-01..05, Sol comment 11851) on the executor branch, with full solution coverage now at 320/320 passing; Jira APO-37 and parent APO-6 remain In Progress pending Sol delta acceptance. This is Prompt 4/5 of the current Opus cadence — no Claude Opus review was performed.
+**Next implementation:** GPT-5.6 Sol delta acceptance of the exact final pushed APO-37 remediation SHA; if accepted, the following checkpoint is Prompt 5/5 Claude Opus independent review. No downstream Story work was started.
 **Release state:** APO-37 adds explicit, manual, read-only local repository verification. GitHub remote operations, tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
+
+## -5. APO-37 SOL-37-01..05 Bounded Correctness Remediation (Prompt 4/5)
+
+**Sol review comment:** `11851`
+
+**Pre-remediation feature HEAD:** `7119145b633e9486b255786e66d78fde10ae47c0`
+
+**Required main base (unchanged):** `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e`
+
+**Branch:** `feat/APO-37-local-git-verification` (Draft PR #7, reused, still OPEN/DRAFT/UNMERGED)
+
+**Functional remediation SHA:** `1a659bb7003d89af2f517dc44e477d08c126bbd6`
+
+This remediation fixes five bounded correctness defects identified by Sol review comment 11851
+against the APO-37 read-only local Git inspector, without expanding scope, adding GitHub API/Git
+write capability, or touching accepted APO-37 UI/workflow behavior:
+
+- **SOL-37-01 (rename token order + status flags):** `GitLocalRepositoryInspector`'s porcelain `-z`
+  parser previously reversed Git's real rename record order. Git emits `new\0old\0`; the parser now
+  reads the token immediately following the change record as the *original* path, publishing the
+  new name as `RelativePath` and the old name as `OriginalRelativePath`. Verified against a real
+  `git mv` in a disposable temp repository (`RealGitRepositoryIntegrationTests`), not only against
+  scripted fixtures. Status-flag interpretation was also corrected so a conflicted/unmerged entry
+  (`UU`, `AA`, `DD`, `AU`, `UA`, `DU`, `UD`) is classified as `Conflicted` only and never also as an
+  ordinary staged/modified/deleted change.
+- **SOL-37-02 (remote URL sanitizer hardening):** `RepositoryUrlSanitizer` now strips query-string-
+  and fragment-like suffixes from SCP-style remotes (`user@host:path?token=...`,
+  `user@host:path#...`) in addition to the pre-existing absolute-URI userinfo/query/fragment
+  stripping, and removes CR/LF/control-character injection from any untrusted remote string before
+  display so a hostile remote value can never fabricate extra UI/log lines. The 512-character bound
+  is preserved.
+- **SOL-37-03 (async bounded path probe):** the inspector's pre-Git-invocation path check is now the
+  new Infrastructure-only `ILocalPathProbe`/`SystemLocalPathProbe` seam instead of a synchronous
+  `Directory.Exists`/`File.Exists` call on the calling thread. The underlying OS filesystem attribute
+  lookup is not reliably cancellable (a UNC/offline path can block indefinitely), so the probe runs
+  on a background thread with a 4-second deterministic bound; `Missing` and `Unavailable` are
+  distinct, truthful outcomes, and Git is never invoked once the path state already rules out
+  inspection.
+- **SOL-37-04 (strictly bounded process timeout):** `SystemGitCommandRunner` previously fell back to
+  an unbounded `AwaitOutputAsync` after a failed `KillProcessTree`. The new `BoundedProcessWait`
+  helper guarantees `RunAsync` returns within a short post-kill drain bound (default 2s) even if
+  `Kill` throws, the process ignores termination, or stdout/stderr never reach EOF; no raw partial
+  output ever reaches the caller. The production default remains a 10-second per-command timeout;
+  `UseShellExecute=false`, `ArgumentList`, `GIT_TERMINAL_PROMPT=0`, and `GIT_OPTIONAL_LOCKS=0` are
+  preserved, and `LC_ALL=C`/`LANG=C` were added for deterministic Git error-text classification.
+- **SOL-37-05 (truthful Git exit-code classification):** a nonzero Git exit is no longer classified
+  identically regardless of cause. `NotGitRepository` requires the documented "not a git repository"
+  fatal text; detached HEAD requires the documented exit status for `symbolic-ref --quiet --short
+  HEAD`; unborn HEAD requires the documented "no commits yet"-family fatal text for `rev-parse
+  --verify HEAD`. Any other nonzero exit — permission failure, the Git process disappearing mid-
+  command, an unexpected fatal error — becomes a bounded `Failed`/`GitUnavailable` result through a
+  shared `CommonFailure`/timeout/cancelled/could-not-start check applied before command-specific
+  interpretation, so a mid-command process failure can never be fabricated into a semantic repository
+  state (e.g. "Git disappeared halfway" no longer reads as a detached HEAD). Raw stderr never reaches
+  Application/Desktop state.
+
+**New test coverage:** full solution now passes **320/320** (was 255/255): Domain 28, Provider 46,
+Connection 10, Desktop 70, Infrastructure 166 (was 101). The added 65 Infrastructure tests cover the
+porcelain rename/status regression, ordinary-vs-conflict status-flag truthfulness, the path-probe
+seam (available/missing/not-a-directory/unavailable/timeout/cancellation), the bounded process-wait
+helper (kill-throws, hung-streams, cancellation), the real `SystemGitCommandRunner` timeout/
+cancellation path against a real OS process, the `RepositoryUrlSanitizer` hardening (HTTPS and
+SCP-style userinfo/query/fragment/CR-LF/control-character/max-length cases), and the Git exit-
+classification truthfulness cases (`Root_NotRepository_IsNotGitRepository`,
+`Root_PermissionOrUnexpectedFailure_IsNotNotGitRepository`,
+`SymbolicRef_ExpectedNonSymbolicExit_IsDetached`, `SymbolicRef_UnexpectedFailure_IsFailed`,
+`Head_AbsentInValidUnbornRepository_HasNoSha`, `GitDisappearsAfterVersion_DoesNotFabricateRepositoryState`,
+`UnexpectedUpstreamFailure_DoesNotCreateFakeUpstream`), plus a real-Git integration suite
+(`RealGitRepositoryIntegrationTests`) against a disposable temp repository proving clean/dirty/
+staged/untracked/renamed/unborn states end-to-end.
+
+**Validation at this checkpoint:** `dotnet restore` succeeded; `dotnet build --no-restore` is 0
+warnings/0 errors; `dotnet test --no-restore` is 320/320 passing; `git diff --check` is clean; a
+targeted secret scan of the changed lines found no leaked credentials (all `token`/`secret` matches
+are intentional sanitizer test fixtures or `CancellationToken` identifiers). The `win-x64`
+self-contained single-file publish succeeded and the published executable was launched and left
+running (see the executor completion report for PID/path/window-title evidence). No owner project
+registry or repository was touched; all Git write commands used in validation ran only against a
+disposable temp repository that was removed afterward.
+
+**Permanent governance addition:** `AGENTS.md` section 16 ("Permanent Runtime-Left-Running
+Contract") now requires every future local prompt with repository access to publish/run the current
+build and leave it running (not stop it after a short smoke check), reporting
+`LEFT RUNNING = YES` with executable path/PID/window title/state, unless the environment explicitly
+requires otherwise.
+
+**Preflight/postflight invariants held throughout:** local feature HEAD matched origin feature HEAD
+matched the required starting SHA before work began; `origin/main` remained
+`8a81017b25fe0cfd8efcd4febafd66a1bee6c41e` throughout; PR #7 remained OPEN/DRAFT with
+`baseRefName=main` and `mergeable=MERGEABLE`. No rebase, merge-main, force-push, or replacement PR
+was performed.
 
 ## -4. APO-37 Read-Only Local Git Repository Verification (Prompt 3/5)
 
