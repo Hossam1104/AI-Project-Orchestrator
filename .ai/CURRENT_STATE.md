@@ -21,20 +21,20 @@
 **APO-36 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
 **APO-37:** COMPLETE / MERGED / DONE
 **APO-37 Merge main SHA:** `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`
-**Strategic Rebaseline:** IN PROGRESS / DOCUMENTATION AND JIRA BOUNDARY
+**Strategic Rebaseline:** CONTINUATION COMPLETE / AWAITING SOL ACCEPTANCE
 **APO-5:** IN PROGRESS
 **APO-4:** IN PROGRESS
 **APO-6:** IN PROGRESS
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** Strategic APO rebaseline - Compare-AI-Orchestrators integration and APO-37 finalization.
+**Current Story:** Prompt 1/5 continuation - strategic roadmap, documentation, and Jira synchronization.
 **Current Epic:** APO-1 governance boundary with roadmap mapping across APO-3 through APO-16.
-**Status:** APO-37 finalization is complete: PR #7 is merged, Jira APO-37 is Done, Sol adjudication comment 11861 is complete, and completion comment 11862 records the delivery evidence. Strategic documentation and Jira roadmap reconciliation are the only active scope in this session.
-**Next implementation:** GPT-5.6 Sol must accept this strategic rebaseline and select one bounded Story; APO-38 is the recommended first implementation boundary. No strategic product feature has been implemented in this session.
-**Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete.
+**Status:** APO-37 finalization is complete: PR #7 is merged at the accepted main baseline, Jira APO-37 is Done, and the Prompt 1/5 continuation has synchronized the roadmap, active Markdown, Jira truth, and Sol handoff. Draft PR #8 remains OPEN / DRAFT / UNMERGED pending Sol acceptance.
+**Next implementation:** GPT-5.6 Sol must accept this final strategic rebaseline and select one bounded Story; APO-38 is the recommended first implementation boundary. No strategic runtime feature has been implemented in this continuation.
+**Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
 
-## Strategic Rebaseline - Prompt 1/5 (25 August 2026)
+## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)
 
 **Exact merged baseline:** `origin/main` and the strategic branch start at
 `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
@@ -49,9 +49,10 @@
   OPUS-01, OPUS-02, OPUS-03, OPUS-04, OPUS-05, OPUS-07, and OPUS-09 retained as P3 hardening;
   OPUS-06 and OPUS-08 rejected and not opened as defects.
 
-**Strategic branch:** `docs/apo-strategic-orchestrator-rebaseline`; strategic documentation
-baseline commit `d2af65f14ceddef1b412981bd1db9e93ec82af7b`; draft PR #8 OPEN / DRAFT / UNMERGED
-against `main`.
+**Strategic branch:** `docs/apo-strategic-orchestrator-rebaseline`; continuation started from
+`c392994927e21e23a612a80b29219d5d1feadef9`; draft PR #8 remains OPEN / DRAFT / UNMERGED against
+`main`. The continuation documentation commit SHA will be recorded after the first push, with
+the final branch SHA reported at the executor handoff.
 
 **Approved strategic direction incorporated:** Mission Control; Smart Continue; canonical
 project context and checkpoint recovery; dependency-aware work graphs; isolated workspaces;
@@ -65,14 +66,20 @@ human/evidence authority are unchanged.
 
 - Existing APO-1 through APO-17 Epics were reused; no new Epic was created.
 - Existing APO-33 CI Story was reused rather than duplicated.
-- New bounded roadmap Stories APO-38 through APO-61 were created under the existing Epics with
+- New bounded roadmap Stories APO-38 through APO-63 were created under the existing Epics with
   explicit P0/P1/P2/P3 bands, scope, dependencies, acceptance evidence, and out-of-scope clauses.
+- APO-43 explicitly owns Smart Continue, canonical context, and recovery checkpoints.
+- APO-62 owns provider-independent read-only GitHub/Azure Repos remote SCM/CI evidence under APO-6.
+- APO-63 owns controlled remote source-control delivery under APO-6 and remains behind evidence and
+  owner-approval gates.
 - APO-59 through APO-61 retain the accepted APO-37 P3 hardening backlog.
+- APO-64 through APO-67 are Done VOID connector-correction artifacts with zero product scope and
+  are excluded from roadmap totals and dependency sequencing.
 - Critical predecessor links were created with Jira Blocks relationships; APO-37 to APO-59..61
   is recorded as related work.
 
 **Required next Sol gate:** inspect BRD 1.2, Implementation Plan 1.2, this state, TASK.md, and
-Jira APO-38..61; accept or revise the dependency order; then prepare one self-contained bounded
+Jira APO-38..63; accept or revise the dependency order; then prepare one self-contained bounded
 contract. Recommended first Story: APO-38, provider-independent agent/model registry and
 connection truth. Do not implement APO-38 in this rebaseline session.
 
@@ -80,11 +87,12 @@ connection truth. Do not implement APO-38 in this rebaseline session.
 succeeded; `dotnet build AIUsageMonitor.sln --no-restore` succeeded with 0 warnings and 0 errors;
 the full solution test run passed 326/326 with 0 failures and 0 skips; `git diff --check` passed;
 the changed-line secret scan found no credential-shaped values. The self-contained `win-x64`
-publish profile completed successfully. The already-running workspace executable was reused at
-`D:\AI Tools\Active Projects\AI-Project-Orchestrator\publish\win-x64\AIUsageMonitor.Desktop.exe`
-with PID 31344, window title `AI Project Orchestrator`, `Responding=True`, and `HasExited=False`.
-UI Automation exposed `CAPACITY READY`, the Projects navigation control, and the normal shell
-workspace. No duplicate process was created. `LEFT RUNNING = YES`.
+publish profile completed successfully. No APO process was running during pre-publish detection;
+the current published executable was started at
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID 26240, window title `AI Project Orchestrator`, `Responding=True`, and `HasExited=False`.
+UI Automation exposed `CAPACITY READY`, the Projects navigation control, the AI capacity
+workspace, and the normal shell. No duplicate process was created. `LEFT RUNNING = YES`.
 
 ## -5. APO-37 SOL-37-01..05 Bounded Correctness Remediation (Prompt 4/5)
 

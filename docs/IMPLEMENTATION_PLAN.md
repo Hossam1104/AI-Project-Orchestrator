@@ -43,7 +43,7 @@ Jira Epic -> Jira Story/Task -> Sol planning/architecture
 
 Only one bounded assigned work item is active at a time. Detailed Stories/Tasks are progressively
 decomposed by Sol after repository evidence and acceptance dependencies are understood. The
-strategic rebaseline now records the approved bounded backlog in Jira APO-38 through APO-61; their
+strategic rebaseline now records the approved bounded backlog in Jira APO-38 through APO-63; their
 presence does not authorize implementation.
 
 ---
@@ -165,18 +165,23 @@ context resolution). Define versioned planning contracts (APO-40), dependency-aw
 (APO-41), compact role handoffs (APO-42), and durable recovery checkpoints (APO-43). These slices
 must remain provider-independent, project-isolated, and free of chat-history or secret persistence.
 
-### Phase C - Quality-first decision and bounded execution (P0)
+### Phase C - Quality-first decision, bounded execution, and evidence inputs (P0)
 
 Implement explainable routing (APO-44), bounded cancellable execution (APO-45), and isolated
 workspaces (APO-46). Tracker awareness (APO-47) is an independent Jira-first/Azure-optional input,
-not a model-CLI side effect. The ordering is deliberate: capability and contract truth precede
-quota-aware selection, and both precede process execution.
+not a model-CLI side effect. Add provider-independent, read-only remote SCM/CI evidence (APO-62)
+after the local/work-item evidence inputs are defined. APO-62 is distinct from APO-37 local Git
+verification and APO-33 repository-owned CI. The ordering is deliberate: capability and contract
+truth precede quota-aware selection, process execution, and independently captured evidence.
 
-### Phase D - Evidence, review, acceptance, and command center (P0)
+### Phase D - Evidence, review, controlled delivery, and command center (P0)
 
-Build independent evidence/QA gates (APO-48), human approval policy (APO-49), and the Mission
-Control read model/surface (APO-50). Evidence remains the progression authority; the owner remains
-the authority for protected delivery and high-risk changes.
+Build independent evidence/QA gates (APO-48) and human approval policy (APO-49). Then implement
+controlled remote source-control delivery (APO-63) only against exact immutable targets and
+current evidence. Read-only remote evidence must exist before controlled remote writes so delivery
+cannot rely on a model claim, stale branch state, or missing CI/review proof. Finish this P0 band
+with the Mission Control read model/surface (APO-50). Evidence remains the progression authority;
+the owner remains the authority for protected delivery and high-risk changes.
 
 ### Phase E - Workflow acceleration (P1)
 
@@ -420,7 +425,8 @@ introduced.
 | P0 | Agent/model truth and progressive onboarding | APO-38, APO-39 |
 | P0 | Contracts, dependency graph, handoffs, and recovery context | APO-40, APO-41, APO-42, APO-43 |
 | P0 | Quality-first routing, bounded execution, workspaces, and tracker evidence | APO-44, APO-45, APO-46, APO-47 |
-| P0 | Independent QA gates, human gates, and Mission Control | APO-48, APO-49, APO-50 |
+| P0 | Remote SCM / CI evidence | APO-62 |
+| P0 | Independent QA gates, human gates, controlled delivery, and Mission Control | APO-48, APO-49, APO-63, APO-50 |
 | P1 | Review Inbox, skills, health, decision ledger, runtime evidence, and context budgets | APO-51 through APO-56 |
 | P2 | Bounded background automation/housekeeping and optional remote approval design | APO-57, APO-58 |
 | P3 | Accepted APO-37 hardening debt | APO-59, APO-60, APO-61 |
@@ -428,7 +434,7 @@ introduced.
 Existing work reused rather than recreated includes APO-27 project/orchestration storage, APO-35/36
 the Projects workspace and normal composition, APO-37 local Git evidence, and APO-33 CI/release
 workflow. Existing Epic dependencies remain the architectural ownership map. Jira issue links record
-the critical predecessor relationships among APO-38 through APO-61.
+the critical predecessor relationships among APO-38 through APO-63.
 
 ## 16. Dependency Graph and Planner Ordering
 
@@ -456,8 +462,25 @@ APO-46 isolated workspaces → APO-45 bounded execution ← APO-47 tracker evide
                          APO-57..58 optional P2 work
 ```
 
-This ordering intentionally places capability truth, persistence, contracts, evidence, and human
-authority before broad autonomous behavior or consolidated UX. APO-17/33 CI remains a cross-cutting
+The remote-evidence/delivery ordering is explicitly:
+
+```text
+APO-47 tracker evidence + APO-62 read-only remote SCM/CI evidence
+                              |
+                              v
+                         APO-48 QA evidence
+                              |
+                              v
+                         APO-49 approval policy
+                              |
+                              v
+                         APO-63 controlled remote delivery
+```
+
+Read-only remote evidence must exist before controlled remote writes so an operation cannot rely on
+a model claim, stale branch state, or missing CI/review proof. This ordering intentionally places
+capability truth, persistence, contracts, evidence, and human authority before broad autonomous
+behavior or consolidated UX. APO-17/33 CI remains a cross-cutting
 release prerequisite and may be sequenced by Sol when the release risk warrants it.
 
 ## 17. Strategic Acceptance Boundary

@@ -1,84 +1,74 @@
-# GPT-5.6 Sol Planning / Acceptance Handoff — Strategic Rebaseline
+# GPT-5.6 Sol Acceptance Handoff — Prompt 1/5 Strategic Rebaseline Continuation
 
-## Session boundary
+Status: COMPLETE at Luna executor boundary; awaiting GPT-5.6 Sol acceptance.
 
-- Session: NEW CYCLE — Prompt 1/5, strategic orchestrator rebaseline.
-- Completed prerequisite: APO-37 finalization and merge.
-- Strategic branch: `docs/apo-strategic-orchestrator-rebaseline`.
-- Exact branch base: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
-- Exact `origin/main`: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
-- Product architecture remains C#/.NET 10/WPF/MVVM/Clean Architecture with JSON/JSONL local
-  persistence, secure external credentials, and self-contained Windows artifacts.
+This file is a planner handoff, not an implementation contract for the next Story. Prompt 1/5
+continuation performed documentation, roadmap, and Jira synchronization only. Product-source diff
+must remain zero, and no Prompt 2/5 implementation Story is authorized by this file.
 
-## APO-37 finalization evidence
+## Exact Git and PR target
 
-- Accepted feature head: `e35762478ae87c406939d11662e00fef1727c04a`.
-- PR #7: MERGED by squash at `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
-- The merge commit tree was independently compared with the accepted head tree and is identical.
-- Jira APO-37: Done; completion comment `11862`.
-- Jira APO-6: intentionally remains In Progress.
-- Sol adjudication: Jira comment `11861`.
-- Claude Opus Prompt 5/5: complete; no additional Opus review is authorized now.
-- Accepted P3 debt: APO-59, APO-60, APO-61. Rejected OPUS-06 and OPUS-08 are not defects.
-- No GitHub CI result is claimed; APO-37 evidence is local validation evidence.
+- Repository: `Hossam1104/AI-Project-Orchestrator`
+- Existing branch: `docs/apo-strategic-orchestrator-rebaseline`
+- Starting strategic SHA: `c392994927e21e23a612a80b29219d5d1feadef9`
+- Accepted `origin/main`: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`
+- Existing Draft PR: #8, base `main`, OPEN / DRAFT / UNMERGED / mergeable
+- No rebase, force push, main mutation, replacement branch, or replacement PR is authorized.
 
-## Strategic direction to accept or revise
+## Sol acceptance review scope
 
-The BRD and implementation plan now incorporate the approved owner direction:
+Sol must review the entire final Draft PR #8, including:
 
-- Mission Control and Smart Continue;
-- canonical project context and checkpoint recovery;
-- progressive project onboarding;
-- dependency-aware work graphs and bounded scheduling;
-- planner/executor/reviewer handoff packages and context budgets;
-- provider-independent agent/model registry and quality-first quota-aware routing;
-- bounded execution and isolated worktrees;
-- Jira/Azure DevOps awareness through official/provider-independent adapters;
-- independent evidence-based QA gates and truthful runtime evidence;
-- Review Inbox, bounded remediation, composable skills/workflows, project health, and an AI Decision
-  Ledger;
-- bounded background automation/housekeeping; and
-- optional remote/mobile approval as a separate future security design.
+1. the original strategic orchestrator rebaseline;
+2. this Prompt 1/5 continuation;
+3. `docs/STRATEGIC_ROADMAP.md`;
+4. the README product-language and roadmap changes;
+5. BRD and implementation-plan synchronization;
+6. the complete Markdown review and historical-document preservation decisions;
+7. live Jira APO-38 through APO-63 as the active strategic roadmap;
+8. explicit Smart Continue and recovery ownership in APO-43 under APO-3;
+9. APO-62 under APO-6 for read-only remote SCM/CI evidence;
+10. APO-63 under APO-6 for controlled remote source-control delivery; and
+11. exclusion of APO-64 through APO-67 as Done VOID connector-correction artifacts with zero
+    product scope.
 
-The strategic capabilities remain planned. This handoff does not authorize implementing them all,
-adding a cloud backend, introducing a plugin/configuration framework, migrating WPF, or changing
-the local-first/security architecture.
+## Strategic truth to accept
 
-## Jira reconciliation
+- The active strategic product backlog is APO-38 through APO-63; APO-64..67 are not roadmap items.
+- APO-33 remains the existing repository-owned GitHub Actions CI/release Story.
+- APO-37 is the accepted local read-only Git evidence slice; it is not remote SCM evidence and does
+  not perform Git writes.
+- APO-62 is planned, provider-independent, read-only GitHub/Azure Repos SCM and CI evidence.
+- APO-63 is planned controlled remote delivery behind exact-target, evidence, approval, and audit
+  gates.
+- Smart Continue is planned and explicitly owned by APO-43; it must recover canonical persisted
+  context and require fresh evidence instead of trusting old chat history.
+- The orchestration runtime, routing, remote adapters, delivery writes, Mission Control, and other
+  strategic capabilities remain planned. No product runtime feature was implemented in this
+  continuation, and no GitHub CI result is claimed.
 
-Existing APO-1 through APO-17 Epics were reused. Existing APO-33 remains the CI/release Story.
-The following bounded roadmap Stories were created and linked with predecessor relationships:
+## Validation and evidence to inspect
 
-- P0: APO-38 through APO-50 — registry, onboarding, contracts, graph, handoffs, recovery, routing,
-  execution, workspaces, tracker evidence, QA, human gates, and Mission Control.
-- P1: APO-51 through APO-56 — Review Inbox, skills, health, decision ledger, runtime evidence, and
-  context budgets.
-- P2: APO-57 through APO-58 — bounded background work and optional remote approval design.
-- P3: APO-59 through APO-61 — accepted APO-37 hardening debt.
+- Every Markdown file discovered was reviewed; active stale range references were synchronized and
+  historical evidence was preserved.
+- `git diff --check` passed.
+- Product-source diff is zero.
+- Restore, build, and test were run on this unchanged-source baseline; results are recorded in the
+  executor completion report and `.ai/CURRENT_STATE.md`.
+- Changed-line secret scan was performed; no real credential material was added.
+- The current self-contained win-x64 application was published/launched and left running under the
+  permanent runtime contract; exact path, PID, title, and normal/degraded state are in the final
+  completion report.
 
-## Sol acceptance tasks
+## Recommended next boundary
 
-1. Inspect the changed BRD, implementation plan, README, AGENTS.md, CLAUDE.md, CURRENT_STATE, and
-   this handoff for contradictions or accidental implementation claims.
-2. Confirm that the existing Epic structure is sufficient and that APO-38 through APO-61 are
-   bounded, independently testable, correctly parented, and sequenced.
-3. Confirm the dependency order and choose exactly one next bounded Story.
-4. Recommended next Story: **APO-38 — Establish Provider-Independent Agent and Model Registry
-   Truth**, because capability/connectivity truth is a prerequisite for routing, handoffs, and
-   execution. Consider APO-33 separately if release risk makes CI the immediate priority.
-5. Replace this file with the self-contained execution contract for the chosen Story only.
+APO-38 — Establish Provider-Independent Agent and Model Registry Truth — remains the recommended
+next Story because capability and connection truth precede routing, handoffs, and execution. It is
+recommended, not automatically authorized. Sol must first accept this final Draft PR #8
+rebaseline and then replace `TASK.md` with one self-contained contract for the chosen Story.
 
-## Explicitly not authorized by this handoff
+## Stop condition
 
-- Do not implement APO-38 or any other new Story.
-- Do not begin Mission Control, Smart Continue, routing runtime, execution runtime, worktree writes,
-  tracker synchronization, review engine, background automation, or remote approval.
-- Do not create another Epic or duplicate the new Stories.
-- Do not invoke Sonnet or Opus for routine work; Opus Prompt 5/5 is already complete.
-- Do not merge the strategic documentation branch until Sol accepts the rebaseline under repository
-  policy.
-
-## Required next planner boundary
-
-GPT-5.6 Sol strategic acceptance and selection of one bounded implementation Story. Leave the
-repository at this planner boundary after preparing the next contract.
+Prompt 1/5 strategic rebaseline continuation complete. Draft PR #8 remains OPEN / DRAFT /
+UNMERGED. Next action is GPT-5.6 Sol full acceptance review of the final PR #8 head. No Prompt 2/5
+implementation Story is authorized yet.

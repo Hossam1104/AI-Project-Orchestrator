@@ -259,6 +259,25 @@ the portable WPF/JSON/JSONL foundation. It must not be revived without explicit 
 - **FR-GIT-002:** Preserve unrelated owner changes and prohibit force push, destructive reset, and
   destructive clean by default.
 - **FR-GIT-003:** Support safe task branches, draft pull requests, and protected-branch policy.
+- **FR-GIT-004:** Distinguish local repository/worktree evidence from remote source-control and CI
+  evidence. Remote evidence must use provider-independent orchestration contracts and official
+  GitHub or Azure Repos integration paths where configured.
+- **FR-GIT-005:** Where exposed, represent remote repository identity, default/current branch
+  relationship, remote commit identity, pull-request identity/state, mergeability, reviews,
+  checks/status, CI/workflow evidence, provider/source, capture time, freshness, and immutable
+  target identifiers.
+- **FR-GIT-006:** Keep read-only remote evidence separate from later remote write/delivery
+  operations. APO-62 owns remote evidence; controlled delivery belongs to APO-63 and requires its
+  own authorization, validation, approval, and audit boundaries.
+- **FR-GIT-007:** Distinguish Not Configured, Authentication Required, Permission Denied,
+  Unsupported, Unavailable, Stale, Partial, and Available remote evidence. Missing or unavailable
+  evidence must never be represented as healthy, passing, synchronized, or up to date.
+- **FR-GIT-008:** Bind protected or high-risk remote mutation to the project, work item,
+  execution-contract version, repository, base/head refs, exact head SHA, current validation
+  evidence, current approval decision, actor, and audit identity; fail closed when any material
+  evidence changes.
+- **FR-GIT-009:** Treat model CLIs and executor self-report as non-authoritative for remote SCM or
+  CI truth; official integrations and independently captured evidence remain the source of truth.
 
 ## 8.2 AI Agent and Model Registry
 
@@ -680,7 +699,7 @@ The approved initial Epic structure is:
 
 APO-18 is the first Story under APO-1 and establishes the original consolidated baseline. The
 strategic rebaseline deliberately reuses the approved APO-1 through APO-17 Epic structure and
-decomposes the approved direction into bounded Stories APO-38 through APO-61. These Stories are
+decomposes the approved direction into bounded Stories APO-38 through APO-63. These Stories are
 roadmap backlog items, not implementation authorization; each still requires a Sol-authored
 TASK.md contract. No competitor-named Epic is created.
 
@@ -695,7 +714,9 @@ TASK.md contract. No competitor-named Epic is created.
 | Explainable quality-first routing | P0 | APO-44 under APO-9 |
 | Bounded execution and isolated workspaces | P0 | APO-45 under APO-11; APO-46 under APO-6 |
 | Jira/Azure DevOps work-item awareness | P0 | APO-47 under APO-7 |
+| Remote SCM / CI evidence | P0 | APO-62 under APO-6 |
 | Evidence-based QA and human delivery gates | P0 | APO-48 under APO-12; APO-49 under APO-14 |
+| Controlled remote source-control delivery | P0 | APO-63 under APO-6 |
 | Mission Control | P0 | APO-50 under APO-15 |
 | Review Inbox and remediation | P1 | APO-51 under APO-13 |
 | Composable skills/workflows | P1 | APO-52 under APO-8 |
@@ -791,6 +812,6 @@ acceptance, and stop conditions.
 
 This BRD is the consolidated APO product and technical baseline. Detailed architecture mapping,
 Jira Story/Task decomposition and execution sequencing remain planner-controlled. The approved
-strategic backlog is now recorded in APO-38 through APO-61, with the dependency order and next
+strategic backlog is now recorded in APO-38 through APO-63, with the dependency order and next
 planning boundary maintained in docs/IMPLEMENTATION_PLAN.md and TASK.md. Roadmap presence is not
 implementation completion.

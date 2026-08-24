@@ -170,8 +170,10 @@ policy, and stop. Do not execute another Story.
 # CURRENT APO CHECKPOINT
 
 APO-37 is merged and Done at main SHA `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`. The strategic
-rebaseline created bounded roadmap Stories APO-38 through APO-61 under the existing APO-1 through
-APO-17 Epics and recorded their dependency order in the BRD and implementation plan. The root
+rebaseline created bounded roadmap Stories APO-38 through APO-63 under the existing APO-1 through
+APO-17 Epics and recorded their dependency order in the BRD and implementation plan. APO-43
+explicitly owns Smart Continue and recovery checkpoints; APO-62 owns read-only remote SCM/CI
+evidence, and APO-63 owns controlled remote delivery. The root
 `TASK.md` is now the Sol planning/acceptance handoff; it does not authorize any new Story. GPT-5.6
 Sol must accept the rebaseline, select exactly one bounded next Story, and issue its complete
 execution contract before any executor begins.

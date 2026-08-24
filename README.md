@@ -19,13 +19,15 @@
   <img src="assets/readme/apo-flow.svg" alt="Animated target orchestration flow from owner to acceptance" width="900" />
 </p>
 
-> APO is a local-first Windows control center for supervising AI-assisted software delivery. It is being built to make project state, model choice, execution evidence, independent review, and human approval visible in one place.
+> APO is a local-first Windows control center for supervising AI-assisted software delivery. It is being built to coordinate the planner, executor, reviewer, Git/GitHub/Azure Repos, Jira/Azure Boards, validation/CI, and owner approval in one place—without replacing the IDE or those platforms.
 
 ## What is AI Project Orchestrator?
 
 AI Project Orchestrator (APO) coordinates the work around software delivery: projects and
 repositories, AI capacity, model and agent access, planner-authored execution contracts, bounded
-execution, validation, independent review, acceptance, and audit history.
+execution, validation, independent review, acceptance, and audit history. The intended experience
+lets the owner supervise the handoff between the planner, the bounded executor, the independent
+reviewer, source control, work tracking, validation/CI, and the final approval gate.
 
 The product is not an AI chat application and does not replace an IDE, GitHub, Jira, or Azure
 DevOps. Its job is to reduce fragile copy/paste handoffs while keeping the owner in charge of
@@ -86,17 +88,41 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | APO-37 read-only local Git repository verification with bounded status evidence, cancellation/project isolation, sanitized remotes, and explicit unavailable states |
 | :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-37 (with SOL-37-01..05 remediation) validation is 70 Desktop tests, 172 Infrastructure tests, and 326 full-suite tests, all passing |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
-| :construction: In progress / planned | GitHub remote operations and Jira/Azure DevOps awareness; APO-37 is local-only and performs no network validation or Git writes |
+| :construction: Planned / bounded future | Local Git evidence is partially implemented through APO-37; provider-independent GitHub/Azure Repos remote evidence (APO-62), Jira/Azure DevOps awareness, and controlled delivery (APO-63) remain unimplemented |
 | :construction: Planned | Agent/model registry, quality-first routing, planner contracts, bounded execution, evidence gates, review/remediation, and human approval services |
 | :compass: Strategic roadmap | Mission Control, Smart Continue, recovery, dependency-aware work, isolated workspaces, decision ledger, project health, skills, bounded automation, and optional remote approval design |
 
 Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries, the
-autonomous runtime, routing, tracker automation, GitHub remote operations, the review/acceptance
-engines, and the full APO-15 dashboard. The strategic control-plane capabilities are planned and
-decomposed in Jira APO-38 through APO-61; they are not shipped by this repository state. APO-37
+autonomous runtime, routing, tracker automation, remote SCM evidence, controlled remote delivery,
+the review/acceptance engines, and the full APO-15 dashboard. The strategic control-plane
+capabilities are planned and decomposed in Jira APO-38 through APO-63; they are not shipped by this
+repository state. APO-37
 verifies a selected registered local path only when the owner clicks Verify repository; it does not
 inspect file contents, use credentials, contact a remote service, or perform Git writes. APO does
 not fabricate provider numbers or claim CI status before the relevant Story is delivered.
+
+## Smart Continue and integration boundaries
+
+The planned Smart Continue experience lets an owner say `Continue project`. APO would then resolve
+the project's durable canonical checkpoint—current work, contract version, dependency state,
+selected roles, repository/tracker evidence, validation, review, approval, blockers, and next safe
+action—rather than treating old chat history as fresh evidence. It is not implemented in the
+current repository state and must require fresh Git, tracker, approval, and validation evidence
+when the checkpoint is stale or incomplete.
+
+The roadmap keeps source-control responsibilities distinct:
+
+- **Local Git — APO-37:** implemented read-only verification of a configured local repository and
+  its bounded worktree evidence. It performs no remote request and no Git write.
+- **Remote SCM evidence — APO-62:** planned provider-independent, read-only evidence from official
+  GitHub and Azure Repos integration paths for repository identity, branches/commits, pull requests,
+  reviews, checks, and CI/workflow state where exposed.
+- **Controlled delivery — APO-63:** planned, separately gated remote write operations bound to exact
+  immutable targets, current validation evidence, applicable approval policy, and audit identity.
+
+APO-33 remains the repository-owned GitHub Actions build/test/release Story. A model CLI, missing
+remote evidence, or a local branch state must not be presented as proof of remote health, CI
+success, synchronization, or delivery completion.
 
 ## WPF shell preview
 
@@ -188,6 +214,7 @@ AI-Project-Orchestrator/
 |   |-- BRD.md
 |   |-- IMPLEMENTATION_PLAN.md
 |   |-- LEGACY_IMPLEMENTATION_MAP.md
+|   |-- STRATEGIC_ROADMAP.md
 |   `-- SESSION_PROMPTS.md
 |-- src/
 |   |-- AIUsageMonitor.Desktop/
@@ -232,6 +259,7 @@ be treated as evidence only after the command completes successfully on the curr
 
 - [Business Requirements Document](docs/BRD.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
+- [Strategic Orchestration Roadmap](docs/STRATEGIC_ROADMAP.md)
 - [Legacy Implementation Map](docs/LEGACY_IMPLEMENTATION_MAP.md)
 - [Session Prompt Library](docs/SESSION_PROMPTS.md)
 - [Execution Contract and Sol Checkpoint](AGENTS.md)
@@ -240,14 +268,16 @@ be treated as evidence only after the command completes successfully on the curr
 
 ## Roadmap
 
-The roadmap follows the approved APO Epics and the strategic P0/P1/P2/P3 backlog in Jira:
+The roadmap follows the approved APO Epics and the strategic P0/P1/P2/P3 backlog in Jira. These
+are planned capability boundaries, not shipped runtime claims:
 
-1. **P0 foundations — APO-38..43:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, and recoverable context.
-2. **P0 execution — APO-44..49:** quality-first routing, bounded execution, isolated workspaces, tracker evidence, QA gates, and human approval.
-3. **P0 command center — APO-50:** one evidence-backed Mission Control surface.
-4. **P1 acceleration — APO-51..56:** Review Inbox, composable workflows, project health, decision ledger, runtime evidence, and context budgets.
-5. **P2 controlled expansion — APO-57..58:** bounded background housekeeping and optional remote approval security design.
-6. **P3 accepted debt — APO-59..61:** APO-37 evidence bounds, verification UX truthfulness, and explicit real-Git availability semantics.
+1. **P0 control plane — APO-38..43:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, and Smart Continue/recovery.
+2. **P0 bounded execution — APO-44..47:** quality-first routing, bounded execution, isolated workspaces, and tracker evidence.
+3. **P0 source-control/tracker/evidence — APO-62, APO-48, APO-49, APO-63:** read-only remote SCM/CI evidence, independent QA evidence, human approval policy, and controlled remote delivery.
+4. **P0 Mission Control — APO-50:** one evidence-backed command-center read model and surface.
+5. **P1 acceleration — APO-51..56:** Review Inbox, composable workflows, project health, decision ledger, runtime evidence, and context budgets.
+6. **P2 controlled expansion — APO-57..58:** bounded background housekeeping and optional remote approval security design.
+7. **P3 accepted hardening — APO-59..61:** APO-37 evidence bounds, verification UX truthfulness, and explicit real-Git availability semantics.
 
 APO-33 remains the existing CI/release Story under APO-17. Existing APO-27, APO-35, APO-36, and
 APO-37 work is implemented evidence, not a claim that the full orchestration runtime exists.
