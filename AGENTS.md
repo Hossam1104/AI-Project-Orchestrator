@@ -425,3 +425,31 @@ project isolation, human approval gates, and self-contained release evidence whe
 The core product standard is trust: an individual should be able to glance at APO and decide which
 paid AI service or model has sufficient remaining capacity and which project work can safely
 continue. Accuracy, evidence, and explicit uncertainty outrank visual symmetry.
+
+---
+
+# 16. Permanent Runtime-Left-Running Contract
+
+Established by the APO-37 SOL-37-01..05 remediation (Prompt 4/5). This rule is permanent and
+applies to every future local prompt in this repository — implementation, remediation, review,
+merge, or planning — that has access to this local machine, regardless of which model or role is
+executing.
+
+After completing the assigned work for such a prompt:
+
+1. Detect any already-running APO instance before touching processes; stop an existing instance
+   only if it actually blocks the required rebuild/publish, never otherwise.
+2. Publish and run the current build (self-contained `win-x64` single-file unless the assigned work
+   explicitly requires a different target).
+3. Verify the process is alive, the main window title and shell state are normal/non-degraded, and
+   the application is genuinely usable (not just process-alive).
+4. Do **not** stop the application after a short smoke check. Leave it running when the prompt
+   ends.
+5. Report the executable path, process ID, window title, normal-or-degraded state, and the literal
+   line `LEFT RUNNING = YES` in the completion report.
+6. Never create a duplicate/orphaned process: reuse or replace an existing instance rather than
+   stacking a second one.
+7. If the environment explicitly requires the application stopped, or startup is unsafe/impossible,
+   state the exact blocker truthfully instead of fabricating `LEFT RUNNING = YES`.
+
+---

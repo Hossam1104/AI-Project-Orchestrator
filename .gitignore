@@ -5,6 +5,7 @@
 [Ll]og/
 [Ll]ogs/
 artifacts/
+publish/
 
 # Visual Studio
 .vs/

@@ -19,16 +19,150 @@
 **APO-35 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
 **APO-36:** COMPLETE / SOL ACCEPTED / MERGED / DONE
 **APO-36 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
+**APO-37:** IN PROGRESS / EXECUTOR IMPLEMENTATION BOUNDARY
 **APO-5:** IN PROGRESS
 **APO-4:** IN PROGRESS
+**APO-6:** IN PROGRESS
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-35 + APO-36 merged and finalized; next action is GPT-5.6 Sol planning handoff.
-**Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
-**Status:** APO-35 (First Usable Projects Workspace) and APO-36 (AiCapacityViewModel DI constructor ambiguity fix) are Sol-accepted and squash-merged into `main` via PR #6 at merge commit `beab8072551a84aad60df7744135c74c75e51acb`. Full suite validation is 225/225 passing. Claude Opus Prompt 5/5 review was completed, OPUS-01..OPUS-04 findings were remediated and Sol-accepted (Jira comment 11847), and OPUS-05..OPUS-08 are deferred as P3. APO-35 and APO-36 are transitioned to Done in Jira. Parent Epics APO-5 and APO-4 remain In Progress.
-**Next implementation:** GPT-5.6 Sol planning handoff from merged main baseline to select and define the next bounded Story.
-**Release state:** APO-35 and APO-36 are merged into `main`; the Projects workspace provides a non-degraded, user-facing registry with search, filtering, lifecycle management, and truthful local persistence. Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
+**Current Story:** APO-37 - Implement Read-Only Local Git Repository Verification in Projects.
+**Current Epic:** APO-6 - Git & GitHub Integration (In Progress)
+**Status:** APO-35 and APO-36 remain Sol-accepted, merged, and Done. APO-37 has completed a Sol-directed bounded remediation (SOL-37-01..05, Sol comment 11851) on the executor branch, with full solution coverage now at 320/320 passing; Jira APO-37 and parent APO-6 remain In Progress pending Sol delta acceptance. This is Prompt 4/5 of the current Opus cadence — no Claude Opus review was performed.
+**Next implementation:** GPT-5.6 Sol delta acceptance of the exact final pushed APO-37 remediation SHA; if accepted, the following checkpoint is Prompt 5/5 Claude Opus independent review. No downstream Story work was started.
+**Release state:** APO-37 adds explicit, manual, read-only local repository verification. GitHub remote operations, tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
+
+## -5. APO-37 SOL-37-01..05 Bounded Correctness Remediation (Prompt 4/5)
+
+**Sol review comment:** `11851`
+
+**Pre-remediation feature HEAD:** `7119145b633e9486b255786e66d78fde10ae47c0`
+
+**Required main base (unchanged):** `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e`
+
+**Branch:** `feat/APO-37-local-git-verification` (Draft PR #7, reused, still OPEN/DRAFT/UNMERGED)
+
+**Functional remediation SHA:** `1a659bb7003d89af2f517dc44e477d08c126bbd6`
+
+This remediation fixes five bounded correctness defects identified by Sol review comment 11851
+against the APO-37 read-only local Git inspector, without expanding scope, adding GitHub API/Git
+write capability, or touching accepted APO-37 UI/workflow behavior:
+
+- **SOL-37-01 (rename token order + status flags):** `GitLocalRepositoryInspector`'s porcelain `-z`
+  parser previously reversed Git's real rename record order. Git emits `new\0old\0`; the parser now
+  reads the token immediately following the change record as the *original* path, publishing the
+  new name as `RelativePath` and the old name as `OriginalRelativePath`. Verified against a real
+  `git mv` in a disposable temp repository (`RealGitRepositoryIntegrationTests`), not only against
+  scripted fixtures. Status-flag interpretation was also corrected so a conflicted/unmerged entry
+  (`UU`, `AA`, `DD`, `AU`, `UA`, `DU`, `UD`) is classified as `Conflicted` only and never also as an
+  ordinary staged/modified/deleted change.
+- **SOL-37-02 (remote URL sanitizer hardening):** `RepositoryUrlSanitizer` now strips query-string-
+  and fragment-like suffixes from SCP-style remotes (`user@host:path?token=...`,
+  `user@host:path#...`) in addition to the pre-existing absolute-URI userinfo/query/fragment
+  stripping, and removes CR/LF/control-character injection from any untrusted remote string before
+  display so a hostile remote value can never fabricate extra UI/log lines. The 512-character bound
+  is preserved.
+- **SOL-37-03 (async bounded path probe):** the inspector's pre-Git-invocation path check is now the
+  new Infrastructure-only `ILocalPathProbe`/`SystemLocalPathProbe` seam instead of a synchronous
+  `Directory.Exists`/`File.Exists` call on the calling thread. The underlying OS filesystem attribute
+  lookup is not reliably cancellable (a UNC/offline path can block indefinitely), so the probe runs
+  on a background thread with a 4-second deterministic bound; `Missing` and `Unavailable` are
+  distinct, truthful outcomes, and Git is never invoked once the path state already rules out
+  inspection.
+- **SOL-37-04 (strictly bounded process timeout):** `SystemGitCommandRunner` previously fell back to
+  an unbounded `AwaitOutputAsync` after a failed `KillProcessTree`. The new `BoundedProcessWait`
+  helper guarantees `RunAsync` returns within a short post-kill drain bound (default 2s) even if
+  `Kill` throws, the process ignores termination, or stdout/stderr never reach EOF; no raw partial
+  output ever reaches the caller. The production default remains a 10-second per-command timeout;
+  `UseShellExecute=false`, `ArgumentList`, `GIT_TERMINAL_PROMPT=0`, and `GIT_OPTIONAL_LOCKS=0` are
+  preserved, and `LC_ALL=C`/`LANG=C` were added for deterministic Git error-text classification.
+- **SOL-37-05 (truthful Git exit-code classification):** a nonzero Git exit is no longer classified
+  identically regardless of cause. `NotGitRepository` requires the documented "not a git repository"
+  fatal text; detached HEAD requires the documented exit status for `symbolic-ref --quiet --short
+  HEAD`; unborn HEAD requires the documented "no commits yet"-family fatal text for `rev-parse
+  --verify HEAD`. Any other nonzero exit — permission failure, the Git process disappearing mid-
+  command, an unexpected fatal error — becomes a bounded `Failed`/`GitUnavailable` result through a
+  shared `CommonFailure`/timeout/cancelled/could-not-start check applied before command-specific
+  interpretation, so a mid-command process failure can never be fabricated into a semantic repository
+  state (e.g. "Git disappeared halfway" no longer reads as a detached HEAD). Raw stderr never reaches
+  Application/Desktop state.
+
+**New test coverage:** full solution now passes **320/320** (was 255/255): Domain 28, Provider 46,
+Connection 10, Desktop 70, Infrastructure 166 (was 101). The added 65 Infrastructure tests cover the
+porcelain rename/status regression, ordinary-vs-conflict status-flag truthfulness, the path-probe
+seam (available/missing/not-a-directory/unavailable/timeout/cancellation), the bounded process-wait
+helper (kill-throws, hung-streams, cancellation), the real `SystemGitCommandRunner` timeout/
+cancellation path against a real OS process, the `RepositoryUrlSanitizer` hardening (HTTPS and
+SCP-style userinfo/query/fragment/CR-LF/control-character/max-length cases), and the Git exit-
+classification truthfulness cases (`Root_NotRepository_IsNotGitRepository`,
+`Root_PermissionOrUnexpectedFailure_IsNotNotGitRepository`,
+`SymbolicRef_ExpectedNonSymbolicExit_IsDetached`, `SymbolicRef_UnexpectedFailure_IsFailed`,
+`Head_AbsentInValidUnbornRepository_HasNoSha`, `GitDisappearsAfterVersion_DoesNotFabricateRepositoryState`,
+`UnexpectedUpstreamFailure_DoesNotCreateFakeUpstream`), plus a real-Git integration suite
+(`RealGitRepositoryIntegrationTests`) against a disposable temp repository proving clean/dirty/
+staged/untracked/renamed/unborn states end-to-end.
+
+**Validation at this checkpoint:** `dotnet restore` succeeded; `dotnet build --no-restore` is 0
+warnings/0 errors; `dotnet test --no-restore` is 320/320 passing; `git diff --check` is clean; a
+targeted secret scan of the changed lines found no leaked credentials (all `token`/`secret` matches
+are intentional sanitizer test fixtures or `CancellationToken` identifiers). The `win-x64`
+self-contained single-file publish succeeded and the published executable was launched and left
+running (see the executor completion report for PID/path/window-title evidence). No owner project
+registry or repository was touched; all Git write commands used in validation ran only against a
+disposable temp repository that was removed afterward.
+
+**Permanent governance addition:** `AGENTS.md` section 16 ("Permanent Runtime-Left-Running
+Contract") now requires every future local prompt with repository access to publish/run the current
+build and leave it running (not stop it after a short smoke check), reporting
+`LEFT RUNNING = YES` with executable path/PID/window title/state, unless the environment explicitly
+requires otherwise.
+
+**Preflight/postflight invariants held throughout:** local feature HEAD matched origin feature HEAD
+matched the required starting SHA before work began; `origin/main` remained
+`8a81017b25fe0cfd8efcd4febafd66a1bee6c41e` throughout; PR #7 remained OPEN/DRAFT with
+`baseRefName=main` and `mergeable=MERGEABLE`. No rebase, merge-main, force-push, or replacement PR
+was performed.
+
+## -4. APO-37 Read-Only Local Git Repository Verification (Prompt 3/5)
+
+**Exact starting main SHA:** `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e`
+
+**Branch:** `feat/APO-37-local-git-verification`
+
+**Functional implementation SHA:** `3fa4791641e13383cca3ac36ef4e632045bf2704`
+
+**Documentation / handoff SHA:** `e30581d36bd9273dfc7477287c8f16ce1bd33eb7`
+
+**Draft PR:** [#7](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/7), OPEN / DRAFT / UNMERGED.
+
+APO-37 adds `RepositoryVerificationStatus`, bounded changed-file/remote models,
+`ILocalRepositoryInspector`, `IProjectRepositoryStateService`, and the project-aware
+`ProjectRepositoryStateService` in Application. Infrastructure owns `SystemGitCommandRunner` and
+`GitLocalRepositoryInspector`; the runner uses `UseShellExecute=false`, `ArgumentList`,
+`GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, asynchronous cancellation, and a ten-second
+per-command timeout. Only local read-only Git commands are allowed, and remote URL userinfo/query
+material is removed before publication. Porcelain-v1 NUL status parsing preserves staged,
+modified, deleted, renamed, untracked, and conflicted evidence with a deterministic 100-entry
+bound and truthful total/truncation fields.
+
+ProjectsViewModel exposes explicit Verify repository and Refresh repository state commands. It
+starts at Not inspected for every selected project, resets after a successful edit or registry
+refresh, cancels on selection change, and checks both request generation and selected ProjectId
+before publishing a result. WPF does not execute processes or parse Git output. The detail card
+shows only known local values and never labels a remote connected, synced, healthy, or reachable.
+
+**Project lifecycle documentation correction:** the accepted values are Active, Paused, Blocked,
+Archived; filter choices are All, Active, Paused, Blocked, Archived. Draft and Completed are not
+ProjectStatus values.
+
+**Validation at this checkpoint:** restore succeeded; full solution tests 255/255 passing: Domain
+28, Provider 46, Infrastructure 101, Connection 10, Desktop 70; build is 0 warnings / 0 errors;
+the `win-x64` self-contained single-file publish succeeded; the published executable remained alive
+through a five-second startup smoke; a temporary sanitized repository produced dirty-state and
+sanitized-remote evidence; and `git diff --check` is clean. No owner project registry or repository
+was modified. The branch was pushed, PR #7 is OPEN / DRAFT / UNMERGED, and Jira completion comment
+`11849` was posted without a status transition. The final metadata synchronization SHA is recorded
+in the executor completion report.
 
 ## -3. APO-35 First Usable Projects Workspace
 
@@ -1614,3 +1748,100 @@ is transitioned to Done. Parent Epic APO-3 remains In Progress.
 APO-27 is complete, merged, and Done in Jira. The completed Claude Opus review satisfied the
 APO-27 independent review checkpoint (Prompt 2/5 cadence). The next action is GPT-5.6 Sol planning
 and decomposition of the first usable Projects workspace Story under Epic APO-5.
+
+## 13.4 APO-37 SOL-37-03b Global Path-Probe Correction (Prompt 4/5)
+
+**Lifecycle:** APO-37 SOL-37-03b bounded correction -> functional implementation -> full
+validation -> executor handoff to GPT-5.6 Sol. Claude Sonnet and Claude Opus were not invoked.
+
+### Exact delivery identity
+
+| Item | Value |
+|---|---|
+| Story / Epic | APO-37 / APO-6 |
+| Exact main base | `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e` |
+| Pre-correction branch head | `accdf8e745a79327809cbf154c6e2e486726e474` |
+| Functional correction SHA | `10aa9529066f94be06808223a90c95a2415ba8b9` |
+| Branch | `feat/APO-37-local-git-verification` |
+| Draft PR | #7, OPEN / DRAFT / UNMERGED |
+| Sol comments | `11851`, `11854` |
+| Jira status | APO-37 In Progress; APO-6 In Progress |
+| Final branch SHA | Recorded in the final executor completion report after documentation synchronization |
+
+### SOL-37-03b correction
+
+`SystemLocalPathProbe` now coordinates all unresolved system path probes through one process-wide
+thread-safe in-flight slot. The caller still waits only up to the configured four-second bound.
+Caller timeout and cancellation return control without canceling or evicting the underlying
+uncancellable filesystem operation. Same-path callers share the active task; a different path
+gets bounded `Unavailable`/`TimedOut` and never receives the first path's result. Completion is
+observed, exceptions are consumed safely, the slot is cleared only after the actual task finishes,
+and later verification can start one fresh probe.
+
+The maximum unresolved underlying operating-system filesystem probes is therefore **1 globally**.
+No Application contract or Git inspector behavior was redesigned, and Git still runs only after
+`AvailableDirectory`.
+
+### Regression coverage
+
+Six deterministic `LocalPathProbeTests` regressions cover repeated timeouts, concurrent callers,
+cancellation, restart after completion, different-path isolation, and exception cleanup. Existing
+available-directory, missing, not-a-directory, unavailable, timeout, cancellation, and
+Git-suppression tests remain passing. The real Git integration tests are serialized with these
+tests because the production coordinator is intentionally process-global.
+
+### Validation evidence
+
+| Check | Result |
+|---|---|
+| Focused Infrastructure tests | 172 passed, 0 failed, 0 skipped |
+| Focused Desktop tests | 70 passed, 0 failed, 0 skipped |
+| Full solution tests | 326 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 172 Infrastructure, 10 Connection, 70 Desktop) |
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| `git diff --check` | SUCCESS |
+| Targeted added-line secret scan | SUCCESS; no real credentials found |
+| `win-x64` self-contained single-file publish | SUCCESS |
+
+### Runtime evidence
+
+The final published executable is running at:
+
+- ExecutablePath: `D:\AI Tools\Hossam\AI-Project-Orchestrator\publish\win-x64\AIUsageMonitor.Desktop.exe`
+- PID: `45940`
+- WindowTitle: `AI Project Orchestrator`
+- NormalState: non-degraded shell; accessibility inspection reported `CAPACITY READY` and exposed
+  the Projects navigation control. The Windows desktop was locked during the final UI automation
+  attempt, so direct Projects navigation was not performed; no degraded shell state was observed.
+- LEFT RUNNING = YES
+
+### Delivery boundary
+
+Work item: APO-37 SOL-37-03b
+Status: COMPLETE at executor boundary / awaiting GPT-5.6 Sol final Prompt-4 delta acceptance
+
+Implemented:
+- Global single-unresolved-probe coordination with path isolation, cancellation safety, completion
+  eviction, exception observation, and restart-after-completion behavior.
+- Six deterministic regression tests and serialized real-probe test collection coverage.
+
+Validated:
+- 326 / 326 full-suite tests passed; 0 failed; 0 skipped.
+- Build succeeded with 0 warnings and 0 errors.
+- Self-contained single-file win-x64 publish succeeded.
+- Final executable is alive and left running.
+
+Not validated:
+- Claude Opus independent review; this is the next Prompt 5/5 gate if Sol accepts.
+- Direct Projects navigation through UI automation because the Windows desktop was locked during
+  the final check.
+
+Blockers / limitations:
+- No functional blocker. Runtime UI interaction was limited by the locked desktop; process title,
+  responsive state, non-degraded accessibility tree, and Projects navigation control were observed.
+
+CURRENT_STATE updated: Yes
+
+Next planner boundary:
+- GPT-5.6 Sol final Prompt-4 delta acceptance for the pushed correction.
+- If accepted, Prompt 5/5 Claude Opus independent review.

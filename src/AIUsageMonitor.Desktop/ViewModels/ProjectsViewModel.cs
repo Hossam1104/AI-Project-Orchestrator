@@ -11,6 +11,9 @@ namespace AIUsageMonitor.Desktop.ViewModels;
 public sealed class ProjectsViewModel : ObservableObject
 {
     private readonly IProjectRegistryService? _registryService;
+    private readonly IProjectRepositoryStateService? _repositoryStateService;
+    private CancellationTokenSource? _repositoryVerificationCancellation;
+    private long _repositoryVerificationGeneration;
     private Guid? _editingProjectId;
     private bool _isStorageAvailable;
     private bool _hasLoadedSuccessfully;
@@ -37,24 +40,36 @@ public sealed class ProjectsViewModel : ObservableObject
     private string _editorGovernanceReferencesText = string.Empty;
     private string _editorRoutingPolicyReference = string.Empty;
     private string _editorSafetyPolicyReference = string.Empty;
+    private RepositoryStateSnapshot? _repositoryState;
+    private bool _isVerifying;
 
     public ProjectsViewModel()
-        : this(null)
+        : this(null, null)
     {
     }
 
     public ProjectsViewModel(IProjectRegistryService? registryService)
+        : this(registryService, null)
+    {
+    }
+
+    public ProjectsViewModel(
+        IProjectRegistryService? registryService,
+        IProjectRepositoryStateService? repositoryStateService)
     {
         _registryService = registryService;
+        _repositoryStateService = repositoryStateService;
         _isStorageAvailable = registryService is not null;
 
         RefreshCommand = new AsyncCommand(
             () => RefreshAsync(),
-            () => _registryService is not null && !IsSaving && !IsLoading && !IsEditing);
+            () => _registryService is not null && !IsSaving && !IsLoading && !IsEditing && !IsVerifying);
         NewProjectCommand = new RelayCommand(NewProject, CanInteractWithRegistry);
         EditProjectCommand = new RelayCommand(EditSelectedProject, CanEditSelectedProject);
         SaveProjectCommand = new AsyncCommand(SaveAsync, CanSaveProject);
         CancelEditCommand = new RelayCommand(CancelEdit, () => IsEditing && !IsSaving);
+        VerifyRepositoryCommand = new AsyncCommand(VerifyRepositoryAsync, CanVerifyRepository);
+        RefreshRepositoryStateCommand = new AsyncCommand(VerifyRepositoryAsync, CanVerifyRepository);
     }
 
     public ObservableCollection<Project> Projects { get; } = [];
@@ -76,6 +91,10 @@ public sealed class ProjectsViewModel : ObservableObject
     public AsyncCommand SaveProjectCommand { get; }
 
     public RelayCommand CancelEditCommand { get; }
+
+    public AsyncCommand VerifyRepositoryCommand { get; }
+
+    public AsyncCommand RefreshRepositoryStateCommand { get; }
 
     public string SearchText
     {
@@ -106,6 +125,7 @@ public sealed class ProjectsViewModel : ObservableObject
         get => _selectedProjectCard;
         set
         {
+            var previousProjectId = _selectedProject?.Id;
             if (!SetProperty(ref _selectedProjectCard, value))
             {
                 return;
@@ -115,8 +135,13 @@ public sealed class ProjectsViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedProject));
             OnPropertyChanged(nameof(HasSelectedProject));
             OnPropertyChanged(nameof(SelectedGovernanceReferencesDisplay));
+            OnPropertyChanged(nameof(SelectedRepositoryUrlDisplay));
             OnPropertyChanged(nameof(SelectedCreatedAtText));
             OnPropertyChanged(nameof(SelectedUpdatedAtText));
+            if (previousProjectId != _selectedProject?.Id)
+            {
+                ResetRepositoryState();
+            }
             EditProjectCommand.NotifyCanExecuteChanged();
         }
     }
@@ -256,6 +281,115 @@ public sealed class ProjectsViewModel : ObservableObject
 
     public bool IsRegistryInteractionEnabled => !IsEditing && !IsSaving && !IsLoading;
 
+    public bool IsVerifying
+    {
+        get => _isVerifying;
+        private set
+        {
+            if (SetProperty(ref _isVerifying, value))
+            {
+                OnRepositoryStateChanged();
+                OnWorkspaceStateChanged();
+            }
+        }
+    }
+
+    public RepositoryStateSnapshot? RepositoryState => _repositoryState;
+
+    public RepositoryVerificationStatus RepositoryVerificationStatus =>
+        RepositoryState?.Status ?? RepositoryVerificationStatus.NotInspected;
+
+    public bool HasRepositoryState => RepositoryState is not null;
+
+    public bool ShowRepositoryStateDetails =>
+        !IsVerifying && RepositoryState?.Status is
+            RepositoryVerificationStatus.AvailableClean or RepositoryVerificationStatus.AvailableDirty;
+
+    public bool ShowChangedFiles => ShowRepositoryStateDetails && RepositoryState?.ChangedFileTotal > 0;
+
+    public IReadOnlyList<RepositoryChangedFile> ChangedFiles =>
+        RepositoryState?.ChangedFiles ?? Array.Empty<RepositoryChangedFile>();
+
+    public bool HasRepositoryRemotes => RepositoryState?.Remotes.Count > 0;
+
+    public string ChangedFilesSummaryText
+    {
+        get
+        {
+            if (RepositoryState is null)
+            {
+                return "Not inspected";
+            }
+
+            if (RepositoryState.ChangedFileTotal == 0)
+            {
+                return "No changed files";
+            }
+
+            return RepositoryState.ChangedFilesTruncated
+                ? $"{RepositoryState.ChangedFileTotal.ToString(CultureInfo.InvariantCulture)} changes (showing first {RepositoryState.ChangedFiles.Count.ToString(CultureInfo.InvariantCulture)})"
+                : $"{RepositoryState.ChangedFileTotal.ToString(CultureInfo.InvariantCulture)} change{(RepositoryState.ChangedFileTotal == 1 ? string.Empty : "s")}";
+        }
+    }
+
+    public string RepositoryVerificationStatusText => IsVerifying
+        ? "Verifying repository…"
+        : RepositoryState?.Status switch
+        {
+            null or RepositoryVerificationStatus.NotInspected => "Not inspected",
+            RepositoryVerificationStatus.PathMissing => "Local path missing",
+            RepositoryVerificationStatus.PathUnavailable => "Local path unavailable",
+            RepositoryVerificationStatus.GitUnavailable => "Git unavailable",
+            RepositoryVerificationStatus.NotGitRepository => "Not a Git repository",
+            RepositoryVerificationStatus.AvailableClean => "Repository verified — clean",
+            RepositoryVerificationStatus.AvailableDirty => "Repository verified — changes present",
+            RepositoryVerificationStatus.Failed => "Repository verification failed",
+            _ => "Repository verification failed"
+        };
+
+    public string RepositoryRootText => RepositoryState?.RepositoryRoot ?? "Not available";
+
+    public string RepositoryRootRelationshipText => RepositoryState?.LocalPathIsRepositoryRoot switch
+    {
+        true => "Registered path is the repository root",
+        false => "Registered path is inside the repository root",
+        _ => "Not available"
+    };
+
+    public string RepositoryBranchText => RepositoryState is { IsDetachedHead: true }
+        ? "Detached HEAD"
+        : RepositoryState?.BranchName ?? "Not available";
+
+    public string RepositoryHeadText => RepositoryState?.HeadSha
+        ?? (RepositoryState is { Status: RepositoryVerificationStatus.AvailableClean or RepositoryVerificationStatus.AvailableDirty }
+            ? "Not created yet (unborn repository)"
+            : "Not available");
+
+    public string RepositoryUpstreamText => RepositoryState?.UpstreamBranch ?? "Not available";
+
+    public string RepositoryWorkingTreeText => RepositoryState?.IsClean switch
+    {
+        true => "Working tree clean",
+        false => "Working tree has changes",
+        _ => "Not available"
+    };
+
+    public string RepositoryRemoteComparisonText => RepositoryState?.RemoteComparison switch
+    {
+        RepositoryRemoteComparison.NotConfigured => "Not configured",
+        RepositoryRemoteComparison.NoLocalRemote => "No local remote",
+        RepositoryRemoteComparison.Match => "Registered URL matches local configuration",
+        RepositoryRemoteComparison.Different => "Local remote differs from registered URL",
+        RepositoryRemoteComparison.ComparisonUnavailable => "Comparison unavailable",
+        _ => "Not inspected"
+    };
+
+    public string? RepositoryVerificationErrorText => RepositoryState?.SafeErrorMessage;
+
+    public string RepositoryCapturedAtText => RepositoryState is null
+        ? "Not inspected"
+        : RepositoryState.CapturedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt", CultureInfo.CurrentCulture);
+
     public string SavingStateText => IsSaving ? "Saving project…" : string.Empty;
 
     public string EditorTitle => IsCreating ? "Register a project" : "Edit project";
@@ -265,6 +399,8 @@ public sealed class ProjectsViewModel : ObservableObject
         : SelectedProject.GovernanceReferences.Count == 0
             ? "Not configured"
             : string.Join(Environment.NewLine, SelectedProject.GovernanceReferences);
+
+    public string SelectedRepositoryUrlDisplay => RepositoryUrlSanitizer.Sanitize(SelectedProject?.RepositoryUrl);
 
     public string SelectedCreatedAtText => FormatDate(SelectedProject?.CreatedAt);
 
@@ -392,6 +528,7 @@ public sealed class ProjectsViewModel : ObservableObject
 
             _hasLoadedSuccessfully = true;
             IsStorageAvailable = true;
+            ResetRepositoryState();
             ApplyFilter();
             if (SelectedProjectCard is null && FilteredProjects.Count > 0)
             {
@@ -423,6 +560,65 @@ public sealed class ProjectsViewModel : ObservableObject
         if (card is not null)
         {
             SelectedProjectCard = card;
+        }
+    }
+
+    public async Task VerifyRepositoryAsync()
+    {
+        if (!CanVerifyRepository())
+        {
+            return;
+        }
+
+        var project = SelectedProject!;
+        var projectId = project.Id;
+        var generation = ++_repositoryVerificationGeneration;
+        var cancellation = new CancellationTokenSource();
+        _repositoryVerificationCancellation = cancellation;
+        IsVerifying = true;
+
+        try
+        {
+            var result = await _repositoryStateService!
+                .VerifyAsync(project, cancellation.Token)
+                .ConfigureAwait(true);
+
+            if (generation == _repositoryVerificationGeneration &&
+                SelectedProject?.Id == projectId &&
+                !cancellation.IsCancellationRequested)
+            {
+                _repositoryState = result;
+                OnRepositoryStateChanged();
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // Selection-change cancellation is an expected lifecycle event, not a failure for the
+            // newly selected project.
+        }
+        catch
+        {
+            if (generation == _repositoryVerificationGeneration && SelectedProject?.Id == projectId)
+            {
+                _repositoryState = new RepositoryStateSnapshot(
+                    projectId,
+                    project.LocalPath,
+                    new LocalRepositoryInspection(
+                        RepositoryVerificationStatus.Failed,
+                        project.LocalPath,
+                        safeErrorMessage: "Repository verification could not be completed."));
+                OnRepositoryStateChanged();
+            }
+        }
+        finally
+        {
+            if (generation == _repositoryVerificationGeneration)
+            {
+                IsVerifying = false;
+                _repositoryVerificationCancellation = null;
+            }
+
+            cancellation.Dispose();
         }
     }
 
@@ -497,6 +693,7 @@ public sealed class ProjectsViewModel : ObservableObject
                 : await _registryService.UpdateProjectAsync(targetProjectId!.Value, edit).ConfigureAwait(true);
 
             ReplaceProject(saved);
+            ResetRepositoryState();
             IsCreating = false;
             IsEditing = false;
             _editingProjectId = null;
@@ -533,6 +730,25 @@ public sealed class ProjectsViewModel : ObservableObject
         IsEditing = false;
         ValidationMessage = null;
         ErrorMessage = null;
+    }
+
+    private void ResetRepositoryState()
+    {
+        _repositoryVerificationGeneration++;
+        _repositoryVerificationCancellation?.Cancel();
+        _repositoryVerificationCancellation?.Dispose();
+        _repositoryVerificationCancellation = null;
+        IsVerifying = false;
+
+        if (_repositoryState is not null)
+        {
+            _repositoryState = null;
+            OnRepositoryStateChanged();
+        }
+        else
+        {
+            OnRepositoryStateChanged();
+        }
     }
 
     private void ReplaceProject(Project saved)
@@ -655,7 +871,8 @@ public sealed class ProjectsViewModel : ObservableObject
         IsStorageAvailable &&
         _hasLoadedSuccessfully &&
         !IsLoading &&
-        !IsSaving;
+        !IsSaving &&
+        !IsVerifying;
 
     private bool CanEditSelectedProject() => CanEditWorkspace() && SelectedProject is not null;
 
@@ -663,6 +880,16 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private bool CanSaveProject() =>
         CanEditWorkspace() && IsEditing && !IsSaving;
+
+    private bool CanVerifyRepository() =>
+        _repositoryStateService is not null &&
+        SelectedProject is not null &&
+        IsStorageAvailable &&
+        _hasLoadedSuccessfully &&
+        !IsLoading &&
+        !IsSaving &&
+        !IsEditing &&
+        !IsVerifying;
 
     private void ClearEditor()
     {
@@ -706,6 +933,32 @@ public sealed class ProjectsViewModel : ObservableObject
         EditProjectCommand.NotifyCanExecuteChanged();
         SaveProjectCommand.NotifyCanExecuteChanged();
         CancelEditCommand.NotifyCanExecuteChanged();
+        VerifyRepositoryCommand.NotifyCanExecuteChanged();
+        RefreshRepositoryStateCommand.NotifyCanExecuteChanged();
+    }
+
+    private void OnRepositoryStateChanged()
+    {
+        OnPropertyChanged(nameof(RepositoryState));
+        OnPropertyChanged(nameof(RepositoryVerificationStatus));
+        OnPropertyChanged(nameof(HasRepositoryState));
+        OnPropertyChanged(nameof(ShowRepositoryStateDetails));
+        OnPropertyChanged(nameof(ShowChangedFiles));
+        OnPropertyChanged(nameof(ChangedFiles));
+        OnPropertyChanged(nameof(HasRepositoryRemotes));
+        OnPropertyChanged(nameof(ChangedFilesSummaryText));
+        OnPropertyChanged(nameof(RepositoryVerificationStatusText));
+        OnPropertyChanged(nameof(RepositoryRootText));
+        OnPropertyChanged(nameof(RepositoryRootRelationshipText));
+        OnPropertyChanged(nameof(RepositoryBranchText));
+        OnPropertyChanged(nameof(RepositoryHeadText));
+        OnPropertyChanged(nameof(RepositoryUpstreamText));
+        OnPropertyChanged(nameof(RepositoryWorkingTreeText));
+        OnPropertyChanged(nameof(RepositoryRemoteComparisonText));
+        OnPropertyChanged(nameof(RepositoryVerificationErrorText));
+        OnPropertyChanged(nameof(RepositoryCapturedAtText));
+        VerifyRepositoryCommand.NotifyCanExecuteChanged();
+        RefreshRepositoryStateCommand.NotifyCanExecuteChanged();
     }
 
     private static bool IsDefaultBranchError(ArgumentException exception) =>

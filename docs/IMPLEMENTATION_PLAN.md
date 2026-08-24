@@ -370,3 +370,25 @@ commit `beab8072551a84aad60df7744135c74c75e51acb`. Full-suite validation is 225/
 (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 55). OPUS-01..OPUS-04 findings
 are closed; OPUS-05..OPUS-08 are deferred as P3. APO-35 and APO-36 are transitioned to Done in Jira;
 parent Epics APO-5 and APO-4 remain In Progress.
+
+## 14. APO-37 Read-Only Local Git Repository Verification
+
+APO-37 is the first bounded APO-6 vertical slice, implemented from exact main base
+`8a81017b25fe0cfd8efcd4febafd66a1bee6c41e` on `feat/APO-37-local-git-verification`. The slice
+adds provider-independent Application repository-state contracts and a project-aware verification
+service, plus an Infrastructure-only Git process runner and inspector. Desktop/WPF owns explicit
+Verify repository and Refresh repository state commands; selection changes cancel and obsolete the
+previous request, and a generation/identity check prevents a late result for Project A from being
+published into Project B.
+
+Production inspection is local-only and uses only `git --version`, `git -C <path> rev-parse
+--show-toplevel`, `symbolic-ref --quiet --short HEAD`, `rev-parse --verify HEAD`, upstream
+resolution, `status --porcelain=v1 -z --untracked-files=all`, and `remote -v`. Process execution
+uses `UseShellExecute=false`, argument-list transport, `GIT_TERMINAL_PROMPT=0`,
+`GIT_OPTIONAL_LOCKS=0`, asynchronous cancellation, and a ten-second per-command timeout. Remote
+URLs are sanitized before entering application state; changed-file evidence is capped at 100
+repository-relative entries and exposes total/truncation truthfully. No remote request, file
+content read, diff, patch, or Git mutation is part of APO-37.
+
+The accepted project lifecycle is Active, Paused, Blocked, Archived, with status filters All,
+Active, Paused, Blocked, Archived. Draft and Completed are not ProjectStatus values.
