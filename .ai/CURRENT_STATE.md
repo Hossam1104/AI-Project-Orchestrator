@@ -49,8 +49,9 @@
   OPUS-01, OPUS-02, OPUS-03, OPUS-04, OPUS-05, OPUS-07, and OPUS-09 retained as P3 hardening;
   OPUS-06 and OPUS-08 rejected and not opened as defects.
 
-**Strategic branch:** `docs/apo-strategic-orchestrator-rebaseline`, final documentation commit
-`d2af65f14ceddef1b412981bd1db9e93ec82af7b`, draft PR #8 OPEN / DRAFT / UNMERGED against `main`.
+**Strategic branch:** `docs/apo-strategic-orchestrator-rebaseline`; strategic documentation
+baseline commit `d2af65f14ceddef1b412981bd1db9e93ec82af7b`; draft PR #8 OPEN / DRAFT / UNMERGED
+against `main`.
 
 **Approved strategic direction incorporated:** Mission Control; Smart Continue; canonical
 project context and checkpoint recovery; dependency-aware work graphs; isolated workspaces;
