@@ -329,3 +329,32 @@ Claude Sonnet 5 as executor under the same Story/PR, is:
   truthfully rather than substituting degraded-mode captures. Fixing the `AiCapacityViewModel`
   constructor ambiguity is recommended as a follow-up Jira item under Epic APO-5 before SOL-35-02
   evidence can be captured or before the workspace is considered release-qualified.
+
+## 12. APO-36 Blocking Startup Regression (Prompt 4 continuation)
+
+APO-36 fixed the pre-existing `AiCapacityViewModel` DI constructor ambiguity identified while
+attempting SOL-35-02 evidence capture in section 11 above. The regression predated APO-35 (it was
+introduced in the already-merged APO-34 delivery) but blocked runtime acceptance evidence for the
+APO-35 merge candidate, so Sol authorized the fix on the same branch/PR as a bounded continuation of
+the same Prompt-4 delta, without advancing to Prompt 5 or invoking Claude Opus.
+
+**Root cause:** `AiCapacityViewModel` exposes both a normal provider-backed constructor
+`(IProviderRegistry, IProviderConnectionService)` and a degraded/manual fallback constructor
+`(IExecutableLocator)`. An implicit `services.AddSingleton<AiCapacityViewModel>()` left
+Microsoft.Extensions.DependencyInjection unable to disambiguate them, so `App.OnStartup` threw while
+resolving `MainWindow` and the existing outer `catch` silently fell back to the degraded,
+no-persistence shell on every normal launch.
+
+**Fix:** a new `DesktopServiceCollectionExtensions.AddDesktopWorkspaceServices()` extension method
+registers `AiCapacityViewModel` via an explicit factory that resolves the normal provider-backed
+constructor directly, alongside `IProjectRegistryService`, `ProjectsViewModel`, `MainWindowViewModel`,
+and `MainWindow`. `App.OnStartup` now composes the container as `AddInfrastructure` → `AddProviders`
+→ `AddDesktopWorkspaceServices` — the same three calls a new `ProductionCompositionTests.cs` suite
+exercises against the real Microsoft DI container to prove `AiCapacityViewModel`,
+`MainWindowViewModel`, and `ProjectsViewModel` all resolve normally (non-degraded). The degraded
+fallback constructor and `App.OnStartup`'s outer `catch` are unchanged.
+
+With the fix in place, SOL-35-02 sanitized visual evidence (blocked in section 11) was captured
+successfully from the real, non-degraded published `win-x64` shell and committed at
+`docs/evidence/APO-35-projects-workspace.png`. Full-suite validation is 219/219 passing (Desktop 49,
+up from 214/44). See `TASK.md` and `.ai/CURRENT_STATE.md` for exact SHAs and evidence details.

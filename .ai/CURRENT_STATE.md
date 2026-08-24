@@ -16,15 +16,16 @@
 **APO-27:** COMPLETE / SOL ACCEPTED (COMMENT 11793) / MERGED
 **APO-27 Merge main SHA:** `d0efaf01b07b31effa7a432c225e7c913a86258a`
 **APO-5:** IN PROGRESS
-**APO-35:** SOL-35-01 REMEDIATED / SOL-35-02 EVIDENCE BLOCKED (PRE-EXISTING UNRELATED DEFECT) / AWAITING SOL ACCEPTANCE
+**APO-35:** SOL-35-01 REMEDIATED / SOL-35-02 EVIDENCE COMPLETE (APO-36 FIX APPLIED) / AWAITING SOL ACCEPTANCE
+**APO-36:** FIXED (AiCapacityViewModel DI startup ambiguity) / AWAITING SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-35 (SOL-35-01 bounded remediation delivered; SOL-35-02 evidence blocked; awaiting Sol acceptance)
+**Current Story:** APO-35 + APO-36 (SOL-35-01 bounded remediation delivered; APO-36 startup regression fixed; SOL-35-02 evidence captured; awaiting Sol final delta acceptance)
 **Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
-**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. Sol's review requested SOL-35-01 (edit-target integrity) and SOL-35-02 (visual evidence); SOL-35-01 is fixed and regression-tested, SOL-35-02 could not be captured because of an unrelated, pre-existing `AiCapacityViewModel` DI defect (see section -3a). The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
-**Next implementation:** GPT-5.6 Sol acceptance of the exact final pushed APO-35 feature-branch SHA, including a decision on the blocked SOL-35-02 evidence and the newly discovered `AiCapacityViewModel` defect; do not start another Story automatically
-**Release state:** APO-35 is delivered on a Draft PR while `main` remains unchanged; the accepted APO-27 project registry foundation now has a user-facing Projects workspace, while Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete
+**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. Sol's review requested SOL-35-01 (edit-target integrity) and SOL-35-02 (visual evidence); SOL-35-01 is fixed and regression-tested. SOL-35-02 was initially blocked by a pre-existing `AiCapacityViewModel` DI constructor ambiguity (APO-36); APO-36 is now fixed with explicit composition-root registration and regression tests, and SOL-35-02 sanitized visual evidence has been captured from the real, non-degraded published shell (see section -3b). The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
+**Next implementation:** GPT-5.6 Sol final Prompt-4 delta acceptance of the exact final pushed feature-branch SHA (APO-35 + APO-36 + evidence); if accepted, the next checkpoint is Prompt 5/5 Claude Opus independent review; do not start another Story automatically
+**Release state:** APO-35 + APO-36 are delivered on a Draft PR while `main` remains unchanged; the accepted APO-27 project registry foundation now has a user-facing, non-degraded Projects workspace with sanitized visual evidence, while Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete
 
 ## -3. APO-35 First Usable Projects Workspace
 
@@ -142,6 +143,106 @@ change.
 
 **Jira synchronization:** remediation comment posted to APO-35, comment `11798`. No Jira status
 transition was made.
+
+---
+
+## -3b. APO-36 Blocking Startup Regression Fix + SOL-35-02 Evidence Completion (Prompt 4 continuation)
+
+**Scope authority:** This is an explicit continuation of the same APO-35 Prompt-4 delta (not an
+advance to Prompt 5, and Claude Opus was not invoked), authorized to fix the newly discovered
+`AiCapacityViewModel` DI defect reported as blocking in section -3a, on the same branch
+(`feat/APO-35-projects-workspace`) and the same draft PR #6.
+
+**Pre-APO-36 branch head:** `9c2c678`
+(`docs(APO-35): record SOL-35-01 remediation and blocked SOL-35-02 evidence`)
+
+**APO-36 root cause (confirmed, matches section -3a's diagnosis):** `AiCapacityViewModel` has two
+applicable public constructors — `(IExecutableLocator)` (degraded/manual fallback) and
+`(IProviderRegistry, IProviderConnectionService)` (normal provider-backed). Production registration
+used an implicit `services.AddSingleton<AiCapacityViewModel>()`; Microsoft DI selects the
+constructor with the most fully-resolvable parameters, then requires every other resolvable
+constructor's parameter set to be a subset of that choice. `{IExecutableLocator}` is not a subset of
+`{IProviderRegistry, IProviderConnectionService}`, so the container threw
+`InvalidOperationException: ... constructors are ambiguous` while resolving `MainWindow` inside
+`App.OnStartup`; the existing outer `catch` silently fell back to `ShowShell(persistenceAvailable:
+false)`, degrading the shell on every normal launch.
+
+**APO-36 fix (smallest composition-root change, no `AiCapacityViewModel` redesign):**
+`src/AIUsageMonitor.Desktop/DesktopServiceCollectionExtensions.cs` (new) adds
+`AddDesktopWorkspaceServices(this IServiceCollection)`, registering `IProjectRegistryService` →
+`ProjectRegistryService` (moved from `App.xaml.cs`, unchanged registration), `AiCapacityViewModel`
+via an explicit factory that resolves `IProviderRegistry` and `IProviderConnectionService` directly
+(bypassing constructor selection), and `ProjectsViewModel`/`MainWindowViewModel`/`MainWindow`
+(moved, unchanged registrations). `App.OnStartup`'s `ConfigureServices` now reads
+`services.AddInfrastructure(_paths.RootDirectory); services.AddProviders();
+services.AddDesktopWorkspaceServices();` — the exact same three calls the new composition regression
+tests exercise. The degraded/manual `AiCapacityViewModel(IExecutableLocator)` constructor,
+`InitializeDegradedAsync`, `ShowShell(persistenceAvailable: false)`, and `App.OnStartup`'s outer
+`catch` are all unchanged.
+
+**New composition regression tests**
+(`tests/AIUsageMonitor.Desktop.Tests/ProductionCompositionTests.cs`, 5 new tests) build the real
+production `ServiceCollection` (`AddInfrastructure` against a temp root + `AddProviders` +
+`AddDesktopWorkspaceServices`) and resolve through the actual Microsoft DI `ServiceProvider`:
+`ProductionComposition_ResolvesAiCapacityViewModel`,
+`ProductionComposition_AiCapacityIsNotDegraded` (asserts `IsDegraded == false` and `Cards.Count ==
+5`), `ProductionComposition_ResolvesMainWindowViewModel`,
+`MainWindowViewModel_UsesResolvedNormalAiCapacity` (asserts `MainWindowViewModel.AiCapacity` is the
+same non-degraded instance), `ProjectsViewModel_IsResolvedWithRegistryService` (asserts
+`IsStorageAvailable == true` and shares the same `ProjectsViewModel` instance as
+`MainWindowViewModel.Projects`). Existing degraded-construction tests in `CapacityViewModelTests.cs`
+(direct `new AiCapacityViewModel()` / `new AiCapacityViewModel(locator)`, not routed through DI)
+were not modified and remain green, confirming the fallback path is intact. SOL-35-01's six tests in
+`ProjectsWorkspaceTests.cs` were not touched and remain green.
+
+**APO-36 functional commit:** `4525b31` (`fix: resolve APO-36 AI capacity DI startup ambiguity`).
+
+**SOL-35-02 (sanitized visual evidence) — now COMPLETE.** After the APO-36 fix, the same
+Windows-native UI Automation approach used in section -3a's blocked attempt confirmed a normal,
+non-degraded launch: the Overview workspace reports persistence text `"Ready"` / `"LocalAppData is
+available for the foundation."` (not degraded), the AI Capacity workspace shows all five real
+provider-backed cards with `Connect / edit` actions (which only render when the connection service
+is present, i.e. non-degraded), and Projects shows a real, empty registry (`"0 total"`, `"No
+projects registered yet."` — not `"Project storage unavailable."`). `New project` was invoked and
+the editor rendered with blank fields and `Cancel`/`Save changes` visible. Screen capture used the
+Win32 `PrintWindow` API with `PW_RENDERFULLCONTENT` (`user32.dll`, no new package) instead of GDI
+`CopyFromScreen`, because this machine's console session had auto-locked from idle and
+`CopyFromScreen` was found to capture the OS lock screen rather than the target window;
+`PrintWindow` renders the window's own content via DWM regardless of physical display state. The
+project registry was genuinely empty at capture time, so the screenshot contains no real project
+names, paths, repository URLs, tracker ids, or credentials; it was inspected before commit and
+required no cropping or modification. Evidence path:
+`docs/evidence/APO-35-projects-workspace.png`.
+
+**Full validation after the APO-36 fix:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused Desktop composition tests | SUCCESS; 5/5 new `ProductionCompositionTests` passing |
+| `dotnet test AIUsageMonitor.sln --no-restore` | SUCCESS; 219/219 passing (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 49; up from 214/44) |
+| `win-x64` self-contained single-file publish | SUCCESS |
+| `win-x86` / `win-arm64` publish | Not rerun; no project/package/publish configuration changed |
+| Published `win-x64` runtime verification | SUCCESS; real UI Automation drive-through proved the normal, non-degraded shell (see above), not just process-alive |
+| `git diff --check` | Clean |
+| Secret-pattern scan of the diff | Clean |
+
+**Out of scope, not performed (per contract):** no rebase/force-push/reset/merge-main; PR #6 left
+OPEN/DRAFT/UNMERGED; `main` untouched; APO-35/APO-36/APO-5 not marked Done; no other Story started;
+no new provider behavior, quota changes, provider refactoring, Git/GitHub product operations,
+Jira/Azure integrations, agent UI, routing, execution, orchestration, validation/review/acceptance
+engines, activity UI, database, cloud backend, delete/purge, or namespace migration; no Claude Opus
+review performed (Prompt 4/5 continuation, not Prompt 5).
+
+**Jira synchronization:** one comment posted to APO-36 (root cause, fix, functional SHA, final
+branch SHA, PR #6, composition tests, normal runtime proof, screenshot evidence, full tests, next
+gate) and one dependency-resolution comment posted to APO-35 (APO-36 fix complete, SOL-35-02
+evidence completed, screenshot path, next gate Sol delta acceptance). No Jira status transition was
+made.
+
+**Next planner boundary:** GPT-5.6 Sol final Prompt-4 delta acceptance against the exact final
+pushed branch SHA. If accepted, the next checkpoint is Prompt 5/5 Claude Opus independent review.
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
