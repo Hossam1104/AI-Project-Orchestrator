@@ -82,17 +82,19 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Windows Credential Manager adapter with opaque credential references and focused security tests |
 | :white_check_mark: Implemented / validated | Self-contained multi-RID publish configuration for `win-x64`, `win-x86`, and `win-arm64` |
 | :white_check_mark: Implemented / validated | Project and orchestration storage foundation (APO-27 merged); stores and contracts for projects, agents, routing policies, runs, and review/audit records |
-| :white_check_mark: Implemented / validated | Projects workspace (APO-35 merged); project registry list/detail/editor, search/filter, lifecycle state, and truthful local persistence states; APO-36 fixed DI startup regression |
-| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-35/APO-36 validation is 55 Desktop tests and 225 full-suite tests, all passing |
+| :white_check_mark: Implemented / validated | Projects workspace (APO-35 merged); project registry list/detail/editor, search/filter, Active/Paused/Blocked/Archived lifecycle state, and truthful local persistence states; APO-36 fixed DI startup regression |
+| :white_check_mark: Implemented / validated | APO-37 read-only local Git repository verification with bounded status evidence, cancellation/project isolation, sanitized remotes, and explicit unavailable states |
+| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-37 validation is 70 Desktop tests, 101 Infrastructure tests, and 255 full-suite tests, all passing |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
-| :construction: In progress / planned | Git/GitHub and Jira/Azure DevOps awareness; repository and tracker fields in APO-35 remain metadata-only |
+| :construction: In progress / planned | GitHub remote operations and Jira/Azure DevOps awareness; APO-37 is local-only and performs no network validation or Git writes |
 | :construction: In progress / planned | Agent registry, routing, bounded execution, validation, review, and acceptance services |
 | :compass: Roadmap | Full command center, activity/audit experience, notifications, CI, and release qualification |
 
 Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries, the
 autonomous runtime, routing, tracker automation, Git integration, the review/acceptance engines,
-and the full APO-15 dashboard. APO-35 does not inspect local paths, Git, tracker systems,
-credentials, or repository contents. APO does not fabricate provider numbers or claim CI status
+and the full APO-15 dashboard. APO-37 verifies a selected registered local path only when the
+owner clicks Verify repository; it does not inspect file contents, use credentials, contact a
+remote service, or perform Git writes. APO does not fabricate provider numbers or claim CI status
 before the relevant Story is delivered.
 
 ## WPF shell preview

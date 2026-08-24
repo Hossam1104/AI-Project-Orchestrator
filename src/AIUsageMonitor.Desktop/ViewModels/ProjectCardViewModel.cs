@@ -24,7 +24,7 @@ public sealed class ProjectCardViewModel
 
     public string RepositorySummary => BuildSummary(
         Project.RepositoryProvider,
-        Project.RepositoryUrl,
+        RepositoryUrlSanitizer.Sanitize(Project.RepositoryUrl),
         Project.RepositoryId,
         Project.RepositoryMetadata.Count > 0);
 

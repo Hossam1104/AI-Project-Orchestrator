@@ -72,6 +72,18 @@ public sealed class ProductionCompositionTests : IDisposable
         Assert.Same(projects, provider.GetRequiredService<MainWindowViewModel>().Projects);
     }
 
+    [Fact]
+    public void ProductionComposition_ResolvesRepositoryVerificationServices()
+    {
+        using var provider = BuildProvider();
+
+        var inspector = provider.GetRequiredService<AIUsageMonitor.Application.Projects.ILocalRepositoryInspector>();
+        var stateService = provider.GetRequiredService<AIUsageMonitor.Application.Projects.IProjectRepositoryStateService>();
+
+        Assert.NotNull(inspector);
+        Assert.NotNull(stateService);
+    }
+
     private ServiceProvider BuildProvider()
     {
         var services = new ServiceCollection();

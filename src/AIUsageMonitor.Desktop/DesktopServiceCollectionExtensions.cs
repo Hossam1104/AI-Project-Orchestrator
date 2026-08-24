@@ -26,7 +26,9 @@ public static class DesktopServiceCollectionExtensions
             provider.GetRequiredService<IProviderRegistry>(),
             provider.GetRequiredService<IProviderConnectionService>()));
 
-        services.AddSingleton<ProjectsViewModel>();
+        services.AddSingleton<ProjectsViewModel>(provider => new ProjectsViewModel(
+            provider.GetRequiredService<IProjectRegistryService>(),
+            provider.GetRequiredService<IProjectRepositoryStateService>()));
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
 

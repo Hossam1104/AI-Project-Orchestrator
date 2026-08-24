@@ -455,7 +455,7 @@
                                                 <TextBlock Grid.Row="1" Text="REPOSITORY PROVIDER" Style="{StaticResource ProjectFieldLabelStyle}" />
                                                 <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedProject.RepositoryProvider, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
                                                 <TextBlock Grid.Row="2" Text="REPOSITORY URL" Style="{StaticResource ProjectFieldLabelStyle}" />
-                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedProject.RepositoryUrl, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                 <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedRepositoryUrlDisplay}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
                                                 <TextBlock Grid.Row="3" Text="REPOSITORY ID" Style="{StaticResource ProjectFieldLabelStyle}" />
                                                 <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedProject.RepositoryId, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
                                                 <TextBlock Grid.Row="4" Text="DEFAULT BRANCH" Style="{StaticResource ProjectFieldLabelStyle}" />
@@ -471,12 +471,97 @@
                                                 <TextBlock Grid.Row="9" Text="SAFETY POLICY" Style="{StaticResource ProjectFieldLabelStyle}" />
                                                 <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedProject.SafetyPolicyReference, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
                                                 <TextBlock Grid.Row="10" Text="CREATED / UPDATED" Style="{StaticResource ProjectFieldLabelStyle}" />
-                                                <StackPanel Grid.Row="10" Grid.Column="1" Margin="16,0,0,10">
+                                             <StackPanel Grid.Row="10" Grid.Column="1" Margin="16,0,0,10">
                                                     <TextBlock Text="{Binding SelectedCreatedAtText, StringFormat=Created {0}}" Style="{StaticResource BodyTextStyle}" />
                                                     <TextBlock Text="{Binding SelectedUpdatedAtText, StringFormat=Updated {0}}" Margin="0,3,0,0" Style="{StaticResource CaptionTextStyle}" />
                                                 </StackPanel>
                                             </Grid>
-                                            <TextBlock Text="Metadata-only registration. Repository and tracker state is not connected or synchronized here." Margin="0,12,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+
+                                            <Border Margin="0,14,0,0" Padding="14" Background="{StaticResource BrandNavyBlueBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="1" CornerRadius="10">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel>
+                                                            <TextBlock Text="REPOSITORY VERIFICATION" Style="{StaticResource EyebrowTextStyle}" />
+                                                            <TextBlock Text="Local evidence" Margin="0,5,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                            <Button Content="Verify repository" Command="{Binding VerifyRepositoryCommand}" AutomationProperties.Name="Verify repository" Style="{StaticResource PrimaryButtonStyle}" Visibility="{Binding ShowRepositoryStateDetails, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                                                            <Button Content="Refresh repository state" Command="{Binding RefreshRepositoryStateCommand}" AutomationProperties.Name="Refresh repository state" Style="{StaticResource SecondaryButtonStyle}" Visibility="{Binding ShowRepositoryStateDetails, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding RepositoryVerificationStatusText}" Margin="0,12,0,0" Style="{StaticResource BodyTextStyle}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding RepositoryVerificationErrorText}" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{StaticResource BrandErrorBrush}" Visibility="{Binding HasRepositoryState, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                                    <Grid Margin="0,14,0,0" Visibility="{Binding ShowRepositoryStateDetails, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Text="BRANCH" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding RepositoryBranchText}" Margin="16,0,0,8" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Grid.Row="1" Text="HEAD" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding RepositoryHeadText}" Margin="16,0,0,8" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Grid.Row="2" Text="UPSTREAM" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding RepositoryUpstreamText}" Margin="16,0,0,8" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Grid.Row="3" Text="ROOT RELATIONSHIP" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RepositoryRootRelationshipText}" Margin="16,0,0,8" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Grid.Row="4" Text="REPOSITORY ROOT" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding RepositoryRootText}" Margin="16,0,0,8" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Grid.Row="5" Text="WORKING TREE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding RepositoryWorkingTreeText}" Margin="16,0,0,8" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                        <TextBlock Grid.Row="6" Text="CAPTURED" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding RepositoryCapturedAtText}" Margin="16,0,0,0" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                    </Grid>
+
+                                                    <StackPanel Margin="0,14,0,0" Visibility="{Binding ShowRepositoryStateDetails, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="CONFIGURED REMOTES" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Text="{Binding RepositoryRemoteComparisonText}" Margin="0,0,0,6" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                        <TextBlock Text="No configured remotes" Style="{StaticResource CaptionTextStyle}" Visibility="{Binding HasRepositoryRemotes, Converter={StaticResource InverseBoolToVisibilityConverter}}" />
+                                                        <ItemsControl ItemsSource="{Binding RepositoryState.Remotes}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Margin="0,4,0,0" Padding="9" Background="{StaticResource BrandDeepNavyBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="1" CornerRadius="7">
+                                                                        <StackPanel>
+                                                                            <TextBlock Text="{Binding Name}" Style="{StaticResource BodyTextStyle}" FontWeight="SemiBold" />
+                                                                            <TextBlock Text="{Binding SanitizedUrl}" Margin="0,3,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
+                                                    <StackPanel Margin="0,14,0,0" Visibility="{Binding ShowChangedFiles, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="CHANGED FILES" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                        <TextBlock Text="{Binding ChangedFilesSummaryText}" Margin="0,0,0,6" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                        <ListBox ItemsSource="{Binding ChangedFiles}" MaxHeight="180" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Changed files">
+                                                            <ListBox.ItemTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Margin="0,2">
+                                                                        <TextBlock Text="{Binding Kind}" Style="{StaticResource CaptionTextStyle}" Foreground="{StaticResource BrandWarningBrush}" />
+                                                                        <TextBlock Text="{Binding RelativePath}" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                                        <TextBlock Text="{Binding OriginalRelativePath, StringFormat=Renamed from {0}}" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" Visibility="{Binding OriginalRelativePath, Converter={StaticResource NullToVisibilityConverter}}" />
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ListBox.ItemTemplate>
+                                                        </ListBox>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <TextBlock Text="Registration stores metadata only. Verify repository performs local, read-only inspection and does not contact a remote service." Margin="0,12,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
                                         </StackPanel>
 
                                         <StackPanel Visibility="{Binding HasSelectedProject, Converter={StaticResource InverseBoolToVisibilityConverter}}" Margin="0,22,0,0">

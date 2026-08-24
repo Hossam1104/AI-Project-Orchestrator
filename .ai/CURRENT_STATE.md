@@ -19,16 +19,57 @@
 **APO-35 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
 **APO-36:** COMPLETE / SOL ACCEPTED / MERGED / DONE
 **APO-36 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
+**APO-37:** IN PROGRESS / EXECUTOR IMPLEMENTATION BOUNDARY
 **APO-5:** IN PROGRESS
 **APO-4:** IN PROGRESS
+**APO-6:** IN PROGRESS
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-35 + APO-36 merged and finalized; next action is GPT-5.6 Sol planning handoff.
-**Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
-**Status:** APO-35 (First Usable Projects Workspace) and APO-36 (AiCapacityViewModel DI constructor ambiguity fix) are Sol-accepted and squash-merged into `main` via PR #6 at merge commit `beab8072551a84aad60df7744135c74c75e51acb`. Full suite validation is 225/225 passing. Claude Opus Prompt 5/5 review was completed, OPUS-01..OPUS-04 findings were remediated and Sol-accepted (Jira comment 11847), and OPUS-05..OPUS-08 are deferred as P3. APO-35 and APO-36 are transitioned to Done in Jira. Parent Epics APO-5 and APO-4 remain In Progress.
-**Next implementation:** GPT-5.6 Sol planning handoff from merged main baseline to select and define the next bounded Story.
-**Release state:** APO-35 and APO-36 are merged into `main`; the Projects workspace provides a non-degraded, user-facing registry with search, filtering, lifecycle management, and truthful local persistence. Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
+**Current Story:** APO-37 - Implement Read-Only Local Git Repository Verification in Projects.
+**Current Epic:** APO-6 - Git & GitHub Integration (In Progress)
+**Status:** APO-35 and APO-36 remain Sol-accepted, merged, and Done. APO-37 is implemented on the executor branch with deterministic Infrastructure/Desktop coverage at 255/255 passing; Jira APO-37 and parent APO-6 remain In Progress pending final synchronization and Sol acceptance. No Claude Opus review was performed.
+**Next implementation:** GPT-5.6 Sol acceptance of the exact final pushed APO-37 feature SHA; no downstream Story work was started.
+**Release state:** APO-37 adds explicit, manual, read-only local repository verification. GitHub remote operations, tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
+
+## -4. APO-37 Read-Only Local Git Repository Verification (Prompt 3/5)
+
+**Exact starting main SHA:** `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e`
+
+**Branch:** `feat/APO-37-local-git-verification`
+
+**Functional implementation SHA:** pending final executor commit
+
+**Documentation / handoff SHA:** pending final executor commit
+
+**Draft PR:** pending GitHub synchronization; intended title `APO-37: add read-only local Git repository verification`; OPEN / DRAFT / UNMERGED when created.
+
+APO-37 adds `RepositoryVerificationStatus`, bounded changed-file/remote models,
+`ILocalRepositoryInspector`, `IProjectRepositoryStateService`, and the project-aware
+`ProjectRepositoryStateService` in Application. Infrastructure owns `SystemGitCommandRunner` and
+`GitLocalRepositoryInspector`; the runner uses `UseShellExecute=false`, `ArgumentList`,
+`GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, asynchronous cancellation, and a ten-second
+per-command timeout. Only local read-only Git commands are allowed, and remote URL userinfo/query
+material is removed before publication. Porcelain-v1 NUL status parsing preserves staged,
+modified, deleted, renamed, untracked, and conflicted evidence with a deterministic 100-entry
+bound and truthful total/truncation fields.
+
+ProjectsViewModel exposes explicit Verify repository and Refresh repository state commands. It
+starts at Not inspected for every selected project, resets after a successful edit or registry
+refresh, cancels on selection change, and checks both request generation and selected ProjectId
+before publishing a result. WPF does not execute processes or parse Git output. The detail card
+shows only known local values and never labels a remote connected, synced, healthy, or reachable.
+
+**Project lifecycle documentation correction:** the accepted values are Active, Paused, Blocked,
+Archived; filter choices are All, Active, Paused, Blocked, Archived. Draft and Completed are not
+ProjectStatus values.
+
+**Validation at this checkpoint:** restore succeeded; full solution tests 255/255 passing: Domain
+28, Provider 46, Infrastructure 101, Connection 10, Desktop 70; build is 0 warnings / 0 errors;
+the `win-x64` self-contained single-file publish succeeded; the published executable remained alive
+through a five-second startup smoke; a temporary sanitized repository produced dirty-state and
+sanitized-remote evidence; and `git diff --check` is clean. No owner project registry or repository
+was modified. Final branch/GitHub/Jira synchronization identifiers are recorded after delivery.
 
 ## -3. APO-35 First Usable Projects Workspace
 

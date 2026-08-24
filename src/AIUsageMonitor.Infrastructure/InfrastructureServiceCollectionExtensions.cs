@@ -14,6 +14,7 @@ using AIUsageMonitor.Application.Usage;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Infrastructure.Persistence.Repositories;
 using AIUsageMonitor.Infrastructure.Security;
+using AIUsageMonitor.Infrastructure.Git;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Infrastructure;
@@ -51,6 +52,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ISyncEventRepository, JsonSyncEventRepository>();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IProjectRepository, JsonProjectRepository>();
+        services.AddSingleton<ILocalRepositoryInspector>(
+            _ => new GitLocalRepositoryInspector(new SystemGitCommandRunner()));
+        services.AddSingleton<IProjectRepositoryStateService, ProjectRepositoryStateService>();
         services.AddSingleton<IAgentRepository, JsonAgentRepository>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
