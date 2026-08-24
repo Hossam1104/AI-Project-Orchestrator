@@ -51,8 +51,9 @@
 
 **Strategic branch:** `docs/apo-strategic-orchestrator-rebaseline`; continuation started from
 `c392994927e21e23a612a80b29219d5d1feadef9`; draft PR #8 remains OPEN / DRAFT / UNMERGED against
-`main`. The continuation documentation commit SHA will be recorded after the first push, with
-the final branch SHA reported at the executor handoff.
+`main`. The continuation documentation synchronization commit is
+`e238d713c0cfb26c16c6e81b459b37c418cbe91c`; the final branch SHA after the metadata handoff is
+reported at executor completion.
 
 **Approved strategic direction incorporated:** Mission Control; Smart Continue; canonical
 project context and checkpoint recovery; dependency-aware work graphs; isolated workspaces;
