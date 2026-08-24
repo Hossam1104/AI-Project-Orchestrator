@@ -1,0 +1,35 @@
+using AIUsageMonitor.Application.Projects;
+using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Desktop.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace AIUsageMonitor.Desktop;
+
+/// <summary>
+/// Composition-root wiring for the Desktop shell's projects and AI capacity workspace. Registered
+/// separately from <c>AddInfrastructure</c>/<c>AddProviders</c> so App.OnStartup and composition
+/// regression tests exercise the identical registration path.
+/// </summary>
+public static class DesktopServiceCollectionExtensions
+{
+    public static IServiceCollection AddDesktopWorkspaceServices(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddSingleton<IProjectRegistryService, ProjectRegistryService>();
+
+        // AiCapacityViewModel exposes an additional degraded/manual constructor for the
+        // no-persistence fallback shell; an implicit AddSingleton<AiCapacityViewModel>() leaves
+        // Microsoft DI unable to pick a single constructor, so the normal provider-backed
+        // constructor is selected explicitly here.
+        services.AddSingleton(provider => new AiCapacityViewModel(
+            provider.GetRequiredService<IProviderRegistry>(),
+            provider.GetRequiredService<IProviderConnectionService>()));
+
+        services.AddSingleton<ProjectsViewModel>();
+        services.AddSingleton<MainWindowViewModel>();
+        services.AddSingleton<MainWindow>();
+
+        return services;
+    }
+}
