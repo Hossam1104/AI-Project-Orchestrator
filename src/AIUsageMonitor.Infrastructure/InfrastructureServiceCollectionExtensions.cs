@@ -52,8 +52,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ISyncEventRepository, JsonSyncEventRepository>();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<IProjectRepository, JsonProjectRepository>();
-        services.AddSingleton<ILocalRepositoryInspector>(
-            _ => new GitLocalRepositoryInspector(new SystemGitCommandRunner()));
+        services.AddSingleton<ILocalRepositoryInspector, GitLocalRepositoryInspector>();
         services.AddSingleton<IProjectRepositoryStateService, ProjectRepositoryStateService>();
         services.AddSingleton<IAgentRepository, JsonAgentRepository>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();

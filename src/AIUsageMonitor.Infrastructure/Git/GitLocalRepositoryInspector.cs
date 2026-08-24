@@ -14,15 +14,22 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
     internal const int MaxFieldLength = 512;
 
     private readonly IGitCommandRunner _runner;
+    private readonly ILocalPathProbe _pathProbe;
 
     public GitLocalRepositoryInspector()
-        : this(new SystemGitCommandRunner())
+        : this(new SystemGitCommandRunner(), new SystemLocalPathProbe())
     {
     }
 
     internal GitLocalRepositoryInspector(IGitCommandRunner runner)
+        : this(runner, new SystemLocalPathProbe())
+    {
+    }
+
+    internal GitLocalRepositoryInspector(IGitCommandRunner runner, ILocalPathProbe pathProbe)
     {
         _runner = runner ?? throw new ArgumentNullException(nameof(runner));
+        _pathProbe = pathProbe ?? throw new ArgumentNullException(nameof(pathProbe));
     }
 
     public async Task<LocalRepositoryInspection> InspectAsync(
@@ -36,18 +43,16 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
         }
 
         var capturedAt = DateTimeOffset.UtcNow;
-        var pathState = CheckPath(registeredLocalPath);
+
+        var probe = await _pathProbe.ProbeAsync(registeredLocalPath, cancellationToken).ConfigureAwait(false);
+        var pathState = MapPathProbeStatus(probe);
         if (pathState is not null)
         {
             return CreateResult(pathState.Value, registeredLocalPath, capturedAt);
         }
 
         var version = await RunAsync(["--version"], cancellationToken).ConfigureAwait(false);
-        if (version.Cancelled)
-        {
-            throw new OperationCanceledException(cancellationToken);
-        }
-
+        ThrowIfCancelled(version, cancellationToken);
         if (version.CouldNotStart)
         {
             return CreateResult(RepositoryVerificationStatus.GitUnavailable, registeredLocalPath, capturedAt);
@@ -67,19 +72,16 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
             ["-C", registeredLocalPath, "rev-parse", "--show-toplevel"],
             cancellationToken).ConfigureAwait(false);
         ThrowIfCancelled(root, cancellationToken);
-        if (root.TimedOut)
+        if (CommonFailure(root, registeredLocalPath, capturedAt) is { } rootFailure)
         {
-            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
-        }
-
-        if (root.CouldNotStart)
-        {
-            return CreateResult(RepositoryVerificationStatus.GitUnavailable, registeredLocalPath, capturedAt);
+            return rootFailure;
         }
 
         if (root.ExitCode != 0)
         {
-            return CreateResult(RepositoryVerificationStatus.NotGitRepository, registeredLocalPath, capturedAt);
+            return IsNotGitRepositoryFailure(root)
+                ? CreateResult(RepositoryVerificationStatus.NotGitRepository, registeredLocalPath, capturedAt)
+                : CreateFailure(registeredLocalPath, capturedAt, "Git verification could not be completed.");
         }
 
         var repositoryRoot = LimitField(root.StandardOutput.Trim());
@@ -88,40 +90,68 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
             return CreateFailure(registeredLocalPath, capturedAt, "Repository root was unavailable.");
         }
 
-        var branch = await RunAsync(
+        var branchResult = await RunAsync(
             ["-C", registeredLocalPath, "symbolic-ref", "--quiet", "--short", "HEAD"],
             cancellationToken).ConfigureAwait(false);
-        ThrowIfCancelled(branch, cancellationToken);
-        if (branch.TimedOut)
+        ThrowIfCancelled(branchResult, cancellationToken);
+        if (CommonFailure(branchResult, registeredLocalPath, capturedAt) is { } branchFailure)
         {
-            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
+            return branchFailure;
         }
 
-        var head = await RunAsync(
+        string? branchName;
+        bool isDetachedHead;
+        if (branchResult.ExitCode == 0)
+        {
+            branchName = LimitField(branchResult.StandardOutput.Trim());
+            isDetachedHead = false;
+        }
+        else if (IsDetachedHeadExit(branchResult))
+        {
+            branchName = null;
+            isDetachedHead = true;
+        }
+        else
+        {
+            return CreateFailure(registeredLocalPath, capturedAt, "Branch information could not be determined.");
+        }
+
+        var headResult = await RunAsync(
             ["-C", registeredLocalPath, "rev-parse", "--verify", "HEAD"],
             cancellationToken).ConfigureAwait(false);
-        ThrowIfCancelled(head, cancellationToken);
-        if (head.TimedOut)
+        ThrowIfCancelled(headResult, cancellationToken);
+        if (CommonFailure(headResult, registeredLocalPath, capturedAt) is { } headFailure)
         {
-            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
+            return headFailure;
+        }
+
+        string? headSha = null;
+        if (headResult.ExitCode == 0)
+        {
+            var trimmedHead = LimitField(headResult.StandardOutput.Trim());
+            headSha = trimmedHead.Length == 0 ? null : trimmedHead;
+        }
+        else if (!IsUnbornHeadFailure(headResult))
+        {
+            return CreateFailure(registeredLocalPath, capturedAt, "HEAD information could not be determined.");
         }
 
         var upstream = await RunAsync(
             ["-C", registeredLocalPath, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
             cancellationToken).ConfigureAwait(false);
         ThrowIfCancelled(upstream, cancellationToken);
-        if (upstream.TimedOut)
+        if (CommonFailure(upstream, registeredLocalPath, capturedAt) is { } upstreamFailure)
         {
-            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
+            return upstreamFailure;
         }
 
         var status = await RunAsync(
             ["-C", registeredLocalPath, "status", "--porcelain=v1", "-z", "--untracked-files=all"],
             cancellationToken).ConfigureAwait(false);
         ThrowIfCancelled(status, cancellationToken);
-        if (status.TimedOut)
+        if (CommonFailure(status, registeredLocalPath, capturedAt) is { } statusFailure)
         {
-            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
+            return statusFailure;
         }
 
         if (status.ExitCode != 0)
@@ -134,9 +164,9 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
             ["-C", registeredLocalPath, "remote", "-v"],
             cancellationToken).ConfigureAwait(false);
         ThrowIfCancelled(remotes, cancellationToken);
-        if (remotes.TimedOut)
+        if (CommonFailure(remotes, registeredLocalPath, capturedAt) is { } remotesFailure)
         {
-            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
+            return remotesFailure;
         }
 
         if (remotes.ExitCode != 0)
@@ -152,10 +182,10 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
             registeredLocalPath,
             repositoryRoot,
             IsSamePath(registeredLocalPath, repositoryRoot),
-            branch.ExitCode == 0 ? LimitField(branch.StandardOutput.Trim()) : null,
-            branch.ExitCode != 0,
-            head.ExitCode == 0 ? LimitField(head.StandardOutput.Trim()) : null,
-            head.ExitCode == 0 ? LimitField(head.StandardOutput.Trim())[..Math.Min(7, LimitField(head.StandardOutput.Trim()).Length)] : null,
+            branchName,
+            isDetachedHead,
+            headSha,
+            headSha is null ? null : headSha[..Math.Min(7, headSha.Length)],
             upstream.ExitCode == 0 ? LimitField(upstream.StandardOutput.Trim()) : null,
             changes.Total == 0,
             changes.Total,
@@ -171,36 +201,33 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
         CancellationToken cancellationToken) =>
         await _runner.RunAsync(arguments, cancellationToken).ConfigureAwait(false);
 
-    private static RepositoryVerificationStatus? CheckPath(string path)
+    private static LocalRepositoryInspection? CommonFailure(
+        GitCommandResult result,
+        string registeredLocalPath,
+        DateTimeOffset capturedAt)
     {
-        if (!Directory.Exists(path))
+        if (result.TimedOut)
         {
-            return File.Exists(path)
-                ? RepositoryVerificationStatus.PathUnavailable
-                : RepositoryVerificationStatus.PathMissing;
+            return CreateFailure(registeredLocalPath, capturedAt, "Git verification timed out.");
         }
 
-        try
+        if (result.CouldNotStart)
         {
-            // Probe only the directory itself. This does not recursively enumerate or read source
-            // files, but distinguishes an inaccessible directory from a missing one where possible.
-            using var enumerator = Directory.EnumerateFileSystemEntries(path, "*", SearchOption.TopDirectoryOnly).GetEnumerator();
-            _ = enumerator.MoveNext();
-            return null;
+            return CreateResult(RepositoryVerificationStatus.GitUnavailable, registeredLocalPath, capturedAt);
         }
-        catch (UnauthorizedAccessException)
-        {
-            return RepositoryVerificationStatus.PathUnavailable;
-        }
-        catch (IOException)
-        {
-            return RepositoryVerificationStatus.PathUnavailable;
-        }
-        catch (ArgumentException)
-        {
-            return RepositoryVerificationStatus.PathUnavailable;
-        }
+
+        return null;
     }
+
+    private static RepositoryVerificationStatus? MapPathProbeStatus(LocalPathProbeResult probe) =>
+        probe.Status switch
+        {
+            LocalPathProbeStatus.AvailableDirectory => null,
+            LocalPathProbeStatus.Missing => RepositoryVerificationStatus.PathMissing,
+            LocalPathProbeStatus.NotADirectory => RepositoryVerificationStatus.PathUnavailable,
+            LocalPathProbeStatus.Unavailable => RepositoryVerificationStatus.PathUnavailable,
+            _ => RepositoryVerificationStatus.PathUnavailable
+        };
 
     private static LocalRepositoryInspection CreateResult(
         RepositoryVerificationStatus status,
@@ -225,6 +252,34 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
             throw new OperationCanceledException(cancellationToken);
         }
     }
+
+    /// <summary>
+    /// Only the documented "not a git repository" fatal text proves a non-repository directory.
+    /// Any other nonzero exit (permission failure, unexpected fatal error, corrupt state) is
+    /// classified as a bounded <c>Failed</c> result by the caller rather than fabricated here.
+    /// </summary>
+    private static bool IsNotGitRepositoryFailure(GitCommandResult result) =>
+        result.ExitCode != 0 &&
+        result.StandardError.Contains("not a git repository", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// <c>git symbolic-ref --quiet --short HEAD</c> documents exit status 1 for "not a symbolic
+    /// ref" (i.e. detached HEAD). Any other nonzero exit is an unexpected failure, not a detached
+    /// state.
+    /// </summary>
+    private static bool IsDetachedHeadExit(GitCommandResult result) => result.ExitCode == 1;
+
+    /// <summary>
+    /// <c>git rev-parse --verify HEAD</c> fails with a known "no commits yet" fatal message in a
+    /// valid, unborn repository. Any other nonzero exit is an unexpected failure and must not be
+    /// silently treated as "HEAD not created yet".
+    /// </summary>
+    private static bool IsUnbornHeadFailure(GitCommandResult result) =>
+        result.ExitCode != 0 &&
+        (result.StandardError.Contains("unknown revision", StringComparison.OrdinalIgnoreCase) ||
+         result.StandardError.Contains("ambiguous argument", StringComparison.OrdinalIgnoreCase) ||
+         result.StandardError.Contains("bad revision", StringComparison.OrdinalIgnoreCase) ||
+         result.StandardError.Contains("needed a single revision", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsSamePath(string left, string right)
     {
@@ -262,12 +317,14 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
                 continue;
             }
 
+            // Git's porcelain -z rename/copy record is `XY <new-path>\0<old-path>\0` — the NEW
+            // name comes first (already captured above as `path`); the OLD name is the following
+            // token. This is the opposite order to the human-readable "old -> new" form.
             string? originalPath = null;
             var isRename = first is 'R' or 'C' || second is 'R' or 'C';
             if (isRename && index + 1 < tokens.Length && tokens[index + 1].Length > 0)
             {
-                originalPath = path;
-                path = tokens[++index];
+                originalPath = tokens[++index];
             }
 
             total++;
@@ -286,13 +343,21 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
 
     private static RepositoryChangedFileKind GetChangeKind(char index, char worktree, bool isRename)
     {
+        // A conflicted/unmerged entry is never also an "ordinary" staged/modified/deleted change:
+        // its index/worktree characters (e.g. 'A'/'A', 'D'/'D', 'U') reuse the same letters as
+        // ordinary status codes but mean something different during a merge conflict.
+        if (IsConflicted(index, worktree))
+        {
+            return RepositoryChangedFileKind.Conflicted;
+        }
+
         var kind = RepositoryChangedFileKind.None;
         if (index != ' ' && index != '?')
         {
             kind |= RepositoryChangedFileKind.Staged;
         }
 
-        if (worktree is 'M' or 'T')
+        if (index is 'M' || worktree is 'M' or 'T')
         {
             kind |= RepositoryChangedFileKind.Modified;
         }
@@ -312,13 +377,13 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
             kind |= RepositoryChangedFileKind.Untracked;
         }
 
-        if (index is 'U' || worktree is 'U' || (index == 'A' && worktree == 'A') || (index == 'D' && worktree == 'D'))
-        {
-            kind |= RepositoryChangedFileKind.Conflicted;
-        }
-
         return kind;
     }
+
+    private static bool IsConflicted(char index, char worktree) =>
+        index is 'U' || worktree is 'U' ||
+        (index == 'A' && worktree == 'A') ||
+        (index == 'D' && worktree == 'D');
 
     private static IReadOnlyList<RepositoryRemote> ParseRemotes(string output)
     {

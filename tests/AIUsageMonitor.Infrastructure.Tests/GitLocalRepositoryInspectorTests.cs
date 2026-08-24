@@ -99,11 +99,12 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
     public async Task StatusParser_SupportsStagedDeletedRenamedUntrackedAndConflicted()
     {
         var directory = CreateDirectory("statuses");
+        // Real Git porcelain -z rename order is `new\0old\0` (the new name comes first).
         var status = string.Join('\0',
             "M  staged.cs",
             " D deleted.cs",
-            "R  old.cs",
-            "new.cs",
+            "R  new.cs",
+            "old.cs",
             "?? untracked.cs",
             "UU conflicted.cs") + "\0";
         var runner = ScriptedRunner(directory, status: status);
@@ -121,6 +122,58 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
     }
 
     [Fact]
+    public async Task PorcelainZ_RenamePublishesTargetAndOriginalCorrectly()
+    {
+        var directory = CreateDirectory("rename-order");
+        var status = "R  new.cs\0old.cs\0";
+        var runner = ScriptedRunner(directory, status: status);
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        var rename = Assert.Single(result.ChangedFiles);
+        Assert.Equal("new.cs", rename.RelativePath);
+        Assert.Equal("old.cs", rename.OriginalRelativePath);
+        Assert.True(rename.Kind.HasFlag(RepositoryChangedFileKind.Renamed));
+    }
+
+    [Theory]
+    [InlineData("M  file.cs", RepositoryChangedFileKind.Staged | RepositoryChangedFileKind.Modified)]
+    [InlineData(" M file.cs", RepositoryChangedFileKind.Modified)]
+    [InlineData("D  file.cs", RepositoryChangedFileKind.Staged | RepositoryChangedFileKind.Deleted)]
+    [InlineData(" D file.cs", RepositoryChangedFileKind.Deleted)]
+    [InlineData("?? file.cs", RepositoryChangedFileKind.Untracked)]
+    public async Task StatusFlags_AreTruthfulForOrdinaryStates(string statusLine, RepositoryChangedFileKind expectedKind)
+    {
+        var directory = CreateDirectory("status-flags-" + Guid.NewGuid().ToString("N"));
+        var runner = ScriptedRunner(directory, status: statusLine + "\0");
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        var change = Assert.Single(result.ChangedFiles);
+        Assert.Equal(expectedKind, change.Kind);
+        Assert.False(change.Kind.HasFlag(RepositoryChangedFileKind.Conflicted));
+    }
+
+    [Theory]
+    [InlineData("UU file.cs")]
+    [InlineData("AA file.cs")]
+    [InlineData("DD file.cs")]
+    [InlineData("AU file.cs")]
+    [InlineData("UA file.cs")]
+    [InlineData("DU file.cs")]
+    [InlineData("UD file.cs")]
+    public async Task StatusFlags_ConflictStatesAreConflictedOnlyNotOrdinaryStagedChanges(string statusLine)
+    {
+        var directory = CreateDirectory("conflict-" + Guid.NewGuid().ToString("N"));
+        var runner = ScriptedRunner(directory, status: statusLine + "\0");
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        var change = Assert.Single(result.ChangedFiles);
+        Assert.Equal(RepositoryChangedFileKind.Conflicted, change.Kind);
+    }
+
+    [Fact]
     public async Task DetachedHead_PreservesHeadWithoutFabricatingBranch()
     {
         var directory = CreateDirectory("detached");
@@ -131,6 +184,34 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
         Assert.True(result.IsDetachedHead);
         Assert.Null(result.BranchName);
         Assert.Equal("abcdef1234567890", result.HeadSha);
+    }
+
+    [Fact]
+    public async Task SymbolicRef_ExpectedNonSymbolicExit_IsDetached()
+    {
+        var directory = CreateDirectory("symbolic-ref-detached");
+        var runner = ScriptedRunner(directory, branchExitCode: 1);
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.True(result.IsDetachedHead);
+        Assert.Null(result.BranchName);
+        Assert.NotEqual(RepositoryVerificationStatus.Failed, result.Status);
+    }
+
+    [Fact]
+    public async Task SymbolicRef_UnexpectedFailure_IsFailed()
+    {
+        var directory = CreateDirectory("symbolic-ref-unexpected");
+        var runner = ScriptedRunner(
+            directory,
+            branchExitCode: 128,
+            branchError: "fatal: unable to read config file");
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.Failed, result.Status);
+        Assert.False(result.IsDetachedHead);
     }
 
     [Fact]
@@ -146,6 +227,75 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
         Assert.False(result.IsDetachedHead);
         Assert.Null(result.HeadSha);
         Assert.Equal(1, result.ChangedFileTotal);
+    }
+
+    [Fact]
+    public async Task Head_AbsentInValidUnbornRepository_HasNoSha()
+    {
+        var directory = CreateDirectory("unborn-head");
+        var runner = ScriptedRunner(
+            directory,
+            headExitCode: 128,
+            headError: "fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree.",
+            status: string.Empty);
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.Null(result.HeadSha);
+        Assert.Null(result.HeadShortSha);
+        Assert.NotEqual(RepositoryVerificationStatus.Failed, result.Status);
+    }
+
+    [Fact]
+    public async Task Root_NotRepository_IsNotGitRepository()
+    {
+        var directory = CreateDirectory("root-not-repository");
+        var runner = ScriptedRunner(directory, rootExitCode: 128);
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.NotGitRepository, result.Status);
+    }
+
+    [Fact]
+    public async Task Root_PermissionOrUnexpectedFailure_IsNotNotGitRepository()
+    {
+        var directory = CreateDirectory("root-permission");
+        var runner = ScriptedRunner(
+            directory,
+            rootExitCode: 128,
+            rootError: "fatal: unable to read current working directory: Permission denied");
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.Failed, result.Status);
+        Assert.NotEqual(RepositoryVerificationStatus.NotGitRepository, result.Status);
+    }
+
+    [Fact]
+    public async Task GitDisappearsAfterVersion_DoesNotFabricateRepositoryState()
+    {
+        var directory = CreateDirectory("git-disappears");
+        var runner = ScriptedRunner(directory, rootCouldNotStart: true);
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.GitUnavailable, result.Status);
+        Assert.False(result.IsDetachedHead);
+        Assert.Null(result.BranchName);
+        Assert.Null(result.HeadSha);
+    }
+
+    [Fact]
+    public async Task UnexpectedUpstreamFailure_DoesNotCreateFakeUpstream()
+    {
+        var directory = CreateDirectory("upstream-disappears");
+        var runner = ScriptedRunner(directory, upstreamCouldNotStart: true);
+
+        var result = await CreateInspector(runner).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.GitUnavailable, result.Status);
+        Assert.Null(result.UpstreamBranch);
     }
 
     [Fact]
@@ -203,6 +353,92 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             CreateInspector(runner).InspectAsync(directory, cancellationToken: cancellation.Token));
+    }
+
+    [Fact]
+    public async Task PathProbe_Missing_ReturnsPathMissingWithoutRunningGit()
+    {
+        var directory = CreateDirectory("probe-missing");
+        var runner = ScriptedRunner(directory);
+        var probe = new FakeLocalPathProbe
+        {
+            Handler = (_, _) => Task.FromResult(new LocalPathProbeResult(LocalPathProbeStatus.Missing))
+        };
+
+        var result = await new GitLocalRepositoryInspector(runner, probe).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.PathMissing, result.Status);
+        Assert.Empty(runner.Calls);
+    }
+
+    [Fact]
+    public async Task PathProbe_NotADirectory_ReturnsPathUnavailableWithoutRunningGit()
+    {
+        var directory = CreateDirectory("probe-file");
+        var runner = ScriptedRunner(directory);
+        var probe = new FakeLocalPathProbe
+        {
+            Handler = (_, _) => Task.FromResult(new LocalPathProbeResult(LocalPathProbeStatus.NotADirectory))
+        };
+
+        var result = await new GitLocalRepositoryInspector(runner, probe).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.PathUnavailable, result.Status);
+        Assert.Empty(runner.Calls);
+    }
+
+    [Fact]
+    public async Task PathProbe_Unavailable_ReturnsPathUnavailableAndDiffersFromMissing()
+    {
+        var directory = CreateDirectory("probe-unavailable");
+        var runner = ScriptedRunner(directory);
+        var probe = new FakeLocalPathProbe
+        {
+            Handler = (_, _) => Task.FromResult(new LocalPathProbeResult(LocalPathProbeStatus.Unavailable))
+        };
+
+        var result = await new GitLocalRepositoryInspector(runner, probe).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.PathUnavailable, result.Status);
+        Assert.NotEqual(RepositoryVerificationStatus.PathMissing, result.Status);
+        Assert.Empty(runner.Calls);
+    }
+
+    [Fact]
+    public async Task PathProbe_Timeout_ReturnsBoundedUnavailableWithoutRunningGit()
+    {
+        var directory = CreateDirectory("probe-timeout");
+        var runner = ScriptedRunner(directory);
+        var probe = new FakeLocalPathProbe
+        {
+            Handler = (_, _) => Task.FromResult(new LocalPathProbeResult(LocalPathProbeStatus.Unavailable, TimedOut: true))
+        };
+
+        var result = await new GitLocalRepositoryInspector(runner, probe).InspectAsync(directory);
+
+        Assert.Equal(RepositoryVerificationStatus.PathUnavailable, result.Status);
+        Assert.Empty(runner.Calls);
+    }
+
+    [Fact]
+    public async Task PathProbe_Cancellation_IsHonoredWithoutRunningGit()
+    {
+        var directory = CreateDirectory("probe-cancelled");
+        var runner = ScriptedRunner(directory);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var probe = new FakeLocalPathProbe
+        {
+            Handler = (_, token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult(new LocalPathProbeResult(LocalPathProbeStatus.AvailableDirectory));
+            }
+        };
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new GitLocalRepositoryInspector(runner, probe).InspectAsync(directory, cancellationToken: cancellation.Token));
+        Assert.Empty(runner.Calls);
     }
 
     [Fact]
@@ -264,9 +500,14 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
         string status = "",
         string remote = "",
         int rootExitCode = 0,
+        string? rootError = null,
         int branchExitCode = 0,
+        string? branchError = null,
         int headExitCode = 0,
-        int upstreamExitCode = 0)
+        string? headError = null,
+        int upstreamExitCode = 0,
+        bool rootCouldNotStart = false,
+        bool upstreamCouldNotStart = false)
     {
         var runner = new FakeGitCommandRunner();
         runner.Handler = arguments =>
@@ -278,21 +519,43 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
 
             if (arguments.Contains("--show-toplevel"))
             {
-                return Task.FromResult(Result(rootExitCode, directory));
+                if (rootCouldNotStart)
+                {
+                    return Task.FromResult(Result(couldNotStart: true));
+                }
+
+                var defaultRootError = rootExitCode != 0
+                    ? "fatal: not a git repository (or any of the parent directories): .git"
+                    : string.Empty;
+                return Task.FromResult(Result(rootExitCode, directory, error: rootError ?? defaultRootError));
             }
 
             if (arguments.Contains("symbolic-ref"))
             {
-                return Task.FromResult(Result(branchExitCode, branchExitCode == 0 ? "main" : ""));
+                return Task.FromResult(Result(
+                    branchExitCode,
+                    branchExitCode == 0 ? "main" : "",
+                    error: branchError ?? string.Empty));
             }
 
             if (arguments.Contains("--verify"))
             {
-                return Task.FromResult(Result(headExitCode, headExitCode == 0 ? "abcdef1234567890" : ""));
+                var defaultHeadError = headExitCode != 0
+                    ? "fatal: ambiguous argument 'HEAD': unknown revision or path not in the working tree."
+                    : string.Empty;
+                return Task.FromResult(Result(
+                    headExitCode,
+                    headExitCode == 0 ? "abcdef1234567890" : "",
+                    error: headError ?? defaultHeadError));
             }
 
             if (arguments.Contains("@{upstream}"))
             {
+                if (upstreamCouldNotStart)
+                {
+                    return Task.FromResult(Result(couldNotStart: true));
+                }
+
                 return Task.FromResult(Result(upstreamExitCode, upstreamExitCode == 0 ? "origin/main" : ""));
             }
 
@@ -314,10 +577,11 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
     private static GitCommandResult Result(
         int exitCode = 0,
         string output = "",
+        string error = "",
         bool timedOut = false,
         bool cancelled = false,
         bool couldNotStart = false) =>
-        new(exitCode, output, string.Empty, timedOut, cancelled, couldNotStart);
+        new(exitCode, output, error, timedOut, cancelled, couldNotStart);
 
     private sealed class FakeGitCommandRunner : IGitCommandRunner
     {
@@ -333,5 +597,14 @@ public sealed class GitLocalRepositoryInspectorTests : IDisposable
             Calls.Add(arguments.ToArray());
             return Handler(arguments);
         }
+    }
+
+    private sealed class FakeLocalPathProbe : ILocalPathProbe
+    {
+        public Func<string, CancellationToken, Task<LocalPathProbeResult>> Handler { get; set; } =
+            (_, _) => Task.FromResult(new LocalPathProbeResult(LocalPathProbeStatus.AvailableDirectory));
+
+        public Task<LocalPathProbeResult> ProbeAsync(string path, CancellationToken cancellationToken = default) =>
+            Handler(path, cancellationToken);
     }
 }
