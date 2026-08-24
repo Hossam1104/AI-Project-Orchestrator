@@ -1748,3 +1748,100 @@ is transitioned to Done. Parent Epic APO-3 remains In Progress.
 APO-27 is complete, merged, and Done in Jira. The completed Claude Opus review satisfied the
 APO-27 independent review checkpoint (Prompt 2/5 cadence). The next action is GPT-5.6 Sol planning
 and decomposition of the first usable Projects workspace Story under Epic APO-5.
+
+## 13.4 APO-37 SOL-37-03b Global Path-Probe Correction (Prompt 4/5)
+
+**Lifecycle:** APO-37 SOL-37-03b bounded correction -> functional implementation -> full
+validation -> executor handoff to GPT-5.6 Sol. Claude Sonnet and Claude Opus were not invoked.
+
+### Exact delivery identity
+
+| Item | Value |
+|---|---|
+| Story / Epic | APO-37 / APO-6 |
+| Exact main base | `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e` |
+| Pre-correction branch head | `accdf8e745a79327809cbf154c6e2e486726e474` |
+| Functional correction SHA | `10aa9529066f94be06808223a90c95a2415ba8b9` |
+| Branch | `feat/APO-37-local-git-verification` |
+| Draft PR | #7, OPEN / DRAFT / UNMERGED |
+| Sol comments | `11851`, `11854` |
+| Jira status | APO-37 In Progress; APO-6 In Progress |
+| Final branch SHA | Recorded in the final executor completion report after documentation synchronization |
+
+### SOL-37-03b correction
+
+`SystemLocalPathProbe` now coordinates all unresolved system path probes through one process-wide
+thread-safe in-flight slot. The caller still waits only up to the configured four-second bound.
+Caller timeout and cancellation return control without canceling or evicting the underlying
+uncancellable filesystem operation. Same-path callers share the active task; a different path
+gets bounded `Unavailable`/`TimedOut` and never receives the first path's result. Completion is
+observed, exceptions are consumed safely, the slot is cleared only after the actual task finishes,
+and later verification can start one fresh probe.
+
+The maximum unresolved underlying operating-system filesystem probes is therefore **1 globally**.
+No Application contract or Git inspector behavior was redesigned, and Git still runs only after
+`AvailableDirectory`.
+
+### Regression coverage
+
+Six deterministic `LocalPathProbeTests` regressions cover repeated timeouts, concurrent callers,
+cancellation, restart after completion, different-path isolation, and exception cleanup. Existing
+available-directory, missing, not-a-directory, unavailable, timeout, cancellation, and
+Git-suppression tests remain passing. The real Git integration tests are serialized with these
+tests because the production coordinator is intentionally process-global.
+
+### Validation evidence
+
+| Check | Result |
+|---|---|
+| Focused Infrastructure tests | 172 passed, 0 failed, 0 skipped |
+| Focused Desktop tests | 70 passed, 0 failed, 0 skipped |
+| Full solution tests | 326 passed, 0 failed, 0 skipped (28 Domain, 46 Provider, 172 Infrastructure, 10 Connection, 70 Desktop) |
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| `git diff --check` | SUCCESS |
+| Targeted added-line secret scan | SUCCESS; no real credentials found |
+| `win-x64` self-contained single-file publish | SUCCESS |
+
+### Runtime evidence
+
+The final published executable is running at:
+
+- ExecutablePath: `D:\AI Tools\Hossam\AI-Project-Orchestrator\publish\win-x64\AIUsageMonitor.Desktop.exe`
+- PID: `45940`
+- WindowTitle: `AI Project Orchestrator`
+- NormalState: non-degraded shell; accessibility inspection reported `CAPACITY READY` and exposed
+  the Projects navigation control. The Windows desktop was locked during the final UI automation
+  attempt, so direct Projects navigation was not performed; no degraded shell state was observed.
+- LEFT RUNNING = YES
+
+### Delivery boundary
+
+Work item: APO-37 SOL-37-03b
+Status: COMPLETE at executor boundary / awaiting GPT-5.6 Sol final Prompt-4 delta acceptance
+
+Implemented:
+- Global single-unresolved-probe coordination with path isolation, cancellation safety, completion
+  eviction, exception observation, and restart-after-completion behavior.
+- Six deterministic regression tests and serialized real-probe test collection coverage.
+
+Validated:
+- 326 / 326 full-suite tests passed; 0 failed; 0 skipped.
+- Build succeeded with 0 warnings and 0 errors.
+- Self-contained single-file win-x64 publish succeeded.
+- Final executable is alive and left running.
+
+Not validated:
+- Claude Opus independent review; this is the next Prompt 5/5 gate if Sol accepts.
+- Direct Projects navigation through UI automation because the Windows desktop was locked during
+  the final check.
+
+Blockers / limitations:
+- No functional blocker. Runtime UI interaction was limited by the locked desktop; process title,
+  responsive state, non-degraded accessibility tree, and Projects navigation control were observed.
+
+CURRENT_STATE updated: Yes
+
+Next planner boundary:
+- GPT-5.6 Sol final Prompt-4 delta acceptance for the pushed correction.
+- If accepted, Prompt 5/5 Claude Opus independent review.
