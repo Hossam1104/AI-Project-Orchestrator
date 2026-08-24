@@ -18,6 +18,7 @@ namespace AIUsageMonitor.Infrastructure.Tests;
 /// not available in the current environment, every test short-circuits truthfully instead of
 /// fabricating a pass or a failure.
 /// </summary>
+[Collection("SystemLocalPathProbe")]
 public sealed class RealGitRepositoryIntegrationTests : IDisposable
 {
     private static readonly Lazy<bool> GitAvailable = new(ProbeGitAvailability);
