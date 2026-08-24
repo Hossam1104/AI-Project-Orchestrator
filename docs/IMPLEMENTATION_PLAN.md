@@ -356,5 +356,10 @@ fallback constructor and `App.OnStartup`'s outer `catch` are unchanged.
 
 With the fix in place, SOL-35-02 sanitized visual evidence (blocked in section 11) was captured
 successfully from the real, non-degraded published `win-x64` shell and committed at
-`docs/evidence/APO-35-projects-workspace.png`. Full-suite validation is 219/219 passing (Desktop 49,
-up from 214/44). See `TASK.md` and `.ai/CURRENT_STATE.md` for exact SHAs and evidence details.
+`docs/evidence/APO-35-projects-workspace.png`. A subsequent Claude Opus 5 independent review
+(Prompt 5/5) returned `CHANGES REQUIRED` against four Projects UI findings (`OPUS-01`..`OPUS-04`);
+GPT-5.6 Sol adjudicated the review in Jira comment `11838` and authorized a bounded Claude Sonnet 5
+remediation (Prompt 1/5 of a new Opus cadence), which fixed all four findings plus a related
+`ListBox` rendering regression the `OPUS-01` fix exposed. Full-suite validation is 225/225 passing
+(Desktop 55, up from 219/49). See `TASK.md` and `.ai/CURRENT_STATE.md` for exact SHAs and evidence
+details.

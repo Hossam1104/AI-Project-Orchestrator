@@ -244,6 +244,156 @@ made.
 **Next planner boundary:** GPT-5.6 Sol final Prompt-4 delta acceptance against the exact final
 pushed branch SHA. If accepted, the next checkpoint is Prompt 5/5 Claude Opus independent review.
 
+---
+
+## -3c. APO-35 Opus UI Findings Remediation (New Opus Cycle, Prompt 1/5)
+
+**Lifecycle at this checkpoint:** SOL-35-01 remediated -> SOL-35-02 evidence complete (APO-36 fix
+applied) -> real Claude Opus 5 independent review of the Projects UI -> Opus verdict `CHANGES
+REQUIRED` against four findings (`OPUS-01`..`OPUS-04`, P2, and `OPUS-05`..`OPUS-08`, P3, deferred)
+-> GPT-5.6 Sol adjudicated the review in Jira comment `11838`, accepted `OPUS-01`..`OPUS-04` as
+blocking and authorized this bounded Claude Sonnet 5 remediation as Prompt 1/5 of a new Opus cadence
+-> THIS remediation -> next gate is Sol delta acceptance of this section.
+
+**Scope authority:** Sol's adjudication authorized exactly `OPUS-01`..`OPUS-04`. `OPUS-05`..`OPUS-08`
+(P3) are explicitly deferred and were not implemented. Claude Opus was not invoked in this Prompt.
+The reused finding codes `OPUS-01`..`OPUS-04` here are a **new, distinct cycle** scoped to the
+Projects UI; they are unrelated to the earlier APO-27 storage-durability `OPUS-01`..`OPUS-08` codes
+recorded in section 13.3/13.4 below, which are historical and already resolved/deferred in that
+separate context.
+
+**Pre-remediation branch head:** `bad6380` (`docs/evidence: complete APO-35 Prompt 4 validation`).
+Base `main`: `34569abee50bdb708770e134e9db7db18752a80d` (unchanged). Draft PR
+[#6](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/6) remains OPEN / DRAFT / UNMERGED.
+
+**OPUS-01 (P2, BLOCKING) — FIXED.** The registry `ListBox` lived inside a `StackPanel`, which gives
+its children infinite available height, so the `ListBox` never received a bounded region and could
+not reliably scroll once the registry held a realistic number of projects. The enclosing
+`StackPanel` in `MainWindow.xaml`'s Projects registry column was replaced with a `Grid` with four
+row definitions (`Auto`/`Auto`/`Auto`/`*`) for the search box, status filter, empty/no-match
+messaging, and the `ListBox`; the `ListBox` now occupies the trailing star row and gained
+`ScrollViewer.VerticalScrollBarVisibility="Auto"`. Verifying this against the real published
+executable also surfaced a second, previously dormant defect that only became visible once the
+`ListBox` was given a real bounded area: with zero items, the `ListBox`'s default theme chrome
+rendered a solid opaque white fill behind the "No projects yet" panel instead of the transparent
+`Background="Transparent"` already set on the control (confirmed reproducible via `PrintWindow`
+against the real self-contained `win-x64` publish; a pure in-process `RenderTargetBitmap` render of
+the identical visual tree did not show it, confirming the defect was specific to the real
+hardware/theme-composited render path and not visible by reading XAML alone). Because this is a
+direct, in-scope consequence of the `OPUS-01` layout change (the empty `ListBox` was previously
+collapsed to near-zero height inside the old `StackPanel` and never rendered a visible area), it was
+fixed as part of `OPUS-01`: a new `ProjectRegistryListBoxStyle` (`MainWindow.xaml`) replaces the
+`ListBox`'s default control template with an explicit `Border`/`ScrollViewer`/`ItemsPresenter`
+template that guarantees a transparent background regardless of the resolved theme.
+
+**OPUS-02 (P2, BLOCKING) — FIXED.** The Projects registry/editor column `MinWidth` values (`235` /
+spacer `18` / `330`) summed with the window's chrome/padding to exceed the declared `860x580`
+minimum window contract, causing clipping. `Window.MinWidth`/`MinHeight` were left unchanged at
+`860`/`580`. The three registry `Grid.ColumnDefinitions` `MinWidth`s were reduced to `200` (left) /
+`16` (spacer) / `295` (right), within Sol's suggested ranges, and verified against the real
+published executable resized to exactly `860x580`: the editor's right edge, all field labels, and
+`Cancel`/`Save changes` remain visible with no horizontal clipping (see evidence below).
+
+**OPUS-03 (P2, BLOCKING) — FIXED.** Both Projects status `ComboBox`es (`SelectedStatusFilter` and
+`EditorStatus`) previously used a manually-styled `Style` that only set brush/font setters without a
+custom `ControlTemplate`, so the closed box, dropdown popup, and item chrome still fell back to
+default light WPF chrome with inadequate contrast against the dark shell. A new reusable
+`BrandComboBoxStyle` and `BrandComboBoxItemStyle` were added to
+`src/AIUsageMonitor.Desktop/Resources/Controls.xaml`, reusing only existing brand brushes
+(`BrandNavyBlueBrush`, `BrandTextBrush`, `BrandBorderBrush`, `BrandCyanBrush`, `BrandFocusBrush`,
+`BrandSurfaceRaisedBrush`, `BrandMutedTextBrush`). The template covers the closed state, hover
+(`BrandFocusBrush` border), open/keyboard-focus (`BrandCyanBrush` / thicker `BrandFocusBrush`
+border), disabled (`Opacity 0.45`), the popup (dark background, border, corner radius, drop shadow,
+scrollable item list), and item hover/selection (`BrandSurfaceRaisedBrush` background,
+`BrandCyanBrush` selected foreground). `MainWindow.xaml`'s `ProjectInputComboBoxStyle` now reads
+`BasedOn="{StaticResource BrandComboBoxStyle}"` instead of duplicating brush setters, so both
+Projects `ComboBox`es pick up the new template.
+
+**OPUS-04 (P2, non-blocking, fixed per Sol instruction) — FIXED.** `ApplyFilter()` rebuilds a fresh
+`ProjectCardViewModel` for every visible project on every search/filter keystroke. WPF's `Selector`
+requires `SelectedItem` to be reference-equal to an instance actually present in `ItemsSource`;
+rebuilding always broke that reference, so the real UI selection was silently lost even when the
+selected project still matched the active filter. `ApplyFilter()` now captures the selected
+project's id before rebuilding `FilteredProjects`, then re-resolves `SelectedProjectCard` to the
+matching new instance by id (or `null` if the project no longer matches). `ReplaceProject(saved)`
+(used after a successful save) was changed the same way: it now selects the exact new instance from
+`FilteredProjects` by id, or `null` if the saved project fell out of the active filter — it no longer
+constructs a detached `ProjectCardViewModel` that is not actually present in the bound collection.
+
+Six new regression tests were added to `tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`:
+`SearchPreservesSelectionWhenSelectedProjectStillMatches`,
+`StatusFilterPreservesSelectionWhenProjectStillMatches`,
+`SearchClearsSelectionWhenProjectNoLongerMatches`,
+`StatusFilterClearsSelectionWhenProjectNoLongerMatches`,
+`SavedProjectSelectionUsesFilteredCollectionInstance`,
+`ChangingProjectStatusSoItLeavesCurrentFilterClearsSelection`.
+
+**Full validation:**
+
+| Check | Result |
+|---|---|
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln --no-restore` | SUCCESS; 225/225 passing (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 55; up from 219/49, +6 new OPUS-04 regression tests) |
+| `win-x64` self-contained single-file publish | SUCCESS (rebuilt after the `OPUS-01` follow-on `ListBox` template fix) |
+| `win-x86` / `win-arm64` publish | Not rerun; no project/package/publish configuration changed |
+| `git diff --check` | Clean (benign LF/CRLF notices only) |
+| Secret-pattern scan of the diff | Clean |
+
+**Runtime verification (real published `win-x64` executable, both required window sizes):** Windows
+UI Automation (`System.Windows.Automation`) drove the real, non-degraded published executable — the
+"Projects" nav item and "New project" were invoked programmatically, matching the same pattern
+established in section -3b. Screen capture used the Win32 `PrintWindow` API with
+`PW_RENDERFULLCONTENT`, cropped to the window's true visible bounds via
+`DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)` to exclude the invisible DWM resize-border
+margin (a plain `GetWindowRect`-sized capture bled a few pixels of unrelated desktop content into the
+bottom edge of the image; the DWM-bounds crop eliminates that). `CopyFromScreen` was evaluated and
+rejected for this capture: `SetForegroundWindow` from the automating process was not reliably
+honored in this environment, so a `CopyFromScreen` capture at the target window's screen rectangle
+was, at least once, observed to capture whichever unrelated window actually had focus instead
+(discovered and immediately deleted before being written anywhere durable); `PrintWindow` reads
+directly from the target window's own handle regardless of foreground/z-order state and does not
+have this failure mode, so it is the capture method actually used for both evidence screenshots.
+At `1180x760` and at the exact `860x580` minimum-window-contract size, the real published executable
+shows: a real, empty registry (`"0 total"`, `"No projects registered yet."`, not degraded), a fully
+visible New Project editor with all fields blank, `Cancel`/`Save changes` reachable, a visible
+editor `ScrollViewer` scrollbar, no horizontal clipping of the editor's right edge at the `860x580`
+minimum, and the corrected dark `ComboBox` chrome. No cropping/content edits were made beyond the
+DWM-bounds crop; both images were inspected before commit and contain no real project names, paths,
+repository URLs, tracker ids, or credentials. Evidence paths: `docs/evidence/APO-35-projects-workspace.png`
+(`1180x760`) and `docs/evidence/APO-35-projects-workspace-minimum.png` (`860x580`, new).
+
+**Populated-list scroll proof (`OPUS-01`, without writing to the owner's real registry or adding a
+production demo mode):** a temporary, non-shipped WPF harness project (scratchpad-only, not part of
+the solution or committed to the repository) referenced the real
+`AIUsageMonitor.Desktop`/`AIUsageMonitor.Application` assemblies and constructed the real
+`MainWindow`/`MainWindowViewModel`/`ProjectsViewModel`/`ProjectRegistryService` production classes,
+wired to a sanitized in-memory `IProjectRepository` fake seeded with 40 fake `Sample Workspace NN`
+projects (fake `C:\Sample\WorkspaceNN` paths, no real data, following the same in-memory fake-repository
+pattern already used by `ProjectsWorkspaceTests.cs`). Nothing in this object graph touches the real
+`IProjectRepository`/LocalAppData implementation. Rendered via in-process `RenderTargetBitmap`
+(pure WPF render, no OS capture APIs needed since the harness owns the window), this proved the
+`OPUS-01` fix at both `1180x760` and `860x580`: the registry list is bounded to its `Grid` star row,
+shows `40 total`, and exposes a working vertical scrollbar rather than expanding without limit.
+Evidence paths (supplementary, not the two required sanitized evidence files above):
+`docs/evidence/APO-35-registry-scroll-proof-1180x760.png`,
+`docs/evidence/APO-35-registry-scroll-proof-860x580.png`.
+
+**Out of scope, not performed (per contract):** `OPUS-05`..`OPUS-08` (P3) not implemented; no
+rebase/force-push/reset/merge-main; PR #6 left OPEN/DRAFT/UNMERGED; PR #6 not marked ready for
+review; APO-35/APO-36/APO-5 not marked Done; no other Story started; no Claude Opus invocation; no
+Application-layer change; no new provider/routing/execution/orchestration/database/cloud-backend
+behavior.
+
+**Jira synchronization:** one comment posted to APO-35 summarizing this remediation (functional
+commit SHA, final branch SHA, `OPUS-01`..`OPUS-04` resolution, focused/full test results, build,
+publish, both runtime evidence screenshot paths, populated-scroll proof paths and methodology, P3
+deferrals, "Prompt 1/5", next gate). No Jira status transition was made.
+
+**Next planner boundary:** GPT-5.6 Sol delta acceptance of this remediation against the exact final
+pushed branch SHA. Do not invoke Opus, merge, or start another Story from this checkpoint.
+
+---
+
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
 > APO-22 adds the concrete secure-credential-store adapter and is now merged at main SHA
