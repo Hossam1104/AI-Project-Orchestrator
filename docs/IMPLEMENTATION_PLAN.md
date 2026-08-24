@@ -1,15 +1,15 @@
 # AI Project Orchestrator - Implementation Plan
 
-**Version:** 1.1
-**Date:** 21 August 2026
+**Version:** 1.2
+**Date:** 25 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Primary Requirements:** `docs/BRD.md`
 **Jira Project:** `APO`
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Default Branch:** `main`
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
-**Substantial Executor:** GPT-5.6 Luna Max
-**Bounded Executor:** Claude Sonnet 5
+**Primary Executor:** GPT-5.6 Luna xHigh
+**Exceptional Alternative Executor:** Claude Sonnet 5
 **Independent Reviewer:** Claude Opus 5
 **Optional Security Specialist:** GPT-5.6 Terra HIGH
 **Auxiliary Executor:** Gemini 3.7
@@ -42,8 +42,9 @@ Jira Epic -> Jira Story/Task -> Sol planning/architecture
 ```
 
 Only one bounded assigned work item is active at a time. Detailed Stories/Tasks are progressively
-decomposed by Sol after repository evidence and acceptance dependencies are understood. This plan
-does not invent a future Story list.
+decomposed by Sol after repository evidence and acceptance dependencies are understood. The
+strategic rebaseline now records the approved bounded backlog in Jira APO-38 through APO-61; their
+presence does not authorize implementation.
 
 ---
 
@@ -150,41 +151,52 @@ revived without an explicit architecture decision.
 Delivery proceeds in capability families, but actual work is always driven by one assigned Jira
 Story/Task and its Sol-authored `TASK.md` contract.
 
-### Phase A - Governance and evidence boundary
+### Phase A - Governance and accepted foundation
 
-Complete APO-1 governance, consolidate the BRD, stop the old Session 04 prompt, and establish Jira
-traceability. Then Sol performs repository-to-Jira legacy mapping and defines the next Story. No
-source refactoring occurs before this checkpoint.
+APO-18 through APO-37 establish the governed WPF/.NET/JSON/JSONL foundation, capacity surfaces,
+project workspace, and the first local read-only Git evidence slice. APO-37 is merged at
+`0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`; its accepted P3 hardening is retained in APO-59 to
+APO-61. APO-33 remains the existing CI/release Story and is not duplicated.
 
-### Phase B - Foundation and local safety
+### Phase B - Inputs and control-plane contracts (P0)
 
-Validate and extend APO-2 Windows/application foundation and APO-3 local persistence, resilience,
-and credential security. Preserve cross-Windows behavior, schema/version contracts, safe writes,
-corruption isolation, and zero-prerequisite consumer deployment.
+Start with APO-38 (agent/model registry truth), then APO-39 (progressive onboarding and canonical
+context resolution). Define versioned planning contracts (APO-40), dependency-aware work graphs
+(APO-41), compact role handoffs (APO-42), and durable recovery checkpoints (APO-43). These slices
+must remain provider-independent, project-isolated, and free of chat-history or secret persistence.
 
-### Phase C - Inputs and capacity
+### Phase C - Quality-first decision and bounded execution (P0)
 
-Build APO-4 monitoring/subscriptions/capacity, APO-5 project registry, APO-6 Git/GitHub, and APO-7
-Jira/Azure DevOps integration. Each integration requires truthful capabilities, least privilege,
-project isolation, explicit failures, and evidence-backed synchronization.
+Implement explainable routing (APO-44), bounded cancellable execution (APO-45), and isolated
+workspaces (APO-46). Tracker awareness (APO-47) is an independent Jira-first/Azure-optional input,
+not a model-CLI side effect. The ordering is deliberate: capability and contract truth precede
+quota-aware selection, and both precede process execution.
 
-### Phase D - Planning and execution
+### Phase D - Evidence, review, acceptance, and command center (P0)
 
-Build APO-8 agent/model registry/connectivity, APO-9 routing, APO-10 contracts, and APO-11 bounded
-execution. Routing is quality/risk first; execution is cancellable, bounded, auditable, and never
-silently crosses project or approval boundaries.
+Build independent evidence/QA gates (APO-48), human approval policy (APO-49), and the Mission
+Control read model/surface (APO-50). Evidence remains the progression authority; the owner remains
+the authority for protected delivery and high-risk changes.
 
-### Phase E - Evidence, review, and acceptance
+### Phase E - Workflow acceleration (P1)
 
-Build APO-12 validation/evidence, APO-13 independent review/remediation, and APO-14 final
-acceptance/human gates. Review remains independent from implementation, and high-risk actions stop
-for owner approval.
+Add the Review Inbox/remediation state (APO-51), composable skills/workflows (APO-52), explainable
+project health (APO-53), the AI Decision Ledger and activity timeline (APO-54), truthful runtime
+evidence (APO-55), and context-budget management (APO-56). These capabilities reduce manual
+handoffs without becoming an opaque plugin or prompt framework.
 
-### Phase F - UX, history, and release
+### Phase F - Controlled optional automation (P2)
 
-Build APO-15 command-center UX and APO-16 audit/history/notifications while preserving dynamic
-capacity display, stale/partial/error states, lightweight WPF behavior, and readable accessibility.
-Complete APO-17 packaging, compatibility, CI, and release quality only with evidence-backed claims.
+Only after the P0/P1 evidence and approval boundaries are sound, consider bounded background
+automation/housekeeping (APO-57) and a separately designed optional remote/mobile approval boundary
+(APO-58). Neither makes an APO-owned cloud backend mandatory for V1.
+
+### Phase G - APO-37 hardening debt (P3)
+
+APO-59 covers remote/output evidence bounds and conservative normalization (OPUS-01/02/03/09).
+APO-60 covers aggregate verification bounds and truthful path-state UX (OPUS-04/05). APO-61 covers
+explicit unavailable/skipped semantics for real-Git integration evidence (OPUS-07). Rejected
+OPUS-06 and OPUS-08 are not backlog work.
 
 No family is considered complete merely because code exists. Acceptance requires the Jira scope,
 BRD requirements, validation, review, and Sol decision to align.
@@ -276,7 +288,9 @@ squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. APO-35 (P
 and APO-36 (AiCapacityViewModel DI startup fix) are Sol-accepted, verified across 225/225 tests,
 and merged into `main` at squash merge SHA `beab8072551a84aad60df7744135c74c75e51acb` via PR #6.
 APO-35 and APO-36 are marked Done in Jira while parent Epics APO-5 and APO-4 remain In Progress.
-The next action is GPT-5.6 Sol planning handoff to select and define the next bounded Story.
+APO-37 is now Done after PR #7 squash merge at `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`; APO-6
+remains In Progress. The next action is GPT-5.6 Sol acceptance of this strategic rebaseline and
+selection of one bounded Story, with APO-38 the recommended first implementation boundary.
 
 ## 10. APO-35 Delivery Boundary
 
@@ -392,3 +406,64 @@ content read, diff, patch, or Git mutation is part of APO-37.
 
 The accepted project lifecycle is Active, Paused, Blocked, Archived, with status filters All,
 Active, Paused, Blocked, Archived. Draft and Completed are not ProjectStatus values.
+
+---
+
+## 15. Strategic Rebaseline Capability Map
+
+The owner-requested Compare-AI-Orchestrators direction is incorporated as a capability map over
+the existing Epic structure. Competitor names are not product boundaries, and no duplicate Epic is
+introduced.
+
+| Band | Capability slices | Jira Stories |
+|---|---|---|
+| P0 | Agent/model truth and progressive onboarding | APO-38, APO-39 |
+| P0 | Contracts, dependency graph, handoffs, and recovery context | APO-40, APO-41, APO-42, APO-43 |
+| P0 | Quality-first routing, bounded execution, workspaces, and tracker evidence | APO-44, APO-45, APO-46, APO-47 |
+| P0 | Independent QA gates, human gates, and Mission Control | APO-48, APO-49, APO-50 |
+| P1 | Review Inbox, skills, health, decision ledger, runtime evidence, and context budgets | APO-51 through APO-56 |
+| P2 | Bounded background automation/housekeeping and optional remote approval design | APO-57, APO-58 |
+| P3 | Accepted APO-37 hardening debt | APO-59, APO-60, APO-61 |
+
+Existing work reused rather than recreated includes APO-27 project/orchestration storage, APO-35/36
+the Projects workspace and normal composition, APO-37 local Git evidence, and APO-33 CI/release
+workflow. Existing Epic dependencies remain the architectural ownership map. Jira issue links record
+the critical predecessor relationships among APO-38 through APO-61.
+
+## 16. Dependency Graph and Planner Ordering
+
+The strategic ordering is:
+
+```text
+APO-3/APO-4 foundations
+        ↓
+APO-38 agent/model truth → APO-39 onboarding/context resolution
+        ↓
+APO-40 contracts → APO-41 dependency graph → APO-42 role handoffs
+        ↓                         ↘
+APO-43 recovery context       APO-44 quality-first routing
+        ↓                         ↓
+APO-46 isolated workspaces → APO-45 bounded execution ← APO-47 tracker evidence
+                                      ↓
+                         APO-48 independent QA evidence
+                                      ↓
+                         APO-49 approval policy
+                                      ↓
+                              APO-50 Mission Control
+                                      ↓
+                  APO-51..56 workflow acceleration
+                                      ↓
+                         APO-57..58 optional P2 work
+```
+
+This ordering intentionally places capability truth, persistence, contracts, evidence, and human
+authority before broad autonomous behavior or consolidated UX. APO-17/33 CI remains a cross-cutting
+release prerequisite and may be sequenced by Sol when the release risk warrants it.
+
+## 17. Strategic Acceptance Boundary
+
+This document is a roadmap and architecture rebaseline, not implementation authorization. The next
+Sol gate must verify the BRD/plan/Jira consistency, inspect the accepted APO-37 merge baseline, and
+choose one bounded Story. The recommended next choice is APO-38 because the registry/connectivity
+truth is a prerequisite for routing, handoffs, and execution; no executor should begin APO-38 until
+Sol replaces TASK.md with its self-contained implementation contract.

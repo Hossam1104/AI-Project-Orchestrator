@@ -1,84 +1,84 @@
-# APO-37 FINAL PROMPT-4 SOL DELTA ACCEPTANCE HANDOFF
+# GPT-5.6 Sol Planning / Acceptance Handoff — Strategic Rebaseline
 
-## Story / scope
+## Session boundary
 
-- Story: APO-37 — Implement Read-Only Local Git Repository Verification in Projects
-- Epic: APO-6 — Git & GitHub Integration
-- Main base: `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e`
-- Branch: `feat/APO-37-local-git-verification`
-- Draft PR: [#7](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/7), OPEN / DRAFT / UNMERGED
-- Pre-correction branch head: `accdf8e745a79327809cbf154c6e2e486726e474`
-- Sol review comments: `11851`, `11854`
-- Functional correction SHA: `10aa9529066f94be06808223a90c95a2415ba8b9`
-- Final branch SHA: recorded in the final executor completion report after documentation synchronization
+- Session: NEW CYCLE — Prompt 1/5, strategic orchestrator rebaseline.
+- Completed prerequisite: APO-37 finalization and merge.
+- Strategic branch: `docs/apo-strategic-orchestrator-rebaseline`.
+- Exact branch base: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
+- Exact `origin/main`: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
+- Product architecture remains C#/.NET 10/WPF/MVVM/Clean Architecture with JSON/JSONL local
+  persistence, secure external credentials, and self-contained Windows artifacts.
 
-## Sol findings
+## APO-37 finalization evidence
 
-- SOL-37-01: CLOSED
-- SOL-37-02: CLOSED
-- SOL-37-03: CLOSED
-- SOL-37-04: CLOSED
-- SOL-37-05: CLOSED
+- Accepted feature head: `e35762478ae87c406939d11662e00fef1727c04a`.
+- PR #7: MERGED by squash at `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
+- The merge commit tree was independently compared with the accepted head tree and is identical.
+- Jira APO-37: Done; completion comment `11862`.
+- Jira APO-6: intentionally remains In Progress.
+- Sol adjudication: Jira comment `11861`.
+- Claude Opus Prompt 5/5: complete; no additional Opus review is authorized now.
+- Accepted P3 debt: APO-59, APO-60, APO-61. Rejected OPUS-06 and OPUS-08 are not defects.
+- No GitHub CI result is claimed; APO-37 evidence is local validation evidence.
 
-SOL-37-03b corrects the remaining SOL-37-03 resource-lifetime defect. The caller wait remains
-bounded by the configured four-second timeout, and the maximum number of unresolved underlying
-operating-system path probes is **one globally per APO process**. A caller timeout or cancellation
-does not evict or cancel the unresolved operation. Same-path retries share it; different-path
-retries return bounded `Unavailable`/`TimedOut` without receiving the first path's result or
-starting another underlying probe. Completion is observed safely, the active slot is cleared only
-after the underlying task completes, and a later verification may restart one fresh probe.
+## Strategic direction to accept or revise
 
-## Regression tests
+The BRD and implementation plan now incorporate the approved owner direction:
 
-- Repeated timeouts do not start an additional underlying probe.
-- Concurrent callers share one blocked underlying probe.
-- Caller cancellation does not spawn a replacement probe.
-- A new probe starts after the original underlying operation completes.
-- A different path does not start another probe or receive the first path's result.
-- Probe exceptions are observed safely and release the slot.
-- Existing AvailableDirectory, Missing, NotADirectory, and Unavailable outcomes remain correct.
+- Mission Control and Smart Continue;
+- canonical project context and checkpoint recovery;
+- progressive project onboarding;
+- dependency-aware work graphs and bounded scheduling;
+- planner/executor/reviewer handoff packages and context budgets;
+- provider-independent agent/model registry and quality-first quota-aware routing;
+- bounded execution and isolated worktrees;
+- Jira/Azure DevOps awareness through official/provider-independent adapters;
+- independent evidence-based QA gates and truthful runtime evidence;
+- Review Inbox, bounded remediation, composable skills/workflows, project health, and an AI Decision
+  Ledger;
+- bounded background automation/housekeeping; and
+- optional remote/mobile approval as a separate future security design.
 
-## Validation
+The strategic capabilities remain planned. This handoff does not authorize implementing them all,
+adding a cloud backend, introducing a plugin/configuration framework, migrating WPF, or changing
+the local-first/security architecture.
 
-- Focused Infrastructure tests: 172 passed, 0 failed, 0 skipped.
-- Focused Desktop tests: 70 passed, 0 failed, 0 skipped.
-- Full solution tests: 326 passed, 0 failed, 0 skipped.
-  - Domain: 28
-  - Provider: 46
-  - Infrastructure: 172
-  - Connection: 10
-  - Desktop: 70
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
-- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `git diff --check`: SUCCESS.
-- Targeted added-line secret scan: SUCCESS; no real credentials found.
+## Jira reconciliation
 
-## Publish and runtime
+Existing APO-1 through APO-17 Epics were reused. Existing APO-33 remains the CI/release Story.
+The following bounded roadmap Stories were created and linked with predecessor relationships:
 
-- Publish: SUCCESS; `win-x64`, self-contained, single-file.
-- ExecutablePath: `D:\AI Tools\Hossam\AI-Project-Orchestrator\publish\win-x64\AIUsageMonitor.Desktop.exe`
-- PID: `45940`
-- WindowTitle: `AI Project Orchestrator`
-- NormalState: normal/non-degraded shell; accessibility state reported `CAPACITY READY` and the
-  Projects navigation control was exposed. Direct UI navigation was not performed because the
-  Windows desktop was locked during the final automation check; no degraded state was observed.
-- LEFT RUNNING = YES
+- P0: APO-38 through APO-50 — registry, onboarding, contracts, graph, handoffs, recovery, routing,
+  execution, workspaces, tracker evidence, QA, human gates, and Mission Control.
+- P1: APO-51 through APO-56 — Review Inbox, skills, health, decision ledger, runtime evidence, and
+  context budgets.
+- P2: APO-57 through APO-58 — bounded background work and optional remote approval design.
+- P3: APO-59 through APO-61 — accepted APO-37 hardening debt.
 
-## Opus cadence
+## Sol acceptance tasks
 
-- Prompt 4/5: COMPLETE
-- Opus review: NOT PERFORMED
-- Next gate: GPT-5.6 Sol final Prompt-4 delta acceptance.
-- If accepted: Prompt 5/5 Claude Opus independent review.
+1. Inspect the changed BRD, implementation plan, README, AGENTS.md, CLAUDE.md, CURRENT_STATE, and
+   this handoff for contradictions or accidental implementation claims.
+2. Confirm that the existing Epic structure is sufficient and that APO-38 through APO-61 are
+   bounded, independently testable, correctly parented, and sequenced.
+3. Confirm the dependency order and choose exactly one next bounded Story.
+4. Recommended next Story: **APO-38 — Establish Provider-Independent Agent and Model Registry
+   Truth**, because capability/connectivity truth is a prerequisite for routing, handoffs, and
+   execution. Consider APO-33 separately if release risk makes CI the immediate priority.
+5. Replace this file with the self-contained execution contract for the chosen Story only.
 
-## Jira status
+## Explicitly not authorized by this handoff
 
-- APO-37: In Progress
-- APO-6: In Progress
-- One concise completion comment: required for Sol comment `11854`, SOL-37-03b correction,
-  functional/final SHA, PR #7, test totals, runtime executable/PID, and next gate.
+- Do not implement APO-38 or any other new Story.
+- Do not begin Mission Control, Smart Continue, routing runtime, execution runtime, worktree writes,
+  tracker synchronization, review engine, background automation, or remote approval.
+- Do not create another Epic or duplicate the new Stories.
+- Do not invoke Sonnet or Opus for routine work; Opus Prompt 5/5 is already complete.
+- Do not merge the strategic documentation branch until Sol accepts the rebaseline under repository
+  policy.
 
-## Scope boundary
+## Required next planner boundary
 
-No provider, Git write, GitHub API, tracker integration, routing, orchestration, execution, agent
-UI, project lifecycle, XAML, merge, rebase, or Opus review work was performed.
+GPT-5.6 Sol strategic acceptance and selection of one bounded implementation Story. Leave the
+repository at this planner boundary after preparing the next contract.

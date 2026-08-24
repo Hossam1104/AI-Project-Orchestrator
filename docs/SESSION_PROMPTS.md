@@ -4,8 +4,8 @@
 **BRD:** `docs/BRD.md`
 **Plan:** `docs/IMPLEMENTATION_PLAN.md`
 **Planner:** GPT-5.6 Sol
-**Substantial executor:** GPT-5.6 Luna Max
-**Bounded executor:** Claude Sonnet 5
+**Primary executor:** GPT-5.6 Luna xHigh
+**Exceptional alternative executor:** Claude Sonnet 5
 **Independent reviewer:** Claude Opus 5
 **Optional security specialist:** GPT-5.6 Terra HIGH
 **Auxiliary executor:** Gemini 3.7
@@ -70,7 +70,10 @@ Jira / Git synchronization
 ```
 
 Sol prepares a complete self-contained `TASK.md` for each approved next work item. Preparing a
-task never authorizes its execution. No future implementation prompts are pre-generated here.
+task never authorizes its execution. Luna xHigh is the normal executor for substantial, bounded,
+cross-cutting, remediation, documentation, Jira/Git, and validation work. Sonnet is exceptional
+and is used only when Luna genuinely needs an alternative or Sol explicitly requests one. No
+future implementation prompts are pre-generated here.
 
 ---
 
@@ -166,8 +169,9 @@ policy, and stop. Do not execute another Story.
 
 # CURRENT APO CHECKPOINT
 
-APO-20 completed the repository identity rename and the physical local-root move. The root
-`TASK.md` contains the safe Sol planner checkpoint with the final repository/path references. It
-does not authorize APO-19 or any other implementation Story. GPT-5.6 Sol must synchronize Jira,
-create the approved backfill Stories, select the first implementation Story, and issue its complete
+APO-37 is merged and Done at main SHA `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`. The strategic
+rebaseline created bounded roadmap Stories APO-38 through APO-61 under the existing APO-1 through
+APO-17 Epics and recorded their dependency order in the BRD and implementation plan. The root
+`TASK.md` is now the Sol planning/acceptance handoff; it does not authorize any new Story. GPT-5.6
+Sol must accept the rebaseline, select exactly one bounded next Story, and issue its complete
 execution contract before any executor begins.
