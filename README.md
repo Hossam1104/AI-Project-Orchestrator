@@ -82,16 +82,18 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Windows Credential Manager adapter with opaque credential references and focused security tests |
 | :white_check_mark: Implemented / validated | Self-contained multi-RID publish configuration for `win-x64`, `win-x86`, and `win-arm64` |
 | :white_check_mark: Implemented / validated | Project and orchestration storage foundation (APO-27 merged); stores and contracts for projects, agents, routing policies, runs, and review/audit records |
-| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; the current APO-27 branch validation is 36 focused storage tests and 190 full-suite tests, all passing |
-| :construction: In progress / planned | Official provider capacity adapters for Codex, Claude, Kimi, GitHub Copilot, and Antigravity |
-| :construction: In progress / planned | Project Registry, Git/GitHub and Jira/Azure DevOps awareness |
+| :white_check_mark: Implemented / awaiting Sol acceptance | APO-35 Projects workspace on `feat/APO-35-projects-workspace`: project registry list/detail/editor, search/filter, lifecycle state, and truthful local persistence states; APO-36 fixed a DI startup regression that was forcing the shell into degraded mode |
+| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-35/APO-36 validation is 55 Desktop tests and 225 full-suite tests, all passing |
+| :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
+| :construction: In progress / planned | Git/GitHub and Jira/Azure DevOps awareness; repository and tracker fields in APO-35 remain metadata-only |
 | :construction: In progress / planned | Agent registry, routing, bounded execution, validation, review, and acceptance services |
 | :compass: Roadmap | Full command center, activity/audit experience, notifications, CI, and release qualification |
 
-Not yet implemented: provider adapters beyond their bounded foundation, the autonomous runtime,
-the routing engine, tracker automation, the user-facing Projects UI, the review/acceptance engines,
-and the full APO-15 dashboard. APO does not fabricate provider numbers or claim CI status before
-the relevant Story is delivered.
+Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries, the
+autonomous runtime, routing, tracker automation, Git integration, the review/acceptance engines,
+and the full APO-15 dashboard. APO-35 does not inspect local paths, Git, tracker systems,
+credentials, or repository contents. APO does not fabricate provider numbers or claim CI status
+before the relevant Story is delivered.
 
 ## WPF shell preview
 

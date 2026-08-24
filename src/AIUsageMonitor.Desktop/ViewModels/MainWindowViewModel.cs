@@ -50,26 +50,38 @@ public sealed class MainWindowViewModel : ObservableObject
 {
     private object _activeWorkspace;
     private bool _isOverviewSelected;
+    private bool _isProjectsSelected;
     private bool _isAiCapacitySelected;
 
     public MainWindowViewModel()
-        : this(new AiCapacityViewModel())
+        : this(new AiCapacityViewModel(), new ProjectsViewModel())
     {
     }
 
     public MainWindowViewModel(AiCapacityViewModel aiCapacity)
+        : this(aiCapacity, new ProjectsViewModel())
+    {
+    }
+
+    public MainWindowViewModel(
+        AiCapacityViewModel aiCapacity,
+        ProjectsViewModel projects)
     {
         AiCapacity = aiCapacity ?? throw new ArgumentNullException(nameof(aiCapacity));
+        Projects = projects ?? throw new ArgumentNullException(nameof(projects));
         Overview = new OverviewViewModel();
         _activeWorkspace = AiCapacity;
         _isAiCapacitySelected = true;
         ShowOverviewCommand = new RelayCommand(ShowOverview);
+        ShowProjectsCommand = new RelayCommand(ShowProjects);
         ShowAiCapacityCommand = new RelayCommand(ShowAiCapacity);
     }
 
     public OverviewViewModel Overview { get; }
 
     public AiCapacityViewModel AiCapacity { get; }
+
+    public ProjectsViewModel Projects { get; }
 
     public object ActiveWorkspace
     {
@@ -89,25 +101,51 @@ public sealed class MainWindowViewModel : ObservableObject
         private set => SetProperty(ref _isAiCapacitySelected, value);
     }
 
+    public bool IsProjectsSelected
+    {
+        get => _isProjectsSelected;
+        private set => SetProperty(ref _isProjectsSelected, value);
+    }
+
     public ICommand ShowOverviewCommand { get; }
+
+    public ICommand ShowProjectsCommand { get; }
 
     public ICommand ShowAiCapacityCommand { get; }
 
-    public Task InitializeAsync(CancellationToken cancellationToken = default) =>
-        AiCapacity.InitializeAsync(cancellationToken);
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await Task.WhenAll(
+            AiCapacity.InitializeAsync(cancellationToken),
+            Projects.InitializeAsync(cancellationToken)).ConfigureAwait(true);
+    }
 
-    public Task InitializeDegradedAsync(CancellationToken cancellationToken = default) =>
-        AiCapacity.InitializeDegradedAsync(cancellationToken);
+    public async Task InitializeDegradedAsync(CancellationToken cancellationToken = default)
+    {
+        await AiCapacity.InitializeDegradedAsync(cancellationToken).ConfigureAwait(true);
+        Projects.SetPersistenceAvailability(false);
+        await Projects.InitializeAsync(cancellationToken).ConfigureAwait(true);
+    }
 
     public void SetPersistenceAvailability(bool persistenceAvailable)
     {
         Overview.SetPersistenceAvailability(persistenceAvailable);
+        Projects.SetPersistenceAvailability(persistenceAvailable);
     }
 
     private void ShowOverview()
     {
         ActiveWorkspace = Overview;
         IsOverviewSelected = true;
+        IsProjectsSelected = false;
+        IsAiCapacitySelected = false;
+    }
+
+    private void ShowProjects()
+    {
+        ActiveWorkspace = Projects;
+        IsOverviewSelected = false;
+        IsProjectsSelected = true;
         IsAiCapacitySelected = false;
     }
 
@@ -115,6 +153,7 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         ActiveWorkspace = AiCapacity;
         IsOverviewSelected = false;
+        IsProjectsSelected = false;
         IsAiCapacitySelected = true;
     }
 }

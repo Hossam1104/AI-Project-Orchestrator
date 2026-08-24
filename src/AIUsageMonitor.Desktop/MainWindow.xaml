@@ -19,6 +19,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
 
         <Style x:Key="WorkspaceNavButtonStyle" TargetType="Button" BasedOn="{StaticResource NavigationItemStyle}">
             <Style.Triggers>
@@ -215,6 +216,369 @@
                 </StackPanel>
             </ScrollViewer>
         </DataTemplate>
+
+        <DataTemplate DataType="{x:Type vm:ProjectsViewModel}">
+            <DataTemplate.Resources>
+                <Style x:Key="ProjectInputTextBoxStyle" TargetType="TextBox">
+                    <Setter Property="Background" Value="{StaticResource BrandNavyBlueBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource BrandTextBrush}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BrandBorderBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Padding" Value="9,7" />
+                    <Setter Property="FontFamily" Value="{StaticResource BrandBodyFontFamily}" />
+                    <Setter Property="FontSize" Value="13" />
+                </Style>
+                <Style x:Key="ProjectInputComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource BrandComboBoxStyle}" />
+
+                <Style x:Key="ProjectRegistryListBoxStyle" TargetType="ListBox">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBox">
+                                <Border Background="Transparent" BorderThickness="0">
+                                    <ScrollViewer
+                                        Focusable="False"
+                                        VerticalScrollBarVisibility="{Binding Path=(ScrollViewer.VerticalScrollBarVisibility), RelativeSource={RelativeSource TemplatedParent}}"
+                                        HorizontalScrollBarVisibility="{Binding Path=(ScrollViewer.HorizontalScrollBarVisibility), RelativeSource={RelativeSource TemplatedParent}}">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style x:Key="ProjectFieldLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource EyebrowTextStyle}">
+                    <Setter Property="Foreground" Value="{StaticResource BrandMutedTextBrush}" />
+                    <Setter Property="Margin" Value="0,0,0,5" />
+                </Style>
+            </DataTemplate.Resources>
+
+            <Grid Margin="28">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="PROJECTS" Style="{StaticResource EyebrowTextStyle}" />
+                        <TextBlock Text="Registered workspaces and project lifecycle" Margin="0,8,0,0" Style="{StaticResource DisplayTitleStyle}" FontSize="27" />
+                        <TextBlock Text="Keep project metadata visible, isolated, and ready for the next approved step." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                        <Button Content="Refresh" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh projects" Style="{StaticResource SecondaryButtonStyle}" />
+                        <Button Content="New project" Command="{Binding NewProjectCommand}" AutomationProperties.Name="New project" Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="0,22,0,0">
+                    <Grid Visibility="{Binding ShowLoadingState, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border Style="{StaticResource CardStyle}" Padding="24" VerticalAlignment="Top">
+                            <StackPanel>
+                                <TextBlock Text="LOADING REGISTRY" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Loading registered projects…" Margin="0,9,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="The workspace remains responsive while local project metadata is read." Margin="0,8,0,0" Style="{StaticResource CaptionTextStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid Visibility="{Binding ShowStorageUnavailableState, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border Style="{StaticResource CardStyle}" Padding="24" VerticalAlignment="Top">
+                            <StackPanel>
+                                <TextBlock Text="STORAGE UNAVAILABLE" Style="{StaticResource EyebrowTextStyle}" Foreground="{StaticResource BrandWarningBrush}" />
+                                <TextBlock Text="Project storage is unavailable." Margin="0,9,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="Projects remain read-only until LocalAppData storage is available. No alternate registry is being used." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid Visibility="{Binding ShowLoadErrorState, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border Style="{StaticResource CardStyle}" Padding="24" VerticalAlignment="Top">
+                            <StackPanel>
+                                <TextBlock Text="REGISTRY READ FAILED" Style="{StaticResource EyebrowTextStyle}" Foreground="{StaticResource BrandWarningBrush}" />
+                                <TextBlock Text="Projects could not be loaded." Margin="0,9,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="Retry the local registry read. Existing editor input, if any, is not discarded." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                <Button Content="Retry" Command="{Binding RefreshCommand}" AutomationProperties.Name="Retry loading projects" Margin="0,18,0,0" HorizontalAlignment="Left" Style="{StaticResource SecondaryButtonStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid Visibility="{Binding ShowRegistrySurface, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.9*" MinWidth="200" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="1.1*" MinWidth="295" />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="14">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="REGISTRY" Style="{StaticResource EyebrowTextStyle}" />
+                                        <TextBlock Text="Projects" Margin="0,5,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Projects.Count, StringFormat={}{0} total}" VerticalAlignment="Bottom" Style="{StaticResource CaptionTextStyle}" />
+                                </Grid>
+
+                                <Grid Grid.Row="1" Margin="0,16,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <TextBox Grid.Row="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Search projects" ToolTip="Search by project name or local path" />
+                                    <ComboBox Grid.Row="1" ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Filter projects by status" Margin="0,8,0,0" />
+
+                                    <Grid Grid.Row="2" Margin="0,14,0,0">
+                                        <StackPanel Visibility="{Binding ShowEmptyRegistryState, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <TextBlock Text="NO PROJECTS YET" Style="{StaticResource EyebrowTextStyle}" />
+                                            <TextBlock Text="No projects registered yet." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource SectionHeadingStyle}" />
+                                            <TextBlock Text="Register a workspace to make its lifecycle and governance metadata visible here." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                            <Button Content="New project" Command="{Binding NewProjectCommand}" AutomationProperties.Name="New project from empty state" Margin="0,16,0,0" HorizontalAlignment="Left" Style="{StaticResource SecondaryButtonStyle}" />
+                                        </StackPanel>
+                                        <StackPanel Visibility="{Binding ShowNoMatchState, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <TextBlock Text="NO MATCHES" Style="{StaticResource EyebrowTextStyle}" />
+                                            <TextBlock Text="No projects match this filter." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource SectionHeadingStyle}" />
+                                            <TextBlock Text="Try another search or choose All in the status filter." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <ListBox Grid.Row="3" ItemsSource="{Binding FilteredProjects}" SelectedItem="{Binding SelectedProjectCard, Mode=TwoWay}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectRegistryListBoxStyle}" Margin="0,14,0,0" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Registered projects">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Padding" Value="0" />
+                                                <Setter Property="Margin" Value="0,0,0,9" />
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border x:Name="ProjectCardBorder" Background="{StaticResource BrandNavyBlueBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="1" CornerRadius="10" Padding="12">
+                                                                <ContentPresenter />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsSelected" Value="True">
+                                                                    <Setter TargetName="ProjectCardBorder" Property="Background" Value="{StaticResource BrandSurfaceRaisedBrush}" />
+                                                                    <Setter TargetName="ProjectCardBorder" Property="BorderBrush" Value="{StaticResource BrandCyanBrush}" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                                                    <Setter TargetName="ProjectCardBorder" Property="BorderBrush" Value="{StaticResource BrandSoftGlowBrush}" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap" Style="{StaticResource SectionHeadingStyle}" />
+                                                        <Border Grid.Column="1" Style="{StaticResource StatusChipStyle}" Padding="7,4" Margin="8,0,0,0">
+                                                            <TextBlock Text="{Binding StatusText}" Style="{StaticResource CaptionTextStyle}" Foreground="{StaticResource BrandTextBrush}" />
+                                                        </Border>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding LocalPath}" Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                    <TextBlock Text="{Binding RepositorySummary}" Margin="0,6,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                    <TextBlock Text="{Binding TrackerSummary}" Margin="0,3,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                    <TextBlock Text="{Binding UpdatedAtText, StringFormat=Updated {0}}" Margin="0,8,0,0" Style="{StaticResource CaptionTextStyle}" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="20">
+                            <Grid>
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding IsEditorVisible, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="SELECTED PROJECT" Style="{StaticResource EyebrowTextStyle}" />
+                                                <TextBlock Text="Project details" Margin="0,5,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Edit" Command="{Binding EditProjectCommand}" AutomationProperties.Name="Edit selected project" Style="{StaticResource SecondaryButtonStyle}" />
+                                        </Grid>
+
+                                        <StackPanel Visibility="{Binding HasSelectedProject, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,18,0,0">
+                                            <TextBlock Text="{Binding SelectedProject.Name}" Style="{StaticResource DisplayTitleStyle}" FontSize="24" TextWrapping="Wrap" />
+                                            <Border Style="{StaticResource StatusChipStyle}" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                                <TextBlock Text="{Binding SelectedProject.Status}" Foreground="{StaticResource BrandTextBrush}" FontWeight="SemiBold" />
+                                            </Border>
+
+                                            <Grid Margin="0,22,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Text="LOCAL PATH" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding SelectedProject.LocalPath}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="1" Text="REPOSITORY PROVIDER" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SelectedProject.RepositoryProvider, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="2" Text="REPOSITORY URL" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SelectedProject.RepositoryUrl, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="3" Text="REPOSITORY ID" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding SelectedProject.RepositoryId, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="4" Text="DEFAULT BRANCH" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding SelectedProject.DefaultBranch, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="5" Text="TRACKER TYPE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding SelectedProject.TrackerType, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="6" Text="TRACKER ID" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding SelectedProject.TrackerId, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="7" Text="GOVERNANCE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="7" Grid.Column="1" Text="{Binding SelectedGovernanceReferencesDisplay}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="8" Text="ROUTING POLICY" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="8" Grid.Column="1" Text="{Binding SelectedProject.RoutingPolicyReference, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="9" Text="SAFETY POLICY" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBlock Grid.Row="9" Grid.Column="1" Text="{Binding SelectedProject.SafetyPolicyReference, TargetNullValue=Not configured}" Margin="16,0,0,10" TextWrapping="Wrap" Style="{StaticResource BodyTextStyle}" />
+                                                <TextBlock Grid.Row="10" Text="CREATED / UPDATED" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <StackPanel Grid.Row="10" Grid.Column="1" Margin="16,0,0,10">
+                                                    <TextBlock Text="{Binding SelectedCreatedAtText, StringFormat=Created {0}}" Style="{StaticResource BodyTextStyle}" />
+                                                    <TextBlock Text="{Binding SelectedUpdatedAtText, StringFormat=Updated {0}}" Margin="0,3,0,0" Style="{StaticResource CaptionTextStyle}" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <TextBlock Text="Metadata-only registration. Repository and tracker state is not connected or synchronized here." Margin="0,12,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                        </StackPanel>
+
+                                        <StackPanel Visibility="{Binding HasSelectedProject, Converter={StaticResource InverseBoolToVisibilityConverter}}" Margin="0,22,0,0">
+                                            <TextBlock Text="Choose a project" Style="{StaticResource SectionHeadingStyle}" />
+                                            <TextBlock Text="Select a registered workspace to inspect its metadata, or use New project to add one." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </ScrollViewer>
+
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding IsEditorVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="PROJECT REGISTRATION" Style="{StaticResource EyebrowTextStyle}" />
+                                                <TextBlock Text="{Binding EditorTitle}" Margin="0,5,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                <Button Content="Cancel" Command="{Binding CancelEditCommand}" AutomationProperties.Name="Cancel project edit" Style="{StaticResource GhostButtonStyle}" />
+                                                <Button Content="Save changes" Command="{Binding SaveProjectCommand}" AutomationProperties.Name="Save project" Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="{Binding SavingStateText}" Margin="0,12,0,0" Style="{StaticResource CaptionTextStyle}" />
+                                        <TextBlock Text="{Binding ValidationMessage}" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{StaticResource BrandWarningBrush}" Visibility="{Binding HasValidationMessage, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock Text="{Binding ErrorMessage}" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{StaticResource BrandErrorBrush}" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                        <Grid Margin="0,18,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="NAME" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Project name" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="STATUS" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <ComboBox ItemsSource="{Binding ProjectStatusOptions}" SelectedItem="{Binding EditorStatus}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Project lifecycle status" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Margin="0,12,0,0">
+                                                <TextBlock Text="LOCAL PATH" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorLocalPath, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Project local path" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,12,0,0">
+                                                <TextBlock Text="REPOSITORY PROVIDER" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorRepositoryProvider, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Repository provider" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,12,0,0">
+                                                <TextBlock Text="REPOSITORY URL" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorRepositoryUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Repository URL" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,12,0,0">
+                                                <TextBlock Text="REPOSITORY ID" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorRepositoryId, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Repository ID" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,12,0,0">
+                                                <TextBlock Text="DEFAULT BRANCH" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorDefaultBranch, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Repository default branch" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,12,0,0">
+                                                <TextBlock Text="TRACKER TYPE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorTrackerType, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Tracker type" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,12,0,0">
+                                                <TextBlock Text="TRACKER ID" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorTrackerId, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Tracker ID" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="5" Grid.ColumnSpan="3" Margin="0,12,0,0">
+                                                <TextBlock Text="GOVERNANCE REFERENCES" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorGovernanceReferencesText, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Governance references, one per line" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="72" VerticalScrollBarVisibility="Auto" ToolTip="One reference per line" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="6" Grid.Column="0" Margin="0,12,0,0">
+                                                <TextBlock Text="ROUTING POLICY REFERENCE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorRoutingPolicyReference, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Routing policy reference" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="6" Grid.Column="2" Margin="0,12,0,0">
+                                                <TextBlock Text="SAFETY POLICY REFERENCE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                                <TextBox Text="{Binding EditorSafetyPolicyReference, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Safety policy reference" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="Registration stores metadata only. APO does not check the path, Git, tracker authentication, or repository connectivity in this workspace." Margin="0,18,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Opacity="0">
@@ -281,12 +645,11 @@
                                 <TextBlock Grid.Column="1" Text="Overview" VerticalAlignment="Center" />
                             </Grid>
                         </Button>
-                        <Button AutomationProperties.Name="Projects (planned)" IsEnabled="False" Style="{StaticResource NavigationItemStyle}">
+                        <Button Tag="{Binding IsProjectsSelected}" Command="{Binding ShowProjectsCommand}" AutomationProperties.Name="Projects" Style="{StaticResource WorkspaceNavButtonStyle}">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="□" FontSize="17" Foreground="{StaticResource BrandVioletBrush}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="1" Text="Projects" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="2" Text="SOON" Style="{StaticResource CaptionTextStyle}" VerticalAlignment="Center" />
                             </Grid>
                         </Button>
                         <Button Tag="{Binding IsAiCapacitySelected}" Command="{Binding ShowAiCapacityCommand}" AutomationProperties.Name="AI capacity" Style="{StaticResource WorkspaceNavButtonStyle}">

@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\AIUsageMonitor.Application\AIUsageMonitor.Application.csproj" />
     <ProjectReference Include="..\..\src\AIUsageMonitor.Domain\AIUsageMonitor.Domain.csproj" />
     <ProjectReference Include="..\..\src\AIUsageMonitor.Providers\AIUsageMonitor.Providers.csproj" />
+    <ProjectReference Include="..\..\src\AIUsageMonitor.Infrastructure\AIUsageMonitor.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

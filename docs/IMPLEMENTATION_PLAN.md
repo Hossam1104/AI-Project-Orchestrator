@@ -274,6 +274,92 @@ APO-20 completed the repository identity rename under APO-1, including the physi
 move. APO-27 delivered and merged the project and orchestration storage foundation on `main` at
 squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. The real Claude Opus 5
 review satisfied the independent-review gate, and Sol accepted and closed OPUS-01 in Jira comment
-`11793`. APO-27 is marked Done in Jira while parent Epic APO-3 remains In Progress. The next
-planning boundary is GPT-5.6 Sol designing and creating the first usable Projects workspace Story
-under Epic APO-5.
+`11793`. APO-27 is marked Done in Jira while parent Epic APO-3 remains In Progress. APO-35 has now
+been delivered on a feature branch under Epic APO-5; the implementation is awaiting GPT-5.6 Sol
+acceptance. The feature branch remains open, draft, and unmerged, and no later Epic or Story is
+authorized from this boundary.
+
+## 10. APO-35 Delivery Boundary
+
+APO-35 implements the first usable Projects workspace over the accepted APO-27 project registry
+foundation. The bounded delivery includes an Application `ProjectRegistryService`, testable clock
+semantics through the existing `IClock`, DI-backed `ProjectsViewModel`, enabled Projects shell
+navigation, project list/detail/editor UX, in-memory search/status filtering, lifecycle state
+editing including archive/restore, hidden metadata preservation, truthful empty/loading/error and
+degraded-storage states, and focused regression coverage.
+
+Repository and tracker fields remain metadata-only. APO-35 does not inspect local paths, invoke Git,
+call Jira/Azure DevOps, read credentials, scan repository contents, implement routing, or start the
+orchestration runtime. Delivery state is **IMPLEMENTATION COMPLETE / AWAITING SOL ACCEPTANCE** on
+`feat/APO-35-projects-workspace` from main base
+`34569abee50bdb708770e134e9db7db18752a80d`. The next planner boundary is GPT-5.6 Sol acceptance.
+See section 11 for the SOL-35-01/SOL-35-02 bounded delta remediation applied on top of this delivery.
+
+## 11. APO-35 Delta Remediation (SOL-35-01 / SOL-35-02)
+
+Sol's review of the APO-35 draft identified one confirmed defect (SOL-35-01: `ProjectsViewModel`
+resolved its save target from live selection instead of an immutable edit-target captured at
+edit-start, allowing a save to redirect to the wrong project if selection changed mid-edit) and
+requested sanitized runtime visual evidence (SOL-35-02). The bounded remediation, executed by
+Claude Sonnet 5 as executor under the same Story/PR, is:
+
+- `ProjectsViewModel` now captures `_editingProjectId` when editing starts and uses it exclusively
+  as the save/update target, independent of later selection or filter changes; save fails closed
+  with a truthful error if the edit target becomes unavailable; the edit target and editor contents
+  are preserved on a failed save so retry targets the original project; the edit target clears only
+  on successful save or cancel.
+- A new `IsRegistryInteractionEnabled` property disables the project list, search box, and status
+  filter while editing, and the existing `New project`/`Refresh` command predicates were extended
+  to stay disabled while editing, so the registry cannot be mutated out from under an in-progress
+  edit through the UI.
+- Six new focused regression tests were added covering selection-change isolation, filter-driven
+  selection loss, failed-save retry targeting, command disablement while editing, and edit-target
+  clearing on cancel/successful save. Full-suite validation is 214/214 passing (Desktop 44, up from
+  38).
+- SOL-35-02 visual evidence was attempted using Windows-native UI Automation and GDI screen capture
+  against the real published `win-x64` self-contained executable. Capture revealed that the
+  published shell starts in a fully degraded, no-persistence fallback mode on every launch, for both
+  the Projects and AI Capacity workspaces, because of an unrelated, pre-existing DI constructor
+  ambiguity in `AiCapacityViewModel` (two applicable public constructors) that makes
+  `_host.Services.GetService<MainWindow>()` throw during startup and fall back to a null-backed
+  shell. This defect was introduced in the APO-34 delivery commit and is unrelated to
+  `ProjectsViewModel`/SOL-35-01; per the bounded remediation's no-scope-expansion constraint it was
+  not fixed here. Because no privacy-safe, functionally real screenshot of the Projects workspace
+  could be captured, no image was added to `docs/evidence/`, and this limitation is reported
+  truthfully rather than substituting degraded-mode captures. Fixing the `AiCapacityViewModel`
+  constructor ambiguity is recommended as a follow-up Jira item under Epic APO-5 before SOL-35-02
+  evidence can be captured or before the workspace is considered release-qualified.
+
+## 12. APO-36 Blocking Startup Regression (Prompt 4 continuation)
+
+APO-36 fixed the pre-existing `AiCapacityViewModel` DI constructor ambiguity identified while
+attempting SOL-35-02 evidence capture in section 11 above. The regression predated APO-35 (it was
+introduced in the already-merged APO-34 delivery) but blocked runtime acceptance evidence for the
+APO-35 merge candidate, so Sol authorized the fix on the same branch/PR as a bounded continuation of
+the same Prompt-4 delta, without advancing to Prompt 5 or invoking Claude Opus.
+
+**Root cause:** `AiCapacityViewModel` exposes both a normal provider-backed constructor
+`(IProviderRegistry, IProviderConnectionService)` and a degraded/manual fallback constructor
+`(IExecutableLocator)`. An implicit `services.AddSingleton<AiCapacityViewModel>()` left
+Microsoft.Extensions.DependencyInjection unable to disambiguate them, so `App.OnStartup` threw while
+resolving `MainWindow` and the existing outer `catch` silently fell back to the degraded,
+no-persistence shell on every normal launch.
+
+**Fix:** a new `DesktopServiceCollectionExtensions.AddDesktopWorkspaceServices()` extension method
+registers `AiCapacityViewModel` via an explicit factory that resolves the normal provider-backed
+constructor directly, alongside `IProjectRegistryService`, `ProjectsViewModel`, `MainWindowViewModel`,
+and `MainWindow`. `App.OnStartup` now composes the container as `AddInfrastructure` → `AddProviders`
+→ `AddDesktopWorkspaceServices` — the same three calls a new `ProductionCompositionTests.cs` suite
+exercises against the real Microsoft DI container to prove `AiCapacityViewModel`,
+`MainWindowViewModel`, and `ProjectsViewModel` all resolve normally (non-degraded). The degraded
+fallback constructor and `App.OnStartup`'s outer `catch` are unchanged.
+
+With the fix in place, SOL-35-02 sanitized visual evidence (blocked in section 11) was captured
+successfully from the real, non-degraded published `win-x64` shell and committed at
+`docs/evidence/APO-35-projects-workspace.png`. A subsequent Claude Opus 5 independent review
+(Prompt 5/5) returned `CHANGES REQUIRED` against four Projects UI findings (`OPUS-01`..`OPUS-04`);
+GPT-5.6 Sol adjudicated the review in Jira comment `11838` and authorized a bounded Claude Sonnet 5
+remediation (Prompt 1/5 of a new Opus cadence), which fixed all four findings plus a related
+`ListBox` rendering regression the `OPUS-01` fix exposed. Full-suite validation is 225/225 passing
+(Desktop 55, up from 219/49). See `TASK.md` and `.ai/CURRENT_STATE.md` for exact SHAs and evidence
+details.

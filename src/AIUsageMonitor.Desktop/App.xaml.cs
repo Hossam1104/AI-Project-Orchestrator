@@ -1,7 +1,6 @@
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Providers;
-using AIUsageMonitor.Desktop.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -58,9 +57,7 @@ public partial class App : System.Windows.Application
                 {
                     services.AddInfrastructure(_paths.RootDirectory);
                     services.AddProviders();
-                    services.AddSingleton<AiCapacityViewModel>();
-                    services.AddSingleton<MainWindowViewModel>();
-                    services.AddSingleton<MainWindow>();
+                    services.AddDesktopWorkspaceServices();
                 })
                 .Build();
 

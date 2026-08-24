@@ -1,6 +1,6 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 23 August 2026
+**Last Updated:** 24 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
@@ -15,14 +15,384 @@
 **APO-34 Merge main SHA:** `4b393b3e3cf732dd1f0e861a734e3c311327e2af`
 **APO-27:** COMPLETE / SOL ACCEPTED (COMMENT 11793) / MERGED
 **APO-27 Merge main SHA:** `d0efaf01b07b31effa7a432c225e7c913a86258a`
+**APO-5:** IN PROGRESS
+**APO-35:** SOL-35-01 REMEDIATED / SOL-35-02 EVIDENCE COMPLETE (APO-36 FIX APPLIED) / AWAITING SOL ACCEPTANCE
+**APO-36:** FIXED (AiCapacityViewModel DI startup ambiguity) / AWAITING SOL ACCEPTANCE
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-27 (Merged / Done) — Next Story: APO-5 First Usable Projects Workspace (Planning)
-**Current Epic:** APO-3 - Local Persistence, Resilience & Security Foundation (In Progress)
-**Status:** APO-27 implementation delivered, reviewed by Claude Opus 5, remediated under OPUS-01, delta-accepted by GPT-5.6 Sol (Jira comment 11793), and squash-merged to `main` via PR #5 (`d0efaf01b07b31effa7a432c225e7c913a86258a`). Real Opus review is complete and satisfies the independent review checkpoint (Prompt 2/5 cadence). OPUS-01 is closed. APO-27 is Done in Jira. Parent Epic APO-3 remains In Progress.
-**Next implementation:** GPT-5.6 Sol designs and creates the first usable Projects workspace Story under Epic APO-5; do not start implementation or execute another Story automatically
-**Release state:** APO-34 and APO-27 are merged; APO-27 provides the local project/orchestration storage foundation on `main` while full orchestration runtime, user-facing project workspace UI, and product release qualification remain incomplete
+**Current Story:** APO-35 + APO-36 (SOL-35-01 bounded remediation delivered; APO-36 startup regression fixed; SOL-35-02 evidence captured; awaiting Sol final delta acceptance)
+**Current Epic:** APO-5 - Project Registry & Workspace Management (In Progress)
+**Status:** APO-35 implements the first usable Projects workspace on `feat/APO-35-projects-workspace`, based exactly on main `34569abee50bdb708770e134e9db7db18752a80d`. Sol's review requested SOL-35-01 (edit-target integrity) and SOL-35-02 (visual evidence); SOL-35-01 is fixed and regression-tested. SOL-35-02 was initially blocked by a pre-existing `AiCapacityViewModel` DI constructor ambiguity (APO-36); APO-36 is now fixed with explicit composition-root registration and regression tests, and SOL-35-02 sanitized visual evidence has been captured from the real, non-degraded published shell (see section -3b). The feature remains open, draft, and unmerged. No Jira status transition, merge, Opus review, or downstream Story work was performed.
+**Next implementation:** GPT-5.6 Sol final Prompt-4 delta acceptance of the exact final pushed feature-branch SHA (APO-35 + APO-36 + evidence); if accepted, the next checkpoint is Prompt 5/5 Claude Opus independent review; do not start another Story automatically
+**Release state:** APO-35 + APO-36 are delivered on a Draft PR while `main` remains unchanged; the accepted APO-27 project registry foundation now has a user-facing, non-degraded Projects workspace with sanitized visual evidence, while Git/tracker integration, routing, orchestration runtime, and product release qualification remain incomplete
+
+## -3. APO-35 First Usable Projects Workspace
+
+**Exact starting main SHA:** `34569abee50bdb708770e134e9db7db18752a80d`
+
+**Branch:** `feat/APO-35-projects-workspace`
+
+**Functional implementation SHA:** `6f3cd6d` (`feat(APO-35): implement first usable Projects workspace`)
+
+**Draft PR:** [#6](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/6), OPEN / DRAFT / UNMERGED
+
+**Story / Epic:** APO-35 / APO-5
+
+**Delivery state:** IMPLEMENTATION COMPLETE / AWAITING GPT-5.6 SOL ACCEPTANCE; the final
+documentation/handoff commit SHA is reported in `TASK.md` and the executor completion report
+after the handoff commit is pushed
+
+APO-35 adds the first usable project registry workspace over the accepted APO-27 storage
+foundation. The Application layer now exposes `IProjectRegistryService` and
+`ProjectRegistryService`, which generate project identity and creation timestamps, preserve
+existing identity/creation time and hidden `RepositoryMetadata`/`TrackerMetadata` on edit, normalize
+governance-reference lines, and reuse the existing `IProjectRepository` contract. Time behavior
+uses the accepted testable `IClock` seam; Infrastructure continues to provide `SystemClock`.
+
+The WPF shell now enables only Projects while retaining AI Capacity as the startup workspace and
+keeping Agents/Activity disabled. `ProjectsViewModel` owns asynchronous loading/saving, selection,
+search over name/local path, All/Active/Paused/Blocked/Archived filtering, create/edit/cancel/save
+commands, archive/restore through lifecycle status, bounded validation, read/write failure states,
+and degraded no-persistence behavior. The UI provides list cards, metadata-only detail, in-workspace
+editor, truthful empty/no-match/loading/error states, readable local timestamps, status text, and
+accessible labels for critical controls.
+
+Repository and tracker values are registration metadata only. No local path probing, Git, tracker
+calls, credentials, repository content, routing, execution, validation, review, acceptance, activity,
+or orchestration runtime was added. No destructive Delete command exists.
+
+**Focused validation:** 38 Desktop tests pass, including service create/edit semantics, hidden
+metadata preservation, search/filter/selection, lifecycle transitions, validation, read/write failure
+handling, degraded mode, duplicate-save prevention, and shell navigation. Full solution validation
+is 208/208 passing: Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 38.
+
+**Build/publish:** restore and solution build pass with 0 warnings and 0 errors. The existing
+`win-x64` self-contained single-file publish profile passed. x86 and ARM64 publish evidence was not
+rerun because project/package/publish configuration did not change; prior accepted compile/publish
+evidence remains historical and no hardware runtime claim is made.
+
+**Runtime smoke:** the published x64 executable launched and remained alive for five seconds with
+window title `AI Project Orchestrator`; it was then stopped by the smoke harness. The bundled
+Computer Use native helper was unavailable in this environment, so no new visual screenshot was
+captured and no visual evidence is claimed for APO-35.
+
+**Opus cadence:** Prompt 3/5 complete. No Claude Opus review was performed, as explicitly required
+by the execution contract. Next gate: GPT-5.6 Sol acceptance.
+
+---
+
+## -3a. APO-35 Delta Remediation: SOL-35-01 / SOL-35-02 (Prompt 4)
+
+**Scope authority:** Sol's review of the APO-35 draft (PR #6) confirmed one defect and one missing
+evidence item, and authorized Claude Sonnet 5, as bounded executor, to fix exactly those two items
+with no scope expansion.
+
+**SOL-35-01 (edit-target integrity) — FIXED.** `ProjectsViewModel` previously resolved the save
+target from `SelectedProject?.Id` at save time, so if selection changed while an edit was open, a
+save could silently update the wrong project. The fix adds an immutable `_editingProjectId` field
+captured when `EditSelectedProject()` runs; `SaveAsync()` uses only that captured id, fails closed
+with a truthful `ErrorMessage` if it is missing, and leaves it untouched on a failed save so a retry
+still targets the original project. It is cleared only on cancel or a successful save. A new
+`IsRegistryInteractionEnabled` property (`!IsEditing && !IsSaving && !IsLoading`) now gates the
+project `ListBox`, search `TextBox`, and status filter `ComboBox` in `MainWindow.xaml`, and the
+`New project`/`Refresh` command predicates were extended with the same `!IsEditing` guard, so the
+registry list cannot change under an in-progress edit. The fix is confined to
+`AIUsageMonitor.Desktop.ViewModels.ProjectsViewModel`; `ProjectRegistryService` (Application layer)
+was not touched, since it already takes an explicit `projectId` parameter and was never the source
+of the defect.
+
+Six new regression tests were added to `ProjectsWorkspaceTests.cs`:
+`EditTarget_DoesNotFollowSelectionChange`, `EditTarget_DoesNotFollowFilterSelectionLoss`,
+`FailedSave_RetryUsesOriginalEditTarget`, `NewAndRefreshCommandsDisabledWhileEditing`,
+`CancelClearsEditTargetAndRestoresRegistryInteraction`,
+`SuccessfulSaveClearsEditTargetAndRestoresRegistryInteraction`. Full-suite validation is 214/214
+passing (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 44, up from 208/38).
+Build is 0 warnings / 0 errors; `git diff --check` reported only benign LF/CRLF notices; a
+secret-pattern scan of the diff found nothing. `win-x64` self-contained single-file publish
+succeeded and the published executable stayed alive through a runtime smoke launch/stop cycle. x86
+and ARM64 publish were not rerun; no configuration affecting them changed.
+
+**SOL-35-02 (sanitized visual evidence) — BLOCKED, NOT FABRICATED.** Evidence capture used
+Windows-native UI Automation (`System.Windows.Automation`) to drive the real published `win-x64`
+executable and GDI (`System.Drawing.Graphics.CopyFromScreen`) to capture the screen, per the
+required no-new-packages/no-browser-automation constraint. During capture, the published shell was
+found to start in a fully degraded, no-persistence fallback mode on **every** launch, for both the
+Projects and AI Capacity workspaces, not only Projects. Root cause, confirmed via a temporary,
+reverted diagnostic in `App.xaml.cs` and removed before delivery: `AiCapacityViewModel` has two
+applicable public constructors, `(IProviderRegistry, IProviderConnectionService)` and
+`(IExecutableLocator)`. The .NET generic host's DI activator cannot disambiguate them when resolving
+`MainWindow` from the service container, throws
+`InvalidOperationException: ... constructors are ambiguous` inside `App.OnStartup` → `ShowShell`,
+and the existing outer `catch` silently falls back to `new MainWindow()` with null-backed,
+non-persistent view models. `git log --oneline -- src/AIUsageMonitor.Desktop/ViewModels/AiCapacityViewModel.cs`
+shows this file has been touched by exactly one commit, `4b393b3` (APO-34, already merged to `main`
+before the APO-35 branch was created at `34569abee50bdb708770e134e9db7db18752a80d`), so this is a
+pre-existing regression unrelated to `ProjectsViewModel`/SOL-35-01 and outside the authorized
+SOL-35-01/SOL-35-02 scope. Because the automation could only reach a degraded shell, no
+functionally real screenshot of the Projects workspace or its editor exists to sanitize and commit.
+Per the explicit no-fabrication instruction, **no image was added to `docs/evidence/`** and none is
+claimed. This is reported as `APO-35 VISUAL EVIDENCE COULD NOT BE CAPTURED SAFELY` for Sol
+disposition; recommended follow-up is a small, separately scoped Jira item to remove the ambiguous
+`AiCapacityViewModel` constructor before SOL-35-02 evidence is re-attempted.
+
+**Out of scope, not performed (per contract):** no rebase/force-push/reset/merge; PR #6 left
+OPEN/DRAFT/UNMERGED; `main` untouched; APO-35/APO-5 not marked Done; no other Story started; no
+`AiCapacityViewModel` fix applied; no APO-27 P3 deferred findings addressed; no Application-layer
+change.
+
+**Jira synchronization:** remediation comment posted to APO-35, comment `11798`. No Jira status
+transition was made.
+
+---
+
+## -3b. APO-36 Blocking Startup Regression Fix + SOL-35-02 Evidence Completion (Prompt 4 continuation)
+
+**Scope authority:** This is an explicit continuation of the same APO-35 Prompt-4 delta (not an
+advance to Prompt 5, and Claude Opus was not invoked), authorized to fix the newly discovered
+`AiCapacityViewModel` DI defect reported as blocking in section -3a, on the same branch
+(`feat/APO-35-projects-workspace`) and the same draft PR #6.
+
+**Pre-APO-36 branch head:** `9c2c678`
+(`docs(APO-35): record SOL-35-01 remediation and blocked SOL-35-02 evidence`)
+
+**APO-36 root cause (confirmed, matches section -3a's diagnosis):** `AiCapacityViewModel` has two
+applicable public constructors — `(IExecutableLocator)` (degraded/manual fallback) and
+`(IProviderRegistry, IProviderConnectionService)` (normal provider-backed). Production registration
+used an implicit `services.AddSingleton<AiCapacityViewModel>()`; Microsoft DI selects the
+constructor with the most fully-resolvable parameters, then requires every other resolvable
+constructor's parameter set to be a subset of that choice. `{IExecutableLocator}` is not a subset of
+`{IProviderRegistry, IProviderConnectionService}`, so the container threw
+`InvalidOperationException: ... constructors are ambiguous` while resolving `MainWindow` inside
+`App.OnStartup`; the existing outer `catch` silently fell back to `ShowShell(persistenceAvailable:
+false)`, degrading the shell on every normal launch.
+
+**APO-36 fix (smallest composition-root change, no `AiCapacityViewModel` redesign):**
+`src/AIUsageMonitor.Desktop/DesktopServiceCollectionExtensions.cs` (new) adds
+`AddDesktopWorkspaceServices(this IServiceCollection)`, registering `IProjectRegistryService` →
+`ProjectRegistryService` (moved from `App.xaml.cs`, unchanged registration), `AiCapacityViewModel`
+via an explicit factory that resolves `IProviderRegistry` and `IProviderConnectionService` directly
+(bypassing constructor selection), and `ProjectsViewModel`/`MainWindowViewModel`/`MainWindow`
+(moved, unchanged registrations). `App.OnStartup`'s `ConfigureServices` now reads
+`services.AddInfrastructure(_paths.RootDirectory); services.AddProviders();
+services.AddDesktopWorkspaceServices();` — the exact same three calls the new composition regression
+tests exercise. The degraded/manual `AiCapacityViewModel(IExecutableLocator)` constructor,
+`InitializeDegradedAsync`, `ShowShell(persistenceAvailable: false)`, and `App.OnStartup`'s outer
+`catch` are all unchanged.
+
+**New composition regression tests**
+(`tests/AIUsageMonitor.Desktop.Tests/ProductionCompositionTests.cs`, 5 new tests) build the real
+production `ServiceCollection` (`AddInfrastructure` against a temp root + `AddProviders` +
+`AddDesktopWorkspaceServices`) and resolve through the actual Microsoft DI `ServiceProvider`:
+`ProductionComposition_ResolvesAiCapacityViewModel`,
+`ProductionComposition_AiCapacityIsNotDegraded` (asserts `IsDegraded == false` and `Cards.Count ==
+5`), `ProductionComposition_ResolvesMainWindowViewModel`,
+`MainWindowViewModel_UsesResolvedNormalAiCapacity` (asserts `MainWindowViewModel.AiCapacity` is the
+same non-degraded instance), `ProjectsViewModel_IsResolvedWithRegistryService` (asserts
+`IsStorageAvailable == true` and shares the same `ProjectsViewModel` instance as
+`MainWindowViewModel.Projects`). Existing degraded-construction tests in `CapacityViewModelTests.cs`
+(direct `new AiCapacityViewModel()` / `new AiCapacityViewModel(locator)`, not routed through DI)
+were not modified and remain green, confirming the fallback path is intact. SOL-35-01's six tests in
+`ProjectsWorkspaceTests.cs` were not touched and remain green.
+
+**APO-36 functional commit:** `4525b31` (`fix: resolve APO-36 AI capacity DI startup ambiguity`).
+
+**SOL-35-02 (sanitized visual evidence) — now COMPLETE.** After the APO-36 fix, the same
+Windows-native UI Automation approach used in section -3a's blocked attempt confirmed a normal,
+non-degraded launch: the Overview workspace reports persistence text `"Ready"` / `"LocalAppData is
+available for the foundation."` (not degraded), the AI Capacity workspace shows all five real
+provider-backed cards with `Connect / edit` actions (which only render when the connection service
+is present, i.e. non-degraded), and Projects shows a real, empty registry (`"0 total"`, `"No
+projects registered yet."` — not `"Project storage unavailable."`). `New project` was invoked and
+the editor rendered with blank fields and `Cancel`/`Save changes` visible. Screen capture used the
+Win32 `PrintWindow` API with `PW_RENDERFULLCONTENT` (`user32.dll`, no new package) instead of GDI
+`CopyFromScreen`, because this machine's console session had auto-locked from idle and
+`CopyFromScreen` was found to capture the OS lock screen rather than the target window;
+`PrintWindow` renders the window's own content via DWM regardless of physical display state. The
+project registry was genuinely empty at capture time, so the screenshot contains no real project
+names, paths, repository URLs, tracker ids, or credentials; it was inspected before commit and
+required no cropping or modification. Evidence path:
+`docs/evidence/APO-35-projects-workspace.png`.
+
+**Full validation after the APO-36 fix:**
+
+| Check | Result |
+|---|---|
+| `dotnet restore AIUsageMonitor.sln` | SUCCESS |
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| Focused Desktop composition tests | SUCCESS; 5/5 new `ProductionCompositionTests` passing |
+| `dotnet test AIUsageMonitor.sln --no-restore` | SUCCESS; 219/219 passing (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 49; up from 214/44) |
+| `win-x64` self-contained single-file publish | SUCCESS |
+| `win-x86` / `win-arm64` publish | Not rerun; no project/package/publish configuration changed |
+| Published `win-x64` runtime verification | SUCCESS; real UI Automation drive-through proved the normal, non-degraded shell (see above), not just process-alive |
+| `git diff --check` | Clean |
+| Secret-pattern scan of the diff | Clean |
+
+**Out of scope, not performed (per contract):** no rebase/force-push/reset/merge-main; PR #6 left
+OPEN/DRAFT/UNMERGED; `main` untouched; APO-35/APO-36/APO-5 not marked Done; no other Story started;
+no new provider behavior, quota changes, provider refactoring, Git/GitHub product operations,
+Jira/Azure integrations, agent UI, routing, execution, orchestration, validation/review/acceptance
+engines, activity UI, database, cloud backend, delete/purge, or namespace migration; no Claude Opus
+review performed (Prompt 4/5 continuation, not Prompt 5).
+
+**Jira synchronization:** one comment posted to APO-36 (root cause, fix, functional SHA, final
+branch SHA, PR #6, composition tests, normal runtime proof, screenshot evidence, full tests, next
+gate) and one dependency-resolution comment posted to APO-35 (APO-36 fix complete, SOL-35-02
+evidence completed, screenshot path, next gate Sol delta acceptance). No Jira status transition was
+made.
+
+**Next planner boundary:** GPT-5.6 Sol final Prompt-4 delta acceptance against the exact final
+pushed branch SHA. If accepted, the next checkpoint is Prompt 5/5 Claude Opus independent review.
+
+---
+
+## -3c. APO-35 Opus UI Findings Remediation (New Opus Cycle, Prompt 1/5)
+
+**Lifecycle at this checkpoint:** SOL-35-01 remediated -> SOL-35-02 evidence complete (APO-36 fix
+applied) -> real Claude Opus 5 independent review of the Projects UI -> Opus verdict `CHANGES
+REQUIRED` against four findings (`OPUS-01`..`OPUS-04`, P2, and `OPUS-05`..`OPUS-08`, P3, deferred)
+-> GPT-5.6 Sol adjudicated the review in Jira comment `11838`, accepted `OPUS-01`..`OPUS-04` as
+blocking and authorized this bounded Claude Sonnet 5 remediation as Prompt 1/5 of a new Opus cadence
+-> THIS remediation -> next gate is Sol delta acceptance of this section.
+
+**Scope authority:** Sol's adjudication authorized exactly `OPUS-01`..`OPUS-04`. `OPUS-05`..`OPUS-08`
+(P3) are explicitly deferred and were not implemented. Claude Opus was not invoked in this Prompt.
+The reused finding codes `OPUS-01`..`OPUS-04` here are a **new, distinct cycle** scoped to the
+Projects UI; they are unrelated to the earlier APO-27 storage-durability `OPUS-01`..`OPUS-08` codes
+recorded in section 13.3/13.4 below, which are historical and already resolved/deferred in that
+separate context.
+
+**Pre-remediation branch head:** `bad6380` (`docs/evidence: complete APO-35 Prompt 4 validation`).
+Base `main`: `34569abee50bdb708770e134e9db7db18752a80d` (unchanged). Draft PR
+[#6](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/6) remains OPEN / DRAFT / UNMERGED.
+
+**OPUS-01 (P2, BLOCKING) — FIXED.** The registry `ListBox` lived inside a `StackPanel`, which gives
+its children infinite available height, so the `ListBox` never received a bounded region and could
+not reliably scroll once the registry held a realistic number of projects. The enclosing
+`StackPanel` in `MainWindow.xaml`'s Projects registry column was replaced with a `Grid` with four
+row definitions (`Auto`/`Auto`/`Auto`/`*`) for the search box, status filter, empty/no-match
+messaging, and the `ListBox`; the `ListBox` now occupies the trailing star row and gained
+`ScrollViewer.VerticalScrollBarVisibility="Auto"`. Verifying this against the real published
+executable also surfaced a second, previously dormant defect that only became visible once the
+`ListBox` was given a real bounded area: with zero items, the `ListBox`'s default theme chrome
+rendered a solid opaque white fill behind the "No projects yet" panel instead of the transparent
+`Background="Transparent"` already set on the control (confirmed reproducible via `PrintWindow`
+against the real self-contained `win-x64` publish; a pure in-process `RenderTargetBitmap` render of
+the identical visual tree did not show it, confirming the defect was specific to the real
+hardware/theme-composited render path and not visible by reading XAML alone). Because this is a
+direct, in-scope consequence of the `OPUS-01` layout change (the empty `ListBox` was previously
+collapsed to near-zero height inside the old `StackPanel` and never rendered a visible area), it was
+fixed as part of `OPUS-01`: a new `ProjectRegistryListBoxStyle` (`MainWindow.xaml`) replaces the
+`ListBox`'s default control template with an explicit `Border`/`ScrollViewer`/`ItemsPresenter`
+template that guarantees a transparent background regardless of the resolved theme.
+
+**OPUS-02 (P2, BLOCKING) — FIXED.** The Projects registry/editor column `MinWidth` values (`235` /
+spacer `18` / `330`) summed with the window's chrome/padding to exceed the declared `860x580`
+minimum window contract, causing clipping. `Window.MinWidth`/`MinHeight` were left unchanged at
+`860`/`580`. The three registry `Grid.ColumnDefinitions` `MinWidth`s were reduced to `200` (left) /
+`16` (spacer) / `295` (right), within Sol's suggested ranges, and verified against the real
+published executable resized to exactly `860x580`: the editor's right edge, all field labels, and
+`Cancel`/`Save changes` remain visible with no horizontal clipping (see evidence below).
+
+**OPUS-03 (P2, BLOCKING) — FIXED.** Both Projects status `ComboBox`es (`SelectedStatusFilter` and
+`EditorStatus`) previously used a manually-styled `Style` that only set brush/font setters without a
+custom `ControlTemplate`, so the closed box, dropdown popup, and item chrome still fell back to
+default light WPF chrome with inadequate contrast against the dark shell. A new reusable
+`BrandComboBoxStyle` and `BrandComboBoxItemStyle` were added to
+`src/AIUsageMonitor.Desktop/Resources/Controls.xaml`, reusing only existing brand brushes
+(`BrandNavyBlueBrush`, `BrandTextBrush`, `BrandBorderBrush`, `BrandCyanBrush`, `BrandFocusBrush`,
+`BrandSurfaceRaisedBrush`, `BrandMutedTextBrush`). The template covers the closed state, hover
+(`BrandFocusBrush` border), open/keyboard-focus (`BrandCyanBrush` / thicker `BrandFocusBrush`
+border), disabled (`Opacity 0.45`), the popup (dark background, border, corner radius, drop shadow,
+scrollable item list), and item hover/selection (`BrandSurfaceRaisedBrush` background,
+`BrandCyanBrush` selected foreground). `MainWindow.xaml`'s `ProjectInputComboBoxStyle` now reads
+`BasedOn="{StaticResource BrandComboBoxStyle}"` instead of duplicating brush setters, so both
+Projects `ComboBox`es pick up the new template.
+
+**OPUS-04 (P2, non-blocking, fixed per Sol instruction) — FIXED.** `ApplyFilter()` rebuilds a fresh
+`ProjectCardViewModel` for every visible project on every search/filter keystroke. WPF's `Selector`
+requires `SelectedItem` to be reference-equal to an instance actually present in `ItemsSource`;
+rebuilding always broke that reference, so the real UI selection was silently lost even when the
+selected project still matched the active filter. `ApplyFilter()` now captures the selected
+project's id before rebuilding `FilteredProjects`, then re-resolves `SelectedProjectCard` to the
+matching new instance by id (or `null` if the project no longer matches). `ReplaceProject(saved)`
+(used after a successful save) was changed the same way: it now selects the exact new instance from
+`FilteredProjects` by id, or `null` if the saved project fell out of the active filter — it no longer
+constructs a detached `ProjectCardViewModel` that is not actually present in the bound collection.
+
+Six new regression tests were added to `tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`:
+`SearchPreservesSelectionWhenSelectedProjectStillMatches`,
+`StatusFilterPreservesSelectionWhenProjectStillMatches`,
+`SearchClearsSelectionWhenProjectNoLongerMatches`,
+`StatusFilterClearsSelectionWhenProjectNoLongerMatches`,
+`SavedProjectSelectionUsesFilteredCollectionInstance`,
+`ChangingProjectStatusSoItLeavesCurrentFilterClearsSelection`.
+
+**Full validation:**
+
+| Check | Result |
+|---|---|
+| `dotnet build AIUsageMonitor.sln --no-restore` | SUCCESS; 0 warnings, 0 errors |
+| `dotnet test AIUsageMonitor.sln --no-restore` | SUCCESS; 225/225 passing (Domain 28, Provider 46, Infrastructure 86, Connection 10, Desktop 55; up from 219/49, +6 new OPUS-04 regression tests) |
+| `win-x64` self-contained single-file publish | SUCCESS (rebuilt after the `OPUS-01` follow-on `ListBox` template fix) |
+| `win-x86` / `win-arm64` publish | Not rerun; no project/package/publish configuration changed |
+| `git diff --check` | Clean (benign LF/CRLF notices only) |
+| Secret-pattern scan of the diff | Clean |
+
+**Runtime verification (real published `win-x64` executable, both required window sizes):** Windows
+UI Automation (`System.Windows.Automation`) drove the real, non-degraded published executable — the
+"Projects" nav item and "New project" were invoked programmatically, matching the same pattern
+established in section -3b. Screen capture used the Win32 `PrintWindow` API with
+`PW_RENDERFULLCONTENT`, cropped to the window's true visible bounds via
+`DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)` to exclude the invisible DWM resize-border
+margin (a plain `GetWindowRect`-sized capture bled a few pixels of unrelated desktop content into the
+bottom edge of the image; the DWM-bounds crop eliminates that). `CopyFromScreen` was evaluated and
+rejected for this capture: `SetForegroundWindow` from the automating process was not reliably
+honored in this environment, so a `CopyFromScreen` capture at the target window's screen rectangle
+was, at least once, observed to capture whichever unrelated window actually had focus instead
+(discovered and immediately deleted before being written anywhere durable); `PrintWindow` reads
+directly from the target window's own handle regardless of foreground/z-order state and does not
+have this failure mode, so it is the capture method actually used for both evidence screenshots.
+At `1180x760` and at the exact `860x580` minimum-window-contract size, the real published executable
+shows: a real, empty registry (`"0 total"`, `"No projects registered yet."`, not degraded), a fully
+visible New Project editor with all fields blank, `Cancel`/`Save changes` reachable, a visible
+editor `ScrollViewer` scrollbar, no horizontal clipping of the editor's right edge at the `860x580`
+minimum, and the corrected dark `ComboBox` chrome. No cropping/content edits were made beyond the
+DWM-bounds crop; both images were inspected before commit and contain no real project names, paths,
+repository URLs, tracker ids, or credentials. Evidence paths: `docs/evidence/APO-35-projects-workspace.png`
+(`1180x760`) and `docs/evidence/APO-35-projects-workspace-minimum.png` (`860x580`, new).
+
+**Populated-list scroll proof (`OPUS-01`, without writing to the owner's real registry or adding a
+production demo mode):** a temporary, non-shipped WPF harness project (scratchpad-only, not part of
+the solution or committed to the repository) referenced the real
+`AIUsageMonitor.Desktop`/`AIUsageMonitor.Application` assemblies and constructed the real
+`MainWindow`/`MainWindowViewModel`/`ProjectsViewModel`/`ProjectRegistryService` production classes,
+wired to a sanitized in-memory `IProjectRepository` fake seeded with 40 fake `Sample Workspace NN`
+projects (fake `C:\Sample\WorkspaceNN` paths, no real data, following the same in-memory fake-repository
+pattern already used by `ProjectsWorkspaceTests.cs`). Nothing in this object graph touches the real
+`IProjectRepository`/LocalAppData implementation. Rendered via in-process `RenderTargetBitmap`
+(pure WPF render, no OS capture APIs needed since the harness owns the window), this proved the
+`OPUS-01` fix at both `1180x760` and `860x580`: the registry list is bounded to its `Grid` star row,
+shows `40 total`, and exposes a working vertical scrollbar rather than expanding without limit.
+Evidence paths (supplementary, not the two required sanitized evidence files above):
+`docs/evidence/APO-35-registry-scroll-proof-1180x760.png`,
+`docs/evidence/APO-35-registry-scroll-proof-860x580.png`.
+
+**Out of scope, not performed (per contract):** `OPUS-05`..`OPUS-08` (P3) not implemented; no
+rebase/force-push/reset/merge-main; PR #6 left OPEN/DRAFT/UNMERGED; PR #6 not marked ready for
+review; APO-35/APO-36/APO-5 not marked Done; no other Story started; no Claude Opus invocation; no
+Application-layer change; no new provider/routing/execution/orchestration/database/cloud-backend
+behavior.
+
+**Jira synchronization:** one comment posted to APO-35 summarizing this remediation (functional
+commit SHA, final branch SHA, `OPUS-01`..`OPUS-04` resolution, focused/full test results, build,
+publish, both runtime evidence screenshot paths, populated-scroll proof paths and methodology, P3
+deferrals, "Prompt 1/5", next gate). No Jira status transition was made.
+
+**Next planner boundary:** GPT-5.6 Sol delta acceptance of this remediation against the exact final
+pushed branch SHA. Do not invoke Opus, merge, or start another Story from this checkpoint.
+
+---
 
 > SINGLE MUTABLE HANDOFF FILE.
 > This file is the factual live state and historical validation handoff.
