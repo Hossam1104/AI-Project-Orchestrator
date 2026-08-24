@@ -168,11 +168,10 @@ Jira status must remain:
 - APO-37: In Progress
 - APO-6: In Progress
 
-At completion, add one concise APO-37 comment containing branch, functional SHA, final SHA, Draft
-PR, architecture, read-only command guarantees, test totals, build/publish, runtime/visual
-evidence, known limitations, Prompt 3/5, and the next GPT-5.6 Sol acceptance gate. No duplicate
-Story and no status transition are authorized. The Jira comment remains pending if no authenticated
-Jira connector is available in the execution environment.
+One concise APO-37 completion comment was posted as Jira comment `11849`, containing branch,
+functional SHA, final SHA, Draft PR, architecture, read-only command guarantees, test totals,
+build/publish, runtime/visual evidence, known limitations, Prompt 3/5, and the next GPT-5.6 Sol
+acceptance gate. No duplicate Story or status transition was made.
 
 ## Out-of-scope confirmation
 
