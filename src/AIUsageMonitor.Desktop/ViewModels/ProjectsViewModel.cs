@@ -552,13 +552,18 @@ public sealed class ProjectsViewModel : ObservableObject
 
         SortProjectsInPlace();
         ApplyFilter();
-        SelectedProjectCard = FilteredProjects.FirstOrDefault(item => item.Project.Id == saved.Id)
-            ?? new ProjectCardViewModel(saved);
+
+        // The just-saved project always takes selection precedence over whatever ApplyFilter's own
+        // previous-selection preservation resolved to, but only if the current filter still shows
+        // it; a new detached card is never constructed for a saved project excluded by the filter.
+        SelectedProjectCard = FilteredProjects.FirstOrDefault(item => item.Project.Id == saved.Id);
     }
 
     private void ApplyFilter()
     {
         var search = SearchText.Trim();
+        var selectedProjectId = SelectedProjectCard?.Project.Id;
+
         var filtered = Projects
             .Where(project => MatchesStatus(project) && MatchesSearch(project, search))
             .Select(static project => new ProjectCardViewModel(project))
@@ -570,11 +575,13 @@ public sealed class ProjectsViewModel : ObservableObject
             FilteredProjects.Add(project);
         }
 
-        if (SelectedProjectCard is not null &&
-            FilteredProjects.All(item => item.Project.Id != SelectedProjectCard.Project.Id))
-        {
-            SelectedProjectCard = null;
-        }
+        // A real WPF Selector requires SelectedItem to be reference-equal to an item currently in
+        // ItemsSource; rebuilding ProjectCardViewModel instances above means the previously bound
+        // instance is never in FilteredProjects, so selection must be re-resolved by project id to
+        // the new instance (or cleared if the project no longer matches the active filter).
+        SelectedProjectCard = selectedProjectId is null
+            ? null
+            : FilteredProjects.FirstOrDefault(item => item.Project.Id == selectedProjectId);
 
         OnPropertyChanged(nameof(HasProjects));
         OnPropertyChanged(nameof(HasFilteredProjects));

@@ -98,4 +98,143 @@
         <Setter Property="BorderBrush" Value="{StaticResource BrandBorderBrush}" />
     </Style>
 
+    <!-- Dark, accessible ComboBox chrome shared by every APO status/filter selector. -->
+    <Style x:Key="BrandComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
+        <Setter Property="Padding" Value="10,7" />
+        <Setter Property="Margin" Value="2" />
+        <Setter Property="Foreground" Value="{StaticResource BrandTextBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontFamily" Value="{StaticResource BrandBodyFontFamily}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                    <Border
+                        x:Name="ItemBorder"
+                        Background="{TemplateBinding Background}"
+                        Padding="{TemplateBinding Padding}"
+                        CornerRadius="6"
+                        SnapsToDevicePixels="True">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource BrandSurfaceRaisedBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="{StaticResource BrandSurfaceRaisedBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource BrandCyanBrush}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BrandComboBoxStyle" TargetType="{x:Type ComboBox}">
+        <Setter Property="Background" Value="{StaticResource BrandNavyBlueBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource BrandTextBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource BrandBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="9,7" />
+        <Setter Property="FontFamily" Value="{StaticResource BrandBodyFontFamily}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource BrandComboBoxItemStyle}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ComboBox}">
+                    <Grid>
+                        <Border
+                            x:Name="MainBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="8"
+                            SnapsToDevicePixels="True">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="26" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter
+                                    x:Name="ContentSite"
+                                    Grid.Column="0"
+                                    Margin="{TemplateBinding Padding}"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    IsHitTestVisible="False"
+                                    Content="{TemplateBinding SelectionBoxItem}"
+                                    ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                    ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                    TextElement.Foreground="{TemplateBinding Foreground}" />
+                                <Path
+                                    Grid.Column="1"
+                                    Data="M0,0 L4,4 L8,0 Z"
+                                    Fill="{StaticResource BrandMutedTextBrush}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                        <ToggleButton
+                            x:Name="ToggleButton"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Focusable="False"
+                            ClickMode="Press"
+                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                    <Border Background="Transparent" />
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <Popup
+                            x:Name="Popup"
+                            Placement="Bottom"
+                            IsOpen="{TemplateBinding IsDropDownOpen}"
+                            AllowsTransparency="True"
+                            Focusable="False"
+                            PopupAnimation="Slide">
+                            <Border
+                                x:Name="PopupBorder"
+                                MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                MaxHeight="260"
+                                Margin="0,4,0,0"
+                                Background="{StaticResource BrandNavyBlueBrush}"
+                                BorderBrush="{StaticResource BrandBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#FF000000" Direction="270" ShadowDepth="4" BlurRadius="14" Opacity="0.35" />
+                                </Border.Effect>
+                                <ScrollViewer Margin="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="MainBorder" Property="BorderBrush" Value="{StaticResource BrandFocusBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsDropDownOpen" Value="True">
+                            <Setter TargetName="MainBorder" Property="BorderBrush" Value="{StaticResource BrandCyanBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="MainBorder" Property="BorderBrush" Value="{StaticResource BrandFocusBrush}" />
+                            <Setter TargetName="MainBorder" Property="BorderThickness" Value="2" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="MainBorder" Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

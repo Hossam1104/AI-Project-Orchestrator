@@ -228,14 +228,25 @@
                     <Setter Property="FontFamily" Value="{StaticResource BrandBodyFontFamily}" />
                     <Setter Property="FontSize" Value="13" />
                 </Style>
-                <Style x:Key="ProjectInputComboBoxStyle" TargetType="ComboBox">
-                    <Setter Property="Background" Value="{StaticResource BrandNavyBlueBrush}" />
-                    <Setter Property="Foreground" Value="{StaticResource BrandTextBrush}" />
-                    <Setter Property="BorderBrush" Value="{StaticResource BrandBorderBrush}" />
-                    <Setter Property="BorderThickness" Value="1" />
-                    <Setter Property="Padding" Value="7,5" />
-                    <Setter Property="FontFamily" Value="{StaticResource BrandBodyFontFamily}" />
-                    <Setter Property="FontSize" Value="13" />
+                <Style x:Key="ProjectInputComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource BrandComboBoxStyle}" />
+
+                <Style x:Key="ProjectRegistryListBoxStyle" TargetType="ListBox">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBox">
+                                <Border Background="Transparent" BorderThickness="0">
+                                    <ScrollViewer
+                                        Focusable="False"
+                                        VerticalScrollBarVisibility="{Binding Path=(ScrollViewer.VerticalScrollBarVisibility), RelativeSource={RelativeSource TemplatedParent}}"
+                                        HorizontalScrollBarVisibility="{Binding Path=(ScrollViewer.HorizontalScrollBarVisibility), RelativeSource={RelativeSource TemplatedParent}}">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
                 </Style>
                 <Style x:Key="ProjectFieldLabelStyle" TargetType="TextBlock" BasedOn="{StaticResource EyebrowTextStyle}">
                     <Setter Property="Foreground" Value="{StaticResource BrandMutedTextBrush}" />
@@ -299,9 +310,9 @@
 
                     <Grid Visibility="{Binding ShowRegistrySurface, Converter={StaticResource BoolToVisibilityConverter}}">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="0.9*" MinWidth="235" />
-                            <ColumnDefinition Width="18" />
-                            <ColumnDefinition Width="1.1*" MinWidth="330" />
+                            <ColumnDefinition Width="0.9*" MinWidth="200" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="1.1*" MinWidth="295" />
                         </Grid.ColumnDefinitions>
 
                         <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="14">
@@ -322,11 +333,18 @@
                                     <TextBlock Grid.Column="1" Text="{Binding Projects.Count, StringFormat={}{0} total}" VerticalAlignment="Bottom" Style="{StaticResource CaptionTextStyle}" />
                                 </Grid>
 
-                                <StackPanel Grid.Row="1" Margin="0,16,0,0">
-                                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Search projects" ToolTip="Search by project name or local path" />
-                                    <ComboBox ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Filter projects by status" Margin="0,8,0,0" />
+                                <Grid Grid.Row="1" Margin="0,16,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
 
-                                    <Grid Margin="0,14,0,0">
+                                    <TextBox Grid.Row="0" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputTextBoxStyle}" AutomationProperties.Name="Search projects" ToolTip="Search by project name or local path" />
+                                    <ComboBox Grid.Row="1" ItemsSource="{Binding StatusFilterOptions}" SelectedItem="{Binding SelectedStatusFilter}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Filter projects by status" Margin="0,8,0,0" />
+
+                                    <Grid Grid.Row="2" Margin="0,14,0,0">
                                         <StackPanel Visibility="{Binding ShowEmptyRegistryState, Converter={StaticResource BoolToVisibilityConverter}}">
                                             <TextBlock Text="NO PROJECTS YET" Style="{StaticResource EyebrowTextStyle}" />
                                             <TextBlock Text="No projects registered yet." Margin="0,8,0,0" TextWrapping="Wrap" Style="{StaticResource SectionHeadingStyle}" />
@@ -340,7 +358,7 @@
                                         </StackPanel>
                                     </Grid>
 
-                                    <ListBox ItemsSource="{Binding FilteredProjects}" SelectedItem="{Binding SelectedProjectCard, Mode=TwoWay}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Background="Transparent" BorderThickness="0" Margin="0,14,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Registered projects">
+                                    <ListBox Grid.Row="3" ItemsSource="{Binding FilteredProjects}" SelectedItem="{Binding SelectedProjectCard, Mode=TwoWay}" IsEnabled="{Binding IsRegistryInteractionEnabled}" Style="{StaticResource ProjectRegistryListBoxStyle}" Margin="0,14,0,0" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Registered projects">
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
                                                 <Setter Property="Padding" Value="0" />
@@ -388,7 +406,7 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                </StackPanel>
+                                </Grid>
                             </Grid>
                         </Border>
 

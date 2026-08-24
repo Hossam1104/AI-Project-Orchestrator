@@ -504,6 +504,112 @@ public sealed class ProjectsWorkspaceTests
     }
 
     [Fact]
+    public async Task SearchPreservesSelectionWhenSelectedProjectStillMatches()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var beta = CreateProject("Beta", "C:\\beta");
+        var repository = new FakeProjectRepository(alpha, beta);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+
+        viewModel.SearchText = "alp";
+
+        var selected = viewModel.SelectedProjectCard;
+        Assert.NotNull(selected);
+        Assert.Equal(alpha.Id, selected!.Project.Id);
+        Assert.Same(selected, Assert.Single(viewModel.FilteredProjects));
+    }
+
+    [Fact]
+    public async Task StatusFilterPreservesSelectionWhenProjectStillMatches()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha", ProjectStatus.Active);
+        var beta = CreateProject("Beta", "C:\\beta", ProjectStatus.Paused);
+        var repository = new FakeProjectRepository(alpha, beta);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+
+        viewModel.SelectedStatusFilter = ProjectStatusFilter.Active;
+
+        var selected = viewModel.SelectedProjectCard;
+        Assert.NotNull(selected);
+        Assert.Equal(alpha.Id, selected!.Project.Id);
+        Assert.Same(selected, Assert.Single(viewModel.FilteredProjects));
+    }
+
+    [Fact]
+    public async Task SearchClearsSelectionWhenProjectNoLongerMatches()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var repository = new FakeProjectRepository(alpha);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+
+        viewModel.SearchText = "does-not-match";
+
+        Assert.Null(viewModel.SelectedProjectCard);
+    }
+
+    [Fact]
+    public async Task StatusFilterClearsSelectionWhenProjectNoLongerMatches()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha", ProjectStatus.Active);
+        var repository = new FakeProjectRepository(alpha);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+
+        viewModel.SelectedStatusFilter = ProjectStatusFilter.Archived;
+
+        Assert.Null(viewModel.SelectedProjectCard);
+    }
+
+    [Fact]
+    public async Task SavedProjectSelectionUsesFilteredCollectionInstance()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha");
+        var repository = new FakeProjectRepository(alpha);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectProject(alpha.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorName = "Alpha edited";
+        await viewModel.SaveAsync();
+
+        var selected = viewModel.SelectedProjectCard;
+        Assert.NotNull(selected);
+        Assert.Same(selected, Assert.Single(viewModel.FilteredProjects));
+        Assert.Equal("Alpha edited", selected!.Name);
+    }
+
+    [Fact]
+    public async Task ChangingProjectStatusSoItLeavesCurrentFilterClearsSelection()
+    {
+        var alpha = CreateProject("Alpha", "C:\\alpha", ProjectStatus.Active);
+        var repository = new FakeProjectRepository(alpha);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.InitializeAsync();
+
+        viewModel.SelectedStatusFilter = ProjectStatusFilter.Active;
+        viewModel.SelectProject(alpha.Id);
+        viewModel.EditProjectCommand.Execute(null);
+        viewModel.EditorStatus = ProjectStatus.Archived;
+
+        await viewModel.SaveAsync();
+
+        Assert.Null(viewModel.SelectedProjectCard);
+        Assert.Equal(ProjectStatus.Archived, repository.Projects.Single(project => project.Id == alpha.Id).Status);
+    }
+
+    [Fact]
     public void MainWindowNavigation_ProjectsAndExistingWorkspacesRemainIndependent()
     {
         var viewModel = new MainWindowViewModel(new AiCapacityViewModel(), new ProjectsViewModel());
