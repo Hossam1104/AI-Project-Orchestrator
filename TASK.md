@@ -6,10 +6,10 @@
 - Epic: APO-6 — Git & GitHub Integration
 - Exact main base: `8a81017b25fe0cfd8efcd4febafd66a1bee6c41e`
 - Branch: `feat/APO-37-local-git-verification`
-- Draft PR: pending GitHub synchronization; intended title `APO-37: add read-only local Git repository verification`
-- Functional SHA: pending final executor commit
-- Documentation / handoff SHA: pending final executor commit
-- Final branch SHA: pending final executor commit
+- Draft PR: [#7](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/7), OPEN / DRAFT / UNMERGED
+- Functional SHA: `3fa4791641e13383cca3ac36ef4e632045bf2704`
+- Documentation / handoff SHA: recorded after the final metadata synchronization commit
+- Final branch SHA: recorded in the executor completion report after metadata synchronization
 - Opus cadence: Prompt 3/5
 - Opus review: NOT PERFORMED; Claude Opus was not invoked
 - Next gate: GPT-5.6 Sol acceptance
@@ -203,8 +203,8 @@ Not validated:
 
 Blockers / limitations:
 - No remote reachability or synchronization claim is possible because APO-37 is local-only.
-- Jira synchronization requires available authenticated delivery tooling; the Draft PR is a requested
-  GitHub delivery artifact and remains open/draft/unmerged after creation.
+- Jira synchronization requires available authenticated delivery tooling; the requested GitHub Draft
+  PR was created as #7 and remains open/draft/unmerged.
 
 Files/areas changed:
 - Application Projects repository-state contracts and service.
