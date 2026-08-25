@@ -112,5 +112,6 @@
 
 ## Required next planner boundary
 
-Prompt 2/5 APO-38 implementation complete. Draft PR remains OPEN / DRAFT / UNMERGED. Next action is
-GPT-5.6 Sol exact-head acceptance review. APO-39 and APO-44 remain NOT AUTHORIZED.
+Prompt 2/5 APO-38 SOL-38-01..05 remediation complete. Draft PR #9 remains OPEN / DRAFT / UNMERGED.
+Next action is GPT-5.6 Sol exact-head final acceptance and merge decision. APO-39 and APO-44 remain
+NOT AUTHORIZED.
