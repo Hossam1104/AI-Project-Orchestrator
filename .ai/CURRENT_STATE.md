@@ -2133,3 +2133,43 @@ implementation-handoff comment `12040` records the final scope and validation ev
 Next planner boundary: Prompt 3/5 APO-39 implementation complete. Draft PR remains OPEN / DRAFT /
 UNMERGED. Next action is GPT-5.6 Sol exact-head acceptance review. APO-40, APO-43, and APO-44 remain
 NOT AUTHORIZED.
+
+## 22. APO-39 Prompt 3/5 — SOL-39-01..02 Bounded Acceptance Remediation
+
+Sol's Prompt 3/5 acceptance found two open defects in the otherwise accepted APO-39 foundation:
+SOL-39-01 semantic contradictions in canonical context references could deserialize and resolve as
+Ready, and SOL-39-02 a later onboarding persistence failure could leave the WPF wizard retryable
+after a Project had already been created. Both findings are closed in functional remediation commit
+`f3af19c1c18c25c48afcbf568132afbe6579ab08`.
+
+SOL-39-01 now rejects skipped repository evidence, configured tracker identity on Skipped or
+NotConfigured tracker states, undefined model-role/access enums, duplicate model AgentId references,
+and null nested reference entries at the Application/persistence boundary. Duplicate roles normalize
+in deterministic enum order. The resolver additionally requires accepted v1 repository evidence and
+ReadyForPlanning before it returns Ready; contradictory or unaccepted inspected evidence resolves
+Incomplete. No provider, tracker, remote SCM, routing, orchestration, Smart Continue, or APO-43
+behavior was added.
+
+SOL-39-02 now exposes `Succeeded`, `FailedBeforeProjectCreation`, and `PartialProjectCreated`
+completion status. Failures after durable project creation, including late cancellation, preserve and
+return the created Project. The WPF wizard closes/selects the partial Project, shows that its context
+is incomplete and not ready for planning, and makes the wizard instance terminal so Finish cannot
+create a duplicate. Failures before creation remain retryable; no rollback or recovery engine was
+added.
+
+Remediation validation is 377/377 passed with zero failures/skips: Domain 28, Connection 38,
+Provider 46, Desktop 81, Infrastructure 184. The remediation adds 10 focused tests over the prior
+367-test baseline. Restore succeeded; build succeeded with 0 warnings and 0 errors; `git diff --check`
+is clean; changed-line and tracked-repository credential-shaped scans are clean. GitHub CI: NONE /
+NOT CLAIMED.
+
+Draft PR #10 remains OPEN / DRAFT / UNMERGED against `main`; no merge, rebase, force push, or
+replacement PR is authorized. APO-39 remains In Progress. APO-38 remains Done at
+`7cb94104c25fdb552c010835158e3c7e3eb813fe`; APO-40, APO-43, and APO-44 remain To Do and
+unauthorized. The previous UI navigation limitation remains accepted: `UI navigation smoke: NOT
+COMPLETED — external desktop modal` unless APO can be safely foregrounded without touching the
+unrelated application.
+
+Next planner boundary: Prompt 3/5 APO-39 SOL-39-01..02 remediation complete. Draft PR #10 remains
+OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
+APO-40, APO-43, and APO-44 remain NOT AUTHORIZED.
