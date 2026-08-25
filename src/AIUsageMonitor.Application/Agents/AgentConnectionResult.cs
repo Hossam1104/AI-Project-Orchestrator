@@ -34,7 +34,9 @@ public sealed class AgentConnectionResult
         var modes = AgentContractValidation.CopyDistinctEnums(
             supportedConnectionModes,
             nameof(supportedConnectionModes));
-        AgentContractValidation.RejectUnsupportedModeMix(modes, nameof(supportedConnectionModes));
+        AgentContractValidation.RejectUnverifiedOrUnsupportedSupportedModes(
+            modes,
+            nameof(supportedConnectionModes));
 
         if (availability == AgentAvailability.Available &&
             evaluatedConnectionMode == AgentConnectionMode.Unsupported)

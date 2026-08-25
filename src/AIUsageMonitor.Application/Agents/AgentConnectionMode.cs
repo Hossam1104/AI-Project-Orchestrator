@@ -7,5 +7,6 @@ public enum AgentConnectionMode
     Cli,
     Sdk,
     Manual,
-    Unsupported
+    Unsupported,
+    Unknown
 }

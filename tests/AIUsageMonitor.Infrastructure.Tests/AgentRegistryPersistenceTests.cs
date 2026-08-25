@@ -9,6 +9,18 @@ namespace AIUsageMonitor.Infrastructure.Tests;
 public sealed class AgentRegistryPersistenceTests
 {
     [Fact]
+    public void AgentConnectionMode_AppendsUnknownWithoutChangingLegacyNumericMeanings()
+    {
+        Assert.Equal(0, (int)AgentConnectionMode.InteractiveOnly);
+        Assert.Equal(1, (int)AgentConnectionMode.Api);
+        Assert.Equal(2, (int)AgentConnectionMode.Cli);
+        Assert.Equal(3, (int)AgentConnectionMode.Sdk);
+        Assert.Equal(4, (int)AgentConnectionMode.Manual);
+        Assert.Equal(5, (int)AgentConnectionMode.Unsupported);
+        Assert.Equal(6, (int)AgentConnectionMode.Unknown);
+    }
+
+    [Fact]
     public async Task LegacyAgentRecord_LoadsWithSafeDefaults_AndRoundTripsMeaning()
     {
         using var store = new TemporaryStore();
@@ -148,6 +160,55 @@ public sealed class AgentRegistryPersistenceTests
         Assert.DoesNotContain("password", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("bearer", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("session", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task NewStructuredEmptySupportedModesRemainEmptyAfterJsonRoundTrip()
+    {
+        using var store = new TemporaryStore();
+        var agentId = Guid.NewGuid();
+        var now = new DateTimeOffset(2026, 8, 25, 10, 0, 0, TimeSpan.Zero);
+        var structured = new
+        {
+            schemaVersion = JsonFileStore.CurrentSchemaVersion,
+            payload = new
+            {
+                items = new[]
+                {
+                    new
+                    {
+                        id = agentId,
+                        name = "Unverified structured agent",
+                        role = "executor",
+                        connectionMode = (int)AgentConnectionMode.Unknown,
+                        availability = (int)AgentAvailability.Unknown,
+                        enabled = true,
+                        capabilities = Array.Empty<string>(),
+                        limitations = Array.Empty<string>(),
+                        costAndQuotaMetadata = new Dictionary<string, string?>(),
+                        roleCapabilities = new[] { AgentRole.Executor },
+                        supportedConnectionModes = Array.Empty<AgentConnectionMode>(),
+                        authenticationState = (int)AgentAuthenticationState.Unknown,
+                        entitlementState = (int)AgentEntitlementState.Unknown,
+                        createdAt = now,
+                        updatedAt = now
+                    }
+                }
+            }
+        };
+        await File.WriteAllTextAsync(
+            store.Paths.AgentsFile,
+            JsonSerializer.Serialize(structured, JsonFileStore.SerializerOptions));
+        var repository = new JsonAgentRepository(
+            store.Paths,
+            store.Files,
+            NullLogger<JsonAgentRepository>.Instance);
+
+        var loaded = await repository.GetByIdAsync(agentId);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(AgentConnectionMode.Unknown, loaded!.ConnectionMode);
+        Assert.Empty(loaded.SupportedConnectionModes);
     }
 
     [Fact]

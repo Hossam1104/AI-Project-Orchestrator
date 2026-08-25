@@ -29,8 +29,12 @@ public sealed class EffectiveAgentDefinition
         GlobalDefinition = globalDefinition;
         ProjectOverride = projectOverride;
         Enabled = projectOverride?.EnabledOverride ?? globalDefinition.Enabled;
-        RoleCapabilities = projectOverride?.PermittedRoles ?? globalDefinition.RoleCapabilities;
-        SupportedConnectionModes = projectOverride?.PermittedConnectionModes ?? globalDefinition.SupportedConnectionModes;
+        RoleCapabilities = RestrictToGlobalCapabilities(
+            globalDefinition.RoleCapabilities,
+            projectOverride?.PermittedRoles);
+        SupportedConnectionModes = RestrictToGlobalCapabilities(
+            globalDefinition.SupportedConnectionModes,
+            projectOverride?.PermittedConnectionModes);
     }
 
     public Guid ProjectId { get; }
@@ -70,4 +74,19 @@ public sealed class EffectiveAgentDefinition
     public IReadOnlyList<AgentRolePolicyMetadata> RolePolicyMetadata => GlobalDefinition.RolePolicyMetadata;
 
     public AgentConnectionResult? LastConnectionResult => GlobalDefinition.LastConnectionResult;
+
+    private static IReadOnlyList<T> RestrictToGlobalCapabilities<T>(
+        IReadOnlyList<T> globalValues,
+        IReadOnlyList<T>? requestedValues)
+    {
+        if (requestedValues is null)
+        {
+            return globalValues;
+        }
+
+        var requested = requestedValues.ToHashSet();
+        return globalValues
+            .Where(requested.Contains)
+            .ToArray();
+    }
 }

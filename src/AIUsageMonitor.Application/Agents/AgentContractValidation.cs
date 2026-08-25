@@ -55,6 +55,25 @@ internal static class AgentContractValidation
         }
     }
 
+    public static void RejectUnverifiedOrUnsupportedSupportedModes(
+        IReadOnlyList<AgentConnectionMode> modes,
+        string parameterName)
+    {
+        if (modes.Contains(AgentConnectionMode.Unknown))
+        {
+            throw new ArgumentException(
+                "Unknown is not a verified supported invocation mode.",
+                parameterName);
+        }
+
+        if (modes.Contains(AgentConnectionMode.Unsupported))
+        {
+            throw new ArgumentException(
+                "Unsupported cannot be included in a list of supported invocation modes.",
+                parameterName);
+        }
+    }
+
     public static IReadOnlyList<string> CopyStrings(
         IReadOnlyList<string>? values,
         string parameterName,

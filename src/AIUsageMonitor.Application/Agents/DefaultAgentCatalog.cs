@@ -8,7 +8,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid.Parse("b4c0b0d1-7f2c-4d4d-9f4d-000000000038"),
             "GPT-5.6 Sol",
             "OpenAI",
-            "gpt-5.6-sol",
             "planner",
             [AgentRole.Planner, AgentRole.Architect, AgentRole.AcceptanceAuthority],
             [
@@ -20,7 +19,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid.Parse("b4c0b0d1-7f2c-4d4d-9f4d-000000000039"),
             "GPT-5.6 Luna xHigh",
             "OpenAI",
-            "gpt-5.6-luna-xhigh",
             "executor",
             [AgentRole.Executor],
             [new(AgentRole.Executor, "primary implementation/remediation executor", "Primary")]),
@@ -28,7 +26,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid.Parse("b4c0b0d1-7f2c-4d4d-9f4d-000000000040"),
             "Claude Sonnet 5",
             "Anthropic",
-            "claude-sonnet-5",
             "executor",
             [AgentRole.Executor],
             [new(AgentRole.Executor, "exceptional alternative executor", "Exceptional")]),
@@ -36,7 +33,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid.Parse("b4c0b0d1-7f2c-4d4d-9f4d-000000000041"),
             "Claude Opus 5",
             "Anthropic",
-            "claude-opus-5",
             "reviewer",
             [AgentRole.Reviewer],
             [new(AgentRole.Reviewer, "periodic/critical independent reviewer", "Periodic/Critical")]),
@@ -44,7 +40,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid.Parse("b4c0b0d1-7f2c-4d4d-9f4d-000000000042"),
             "GPT-5.6 Terra HIGH",
             "OpenAI",
-            "gpt-5.6-terra-high",
             "security specialist",
             [AgentRole.SecuritySpecialist],
             [new(AgentRole.SecuritySpecialist, "risk-triggered optional specialist", "RiskTriggered")]),
@@ -52,7 +47,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid.Parse("b4c0b0d1-7f2c-4d4d-9f4d-000000000043"),
             "Gemini 3.7",
             "Google",
-            "gemini-3.7",
             "auxiliary executor",
             [AgentRole.AuxiliaryExecutor],
             [new(AgentRole.AuxiliaryExecutor, "suitable bounded/mechanical/quota-balancing work", "Auxiliary")])
@@ -69,7 +63,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Guid id,
             string displayName,
             string provider,
-            string modelIdentifier,
             string legacyRole,
             IReadOnlyList<AgentRole> roles,
             IReadOnlyList<AgentRolePolicyMetadata> rolePolicyMetadata)
@@ -77,7 +70,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Id = id;
             DisplayName = displayName;
             Provider = provider;
-            ModelIdentifier = modelIdentifier;
             LegacyRole = legacyRole;
             Roles = roles;
             RolePolicyMetadata = rolePolicyMetadata;
@@ -89,8 +81,6 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
 
         private string Provider { get; }
 
-        private string ModelIdentifier { get; }
-
         private string LegacyRole { get; }
 
         private IReadOnlyList<AgentRole> Roles { get; }
@@ -101,7 +91,7 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             Id,
             DisplayName,
             LegacyRole,
-            AgentConnectionMode.Unsupported,
+            AgentConnectionMode.Unknown,
             AgentAvailability.Unknown,
             enabled: true,
             DateTimeOffset.UnixEpoch,
@@ -111,10 +101,9 @@ public sealed class DefaultAgentCatalog : IDefaultAgentCatalog
             limitations: ["Connection mode and current access are unverified; no provider probe has run."],
             costAndQuotaMetadata: null,
             roleCapabilities: Roles,
-            supportedConnectionModes: [AgentConnectionMode.Unsupported],
+            supportedConnectionModes: [],
             authenticationState: AgentAuthenticationState.Unknown,
             entitlementState: AgentEntitlementState.Unknown,
-            modelIdentifier: ModelIdentifier,
             rolePolicyMetadata: RolePolicyMetadata);
     }
 }

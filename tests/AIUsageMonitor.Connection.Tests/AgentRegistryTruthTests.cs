@@ -70,6 +70,29 @@ public sealed class AgentRegistryTruthTests
     }
 
     [Fact]
+    public void ConnectionResult_RejectsUnknownAndUnsupportedFromSupportedModes()
+    {
+        Assert.Throws<ArgumentException>(() => new AgentConnectionResult(
+            new AgentIdentity(Guid.NewGuid(), "Unknown"),
+            DateTimeOffset.UtcNow,
+            AgentConnectionMode.Unknown,
+            AgentAvailability.Unknown,
+            AgentAuthenticationState.Unknown,
+            AgentEntitlementState.Unknown,
+            AgentEvidenceSource.ManualVerification,
+            supportedConnectionModes: [AgentConnectionMode.Unknown]));
+        Assert.Throws<ArgumentException>(() => new AgentConnectionResult(
+            new AgentIdentity(Guid.NewGuid(), "Unsupported"),
+            DateTimeOffset.UtcNow,
+            AgentConnectionMode.Unsupported,
+            AgentAvailability.Unavailable,
+            AgentAuthenticationState.Unknown,
+            AgentEntitlementState.Unknown,
+            AgentEvidenceSource.ManualVerification,
+            supportedConnectionModes: [AgentConnectionMode.Unsupported]));
+    }
+
+    [Fact]
     public void DefaultCatalog_ContainsSixUnverifiedOwnerApprovedEntries()
     {
         var defaults = new DefaultAgentCatalog().GetDefaults();
@@ -88,8 +111,106 @@ public sealed class AgentRegistryTruthTests
             Assert.Equal(AgentAvailability.Unknown, value.Availability);
             Assert.Equal(AgentAuthenticationState.Unknown, value.AuthenticationState);
             Assert.Equal(AgentEntitlementState.Unknown, value.EntitlementState);
-            Assert.Equal([AgentConnectionMode.Unsupported], value.SupportedConnectionModes);
+            Assert.Equal(AgentConnectionMode.Unknown, value.ConnectionMode);
+            Assert.Empty(value.SupportedConnectionModes);
+            Assert.Null(value.ModelIdentifier);
         });
+    }
+
+    [Fact]
+    public void AgentDefinition_ExplicitEmptySupportedModesRemainEmpty()
+    {
+        var agent = CreateAgent(
+            connectionMode: AgentConnectionMode.Unknown,
+            supportedConnectionModes: []);
+
+        Assert.Equal(AgentConnectionMode.Unknown, agent.ConnectionMode);
+        Assert.Empty(agent.SupportedConnectionModes);
+    }
+
+    [Fact]
+    public void AgentDefinition_RejectsUnknownOrUnsupportedStructuredSupportedModes()
+    {
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            connectionMode: AgentConnectionMode.Unknown,
+            supportedConnectionModes: [AgentConnectionMode.Unknown]));
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            connectionMode: AgentConnectionMode.Manual,
+            supportedConnectionModes: [AgentConnectionMode.Manual, AgentConnectionMode.Unsupported]));
+    }
+
+    [Fact]
+    public void AgentDefinition_PreservesUnknownAndUnsupportedAsDistinctPrimaryTruth()
+    {
+        var unknown = CreateAgent(
+            connectionMode: AgentConnectionMode.Unknown,
+            supportedConnectionModes: []);
+        var unsupported = CreateAgent(
+            connectionMode: AgentConnectionMode.Unsupported,
+            supportedConnectionModes: []);
+
+        Assert.Equal(AgentConnectionMode.Unknown, unknown.ConnectionMode);
+        Assert.NotEqual(AgentConnectionMode.Unsupported, unknown.ConnectionMode);
+        Assert.Equal(AgentConnectionMode.Unsupported, unsupported.ConnectionMode);
+        Assert.Empty(unknown.SupportedConnectionModes);
+        Assert.Empty(unsupported.SupportedConnectionModes);
+    }
+
+    [Fact]
+    public void AgentDefinition_RejectsRolePolicyMetadataOutsideRoleCapabilities()
+    {
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            roleCapabilities: [AgentRole.Executor],
+            rolePolicyMetadata: [new AgentRolePolicyMetadata(
+                AgentRole.Reviewer,
+                "review metadata") ]));
+    }
+
+    [Fact]
+    public void AgentDefinition_RejectsBlankValuesAndUndefinedContractEnums()
+    {
+        Assert.Throws<ArgumentException>(() => new AgentIdentity(Guid.Empty, "Agent"));
+        Assert.Throws<ArgumentException>(() => new AgentIdentity(Guid.NewGuid(), " "));
+        Assert.Throws<ArgumentException>(() => CreateAgent(id: Guid.Empty));
+        Assert.Throws<ArgumentException>(() => CreateAgent(name: " "));
+        Assert.Throws<ArgumentException>(() => CreateAgent(capabilities: [" "]));
+        Assert.Throws<ArgumentException>(() => CreateAgent(limitations: [" "]));
+        Assert.Throws<ArgumentException>(() => CreateAgent(roleCapabilities: [(AgentRole)99]));
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            connectionMode: (AgentConnectionMode)99,
+            supportedConnectionModes: []));
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            authenticationState: (AgentAuthenticationState)99));
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            entitlementState: (AgentEntitlementState)99));
+    }
+
+    [Fact]
+    public async Task EffectiveRegistry_ProjectOverridesCannotGrantGlobalUnsupportedCapabilities()
+    {
+        var projectId = Guid.NewGuid();
+        var agentId = Guid.NewGuid();
+        var agent = CreateAgent(
+            id: agentId,
+            roleCapabilities: [AgentRole.Executor],
+            supportedConnectionModes: [AgentConnectionMode.Manual]);
+        var overrides = new InMemoryAgentOverrideRepository();
+        await overrides.UpsertAsync(new AgentProjectOverride(
+            projectId,
+            agentId,
+            permittedRoles: [AgentRole.Executor, AgentRole.Planner],
+            permittedConnectionModes: [AgentConnectionMode.Manual, AgentConnectionMode.Api]));
+
+        var service = new AgentRegistryService(
+            new InMemoryAgentRepository(agent),
+            overrides);
+        var result = await service.ResolveAsync(projectId, agentId);
+
+        Assert.True(result.Found);
+        Assert.Equal([AgentRole.Executor], result.Agent!.RoleCapabilities);
+        Assert.Equal([AgentConnectionMode.Manual], result.Agent.SupportedConnectionModes);
+        Assert.DoesNotContain(AgentRole.Planner, result.Agent.RoleCapabilities);
+        Assert.DoesNotContain(AgentConnectionMode.Api, result.Agent.SupportedConnectionModes);
     }
 
     [Fact]
@@ -158,6 +279,34 @@ public sealed class AgentRegistryTruthTests
             return Task.CompletedTask;
         }
     }
+
+    private static AgentDefinition CreateAgent(
+        Guid? id = null,
+        string name = "Agent",
+        AgentConnectionMode connectionMode = AgentConnectionMode.Manual,
+        AgentAvailability availability = AgentAvailability.Unknown,
+        AgentAuthenticationState authenticationState = AgentAuthenticationState.Unknown,
+        AgentEntitlementState entitlementState = AgentEntitlementState.Unknown,
+        IReadOnlyList<string>? capabilities = null,
+        IReadOnlyList<string>? limitations = null,
+        IReadOnlyList<AgentRole>? roleCapabilities = null,
+        IReadOnlyList<AgentConnectionMode>? supportedConnectionModes = null,
+        IReadOnlyList<AgentRolePolicyMetadata>? rolePolicyMetadata = null) => new(
+        id ?? Guid.NewGuid(),
+        name,
+        "executor",
+        connectionMode,
+        availability,
+        enabled: true,
+        DateTimeOffset.UtcNow,
+        DateTimeOffset.UtcNow,
+        capabilities: capabilities,
+        limitations: limitations,
+        roleCapabilities: roleCapabilities ?? [AgentRole.Executor],
+        supportedConnectionModes: supportedConnectionModes ?? [connectionMode],
+        authenticationState: authenticationState,
+        entitlementState: entitlementState,
+        rolePolicyMetadata: rolePolicyMetadata);
 
     private sealed class InMemoryAgentOverrideRepository : IAgentProjectOverrideRepository
     {

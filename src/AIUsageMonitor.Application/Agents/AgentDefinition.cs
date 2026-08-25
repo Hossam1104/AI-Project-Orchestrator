@@ -81,14 +81,23 @@ public sealed class AgentDefinition
         Limitations = CopyList(limitations);
         CostAndQuotaMetadata = MetadataValidation.Copy(costAndQuotaMetadata);
         RoleCapabilities = NormalizeRoleCapabilities(roleCapabilities, Role);
-        SupportedConnectionModes = AgentContractValidation.CopyDistinctEnums(
-            supportedConnectionModes,
-            nameof(supportedConnectionModes),
-            connectionMode);
-        AgentContractValidation.RejectUnsupportedModeMix(
-            SupportedConnectionModes,
-            nameof(supportedConnectionModes));
-        if (!SupportedConnectionModes.Contains(connectionMode))
+        var isLegacyConnectionModeCompatibility = supportedConnectionModes is null;
+        SupportedConnectionModes = isLegacyConnectionModeCompatibility &&
+            connectionMode == AgentConnectionMode.Unknown
+            ? Array.Empty<AgentConnectionMode>()
+            : AgentContractValidation.CopyDistinctEnums(
+                supportedConnectionModes,
+                nameof(supportedConnectionModes),
+                isLegacyConnectionModeCompatibility ? connectionMode : null);
+        if (!isLegacyConnectionModeCompatibility)
+        {
+            AgentContractValidation.RejectUnverifiedOrUnsupportedSupportedModes(
+                SupportedConnectionModes,
+                nameof(supportedConnectionModes));
+        }
+
+        if (connectionMode is not AgentConnectionMode.Unknown and not AgentConnectionMode.Unsupported &&
+            !SupportedConnectionModes.Contains(connectionMode))
         {
             throw new ArgumentException(
                 "The legacy connection mode must remain represented in supported connection modes.",
@@ -114,7 +123,7 @@ public sealed class AgentDefinition
 
         AuthenticationState = authenticationState;
         EntitlementState = entitlementState;
-        RolePolicyMetadata = CopyRolePolicyMetadata(rolePolicyMetadata);
+        RolePolicyMetadata = CopyRolePolicyMetadata(rolePolicyMetadata, RoleCapabilities);
         if (lastConnectionResult is not null && lastConnectionResult.Identity.Id != id)
         {
             throw new ArgumentException(
@@ -198,7 +207,8 @@ public sealed class AgentDefinition
     }
 
     private static IReadOnlyList<AgentRolePolicyMetadata> CopyRolePolicyMetadata(
-        IReadOnlyList<AgentRolePolicyMetadata>? values)
+        IReadOnlyList<AgentRolePolicyMetadata>? values,
+        IReadOnlyList<AgentRole> roleCapabilities)
     {
         if (values is null || values.Count == 0)
         {
@@ -213,6 +223,13 @@ public sealed class AgentDefinition
             {
                 throw new ArgumentException(
                     "Role policy metadata cannot contain duplicate roles.",
+                    nameof(values));
+            }
+
+            if (!roleCapabilities.Contains(value.Role))
+            {
+                throw new ArgumentException(
+                    "Role policy metadata cannot describe a role that is not a capability.",
                     nameof(values));
             }
 
