@@ -140,6 +140,12 @@ planner ordering, explicitly place APO-46 before APO-45, and preserve APO-43/62/
 starting SHA `860a79e69a87c4696dc4595b70ef260d6382532f`. The historical
 `D:\AI Tools\Hossam\AI-Project-Orchestrator` path does not exist.
 
+**SOL-SR-04: CLOSED** — corrected the Section 17 compact capability map in
+`docs/IMPLEMENTATION_PLAN.md` so the visual summary retains the authoritative ordering
+`APO-48 → APO-49 → APO-63 → APO-50`. The BRD, implementation plan, and strategic roadmap remain
+consistent; no source, test, Jira, Story scope, ownership, link, priority, or status changes were
+made.
+
 Final-session validation succeeded: restore was up to date; build completed with 0 warnings and 0
 errors; the full solution test run passed 326/326 (Domain 28, Connection 10, Provider 46, Desktop
 70, Infrastructure 172); `git diff --check` passed; the changed-line secret scan found no

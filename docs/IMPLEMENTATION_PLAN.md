@@ -519,10 +519,12 @@ APO-46 isolated workspaces → APO-45 bounded execution
                                       ↓
                          APO-48 independent QA evidence
                                       ↓
-                         APO-49 approval policy
-                                      ↓
-                              APO-50 Mission Control
-                                      ↓
+                          APO-49 approval policy
+                                       ↓
+                         APO-63 controlled remote delivery
+                                       ↓
+                               APO-50 Mission Control
+                                       ↓
                   APO-51..56 workflow acceleration
                                       ↓
                          APO-57..58 optional P2 work
