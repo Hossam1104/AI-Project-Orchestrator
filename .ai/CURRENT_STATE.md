@@ -31,8 +31,8 @@
 **Default Branch:** `main`
 **Current Story:** APO-38 — Establish Provider-Independent Agent and Model Registry Truth.
 **Current Epic:** APO-8 — AI Agent / Model Registry & Connectivity.
-**Status:** IN PROGRESS / PROMPT 2/5 / SOL ACCEPTANCE REMEDIATION. Draft PR #9 OPEN / DRAFT / UNMERGED.
-**Next action:** GPT-5.6 Sol exact-head acceptance after SOL-38-01..04 remediation.
+**Status:** IN PROGRESS / PROMPT 2/5 / SOL ACCEPTANCE REMEDIATION; SOL-38-01..05 CLOSED. Draft PR #9 OPEN / DRAFT / UNMERGED.
+**Next action:** GPT-5.6 Sol exact-head final acceptance after SOL-38-05 remediation.
 **APO-39:** NOT AUTHORIZED.
 **APO-44:** NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
@@ -2050,3 +2050,36 @@ Draft PR #9 remains OPEN / DRAFT / UNMERGED and unmerged; the final exact head i
 this handoff metadata commit. No merge was performed. Next planner boundary: Prompt 2/5 APO-38
 SOL-38-01..04 remediation complete, then GPT-5.6 Sol exact-head acceptance review. APO-39 and
 APO-44 remain NOT AUTHORIZED.
+
+## 20. APO-38 SOL-38-05 Final Truth-Invariant Delta (Prompt 2/5)
+
+SOL-38-05 is CLOSED in functional commit `3ecec81` (`fix: reject unsupported available agent truth
+APO-38`). The smallest required invariant now lives directly in `AgentDefinition`'s primary truth
+fields: `ConnectionMode=Unsupported` with `Availability=Available` is rejected regardless of the
+contents of `SupportedConnectionModes`, including an explicitly empty collection. The older
+supported-list singleton check was removed as redundant. `AgentConnectionResult` retains its
+existing equivalent rejection.
+
+The explicit regression `AgentDefinition_RejectsUnsupportedPrimaryAsAvailableWithExplicitEmptySupportedModes`
+passes, and the existing Unknown-versus-Unsupported distinction remains covered. Focused validation
+is `AgentRegistryTruthTests` 13/13, `AgentRegistryPersistenceTests` 6/6, and the complete Connection
+project 23/23. Full solution validation is 346/346 passed with zero failures/skips: Domain 28,
+Connection 23, Provider 46, Desktop 71, Infrastructure 178. Restore and build succeeded with zero
+warnings/errors; `git diff --check` and changed-line secret scan are clean.
+
+The base-to-head review remains within accepted APO-38 scope: only the two SOL-38-05 files were
+changed in the functional delta; no provider adapter, routing, execution, or UI work was added.
+Self-contained single-file `win-x64` publish succeeded. The current executable is
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID `42524`, title `AI Project Orchestrator`, `Responding=True`, exactly one APO process, and
+UI Automation exposing `CAPACITY READY`, Overview, Projects, and AI capacity; `LEFT RUNNING = YES`.
+
+Jira comment `11966` records SOL-38-05 closure, the functional SHA, test totals, PR #9, and the next
+gate. APO-38 remains In Progress; APO-39 and APO-44 remain To Do and unauthorized; dependency links
+are unchanged. PR #9 remains OPEN / DRAFT / UNMERGED with no CI checks claimed. `main` remains at
+the authorized starting SHA and no merge was performed. The final branch SHA is recorded in the
+executor completion report after handoff metadata synchronization.
+
+Next planner boundary: Prompt 2/5 APO-38 SOL-38-01..05 remediation complete. Draft PR #9 remains
+OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
+APO-39 and APO-44 remain NOT AUTHORIZED.
