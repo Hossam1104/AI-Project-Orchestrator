@@ -157,6 +157,15 @@ public sealed class AgentRegistryTruthTests
     }
 
     [Fact]
+    public void AgentDefinition_RejectsUnsupportedPrimaryAsAvailableWithExplicitEmptySupportedModes()
+    {
+        Assert.Throws<ArgumentException>(() => CreateAgent(
+            connectionMode: AgentConnectionMode.Unsupported,
+            availability: AgentAvailability.Available,
+            supportedConnectionModes: []));
+    }
+
+    [Fact]
     public void AgentDefinition_RejectsRolePolicyMetadataOutsideRoleCapabilities()
     {
         Assert.Throws<ArgumentException>(() => CreateAgent(

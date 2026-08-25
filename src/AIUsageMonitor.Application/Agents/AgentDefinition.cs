@@ -59,6 +59,14 @@ public sealed class AgentDefinition
             throw new ArgumentException("Agent availability is undefined.", nameof(availability));
         }
 
+        if (connectionMode == AgentConnectionMode.Unsupported &&
+            availability == AgentAvailability.Available)
+        {
+            throw new ArgumentException(
+                "Unsupported invocation truth cannot be presented as available.",
+                nameof(availability));
+        }
+
         if (!Enum.IsDefined(authenticationState))
         {
             throw new ArgumentException("Agent authentication state is undefined.", nameof(authenticationState));
@@ -102,15 +110,6 @@ public sealed class AgentDefinition
             throw new ArgumentException(
                 "The legacy connection mode must remain represented in supported connection modes.",
                 nameof(supportedConnectionModes));
-        }
-
-        if (availability == AgentAvailability.Available &&
-            SupportedConnectionModes.Count == 1 &&
-            SupportedConnectionModes[0] == AgentConnectionMode.Unsupported)
-        {
-            throw new ArgumentException(
-                "Unsupported invocation truth cannot be presented as available.",
-                nameof(availability));
         }
 
         if (availability == AgentAvailability.AuthenticationRequired &&
