@@ -1996,6 +1996,7 @@ after the historical connection-mode enum members without changing their numeric
 reject both `Unknown` and `Unsupported`, while legacy absent/null mode fields still derive the old
 single mode and explicit empty collections remain empty. Role-policy metadata is validated as a
 subset of structured role capabilities.
+Jira remediation comment: `11965`.
 
 The accepted agent foundation was evolved in place. `AgentDefinition` retains the stable GUID,
 legacy free-text `Role`, legacy primary `ConnectionMode`, availability, enabled state, capability
@@ -2045,6 +2046,6 @@ with the required Sol acceptance handoff. GitHub CI evidence is not claimed beca
 no checks.
 
 Draft PR #9 remains OPEN / DRAFT / UNMERGED and unmerged; the final exact head is recorded after
-the handoff metadata commit. No merge was performed. Next planner boundary: Prompt 2/5 APO-38
+this handoff metadata commit. No merge was performed. Next planner boundary: Prompt 2/5 APO-38
 SOL-38-01..04 remediation complete, then GPT-5.6 Sol exact-head acceptance review. APO-39 and
 APO-44 remain NOT AUTHORIZED.

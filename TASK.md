@@ -96,8 +96,7 @@
 
 - APO-38 was transitioned from To Do to In Progress and received the implementation-start comment.
 - A concise remediation Jira comment records SOL-38-01..04 closure, PR #9, the validation totals,
-  remediation commit, and the next planner boundary; its ID is reported in the final completion
-  report.
+  remediation commit, and the next planner boundary. Jira remediation comment: `11965`.
 - `main` remains unchanged at the authorized starting SHA. No merge was performed.
 - The final pushed branch SHA is the handoff metadata commit recorded in the delivery report; the
   implementation code is contained in `b0923adae658346eb454d65c8c6ee91c14821021` and the
