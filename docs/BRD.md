@@ -8,7 +8,7 @@
 **Date:** 25 August 2026
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
-**Local Project Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Project Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 **Jira Project:** `APO`
 **Product Owner:** Hossam
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
@@ -730,6 +730,31 @@ TASK.md contract. No competitor-named Epic is created.
 APO-33 remains the existing CI/release Story under APO-17 and is reused rather than duplicated.
 APO-37 is merged and Done; its accepted P3 findings are retained in APO-59 through APO-61. Rejected
 OPUS-06 and OPUS-08 are intentionally not represented as Jira defects.
+
+### 15.2 Canonical strategic dependency semantics
+
+Jira `Blocks` is reserved for a real architectural prerequisite. The repaired strategic backlog has
+exactly 18 hard dependency pairs:
+
+```text
+APO-38 -> APO-39                 APO-38 -> APO-44
+APO-40 -> APO-41                 APO-40 -> APO-42
+APO-40 -> APO-43                 APO-40 -> APO-45
+APO-39 -> APO-43
+APO-41 -> APO-45                 APO-42 -> APO-45
+APO-43 -> APO-45                 APO-44 -> APO-45
+APO-46 -> APO-45
+APO-45 -> APO-48
+APO-48 -> APO-63                 APO-49 -> APO-63
+APO-62 -> APO-63
+APO-45 -> APO-57                 APO-49 -> APO-58
+```
+
+The arrows mean the left Story blocks the right Story. APO-46 precedes APO-45 so safe
+project-isolated repository/worktree preparation exists before autonomous repository
+implementation. APO-37 to APO-59/60/61 remains accepted `Relates` traceability rather than a hard
+dependency. Recommended delivery sequencing remains planner guidance and does not imply additional
+Jira `Blocks` links.
 
 # 16. Initial Legacy-to-APO Mapping
 

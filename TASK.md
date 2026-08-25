@@ -1,19 +1,71 @@
-# GPT-5.6 Sol Acceptance Handoff — Prompt 1/5 Strategic Rebaseline Continuation
+# GPT-5.6 Sol Acceptance Handoff — Prompt 1/5 Final Jira DAG Repair
 
 Status: COMPLETE at Luna executor boundary; awaiting GPT-5.6 Sol acceptance.
 
-This file is a planner handoff, not an implementation contract for the next Story. Prompt 1/5
-continuation performed documentation, roadmap, and Jira synchronization only. Product-source diff
-must remain zero, and no Prompt 2/5 implementation Story is authorized by this file.
+This file is a planner handoff, not an implementation contract for the next Story. Prompt 1/5 final
+repair performed Jira graph repair, documentation synchronization, and validation only.
+Product-source diff must remain zero, and no Prompt 2/5 implementation Story is authorized by this
+file.
 
 ## Exact Git and PR target
 
 - Repository: `Hossam1104/AI-Project-Orchestrator`
 - Existing branch: `docs/apo-strategic-orchestrator-rebaseline`
-- Starting strategic SHA: `c392994927e21e23a612a80b29219d5d1feadef9`
+- Starting strategic SHA: `860a79e69a87c4696dc4595b70ef260d6382532f`
 - Accepted `origin/main`: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`
 - Existing Draft PR: #8, base `main`, OPEN / DRAFT / UNMERGED / mergeable
-- No rebase, force push, main mutation, replacement branch, or replacement PR is authorized.
+- Canonical local checkout: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`; historical
+  `D:\AI Tools\Hossam\AI-Project-Orchestrator` path is absent.
+- No rebase, force push, main mutation, replacement branch, replacement PR, or merge is authorized.
+
+## Jira repair evidence
+
+- Official ACLI: `C:\Users\Win11\AppData\Local\AIProjectOrchestrator\tools\acli\acli.exe`,
+  version `1.3.29-stable`.
+- Authentication: OAuth to `hossamsqa.atlassian.net`.
+- Pre-delete backup: `C:\Users\Win11\AppData\Local\Temp\APO-Jira-Link-Repair-20260824-234658`.
+- Removed old strategic `Blocks`: IDs `10479` through `10503` (25 links).
+- Preserved accepted `Relates`: `10504`, `10505`, and `10506` (APO-37 to APO-59/60/61).
+- Rebuilt canonical hard DAG: 18 live `Blocks` links, IDs `10525` through `10542`.
+- Live graph checks: exact canonical pair set, no old links, no duplicate pair, no reverse pair,
+  no self-link, and no cycle.
+
+Canonical hard dependency pairs:
+
+```text
+APO-38 -> APO-39                 APO-38 -> APO-44
+APO-40 -> APO-41                 APO-40 -> APO-42
+APO-40 -> APO-43                 APO-40 -> APO-45
+APO-39 -> APO-43
+APO-41 -> APO-45                 APO-42 -> APO-45
+APO-43 -> APO-45                 APO-44 -> APO-45
+APO-46 -> APO-45
+APO-45 -> APO-48
+APO-48 -> APO-63                 APO-49 -> APO-63
+APO-62 -> APO-63
+APO-45 -> APO-57                 APO-49 -> APO-58
+```
+
+The final direction was verified from Jira `fields.issuelinks`: `outwardIssue X` means the current
+issue blocks X, while `inwardIssue X` means the current issue is blocked by X. ACLI's success text
+for `--out/--in` was observed to map inversely in the live REST representation, so the initially
+created reversed links were removed and recreated with reversed flags. The final graph above is the
+authoritative live result.
+
+## Scope and validation boundary
+
+- `docs/BRD.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/STRATEGIC_ROADMAP.md` distinguish the
+  18-link hard DAG from recommended planner sequencing and place APO-46 before APO-45.
+- APO-43 remains Smart Continue/canonical recovery ownership; APO-62 remains read-only remote
+  SCM/CI evidence; APO-63 remains controlled remote delivery behind evidence and approval gates.
+- Product source diff: zero. Test source diff: zero. No APO-38, Prompt 2/5, Sonnet, or Opus work.
+- Required validation completed: restore up to date; build 0 warnings/0 errors; full test 326/326
+  (28 Domain, 10 Connection, 46 Provider, 70 Desktop, 172 Infrastructure); diff check passed;
+  changed-line secret scan clean; product/test source diffs zero; final Jira graph checks passed;
+  and self-contained win-x64 publish/run verification passed. No GitHub CI result is claimed.
+- Runtime left running: published executable path under the canonical Active Projects checkout;
+  PID `19588`; title `AI Project Orchestrator`; `Responding=True`; `HasExited=False`;
+  `LEFT RUNNING = YES`.
 
 ## Sol acceptance review scope
 
@@ -69,6 +121,5 @@ rebaseline and then replace `TASK.md` with one self-contained contract for the c
 
 ## Stop condition
 
-Prompt 1/5 strategic rebaseline continuation complete. Draft PR #8 remains OPEN / DRAFT /
-UNMERGED. Next action is GPT-5.6 Sol full acceptance review of the final PR #8 head. No Prompt 2/5
-implementation Story is authorized yet.
+Prompt 1/5 final Jira DAG repair complete. PR #8 remains OPEN / DRAFT / UNMERGED. Next action is
+GPT-5.6 Sol final acceptance of the exact final head. APO-38 / Prompt 2/5 remains NOT AUTHORIZED.

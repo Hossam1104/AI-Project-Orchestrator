@@ -1,7 +1,7 @@
 # CLAUDE.md - Claude / Sonnet / Opus APO Instructions
 
 **Repository:** https://github.com/Hossam1104/AI-Project-Orchestrator
-**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 **Product:** AI Project Orchestrator (APO)
 
 `AGENTS.md` is the universal execution authority. This file adapts Claude-family behavior to that

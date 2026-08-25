@@ -3,7 +3,7 @@
 This is the universal execution contract for every AI model working in this repository.
 
 **Repository:** https://github.com/Hossam1104/AI-Project-Orchestrator
-**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Primary Requirements:** `docs/BRD.md`

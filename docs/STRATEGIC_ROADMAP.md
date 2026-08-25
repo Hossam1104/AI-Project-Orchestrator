@@ -145,6 +145,31 @@ Bounded background automation/housekeeping and an optional remote/mobile approva
 APO-37 local evidence/output bounds, verification deadline/path truthfulness, and real-Git
 availability evidence semantics.
 
+### Canonical hard dependency DAG
+
+Jira `Blocks` records only real architectural prerequisites. The repaired strategic graph contains
+exactly 18 hard dependencies:
+
+```text
+APO-38 -> APO-39                 APO-38 -> APO-44
+APO-40 -> APO-41                 APO-40 -> APO-42
+APO-40 -> APO-43                 APO-40 -> APO-45
+APO-39 -> APO-43
+APO-41 -> APO-45                 APO-42 -> APO-45
+APO-43 -> APO-45                 APO-44 -> APO-45
+APO-46 -> APO-45
+APO-45 -> APO-48
+APO-48 -> APO-63                 APO-49 -> APO-63
+APO-62 -> APO-63
+APO-45 -> APO-57                 APO-49 -> APO-58
+```
+
+The arrows mean the left Story blocks the right Story. APO-46 intentionally precedes APO-45 because
+project-isolated repository/worktree safety must be established before autonomous implementation.
+The accepted APO-37 traceability links to APO-59, APO-60, and APO-61 are `Relates`, not hard
+dependencies. Other useful ordering relationships are planner guidance and are not Jira `Blocks`
+links unless a future contract proves a real prerequisite.
+
 ## 7. Integration boundaries
 
 ### Local Git — APO-37
@@ -217,15 +242,16 @@ and Mission Control scope. No APO-68 or replacement Story is created by this roa
 
 ## 12. Near-term ordering
 
-The dependency order is:
+The following compact map is retained as a historical visual only; it is not the Jira DAG or the
+authoritative implementation sequence. Use the canonical DAG above and the explicit sequence below.
 
 ```text
 APO-37 accepted local foundation
         ↓
 APO-38 → APO-39 → APO-40 → APO-41 → APO-42 → APO-43
         ↓                                  ↘
-APO-44 → APO-45 → APO-46 → APO-47       recovery context
-                                  + APO-62 read-only remote SCM/CI evidence
+APO-44 → APO-46 → APO-45                 recovery context
+                                  APO-47 + APO-62 evidence integrations
                                          ↓
                               APO-48 QA/evidence gates
                                          ↓
@@ -238,16 +264,55 @@ APO-44 → APO-45 → APO-46 → APO-47       recovery context
                               APO-51..56 → APO-57..58
 ```
 
+Authoritative planner sequence:
+
+```text
+APO-37 accepted local foundation
+        v
+APO-38
+        v
+APO-39
+        v
+APO-40
+        v
+APO-41
+        v
+APO-42
+        v
+APO-43
+        v
+APO-44
+        v
+APO-46 - isolated workspace safety
+        v
+APO-45 - bounded autonomous execution
+        v
+APO-47 + APO-62 evidence integrations
+        v
+APO-48 QA/evidence gates
+        v
+APO-49 owner approval policy
+        v
+APO-63 controlled remote delivery
+        v
+APO-50 Mission Control
+        v
+APO-51..56
+        v
+APO-57..58
+```
+
 Read-only remote evidence must precede controlled remote writes because APO cannot safely mutate a
 remote target without independently knowing the current repository, ref, review/check, validation,
 permission, mergeability, and approval state. APO-38 is the recommended next Story because
 capability and connection truth are prerequisites for later routing, handoffs, and execution, but
-it is not automatically authorized.
+it is not automatically authorized. This is planner sequencing, not a claim that every adjacent pair
+is a Jira hard dependency.
 
 ## 13. Current planner boundary
 
-Prompt 1/5 strategic rebaseline continuation is documentation/Jira synchronization only. Draft PR
-#8 remains OPEN / DRAFT / UNMERGED against the accepted APO-37 main baseline while GPT-5.6 Sol
-reviews the complete rebaseline, Jira APO-38..63, APO-43 Smart Continue ownership, APO-62, APO-63,
-and the void APO-64..67 exclusion. No Prompt 2/5 Story is authorized until Sol accepts this
-boundary and replaces `TASK.md` with exactly one self-contained implementation contract.
+Prompt 1/5 final Jira DAG repair is complete. Draft PR #8 remains OPEN / DRAFT / UNMERGED against
+the accepted APO-37 main baseline while GPT-5.6 Sol reviews the repaired 18-link Jira DAG, the
+BRD/plan/roadmap synchronization, APO-43 Smart Continue ownership, APO-62, APO-63, and the void
+APO-64..67 exclusion. No Prompt 2/5 Story is authorized until Sol accepts this boundary and
+replaces `TASK.md` with exactly one self-contained implementation contract.

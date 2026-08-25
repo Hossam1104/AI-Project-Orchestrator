@@ -167,12 +167,13 @@ must remain provider-independent, project-isolated, and free of chat-history or 
 
 ### Phase C - Quality-first decision, bounded execution, and evidence inputs (P0)
 
-Implement explainable routing (APO-44), bounded cancellable execution (APO-45), and isolated
-workspaces (APO-46). Tracker awareness (APO-47) is an independent Jira-first/Azure-optional input,
-not a model-CLI side effect. Add provider-independent, read-only remote SCM/CI evidence (APO-62)
-after the local/work-item evidence inputs are defined. APO-62 is distinct from APO-37 local Git
-verification and APO-33 repository-owned CI. The ordering is deliberate: capability and contract
-truth precede quota-aware selection, process execution, and independently captured evidence.
+Implement explainable routing (APO-44), then safe isolated workspaces (APO-46), and only then
+bounded cancellable execution (APO-45). Tracker awareness (APO-47) is an independent
+Jira-first/Azure-optional input, not a model-CLI side effect. Add provider-independent, read-only
+remote SCM/CI evidence (APO-62) after the local/work-item evidence inputs are defined. APO-62 is
+distinct from APO-37 local Git verification and APO-33 repository-owned CI. The ordering is
+deliberate: capability and contract truth precede quota-aware selection, safe repository/worktree
+preparation, process execution, and independently captured evidence.
 
 ### Phase D - Evidence, review, controlled delivery, and command center (P0)
 
@@ -424,7 +425,7 @@ introduced.
 |---|---|---|
 | P0 | Agent/model truth and progressive onboarding | APO-38, APO-39 |
 | P0 | Contracts, dependency graph, handoffs, and recovery context | APO-40, APO-41, APO-42, APO-43 |
-| P0 | Quality-first routing, bounded execution, workspaces, and tracker evidence | APO-44, APO-45, APO-46, APO-47 |
+| P0 | Quality-first routing, bounded execution, workspaces, and tracker evidence | APO-44, APO-46, APO-45, APO-47 |
 | P0 | Remote SCM / CI evidence | APO-62 |
 | P0 | Independent QA gates, human gates, controlled delivery, and Mission Control | APO-48, APO-49, APO-63, APO-50 |
 | P1 | Review Inbox, skills, health, decision ledger, runtime evidence, and context budgets | APO-51 through APO-56 |
@@ -436,9 +437,73 @@ the Projects workspace and normal composition, APO-37 local Git evidence, and AP
 workflow. Existing Epic dependencies remain the architectural ownership map. Jira issue links record
 the critical predecessor relationships among APO-38 through APO-63.
 
-## 16. Dependency Graph and Planner Ordering
+## 16. Canonical Hard Dependency DAG
 
-The strategic ordering is:
+Jira `Blocks` records only a real architectural prerequisite. The repaired strategic graph contains
+exactly the following 18 hard dependencies; the planner ordering in the next section is separate
+and does not turn every adjacent planning step into a `Blocks` link.
+
+```text
+APO-38 -> APO-39                 APO-38 -> APO-44
+APO-40 -> APO-41                 APO-40 -> APO-42
+APO-40 -> APO-43                 APO-40 -> APO-45
+APO-39 -> APO-43
+APO-41 -> APO-45                 APO-42 -> APO-45
+APO-43 -> APO-45                 APO-44 -> APO-45
+APO-46 -> APO-45
+APO-45 -> APO-48
+APO-48 -> APO-63                 APO-49 -> APO-63
+APO-62 -> APO-63
+APO-45 -> APO-57                 APO-49 -> APO-58
+```
+
+The arrows mean the left Story blocks the right Story. APO-46 intentionally precedes APO-45 so
+project-isolated repository/worktree safety is established before autonomous implementation. The
+accepted APO-37 links to APO-59/60/61 remain `Relates`, not hard dependencies. Other useful
+sequencing relationships remain planner guidance unless a future contract proves a real
+architectural prerequisite.
+
+## 17. Recommended Planner Ordering
+
+The explicit planner sequence is:
+
+```text
+Accepted APO foundation / APO-37
+        v
+APO-38
+        v
+APO-39
+        v
+APO-40
+        v
+APO-41
+        v
+APO-42
+        v
+APO-43
+        v
+APO-44
+        v
+APO-46 - isolated workspace safety
+        v
+APO-45 - bounded autonomous execution
+        v
+APO-47 + APO-62 evidence integrations
+        v
+APO-48
+        v
+APO-49
+        v
+APO-63
+        v
+APO-50
+        v
+P1
+        v
+P2
+```
+
+The compact capability map below remains a visual summary of that sequence:
 
 ```text
 APO-3/APO-4 foundations
@@ -449,7 +514,8 @@ APO-40 contracts → APO-41 dependency graph → APO-42 role handoffs
         ↓                         ↘
 APO-43 recovery context       APO-44 quality-first routing
         ↓                         ↓
-APO-46 isolated workspaces → APO-45 bounded execution ← APO-47 tracker evidence
+APO-46 isolated workspaces → APO-45 bounded execution
+                                      + APO-47/APO-62 evidence integrations
                                       ↓
                          APO-48 independent QA evidence
                                       ↓
@@ -483,7 +549,7 @@ capability truth, persistence, contracts, evidence, and human authority before b
 behavior or consolidated UX. APO-17/33 CI remains a cross-cutting
 release prerequisite and may be sequenced by Sol when the release risk warrants it.
 
-## 17. Strategic Acceptance Boundary
+## 18. Strategic Acceptance Boundary
 
 This document is a roadmap and architecture rebaseline, not implementation authorization. The next
 Sol gate must verify the BRD/plan/Jira consistency, inspect the accepted APO-37 merge baseline, and
