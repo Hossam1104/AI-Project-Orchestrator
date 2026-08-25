@@ -9,9 +9,11 @@
 - Jira status at handoff: In Progress
 - Starting `main` SHA: `ffb449e5396fa56a6ccb3f39134807166cc5ea40`
 - Implementation commit: `b0923adae658346eb454d65c8c6ee91c14821021`
+- Functional remediation commit: `8aeb3b9453233b9c4e52ec7451b1c957d6dbd383`
 - Branch: `feat/APO-38-agent-model-registry-truth`
 - Draft PR: #9 — https://github.com/Hossam1104/AI-Project-Orchestrator/pull/9
-- PR state: OPEN / DRAFT / UNMERGED; base `main`; head was `b0923adae658346eb454d65c8c6ee91c14821021` before this handoff-only metadata update
+- PR state: OPEN / DRAFT / UNMERGED; base `main`; final handoff head is recorded after metadata synchronization
+- Exact main base: `ffb449e5396fa56a6ccb3f39134807166cc5ea40`
 
 ## Delivered architecture
 
@@ -25,11 +27,25 @@
   HIGH, and Gemini 3.7. Defaults contain identity and approved role metadata only; live access,
   authentication, and entitlement remain Unknown/unverified.
 - Added GUID-scoped `agent-overrides.json` persistence and an application registry resolver that
-  applies only enabled, permitted role/mode, and bounded metadata overrides. Missing agents return
+  applies only enabled, monotonic restrictions and bounded metadata overrides. Missing agents return
   explicit not-found semantics.
 - Registered the repository, catalog, and resolver in the existing infrastructure composition root.
 - Preserved legacy `Role`, primary `ConnectionMode`, identity, availability, and old JSON loading;
   old records receive safe Unknown/absent APO-38 defaults and round-trip without semantic loss.
+
+## SOL-38-01..04 remediation status
+
+- SOL-38-01 CLOSED: effective project roles and connection modes are deterministic intersections
+  with global capabilities, preserving global order and retaining the raw project override.
+- SOL-38-02 CLOSED: `AgentConnectionMode.Unknown` was appended after all historical enum members;
+  default unverified entries use Unknown primary truth and an explicit empty supported-mode list.
+- SOL-38-03 CLOSED: focused negative coverage now covers identity, blank/undefined contracts,
+  duplicate normalization, role-policy subsets, project escalation resistance, Unknown versus
+  Unsupported, legacy enum ordinals, legacy JSON, and project isolation.
+- SOL-38-04 CLOSED: the canonical CURRENT summary was repaired to Prompt 1 accepted/merged/finalized
+  and the active APO-38 Prompt 2/5 remediation handoff.
+- Default provider model identifiers remain null unless a verified provider identifier is later
+  established; no provider probing or model-ID invention was added.
 
 ## Security and scope evidence
 
@@ -54,10 +70,9 @@
 
 - Restore: SUCCESS.
 - Build: SUCCESS; 0 warnings, 0 errors.
-- Focused APO-38 test files: Connection 5/5 and Infrastructure 4/4; the complete Connection project
-  total is 15/15.
-- Full solution tests: 336/336 passed, 0 failed, 0 skipped — Domain 28, Connection 15, Provider 46,
-  Desktop 71, Infrastructure 176.
+- Focused APO-38 test files: Connection 22/22 and Infrastructure 6/6.
+- Full solution tests: 345/345 passed, 0 failed, 0 skipped — Domain 28, Connection 22, Provider 46,
+  Desktop 71, Infrastructure 178.
 - `git diff --check`: SUCCESS.
 - Changed-line secret scan: CLEAN.
 - Base-to-head scope/diff review: completed; no out-of-scope runtime/provider/routing implementation
@@ -69,9 +84,9 @@
 
 - Executable:
   `D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
-- PID: `2184`
+- PID: `36988`
 - Window title: `AI Project Orchestrator`
-- State: normal/non-degraded; `Responding=True`; exactly one current APO process; accessibility state
+- State: normal/non-degraded; `Responding=True`; exactly one current APO process; UI Automation
   reported `CAPACITY READY` with Overview, Projects, and AI capacity surfaces.
 - A Projects click probe could not run because the helper reported unavailable coordinate geometry;
   no completed navigation interaction is claimed.
@@ -80,11 +95,13 @@
 ## Jira and delivery state
 
 - APO-38 was transitioned from To Do to In Progress and received the implementation-start comment.
-- The final Jira comment records this handoff, PR #9, the validation totals, runtime evidence, and the
-  next planner boundary.
+- A concise remediation Jira comment records SOL-38-01..04 closure, PR #9, the validation totals,
+  remediation commit, and the next planner boundary; its ID is reported in the final completion
+  report.
 - `main` remains unchanged at the authorized starting SHA. No merge was performed.
 - The final pushed branch SHA is the handoff metadata commit recorded in the delivery report; the
-  implementation code is contained in `b0923adae658346eb454d65c8c6ee91c14821021`.
+  implementation code is contained in `b0923adae658346eb454d65c8c6ee91c14821021` and the
+  functional remediation is contained in `8aeb3b9453233b9c4e52ec7451b1c957d6dbd383`.
 - Working tree is required to remain clean after the final push.
 
 ## Required next planner boundary
