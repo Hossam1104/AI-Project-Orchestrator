@@ -8,6 +8,7 @@
 - Planner / acceptance authority: GPT-5.6 Sol
 - Jira status: In Progress
 - Jira implementation-start comment: `12036`
+- Jira implementation-handoff comment: `12040`
 - Exact `main` base: `7cb94104c25fdb552c010835158e3c7e3eb813fe`
 - Branch: `feat/APO-39-progressive-project-onboarding`
 - Functional implementation commit: `bcbf966`

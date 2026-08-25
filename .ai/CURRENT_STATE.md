@@ -2127,7 +2127,7 @@ The branch was pushed through delivery metadata commit `27ad594`; the final stat
 commit is the current branch head reported in the completion handoff. Draft PR
 #10 is OPEN / DRAFT / UNMERGED against `main`:
 https://github.com/Hossam1104/AI-Project-Orchestrator/pull/10. Jira APO-39 remains In Progress;
-the final implementation-handoff comment is recorded after synchronization. APO-38 is Done at
+implementation-handoff comment `12040` records the final scope and validation evidence. APO-38 is Done at
 `7cb94104c25fdb552c010835158e3c7e3eb813fe`; APO-43 and APO-44 remain To Do and unauthorized.
 
 Next planner boundary: Prompt 3/5 APO-39 implementation complete. Draft PR remains OPEN / DRAFT /
