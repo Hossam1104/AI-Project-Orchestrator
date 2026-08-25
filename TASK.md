@@ -11,7 +11,9 @@
 - Exact `main` base: `7cb94104c25fdb552c010835158e3c7e3eb813fe`
 - Branch: `feat/APO-39-progressive-project-onboarding`
 - Functional implementation commit: `bcbf966`
-- Draft PR: to be created; must remain OPEN / DRAFT / UNMERGED
+- Handoff metadata commit / final branch head: `fe1491d1a1fa3cdcfe30accd919d7dbf59289e6e`
+- Draft PR: #10 — https://github.com/Hossam1104/AI-Project-Orchestrator/pull/10
+- PR state: OPEN / DRAFT / UNMERGED; base `main`; merge was not performed
 
 ## Bounded scope delivered
 
@@ -61,13 +63,18 @@
   routing, database, cloud, or unrelated Story implementation found.
 - GitHub CI: no checks are configured/reported; no CI success is claimed.
 
-## Runtime and delivery requirements
+## Runtime and delivery evidence
 
-- Publish and run the current branch as a self-contained single-file `win-x64` WPF build.
-- Verify one live APO process, normal window title/shell state, and a usable onboarding entry point.
-- Leave the verified current build running at handoff and record its executable path, PID, title,
-  normal/degraded state, and the literal `LEFT RUNNING = YES` in the completion report.
-- Push this branch and create exactly one Draft PR against `main`; do not merge it.
+- Self-contained single-file `win-x64` publish: SUCCESS.
+- Executable:
+  `D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+- Final live process: PID `29244`; window title `AI Project Orchestrator`; `Responding=True`;
+  normal/non-degraded shell with `CAPACITY READY`; exactly one APO process at handoff.
+- The UI navigation probe could not be completed because the Computer Use target could not be
+  foregrounded while an unrelated RMS POS modal owned the active desktop. No interaction with that
+  unrelated app was attempted. The APO process was left running after the bounded probe.
+- `LEFT RUNNING = YES`
+- Branch was pushed and exactly one Draft PR (#10) was created against `main`; it remains unmerged.
 - Keep Jira APO-39 In Progress. APO-38 remains Done; APO-43 and APO-44 remain To Do and
   unauthorized.
 
