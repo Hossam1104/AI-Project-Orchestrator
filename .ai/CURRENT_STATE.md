@@ -2031,7 +2031,8 @@ configuration view that intersects project requests with global capabilities;
 No selection, ranking, quota comparison, invocation, process execution, prompt transport, worktree,
 provider probe, browser scraping, or UI workspace was added.
 
-Focused APO-38 tests pass: Connection 22/22 and Infrastructure 6/6. Full-suite validation passes
+Focused APO-38 tests pass: `AgentRegistryTruthTests` 12/12 and
+`AgentRegistryPersistenceTests` 6/6; the complete Connection project is 22/22. Full-suite validation passes
 345/345: Domain 28, Connection 22, Provider 46, Desktop 71, and Infrastructure 178, with zero
 failures/skips and zero build warnings/errors. Restore, build, targeted tests, full tests, and
 `git diff --check` were run. A self-contained single-file `win-x64` publish succeeded with no

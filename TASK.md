@@ -70,7 +70,8 @@
 
 - Restore: SUCCESS.
 - Build: SUCCESS; 0 warnings, 0 errors.
-- Focused APO-38 test files: Connection 22/22 and Infrastructure 6/6.
+- Focused APO-38 test files: `AgentRegistryTruthTests` 12/12 and `AgentRegistryPersistenceTests` 6/6;
+  complete Connection project total 22/22.
 - Full solution tests: 345/345 passed, 0 failed, 0 skipped — Domain 28, Connection 22, Provider 46,
   Desktop 71, Infrastructure 178.
 - `git diff --check`: SUCCESS.
