@@ -69,7 +69,7 @@
 - Self-contained single-file `win-x64` publish: SUCCESS.
 - Executable:
   `D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
-- Final live process: PID `29244`; window title `AI Project Orchestrator`; `Responding=True`;
+- Final live process: PID `26360`; window title `AI Project Orchestrator`; `Responding=True`;
   normal/non-degraded shell with `CAPACITY READY`; exactly one APO process at handoff.
 - The UI navigation probe could not be completed because the Computer Use target could not be
   foregrounded while an unrelated RMS POS modal owned the active desktop. No interaction with that

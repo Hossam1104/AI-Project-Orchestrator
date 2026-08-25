@@ -2117,7 +2117,7 @@ configured/reported checks, so no CI success is claimed.
 
 The self-contained single-file `win-x64` publish succeeded. The current executable is
 `D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
-with PID `29244`, title `AI Project Orchestrator`, `Responding=True`, one APO process, and a
+with PID `26360`, title `AI Project Orchestrator`, `Responding=True`, one APO process, and a
 normal/non-degraded shell exposing `CAPACITY READY`. The UI navigation probe was not completed:
 Computer Use could not foreground APO while an unrelated RMS POS modal owned the active desktop, and
 no interaction with that unrelated app was attempted. APO was left running after the bounded probe.
