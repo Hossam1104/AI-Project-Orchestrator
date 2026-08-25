@@ -154,7 +154,9 @@ captured window for a navigation click, so no navigation action is claimed; the 
 shell state were left running. `LEFT RUNNING = YES`.
 
 No product source or test source was changed. No APO-38 implementation, Prompt 2/5 work, CI claim,
-Sonnet review, or Opus review was performed. The final branch SHA is recorded after delivery.
+Sonnet review, or Opus review was performed. The Jira/DAG repair documentation commit is
+`b6f82854cc36950e567c3bfdf63fe4a27f8ae994`; the final metadata handoff commit and branch head are
+reported at executor completion.
 
 ## -5. APO-37 SOL-37-01..05 Bounded Correctness Remediation (Prompt 4/5)
 

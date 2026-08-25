@@ -13,6 +13,7 @@ file.
 - Existing branch: `docs/apo-strategic-orchestrator-rebaseline`
 - Starting strategic SHA: `860a79e69a87c4696dc4595b70ef260d6382532f`
 - Accepted `origin/main`: `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`
+- Jira/DAG repair documentation commit: `b6f82854cc36950e567c3bfdf63fe4a27f8ae994`
 - Existing Draft PR: #8, base `main`, OPEN / DRAFT / UNMERGED / mergeable
 - Canonical local checkout: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`; historical
   `D:\AI Tools\Hossam\AI-Project-Orchestrator` path is absent.
