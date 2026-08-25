@@ -1,5 +1,6 @@
 using System.IO;
 using AIUsageMonitor.Application.Agents;
+using AIUsageMonitor.Application.Projects;
 using AIUsageMonitor.Desktop.ViewModels;
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Providers;
@@ -95,6 +96,17 @@ public sealed class ProductionCompositionTests : IDisposable
 
         Assert.NotNull(registry);
         Assert.Equal(6, catalog.GetDefaults().Count);
+    }
+
+    [Fact]
+    public void ProductionComposition_ResolvesOnboardingAndContextServices()
+    {
+        using var provider = BuildProvider();
+
+        Assert.NotNull(provider.GetRequiredService<IProjectOnboardingService>());
+        Assert.NotNull(provider.GetRequiredService<IProjectContextReferenceRepository>());
+        Assert.NotNull(provider.GetRequiredService<IProjectContextResolver>());
+        Assert.True(provider.GetRequiredService<ProjectsViewModel>().IsStorageAvailable);
     }
 
     private ServiceProvider BuildProvider()

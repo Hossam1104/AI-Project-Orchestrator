@@ -34,8 +34,8 @@ public sealed class ProjectRegistryService : IProjectRegistryService
             edit,
             now,
             now,
-            repositoryMetadata: null,
-            trackerMetadata: null);
+            repositoryMetadata: edit.RepositoryMetadata,
+            trackerMetadata: edit.TrackerMetadata);
 
         await _repository.UpsertAsync(project, cancellationToken).ConfigureAwait(false);
         return project;
@@ -63,8 +63,8 @@ public sealed class ProjectRegistryService : IProjectRegistryService
             edit,
             existing.CreatedAt,
             _clock.UtcNow,
-            existing.RepositoryMetadata,
-            existing.TrackerMetadata);
+            edit.RepositoryMetadata ?? existing.RepositoryMetadata,
+            edit.TrackerMetadata ?? existing.TrackerMetadata);
 
         await _repository.UpsertAsync(updated, cancellationToken).ConfigureAwait(false);
         return updated;

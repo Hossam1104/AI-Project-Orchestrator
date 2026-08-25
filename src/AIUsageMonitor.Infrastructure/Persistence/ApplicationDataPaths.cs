@@ -109,6 +109,9 @@ public sealed class ApplicationDataPaths
     public string GetProjectAgentOverridesFile(Guid projectId) =>
         GetProjectPaths(projectId).AgentOverridesFile;
 
+    public string GetProjectContextReferenceFile(Guid projectId) =>
+        GetProjectPaths(projectId).ContextReferenceFile;
+
     public string GetProjectRunsDirectory(Guid projectId) => GetProjectPaths(projectId).RunsDirectory;
 
     public string GetProjectEvidenceDirectory(Guid projectId) => GetProjectPaths(projectId).EvidenceDirectory;
@@ -159,6 +162,7 @@ public sealed class ProjectDataPaths
         ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
         AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
+        ContextReferenceFile = Path.Combine(rootDirectory, "context-reference.json");
     }
 
     public Guid ProjectId { get; }
@@ -182,4 +186,7 @@ public sealed class ProjectDataPaths
     /// <c>agents.json</c> document.
     /// </summary>
     public string AgentOverridesFile { get; }
+
+    /// <summary>Single current APO-39 onboarding context document for this project boundary.</summary>
+    public string ContextReferenceFile { get; }
 }

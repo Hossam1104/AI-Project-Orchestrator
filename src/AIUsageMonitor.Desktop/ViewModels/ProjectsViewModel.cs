@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using AIUsageMonitor.Application.Agents;
 using AIUsageMonitor.Application.Projects;
 
 namespace AIUsageMonitor.Desktop.ViewModels;
@@ -12,6 +13,8 @@ public sealed class ProjectsViewModel : ObservableObject
 {
     private readonly IProjectRegistryService? _registryService;
     private readonly IProjectRepositoryStateService? _repositoryStateService;
+    private readonly IProjectOnboardingService? _onboardingService;
+    private readonly IDefaultAgentCatalog? _defaultAgentCatalog;
     private CancellationTokenSource? _repositoryVerificationCancellation;
     private long _repositoryVerificationGeneration;
     private Guid? _editingProjectId;
@@ -42,23 +45,35 @@ public sealed class ProjectsViewModel : ObservableObject
     private string _editorSafetyPolicyReference = string.Empty;
     private RepositoryStateSnapshot? _repositoryState;
     private bool _isVerifying;
+    private ProjectOnboardingViewModel? _onboarding;
 
     public ProjectsViewModel()
-        : this(null, null)
+        : this(null, null, null, null)
     {
     }
 
     public ProjectsViewModel(IProjectRegistryService? registryService)
-        : this(registryService, null)
+        : this(registryService, null, null, null)
     {
     }
 
     public ProjectsViewModel(
         IProjectRegistryService? registryService,
         IProjectRepositoryStateService? repositoryStateService)
+        : this(registryService, repositoryStateService, null, null)
+    {
+    }
+
+    public ProjectsViewModel(
+        IProjectRegistryService? registryService,
+        IProjectRepositoryStateService? repositoryStateService,
+        IProjectOnboardingService? onboardingService,
+        IDefaultAgentCatalog? defaultAgentCatalog)
     {
         _registryService = registryService;
         _repositoryStateService = repositoryStateService;
+        _onboardingService = onboardingService;
+        _defaultAgentCatalog = defaultAgentCatalog;
         _isStorageAvailable = registryService is not null;
 
         RefreshCommand = new AsyncCommand(
@@ -277,9 +292,17 @@ public sealed class ProjectsViewModel : ObservableObject
     public bool ShowNoMatchState =>
         ShowRegistrySurface && HasProjects && !HasFilteredProjects;
 
-    public bool IsEditorVisible => IsEditing;
+    public bool IsOnboardingVisible => Onboarding is not null;
 
-    public bool IsRegistryInteractionEnabled => !IsEditing && !IsSaving && !IsLoading;
+    public ProjectOnboardingViewModel? Onboarding
+    {
+        get => _onboarding;
+        private set => _onboarding = value;
+    }
+
+    public bool IsEditorVisible => IsEditing && !IsOnboardingVisible;
+
+    public bool IsRegistryInteractionEnabled => !IsEditing && !IsOnboardingVisible && !IsSaving && !IsLoading;
 
     public bool IsVerifying
     {
@@ -624,13 +647,56 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private void NewProject()
     {
+        if (_onboardingService is null || _defaultAgentCatalog is null)
+        {
+            // Keep the parameter-light test/degraded construction path usable. Production DI
+            // always supplies the onboarding coordinator and therefore uses the progressive flow.
+            _editingProjectId = null;
+            SelectedProjectCard = null;
+            IsCreating = true;
+            IsEditing = true;
+            ClearEditor();
+            ValidationMessage = null;
+            ErrorMessage = null;
+            OnWorkspaceStateChanged();
+            return;
+        }
+
         _editingProjectId = null;
         SelectedProjectCard = null;
-        IsCreating = true;
-        IsEditing = true;
-        ClearEditor();
+        Onboarding = new ProjectOnboardingViewModel(
+            _onboardingService,
+            _defaultAgentCatalog,
+            FinishOnboardingAsync,
+            CancelOnboarding);
         ValidationMessage = null;
         ErrorMessage = null;
+        OnPropertyChanged(nameof(IsOnboardingVisible));
+        OnPropertyChanged(nameof(IsEditorVisible));
+        OnWorkspaceStateChanged();
+    }
+
+    private async Task FinishOnboardingAsync(ProjectOnboardingResult result)
+    {
+        if (!result.Succeeded || result.Project is null)
+        {
+            return;
+        }
+
+        ReplaceProject(result.Project);
+        Onboarding = null;
+        OnPropertyChanged(nameof(IsOnboardingVisible));
+        OnPropertyChanged(nameof(IsEditorVisible));
+        OnWorkspaceStateChanged();
+        await Task.CompletedTask.ConfigureAwait(true);
+    }
+
+    private void CancelOnboarding()
+    {
+        Onboarding = null;
+        OnPropertyChanged(nameof(IsOnboardingVisible));
+        OnPropertyChanged(nameof(IsEditorVisible));
+        OnWorkspaceStateChanged();
     }
 
     private void EditSelectedProject()
@@ -872,6 +938,7 @@ public sealed class ProjectsViewModel : ObservableObject
         _hasLoadedSuccessfully &&
         !IsLoading &&
         !IsSaving &&
+        !IsOnboardingVisible &&
         !IsVerifying;
 
     private bool CanEditSelectedProject() => CanEditWorkspace() && SelectedProject is not null;
@@ -928,6 +995,8 @@ public sealed class ProjectsViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowEmptyRegistryState));
         OnPropertyChanged(nameof(ShowNoMatchState));
         OnPropertyChanged(nameof(IsRegistryInteractionEnabled));
+        OnPropertyChanged(nameof(IsEditorVisible));
+        OnPropertyChanged(nameof(IsOnboardingVisible));
         RefreshCommand.NotifyCanExecuteChanged();
         NewProjectCommand.NotifyCanExecuteChanged();
         EditProjectCommand.NotifyCanExecuteChanged();
