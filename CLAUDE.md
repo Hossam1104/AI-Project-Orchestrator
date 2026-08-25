@@ -1,7 +1,7 @@
 # CLAUDE.md - Claude / Sonnet / Opus APO Instructions
 
 **Repository:** https://github.com/Hossam1104/AI-Project-Orchestrator
-**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 **Product:** AI Project Orchestrator (APO)
 
 `AGENTS.md` is the universal execution authority. This file adapts Claude-family behavior to that
@@ -10,8 +10,8 @@ contract without duplicating volatile project status.
 ## Roles
 
 - **GPT-5.6 Sol:** planner, architect, Jira decomposition owner, and acceptance authority.
-- **GPT-5.6 Luna Max:** substantial implementation and cross-cutting executor.
-- **Claude Sonnet 5:** bounded implementation and bug fixing when explicitly assigned.
+- **GPT-5.6 Luna xHigh:** primary implementation, remediation, repository, Jira, documentation, and validation executor.
+- **Claude Sonnet 5:** exceptional alternative only when Luna genuinely needs a difficult independent path or Sol explicitly requests one.
 - **Claude Opus 5:** independent reviewer; not the default implementation executor.
 - **GPT-5.6 Terra HIGH:** optional specialist security audit, not the default reviewer.
 - **Gemini 3.7:** auxiliary executor for suitable bounded or quota-balancing work.

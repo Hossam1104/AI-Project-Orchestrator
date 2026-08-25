@@ -3,7 +3,7 @@
 This is the universal execution contract for every AI model working in this repository.
 
 **Repository:** https://github.com/Hossam1104/AI-Project-Orchestrator
-**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Primary Requirements:** `docs/BRD.md`
@@ -26,8 +26,8 @@ solely to preserve quota.
 | Priority | Model | Default role |
 |---|---|---|
 | 1 | GPT-5.6 Sol | Planner / Architect / Acceptance Authority |
-| 2 | GPT-5.6 Luna Max | Substantial implementation / cross-cutting fixes |
-| 3 | Claude Sonnet 5 | Bounded implementation / bug fixing |
+| 2 | GPT-5.6 Luna xHigh | Primary implementation, remediation, repository, Jira, documentation, and validation executor |
+| 3 | Claude Sonnet 5 | Exceptional alternative executor only when Luna genuinely needs one |
 | 4 | Claude Opus 5 | Independent reviewer |
 | 5 | GPT-5.6 Terra HIGH | Optional specialist security audit; not default reviewer |
 | Auxiliary | Gemini 3.7 | Cost/quota load-balancing executor for suitable bounded work |
@@ -37,15 +37,17 @@ solely to preserve quota.
 Sol owns requirements interpretation, architecture, Jira decomposition, execution contracts,
 model-routing policy, acceptance criteria, approved scope changes, and final acceptance.
 
-## Default Executor - GPT-5.6 Luna Max
+## Primary Executor - GPT-5.6 Luna xHigh
 
-Luna is the default executor for substantial implementations, cross-cutting changes, complex
-refactors, and high-blast-radius fixes when a Jira work item assigns that role.
+Luna xHigh is the primary executor for substantial and bounded implementation, cross-cutting
+changes, remediation, repository/Git operations, Jira synchronization, documentation, and
+validation when a Jira work item assigns that role.
 
-## Bounded Executor - Claude Sonnet 5
+## Exceptional Alternative - Claude Sonnet 5
 
-Sonnet is preferred for bounded implementation, focused tests, and localized bug fixes when
-explicitly assigned.
+Sonnet is not the routine bounded executor. Use it only when Luna genuinely fails on a difficult
+problem, when an unusually difficult issue benefits materially from Sonnet, or when Sol explicitly
+requests an independent alternative implementation.
 
 ## Independent Reviewer - Claude Opus 5
 

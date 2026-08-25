@@ -1,10 +1,10 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 24 August 2026
+**Last Updated:** 25 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
-**Local Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator` (canonical active checkout; historical Hossam path absent)
 **APO-18:** COMPLETE / ACCEPTED
 **APO-19:** COMPLETE / SOL ACCEPTED
 **APO-20:** COMPLETE — repository and physical local-root rename complete
@@ -19,18 +19,150 @@
 **APO-35 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
 **APO-36:** COMPLETE / SOL ACCEPTED / MERGED / DONE
 **APO-36 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
-**APO-37:** IN PROGRESS / EXECUTOR IMPLEMENTATION BOUNDARY
+**APO-37:** COMPLETE / MERGED / DONE
+**APO-37 Merge main SHA:** `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`
+**Strategic Rebaseline:** PROMPT 1/5 FINAL JIRA DAG REPAIR COMPLETE / AWAITING SOL ACCEPTANCE
 **APO-5:** IN PROGRESS
 **APO-4:** IN PROGRESS
 **APO-6:** IN PROGRESS
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-37 - Implement Read-Only Local Git Repository Verification in Projects.
-**Current Epic:** APO-6 - Git & GitHub Integration (In Progress)
-**Status:** APO-35 and APO-36 remain Sol-accepted, merged, and Done. APO-37 has completed a Sol-directed bounded remediation (SOL-37-01..05, Sol comment 11851) on the executor branch, with full solution coverage now at 320/320 passing; Jira APO-37 and parent APO-6 remain In Progress pending Sol delta acceptance. This is Prompt 4/5 of the current Opus cadence — no Claude Opus review was performed.
-**Next implementation:** GPT-5.6 Sol delta acceptance of the exact final pushed APO-37 remediation SHA; if accepted, the following checkpoint is Prompt 5/5 Claude Opus independent review. No downstream Story work was started.
-**Release state:** APO-37 adds explicit, manual, read-only local repository verification. GitHub remote operations, tracker integration, routing, orchestration runtime, and product release qualification remain incomplete.
+**Current Story:** Prompt 1/5 final Jira DAG repair - Jira graph and roadmap documentation synchronization.
+**Current Epic:** APO-1 governance boundary with roadmap mapping across APO-3 through APO-16.
+**Status:** APO-37 finalization is complete at the accepted main baseline. Prompt 1/5 final Jira DAG repair is complete: Jira, the hard-dependency documentation, the active local-root truth, and the Sol handoff are synchronized. Draft PR #8 remains OPEN / DRAFT / UNMERGED pending Sol acceptance.
+**Next implementation:** GPT-5.6 Sol must accept this final strategic rebaseline and select one bounded Story; APO-38 is the recommended first implementation boundary. No strategic runtime feature has been implemented in this continuation.
+**Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+
+## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)
+
+**Exact merged baseline:** `origin/main` and the strategic branch start at
+`0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`.
+
+**APO-37 finalization:**
+
+- Accepted head: `e35762478ae87c406939d11662e00fef1727c04a`.
+- PR #7: merged as a squash commit; accepted head tree and merge tree are identical.
+- Jira APO-37: transitioned to Done; final completion comment `11862`.
+- Jira APO-6: intentionally remains In Progress.
+- Sol Prompt 5/5 adjudication comment `11861`: APO-37 accepted for merge finalization with
+  OPUS-01, OPUS-02, OPUS-03, OPUS-04, OPUS-05, OPUS-07, and OPUS-09 retained as P3 hardening;
+  OPUS-06 and OPUS-08 rejected and not opened as defects.
+
+**Strategic branch:** `docs/apo-strategic-orchestrator-rebaseline`; continuation started from
+`c392994927e21e23a612a80b29219d5d1feadef9`; draft PR #8 remains OPEN / DRAFT / UNMERGED against
+`main`. The continuation documentation synchronization commit is
+`e238d713c0cfb26c16c6e81b459b37c418cbe91c`; the final branch SHA after the metadata handoff is
+reported at executor completion.
+
+**Approved strategic direction incorporated:** Mission Control; Smart Continue; canonical
+project context and checkpoint recovery; dependency-aware work graphs; isolated workspaces;
+evidence-based QA gates; Review Inbox; composable skills/workflows; explainable project health;
+quality-first quota-aware routing; bounded background automation and housekeeping; optional remote
+approval design; AI Decision Ledger; context budgets; automatic role handoffs; truthful runtime
+evidence; and progressive project onboarding. The active WPF/.NET/local-first architecture and
+human/evidence authority are unchanged.
+
+**Jira reconciliation:**
+
+- Existing APO-1 through APO-17 Epics were reused; no new Epic was created.
+- Existing APO-33 CI Story was reused rather than duplicated.
+- New bounded roadmap Stories APO-38 through APO-63 were created under the existing Epics with
+  explicit P0/P1/P2/P3 bands, scope, dependencies, acceptance evidence, and out-of-scope clauses.
+- APO-43 explicitly owns Smart Continue, canonical context, and recovery checkpoints.
+- APO-62 owns provider-independent read-only GitHub/Azure Repos remote SCM/CI evidence under APO-6.
+- APO-63 owns controlled remote source-control delivery under APO-6 and remains behind evidence and
+  owner-approval gates.
+- APO-59 through APO-61 retain the accepted APO-37 P3 hardening backlog.
+- APO-64 through APO-67 are Done VOID connector-correction artifacts with zero product scope and
+  are excluded from roadmap totals and dependency sequencing.
+- Critical predecessor links were created with Jira Blocks relationships; APO-37 to APO-59..61
+  is recorded as related work.
+
+**Required next Sol gate:** inspect BRD 1.2, Implementation Plan 1.2, this state, TASK.md, and
+Jira APO-38..63; accept or revise the dependency order; then prepare one self-contained bounded
+contract. Recommended first Story: APO-38, provider-independent agent/model registry and
+connection truth. Do not implement APO-38 in this rebaseline session.
+
+**Validation and runtime evidence for this rebaseline:** `dotnet restore AIUsageMonitor.sln`
+succeeded; `dotnet build AIUsageMonitor.sln --no-restore` succeeded with 0 warnings and 0 errors;
+the full solution test run passed 326/326 with 0 failures and 0 skips; `git diff --check` passed;
+the changed-line secret scan found no credential-shaped values. The self-contained `win-x64`
+publish profile completed successfully. No APO process was running during pre-publish detection;
+the current published executable was started at
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID 26240, window title `AI Project Orchestrator`, `Responding=True`, and `HasExited=False`.
+UI Automation exposed `CAPACITY READY`, the Projects navigation control, the AI capacity
+workspace, and the normal shell. No duplicate process was created. `LEFT RUNNING = YES`.
+
+## Prompt 1/5 Final Jira DAG Repair (25 August 2026)
+
+**Work item:** Final Jira dependency-graph repair and strategic documentation synchronization.
+
+**SOL-SR-01: CLOSED** — the live Jira graph was backed up outside the repository at
+`C:\Users\Win11\AppData\Local\Temp\APO-Jira-Link-Repair-20260824-234658`. The pre-delete
+invariant was exactly 25 strategic `Blocks` links, IDs `10479` through `10503`, plus the three
+accepted `Relates` links `10504`/`10505`/`10506`.
+
+The old strategic `Blocks` graph was removed through official ACLI. The canonical 18-link hard DAG
+was rebuilt and verified live with generated IDs `10525` through `10542`:
+
+```text
+APO-38 -> APO-39                 APO-38 -> APO-44
+APO-40 -> APO-41                 APO-40 -> APO-42
+APO-40 -> APO-43                 APO-40 -> APO-45
+APO-39 -> APO-43
+APO-41 -> APO-45                 APO-42 -> APO-45
+APO-43 -> APO-45                 APO-44 -> APO-45
+APO-46 -> APO-45
+APO-45 -> APO-48
+APO-48 -> APO-63                 APO-49 -> APO-63
+APO-62 -> APO-63
+APO-45 -> APO-57                 APO-49 -> APO-58
+```
+
+Live verification reported 18 Blocks, no old IDs, no duplicate pair, no reverse pair, no self-link,
+and no graph cycle. `10504`/`10505`/`10506` remain `Relates` from APO-37 to APO-59/60/61. The
+ACLI executable is `C:\Users\Win11\AppData\Local\AIProjectOrchestrator\tools\acli\acli.exe`,
+version `1.3.29-stable`, authenticated by OAuth to `hossamsqa.atlassian.net`.
+
+During verification, ACLI's `--out A --in B` success text was compared with Jira's live REST
+`fields.issuelinks` semantics. The flags produced the inverse live direction, so the 18 initially
+created links were removed and recreated with reversed flags; the final graph above is based on the
+live Jira semantics, not the CLI success text alone.
+
+**SOL-SR-02: CLOSED** — `docs/BRD.md`, `docs/IMPLEMENTATION_PLAN.md`, and
+`docs/STRATEGIC_ROADMAP.md` now distinguish the canonical 18-link hard DAG from recommended
+planner ordering, explicitly place APO-46 before APO-45, and preserve APO-43/62/63 ownership.
+
+**SOL-SR-03: CLOSED** — the active canonical checkout is
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator`; it has the expected origin, branch, and
+starting SHA `860a79e69a87c4696dc4595b70ef260d6382532f`. The historical
+`D:\AI Tools\Hossam\AI-Project-Orchestrator` path does not exist.
+
+**SOL-SR-04: CLOSED** — corrected the Section 17 compact capability map in
+`docs/IMPLEMENTATION_PLAN.md` so the visual summary retains the authoritative ordering
+`APO-48 → APO-49 → APO-63 → APO-50`. The BRD, implementation plan, and strategic roadmap remain
+consistent; no source, test, Jira, Story scope, ownership, link, priority, or status changes were
+made.
+
+Final-session validation succeeded: restore was up to date; build completed with 0 warnings and 0
+errors; the full solution test run passed 326/326 (Domain 28, Connection 10, Provider 46, Desktop
+70, Infrastructure 172); `git diff --check` passed; the changed-line secret scan found no
+credential-shaped matches; and product-source/test-source diffs were both zero.
+
+The self-contained published executable remains running at
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID `19588`, window title `AI Project Orchestrator`, `Responding=True`, and `HasExited=False`.
+A fresh UI Automation state exposed `CAPACITY READY`, the normal AI Capacity workspace, provider
+cards, refresh controls, and Projects/AI capacity navigation. The helper could not activate the
+captured window for a navigation click, so no navigation action is claimed; the process and normal
+shell state were left running. `LEFT RUNNING = YES`.
+
+No product source or test source was changed. No APO-38 implementation, Prompt 2/5 work, CI claim,
+Sonnet review, or Opus review was performed. The Jira/DAG repair documentation commit is
+`b6f82854cc36950e567c3bfdf63fe4a27f8ae994`; the final metadata handoff commit and branch head are
+reported at executor completion.
 
 ## -5. APO-37 SOL-37-01..05 Bounded Correctness Remediation (Prompt 4/5)
 

@@ -3,12 +3,12 @@
 ## Business Requirements Document
 
 **Product:** AI Project Orchestrator (APO)
-**Document Version:** 1.1
-**Status:** APPROVED PRODUCT BASELINE
-**Date:** 21 August 2026
+**Document Version:** 1.2
+**Status:** APPROVED PRODUCT BASELINE — STRATEGIC REBASELINE
+**Date:** 25 August 2026
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
-**Local Project Root:** `D:\AI Tools\Hossam\AI-Project-Orchestrator`
+**Local Project Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 **Jira Project:** `APO`
 **Product Owner:** Hossam
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
@@ -154,17 +154,20 @@ The approved default strategy is quality/risk first and quota/cost second:
 | Priority | Model | Default role |
 |---|---|---|
 | 1 | GPT-5.6 Sol | Planner / Architect / Acceptance Authority |
-| 2 | GPT-5.6 Luna Max | Substantial implementation / cross-cutting fixes |
-| 3 | Claude Sonnet 5 | Bounded implementation / bug fixing |
+| 2 | GPT-5.6 Luna xHigh | Primary implementation, remediation, and repository/documentation executor |
+| 3 | Claude Sonnet 5 | Exceptional fallback executor when Luna genuinely needs an alternative |
 | 4 | Claude Opus 5 | Independent reviewer |
 | 5 | GPT-5.6 Terra HIGH | Optional specialist security audit; not default reviewer |
 | Auxiliary | Gemini 3.7 | Cost/quota load-balancing executor for suitable bounded work |
 
 Sol owns requirement interpretation, architecture, task classification, execution contracts,
-routing policy, acceptance criteria, and final acceptance. Luna is preferred for substantial or
-cross-cutting work. Sonnet is preferred for bounded fixes and focused tests. Opus remains
-independent from the implementation executor by default. Terra is risk-triggered and optional.
-Gemini is auxiliary and must be used only when capability and risk permit.
+routing policy, acceptance criteria, and final acceptance. Luna xHigh is the default executor for
+substantial, bounded, cross-cutting, remediation, documentation, Git, Jira, and validation work.
+Sonnet is exceptional: use it only when Luna genuinely fails on a difficult problem, when an
+unusually difficult issue materially benefits from Sonnet, or when Sol explicitly requests an
+independent alternative. Opus remains independent from the implementation executor by default.
+Terra is risk-triggered and optional. Gemini is auxiliary and must be used only when capability and
+risk permit.
 
 Model names, capabilities, availability, routing policy, and project overrides must be represented
 as data/configuration rather than scattered hard-coded workflow conditions.
@@ -256,6 +259,25 @@ the portable WPF/JSON/JSONL foundation. It must not be revived without explicit 
 - **FR-GIT-002:** Preserve unrelated owner changes and prohibit force push, destructive reset, and
   destructive clean by default.
 - **FR-GIT-003:** Support safe task branches, draft pull requests, and protected-branch policy.
+- **FR-GIT-004:** Distinguish local repository/worktree evidence from remote source-control and CI
+  evidence. Remote evidence must use provider-independent orchestration contracts and official
+  GitHub or Azure Repos integration paths where configured.
+- **FR-GIT-005:** Where exposed, represent remote repository identity, default/current branch
+  relationship, remote commit identity, pull-request identity/state, mergeability, reviews,
+  checks/status, CI/workflow evidence, provider/source, capture time, freshness, and immutable
+  target identifiers.
+- **FR-GIT-006:** Keep read-only remote evidence separate from later remote write/delivery
+  operations. APO-62 owns remote evidence; controlled delivery belongs to APO-63 and requires its
+  own authorization, validation, approval, and audit boundaries.
+- **FR-GIT-007:** Distinguish Not Configured, Authentication Required, Permission Denied,
+  Unsupported, Unavailable, Stale, Partial, and Available remote evidence. Missing or unavailable
+  evidence must never be represented as healthy, passing, synchronized, or up to date.
+- **FR-GIT-008:** Bind protected or high-risk remote mutation to the project, work item,
+  execution-contract version, repository, base/head refs, exact head SHA, current validation
+  evidence, current approval decision, actor, and audit identity; fail closed when any material
+  evidence changes.
+- **FR-GIT-009:** Treat model CLIs and executor self-report as non-authoritative for remote SCM or
+  CI truth; official integrations and independently captured evidence remain the source of truth.
 
 ## 8.2 AI Agent and Model Registry
 
@@ -360,6 +382,42 @@ before the gate.
 - **FR-SET-001:** Make routing, loop limits, budgets, allowed actions, validation requirements,
   notification thresholds, refresh behavior, and human gates configurable within safe limits.
 
+## 8.7 Strategic Orchestration and Control-Plane Requirements
+
+The approved strategic direction makes APO the owner's local-first engineering control plane. The
+following requirements are roadmap capabilities; they are not claims that the current source has
+already implemented the full orchestration runtime.
+
+- **FR-CONTEXT-001:** Maintain one versioned, provider-independent canonical project context with
+  project/repository/tracker identity, current work, dependencies, active contract, routing,
+  validation, review, approval, recovery checkpoint, and next safe action.
+- **FR-CONTEXT-002:** Support a truthful Smart Continue operation that resolves the current project
+  and bounded checkpoint without requiring manual chat-history reconstruction.
+- **FR-CONTEXT-003:** Generate role-specific, bounded planner/executor/reviewer/acceptance handoffs
+  with provenance, redaction, context budget, omission, and limitation metadata.
+- **FR-ORCH-001:** Represent prerequisites and dependents as a validated dependency graph; never
+  launch work with incomplete prerequisites or a detected cycle.
+- **FR-ORCH-002:** Resume interrupted work only from a persisted checkpoint and preserve typed
+  interrupted, failed, stale, blocked, and human-decision states.
+- **FR-ORCH-003:** Prepare isolated worktrees or equivalent execution workspaces only under explicit
+  source-control policy, project isolation, and approval boundaries.
+- **FR-ORCH-004:** Bound all recurring automation and housekeeping with budgets, stop conditions,
+  audit records, retention policy, and owner controls; no endless loops.
+- **FR-ONBOARD-001:** Make project onboarding useful after a small number of choices: repository,
+  tracker or skip, model defaults, and confirmation; advanced settings use progressive disclosure.
+- **FR-EVID-001:** Let independent build/test/Git/tracker/security/runtime evidence determine
+  progression and acceptance; executor self-report is never proof.
+- **FR-EVID-002:** Represent running-application evidence truthfully, including executable, PID,
+  window/process state, revision relationship, freshness, and normal/degraded status when known.
+- **FR-UX-003:** Provide a Mission Control read model that summarizes active work, roles, steps,
+  blockers, approvals, repository/tracker state, evidence, and owner attention in one view.
+- **FR-UX-004:** Provide a Review Inbox and an explainable project-health/attention summary backed by
+  evidence, unresolved risk, freshness, and explicit limitations.
+- **FR-AUD-003:** Persist an AI Decision Ledger with actor/model, decision, reason, evidence,
+  confidence/limitations, override, and final authority without persisting secrets or conversations.
+- **FR-APPROVAL-001:** Keep remote/mobile approval optional and subject to a separate security and
+  architecture decision; V1 remains functional without an APO-owned cloud backend.
+
 # 9. Orchestration Lifecycle and Safety Controls
 
 The default lifecycle is:
@@ -404,6 +462,44 @@ and global concurrency policy, dangerous-action blocks, and explicit stop reason
 reasons include repository divergence, conflicts, secret detection, destructive out-of-scope work,
 architecture drift, ambiguity, missing credentials, insufficient capacity, repeated failure, and
 unverifiable validation.
+
+## 9.1 Frozen owner workflow
+
+The strategic owner workflow is:
+
+```text
+Owner intent
+    ↓
+Project / context resolution
+    ↓
+Sol planner and architect
+    ↓
+Bounded execution contract and dependency graph
+    ↓
+Quality-first model routing and quota decision
+    ↓
+Luna xHigh execution by default
+    ↓
+Independent repository, tracker, build, test, and runtime evidence
+    ↓
+Independent review when cadence or risk requires it
+    ↓
+Finding adjudication and bounded remediation
+    ↓
+Revalidation
+    ↓
+Sol acceptance
+    ↓
+Owner approval where required
+    ↓
+Delivery and tracker synchronization
+    ↓
+Persisted audit and recoverable next state
+```
+
+APO should automate the transitions and package only the context required by the receiving role.
+The owner remains the authority for high-risk actions, material architecture changes, and protected
+delivery.
 
 # 10. Provider and Capacity Data Contract
 
@@ -601,8 +697,64 @@ The approved initial Epic structure is:
 | APO-16 | Activity, Audit, History & Notifications |
 | APO-17 | Packaging, Compatibility, CI & Release Quality |
 
-APO-18 is the first Story under APO-1 and establishes this consolidated baseline. No duplicate
-Epics or speculative Stories are created by this BRD.
+APO-18 is the first Story under APO-1 and establishes the original consolidated baseline. The
+strategic rebaseline deliberately reuses the approved APO-1 through APO-17 Epic structure and
+decomposes the approved direction into bounded Stories APO-38 through APO-63. These Stories are
+roadmap backlog items, not implementation authorization; each still requires a Sol-authored
+TASK.md contract. No competitor-named Epic is created.
+
+### 15.1 Strategic capability-to-Jira mapping
+
+| Strategic capability | Roadmap band | Jira mapping |
+|---|---:|---|
+| Agent/model registry and truthful connectivity | P0 | APO-38 under APO-8 |
+| Progressive onboarding and canonical context resolution | P0 | APO-39 under APO-5 |
+| Versioned contracts, dependency graph, and role handoffs | P0 | APO-40, APO-41, APO-42 under APO-10 |
+| Persistent context and recovery checkpoints | P0 | APO-43 under APO-3 |
+| Explainable quality-first routing | P0 | APO-44 under APO-9 |
+| Bounded execution and isolated workspaces | P0 | APO-45 under APO-11; APO-46 under APO-6 |
+| Jira/Azure DevOps work-item awareness | P0 | APO-47 under APO-7 |
+| Remote SCM / CI evidence | P0 | APO-62 under APO-6 |
+| Evidence-based QA and human delivery gates | P0 | APO-48 under APO-12; APO-49 under APO-14 |
+| Controlled remote source-control delivery | P0 | APO-63 under APO-6 |
+| Mission Control | P0 | APO-50 under APO-15 |
+| Review Inbox and remediation | P1 | APO-51 under APO-13 |
+| Composable skills/workflows | P1 | APO-52 under APO-8 |
+| Explainable project health | P1 | APO-53 under APO-15 |
+| Decision Ledger and activity audit | P1 | APO-54 under APO-16 |
+| Runtime evidence and context-budget management | P1 | APO-55 under APO-12; APO-56 under APO-10 |
+| Bounded background automation and housekeeping | P2 | APO-57 under APO-11 |
+| Optional remote/mobile approval design | P2 | APO-58 under APO-14 |
+| APO-37 accepted hardening debt | P3 | APO-59, APO-60, APO-61 under APO-6 |
+
+APO-33 remains the existing CI/release Story under APO-17 and is reused rather than duplicated.
+APO-37 is merged and Done; its accepted P3 findings are retained in APO-59 through APO-61. Rejected
+OPUS-06 and OPUS-08 are intentionally not represented as Jira defects.
+
+### 15.2 Canonical strategic dependency semantics
+
+Jira `Blocks` is reserved for a real architectural prerequisite. The repaired strategic backlog has
+exactly 18 hard dependency pairs:
+
+```text
+APO-38 -> APO-39                 APO-38 -> APO-44
+APO-40 -> APO-41                 APO-40 -> APO-42
+APO-40 -> APO-43                 APO-40 -> APO-45
+APO-39 -> APO-43
+APO-41 -> APO-45                 APO-42 -> APO-45
+APO-43 -> APO-45                 APO-44 -> APO-45
+APO-46 -> APO-45
+APO-45 -> APO-48
+APO-48 -> APO-63                 APO-49 -> APO-63
+APO-62 -> APO-63
+APO-45 -> APO-57                 APO-49 -> APO-58
+```
+
+The arrows mean the left Story blocks the right Story. APO-46 precedes APO-45 so safe
+project-isolated repository/worktree preparation exists before autonomous repository
+implementation. APO-37 to APO-59/60/61 remains accepted `Relates` traceability rather than a hard
+dependency. Recommended delivery sequencing remains planner guidance and does not imply additional
+Jira `Blocks` links.
 
 # 16. Initial Legacy-to-APO Mapping
 
@@ -681,8 +833,10 @@ acceptance, and stop conditions.
 
 # 20. Approval Status
 
-**Status: APPROVED PRODUCT BASELINE**
+**Status: APPROVED PRODUCT BASELINE — STRATEGIC REBASELINE**
 
 This BRD is the consolidated APO product and technical baseline. Detailed architecture mapping,
-Jira Story/Task decomposition, source refactoring, and execution sequencing are subsequent,
-planner-controlled work.
+Jira Story/Task decomposition and execution sequencing remain planner-controlled. The approved
+strategic backlog is now recorded in APO-38 through APO-63, with the dependency order and next
+planning boundary maintained in docs/IMPLEMENTATION_PLAN.md and TASK.md. Roadmap presence is not
+implementation completion.
