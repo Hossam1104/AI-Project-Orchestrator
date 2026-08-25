@@ -1977,3 +1977,57 @@ CURRENT_STATE updated: Yes
 Next planner boundary:
 - GPT-5.6 Sol final Prompt-4 delta acceptance for the pushed correction.
 - If accepted, Prompt 5/5 Claude Opus independent review.
+
+## 19. APO-38 Prompt 2/5 — Provider-Independent Agent and Model Registry Truth
+
+APO-38 implementation is authorized from the Sol-accepted Prompt-1 squash merge on `main` at
+`ffb449e5396fa56a6ccb3f39134807166cc5ea40`. The implementation branch is
+`feat/APO-38-agent-model-registry-truth`; Jira APO-38 was transitioned from To Do to In Progress
+and received the implementation-start comment. APO-39 and APO-44 remain To Do and unstarted.
+
+The accepted agent foundation was evolved in place. `AgentDefinition` retains the stable GUID,
+legacy free-text `Role`, legacy primary `ConnectionMode`, availability, enabled state, capability
+and limitation lists, cost/quota metadata, and timestamps. New provider-independent fields add
+structured model identity, normalized multi-role capabilities, normalized multi-mode invocation
+capabilities, explicit authentication state, explicit entitlement state, non-executable role
+policy metadata, and an optional bounded `AgentConnectionResult` containing identity, tested time,
+evaluated access mode, availability, authentication, entitlement, evidence source, safe limitation
+code/message, and reported supported modes.
+
+`JsonAgentRepository` and root `agents.json` remain the only global registry. `AgentRecord` maps old
+records with absent APO-38 fields to safe defaults: legacy role/mode/availability are preserved,
+authentication and entitlement remain Unknown, and missing model/role-policy/connection evidence
+remain absent. New records round-trip the extended contract through the existing versioned atomic
+JSON store. No provider subscription, quota, or `ProviderConnection` state is consulted to infer
+entitlement.
+
+The six owner-approved defaults are centralized in `DefaultAgentCatalog`: GPT-5.6 Sol (Planner,
+Architect, Acceptance Authority), GPT-5.6 Luna xHigh (Executor), Claude Sonnet 5 (Executor), Claude
+Opus 5 (Reviewer), GPT-5.6 Terra HIGH (Security Specialist), and Gemini 3.7 (Auxiliary Executor).
+The catalog stores owner-approved usage/preference labels only; all defaults remain Unknown for
+availability, authentication, and entitlement with Unsupported/unverified access modes.
+
+Project configuration is isolated below the existing GUID-derived project boundary at
+`projects/<project-guid>/agent-overrides.json`. `AgentProjectOverride`,
+`JsonAgentProjectOverrideRepository`, and `AgentRegistryService` support only enabled, permitted
+role/mode, and bounded metadata/policy overrides. `EffectiveAgentDefinition` is a read-only
+configuration view; `AgentRegistryResolution.NotFound` is returned for a missing global agent.
+No selection, ranking, quota comparison, invocation, process execution, prompt transport, worktree,
+provider probe, browser scraping, or UI workspace was added.
+
+Focused APO-38 tests pass: Connection 5/5 and Infrastructure 4/4. Full-suite validation passes
+336/336: Domain 28, Connection 15, Provider 46, Desktop 71, and Infrastructure 176, with zero
+failures/skips and zero build warnings/errors. Restore, build, targeted tests, full tests, and
+`git diff --check` were run. A self-contained single-file `win-x64` publish succeeded after the
+pre-existing APO process was stopped because it held the bundle open. The current published
+executable is alive at
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID `2184`, title `AI Project Orchestrator`, `Responding=True`, exactly one current APO
+process, and accessibility state `CAPACITY READY` with Overview/Projects/AI capacity surfaces;
+`LEFT RUNNING = YES`. A Projects navigation click probe reported unavailable coordinate geometry,
+so no claim of completed navigation interaction is made. The current root `TASK.md` is the active
+APO-38 implementation contract and must be replaced with a Sol acceptance handoff at completion.
+GitHub CI evidence is not yet claimed for this branch.
+
+Next planner boundary: Prompt 2/5 APO-38 implementation complete, Draft PR open/draft/unmerged,
+then GPT-5.6 Sol exact-head acceptance review. APO-39 and APO-44 remain NOT AUTHORIZED.

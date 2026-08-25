@@ -378,12 +378,19 @@ internal sealed class AgentRecord
     public string Name { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? Provider { get; set; }
+    public string? ModelIdentifier { get; set; }
     public AgentConnectionMode ConnectionMode { get; set; }
     public AgentAvailability Availability { get; set; }
     public bool Enabled { get; set; }
     public List<string> Capabilities { get; set; } = [];
     public List<string> Limitations { get; set; } = [];
     public Dictionary<string, string?> CostAndQuotaMetadata { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<AgentRole>? RoleCapabilities { get; set; }
+    public List<AgentConnectionMode>? SupportedConnectionModes { get; set; }
+    public AgentAuthenticationState? AuthenticationState { get; set; }
+    public AgentEntitlementState? EntitlementState { get; set; }
+    public List<AgentRolePolicyMetadataRecord>? RolePolicyMetadata { get; set; }
+    public AgentConnectionResultRecord? LastConnectionResult { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
@@ -393,12 +400,23 @@ internal sealed class AgentRecord
         Name = value.Name,
         Role = value.Role,
         Provider = value.Provider,
+        ModelIdentifier = value.ModelIdentifier,
         ConnectionMode = value.ConnectionMode,
         Availability = value.Availability,
         Enabled = value.Enabled,
         Capabilities = value.Capabilities.ToList(),
         Limitations = value.Limitations.ToList(),
         CostAndQuotaMetadata = new Dictionary<string, string?>(value.CostAndQuotaMetadata, StringComparer.OrdinalIgnoreCase),
+        RoleCapabilities = value.RoleCapabilities.ToList(),
+        SupportedConnectionModes = value.SupportedConnectionModes.ToList(),
+        AuthenticationState = value.AuthenticationState,
+        EntitlementState = value.EntitlementState,
+        RolePolicyMetadata = value.RolePolicyMetadata
+            .Select(AgentRolePolicyMetadataRecord.FromApplication)
+            .ToList(),
+        LastConnectionResult = value.LastConnectionResult is null
+            ? null
+            : AgentConnectionResultRecord.FromApplication(value.LastConnectionResult),
         CreatedAt = value.CreatedAt,
         UpdatedAt = value.UpdatedAt
     };
@@ -415,7 +433,109 @@ internal sealed class AgentRecord
         Provider,
         Capabilities,
         Limitations,
-        CostAndQuotaMetadata);
+        CostAndQuotaMetadata,
+        roleCapabilities: RoleCapabilities,
+        supportedConnectionModes: SupportedConnectionModes,
+        authenticationState: AuthenticationState ?? AgentAuthenticationState.Unknown,
+        entitlementState: EntitlementState ?? AgentEntitlementState.Unknown,
+        modelIdentifier: ModelIdentifier,
+        rolePolicyMetadata: RolePolicyMetadata?
+            .Select(value => value.ToApplication())
+            .ToArray(),
+        lastConnectionResult: LastConnectionResult?.ToApplication());
+}
+
+internal sealed class AgentRolePolicyMetadataRecord
+{
+    public AgentRole Role { get; set; }
+    public string UsageDescription { get; set; } = string.Empty;
+    public string? PreferenceLabel { get; set; }
+
+    public static AgentRolePolicyMetadataRecord FromApplication(AgentRolePolicyMetadata value) => new()
+    {
+        Role = value.Role,
+        UsageDescription = value.UsageDescription,
+        PreferenceLabel = value.PreferenceLabel
+    };
+
+    public AgentRolePolicyMetadata ToApplication() => new(Role, UsageDescription, PreferenceLabel);
+}
+
+internal sealed class AgentConnectionResultRecord
+{
+    public Guid AgentId { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Provider { get; set; }
+    public string? ModelIdentifier { get; set; }
+    public DateTimeOffset TestedAt { get; set; }
+    public AgentConnectionMode EvaluatedConnectionMode { get; set; }
+    public AgentAvailability Availability { get; set; }
+    public AgentAuthenticationState AuthenticationState { get; set; }
+    public AgentEntitlementState EntitlementState { get; set; }
+    public AgentEvidenceSource EvidenceSource { get; set; }
+    public string? LimitationCode { get; set; }
+    public string? Message { get; set; }
+    public List<AgentConnectionMode> SupportedConnectionModes { get; set; } = [];
+
+    public static AgentConnectionResultRecord FromApplication(AgentConnectionResult value) => new()
+    {
+        AgentId = value.Identity.Id,
+        DisplayName = value.Identity.DisplayName,
+        Provider = value.Identity.Provider,
+        ModelIdentifier = value.Identity.ModelIdentifier,
+        TestedAt = value.TestedAt,
+        EvaluatedConnectionMode = value.EvaluatedConnectionMode,
+        Availability = value.Availability,
+        AuthenticationState = value.AuthenticationState,
+        EntitlementState = value.EntitlementState,
+        EvidenceSource = value.EvidenceSource,
+        LimitationCode = value.LimitationCode,
+        Message = value.Message,
+        SupportedConnectionModes = value.SupportedConnectionModes.ToList()
+    };
+
+    public AgentConnectionResult ToApplication() => new(
+        new AgentIdentity(AgentId, DisplayName, Provider, ModelIdentifier),
+        TestedAt,
+        EvaluatedConnectionMode,
+        Availability,
+        AuthenticationState,
+        EntitlementState,
+        EvidenceSource,
+        LimitationCode,
+        Message,
+        SupportedConnectionModes);
+}
+
+internal sealed class AgentProjectOverrideRecord
+{
+    public Guid ProjectId { get; set; }
+    public Guid AgentId { get; set; }
+    public bool? EnabledOverride { get; set; }
+    public List<AgentRole>? PermittedRoles { get; set; }
+    public List<AgentConnectionMode>? PermittedConnectionModes { get; set; }
+    public string? PolicyReference { get; set; }
+    public Dictionary<string, string?> Metadata { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public static AgentProjectOverrideRecord FromApplication(AgentProjectOverride value) => new()
+    {
+        ProjectId = value.ProjectId,
+        AgentId = value.AgentId,
+        EnabledOverride = value.EnabledOverride,
+        PermittedRoles = value.PermittedRoles?.ToList(),
+        PermittedConnectionModes = value.PermittedConnectionModes?.ToList(),
+        PolicyReference = value.PolicyReference,
+        Metadata = new Dictionary<string, string?>(value.Metadata, StringComparer.OrdinalIgnoreCase)
+    };
+
+    public AgentProjectOverride ToApplication() => new(
+        ProjectId,
+        AgentId,
+        EnabledOverride,
+        PermittedRoles,
+        PermittedConnectionModes,
+        PolicyReference,
+        Metadata);
 }
 
 internal sealed class RoutingPolicyRecord

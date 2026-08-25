@@ -55,6 +55,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ILocalRepositoryInspector, GitLocalRepositoryInspector>();
         services.AddSingleton<IProjectRepositoryStateService, ProjectRepositoryStateService>();
         services.AddSingleton<IAgentRepository, JsonAgentRepository>();
+        services.AddSingleton<IAgentProjectOverrideRepository, JsonAgentProjectOverrideRepository>();
+        services.AddSingleton<IAgentRegistryService, AgentRegistryService>();
+        services.AddSingleton<IDefaultAgentCatalog, DefaultAgentCatalog>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
 
