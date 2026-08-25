@@ -106,6 +106,9 @@ public sealed class ApplicationDataPaths
 
     public string GetProjectRoutingPolicyFile(Guid projectId) => GetProjectPaths(projectId).RoutingPolicyFile;
 
+    public string GetProjectAgentOverridesFile(Guid projectId) =>
+        GetProjectPaths(projectId).AgentOverridesFile;
+
     public string GetProjectRunsDirectory(Guid projectId) => GetProjectPaths(projectId).RunsDirectory;
 
     public string GetProjectEvidenceDirectory(Guid projectId) => GetProjectPaths(projectId).EvidenceDirectory;
@@ -155,6 +158,7 @@ public sealed class ProjectDataPaths
         ReviewsDirectory = Path.Combine(OrchestrationDirectory, "reviews");
         ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
+        AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
     }
 
     public Guid ProjectId { get; }
@@ -172,4 +176,10 @@ public sealed class ProjectDataPaths
     public string ActivityDirectory { get; }
 
     public string RoutingPolicyFile { get; }
+
+    /// <summary>
+    /// Project-specific agent configuration only. Global agent truth remains in the root
+    /// <c>agents.json</c> document.
+    /// </summary>
+    public string AgentOverridesFile { get; }
 }

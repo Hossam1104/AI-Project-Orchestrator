@@ -21,17 +21,20 @@
 **APO-36 Merge main SHA:** `beab8072551a84aad60df7744135c74c75e51acb`
 **APO-37:** COMPLETE / MERGED / DONE
 **APO-37 Merge main SHA:** `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`
-**Strategic Rebaseline:** PROMPT 1/5 FINAL JIRA DAG REPAIR COMPLETE / AWAITING SOL ACCEPTANCE
+**Strategic Rebaseline:** PROMPT 1/5 SOL ACCEPTED / MERGED / FINALIZED
+**Prompt-1 main merge SHA:** `ffb449e5396fa56a6ccb3f39134807166cc5ea40`
 **APO-5:** IN PROGRESS
 **APO-4:** IN PROGRESS
 **APO-6:** IN PROGRESS
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** Prompt 1/5 final Jira DAG repair - Jira graph and roadmap documentation synchronization.
-**Current Epic:** APO-1 governance boundary with roadmap mapping across APO-3 through APO-16.
-**Status:** APO-37 finalization is complete at the accepted main baseline. Prompt 1/5 final Jira DAG repair is complete: Jira, the hard-dependency documentation, the active local-root truth, and the Sol handoff are synchronized. Draft PR #8 remains OPEN / DRAFT / UNMERGED pending Sol acceptance.
-**Next implementation:** GPT-5.6 Sol must accept this final strategic rebaseline and select one bounded Story; APO-38 is the recommended first implementation boundary. No strategic runtime feature has been implemented in this continuation.
+**Current Story:** APO-38 — Establish Provider-Independent Agent and Model Registry Truth.
+**Current Epic:** APO-8 — AI Agent / Model Registry & Connectivity.
+**Status:** IN PROGRESS / PROMPT 2/5 / SOL ACCEPTANCE REMEDIATION; SOL-38-01..05 CLOSED. Draft PR #9 OPEN / DRAFT / UNMERGED.
+**Next action:** GPT-5.6 Sol exact-head final acceptance after SOL-38-05 remediation.
+**APO-39:** NOT AUTHORIZED.
+**APO-44:** NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
 
 ## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)
@@ -1977,3 +1980,106 @@ CURRENT_STATE updated: Yes
 Next planner boundary:
 - GPT-5.6 Sol final Prompt-4 delta acceptance for the pushed correction.
 - If accepted, Prompt 5/5 Claude Opus independent review.
+
+## 19. APO-38 Prompt 2/5 — Provider-Independent Agent and Model Registry Truth
+
+APO-38 implementation is authorized from the Sol-accepted Prompt-1 squash merge on `main` at
+`ffb449e5396fa56a6ccb3f39134807166cc5ea40`. The implementation branch is
+`feat/APO-38-agent-model-registry-truth`; Jira APO-38 was transitioned from To Do to In Progress
+and received the implementation-start comment. APO-39 and APO-44 remain To Do and unstarted.
+
+SOL-38-01..04 remediation is closed in functional commit
+`8aeb3b9453233b9c4e52ec7451b1c957d6dbd383`. Project overrides now intersect global role and mode
+capabilities in global order, so they can only restrict established truth. `Unknown` was appended
+after the historical connection-mode enum members without changing their numeric values;
+`Unsupported` remains an explicit verified-negative state. Structured supported-mode collections
+reject both `Unknown` and `Unsupported`, while legacy absent/null mode fields still derive the old
+single mode and explicit empty collections remain empty. Role-policy metadata is validated as a
+subset of structured role capabilities.
+Jira remediation comment: `11965`.
+
+The accepted agent foundation was evolved in place. `AgentDefinition` retains the stable GUID,
+legacy free-text `Role`, legacy primary `ConnectionMode`, availability, enabled state, capability
+and limitation lists, cost/quota metadata, and timestamps. New provider-independent fields add
+structured model identity, normalized multi-role capabilities, normalized multi-mode invocation
+capabilities, explicit authentication state, explicit entitlement state, non-executable role
+policy metadata, and an optional bounded `AgentConnectionResult` containing identity, tested time,
+evaluated access mode, availability, authentication, entitlement, evidence source, safe limitation
+code/message, and reported supported modes.
+
+`JsonAgentRepository` and root `agents.json` remain the only global registry. `AgentRecord` maps old
+records with absent APO-38 fields to safe defaults: legacy role/mode/availability are preserved,
+authentication and entitlement remain Unknown, and missing model/role-policy/connection evidence
+remain absent. New records round-trip the extended contract through the existing versioned atomic
+JSON store. No provider subscription, quota, or `ProviderConnection` state is consulted to infer
+entitlement.
+
+The six owner-approved defaults are centralized in `DefaultAgentCatalog`: GPT-5.6 Sol (Planner,
+Architect, Acceptance Authority), GPT-5.6 Luna xHigh (Executor), Claude Sonnet 5 (Executor), Claude
+Opus 5 (Reviewer), GPT-5.6 Terra HIGH (Security Specialist), and Gemini 3.7 (Auxiliary Executor).
+The catalog stores owner-approved usage/preference labels only; all defaults remain Unknown for
+availability, authentication, and entitlement with an empty supported-mode list and Unknown primary
+connection truth. Default provider model identifiers remain null because no provider-issued IDs have
+been established.
+
+Project configuration is isolated below the existing GUID-derived project boundary at
+`projects/<project-guid>/agent-overrides.json`. `AgentProjectOverride`,
+`JsonAgentProjectOverrideRepository`, and `AgentRegistryService` support only enabled, permitted
+role/mode, and bounded metadata/policy overrides. `EffectiveAgentDefinition` is a read-only
+configuration view that intersects project requests with global capabilities;
+`AgentRegistryResolution.NotFound` is returned for a missing global agent.
+No selection, ranking, quota comparison, invocation, process execution, prompt transport, worktree,
+provider probe, browser scraping, or UI workspace was added.
+
+Focused APO-38 tests pass: `AgentRegistryTruthTests` 12/12 and
+`AgentRegistryPersistenceTests` 6/6; the complete Connection project is 22/22. Full-suite validation passes
+345/345: Domain 28, Connection 22, Provider 46, Desktop 71, and Infrastructure 178, with zero
+failures/skips and zero build warnings/errors. Restore, build, targeted tests, full tests, and
+`git diff --check` were run. A self-contained single-file `win-x64` publish succeeded with no
+pre-existing APO process running. The current published executable is alive at
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID `36988`, title `AI Project Orchestrator`, `Responding=True`, exactly one current APO
+process, normal shell state, and UI Automation state `CAPACITY READY` with Overview/Projects/AI
+capacity surfaces;
+`LEFT RUNNING = YES`. A Projects navigation click probe reported unavailable coordinate geometry,
+so no claim of completed navigation interaction is made. The root `TASK.md` has now been replaced
+with the required Sol acceptance handoff. GitHub CI evidence is not claimed because PR #9 reports
+no checks.
+
+Draft PR #9 remains OPEN / DRAFT / UNMERGED and unmerged; the final exact head is recorded after
+this handoff metadata commit. No merge was performed. Next planner boundary: Prompt 2/5 APO-38
+SOL-38-01..04 remediation complete, then GPT-5.6 Sol exact-head acceptance review. APO-39 and
+APO-44 remain NOT AUTHORIZED.
+
+## 20. APO-38 SOL-38-05 Final Truth-Invariant Delta (Prompt 2/5)
+
+SOL-38-05 is CLOSED in functional commit `3ecec81` (`fix: reject unsupported available agent truth
+APO-38`). The smallest required invariant now lives directly in `AgentDefinition`'s primary truth
+fields: `ConnectionMode=Unsupported` with `Availability=Available` is rejected regardless of the
+contents of `SupportedConnectionModes`, including an explicitly empty collection. The older
+supported-list singleton check was removed as redundant. `AgentConnectionResult` retains its
+existing equivalent rejection.
+
+The explicit regression `AgentDefinition_RejectsUnsupportedPrimaryAsAvailableWithExplicitEmptySupportedModes`
+passes, and the existing Unknown-versus-Unsupported distinction remains covered. Focused validation
+is `AgentRegistryTruthTests` 13/13, `AgentRegistryPersistenceTests` 6/6, and the complete Connection
+project 23/23. Full solution validation is 346/346 passed with zero failures/skips: Domain 28,
+Connection 23, Provider 46, Desktop 71, Infrastructure 178. Restore and build succeeded with zero
+warnings/errors; `git diff --check` and changed-line secret scan are clean.
+
+The base-to-head review remains within accepted APO-38 scope: only the two SOL-38-05 files were
+changed in the functional delta; no provider adapter, routing, execution, or UI work was added.
+Self-contained single-file `win-x64` publish succeeded. The current executable is
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID `42524`, title `AI Project Orchestrator`, `Responding=True`, exactly one APO process, and
+UI Automation exposing `CAPACITY READY`, Overview, Projects, and AI capacity; `LEFT RUNNING = YES`.
+
+Jira comment `11966` records SOL-38-05 closure, the functional SHA, test totals, PR #9, and the next
+gate. APO-38 remains In Progress; APO-39 and APO-44 remain To Do and unauthorized; dependency links
+are unchanged. PR #9 remains OPEN / DRAFT / UNMERGED with no CI checks claimed. `main` remains at
+the authorized starting SHA and no merge was performed. The final branch SHA is recorded in the
+executor completion report after handoff metadata synchronization.
+
+Next planner boundary: Prompt 2/5 APO-38 SOL-38-01..05 remediation complete. Draft PR #9 remains
+OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
+APO-39 and APO-44 remain NOT AUTHORIZED.

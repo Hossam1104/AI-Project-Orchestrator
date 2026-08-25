@@ -1,4 +1,5 @@
 using System.IO;
+using AIUsageMonitor.Application.Agents;
 using AIUsageMonitor.Desktop.ViewModels;
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Providers;
@@ -82,6 +83,18 @@ public sealed class ProductionCompositionTests : IDisposable
 
         Assert.NotNull(inspector);
         Assert.NotNull(stateService);
+    }
+
+    [Fact]
+    public void ProductionComposition_ResolvesAgentRegistryTruthServices()
+    {
+        using var provider = BuildProvider();
+
+        var registry = provider.GetRequiredService<IAgentRegistryService>();
+        var catalog = provider.GetRequiredService<IDefaultAgentCatalog>();
+
+        Assert.NotNull(registry);
+        Assert.Equal(6, catalog.GetDefaults().Count);
     }
 
     private ServiceProvider BuildProvider()
