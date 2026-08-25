@@ -13,30 +13,57 @@ public sealed class ProjectOnboardingRequest
     public IReadOnlyCollection<Guid>? EnabledAgentIds { get; init; }
 }
 
+public enum ProjectOnboardingCompletionStatus
+{
+    Succeeded,
+    FailedBeforeProjectCreation,
+    PartialProjectCreated
+}
+
 public sealed class ProjectOnboardingResult
 {
     private ProjectOnboardingResult(
-        bool succeeded,
+        ProjectOnboardingCompletionStatus status,
         Project? project,
         ProjectContextReference? context,
         string? errorMessage)
     {
-        Succeeded = succeeded;
+        Status = status;
         Project = project;
         Context = context;
         ErrorMessage = errorMessage;
     }
 
-    public bool Succeeded { get; }
+    public ProjectOnboardingCompletionStatus Status { get; }
+    public bool Succeeded => Status == ProjectOnboardingCompletionStatus.Succeeded;
+    public bool IsPartialProjectCreated => Status == ProjectOnboardingCompletionStatus.PartialProjectCreated;
     public Project? Project { get; }
     public ProjectContextReference? Context { get; }
     public string? ErrorMessage { get; }
 
     public static ProjectOnboardingResult Success(Project project, ProjectContextReference context) =>
-        new(true, project, context, null);
+        new(ProjectOnboardingCompletionStatus.Succeeded, project, context, null);
 
+    public static ProjectOnboardingResult FailedBeforeProjectCreation(string errorMessage) =>
+        new(
+            ProjectOnboardingCompletionStatus.FailedBeforeProjectCreation,
+            null,
+            null,
+            errorMessage);
+
+    public static ProjectOnboardingResult PartialProjectCreated(Project project, string errorMessage) =>
+        new(
+            ProjectOnboardingCompletionStatus.PartialProjectCreated,
+            project ?? throw new ArgumentNullException(nameof(project)),
+            null,
+            errorMessage);
+
+    // Kept as a small compatibility helper for existing callers while making the result's
+    // semantic status explicit. A result carrying a project is necessarily partial.
     public static ProjectOnboardingResult Failure(Project? project, string errorMessage) =>
-        new(false, project, null, errorMessage);
+        project is null
+            ? FailedBeforeProjectCreation(errorMessage)
+            : PartialProjectCreated(project, errorMessage);
 }
 
 /// <summary>Coordinates the bounded APO-39 onboarding workflow without routing or execution.</summary>

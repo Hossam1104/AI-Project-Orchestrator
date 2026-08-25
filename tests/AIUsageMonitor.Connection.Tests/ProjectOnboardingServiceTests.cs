@@ -19,6 +19,7 @@ public sealed class ProjectOnboardingServiceTests
         });
 
         Assert.False(result.Succeeded);
+        Assert.Equal(ProjectOnboardingCompletionStatus.FailedBeforeProjectCreation, result.Status);
         Assert.Contains("Project name", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(fixture.Projects.Items);
     }
@@ -201,6 +202,106 @@ public sealed class ProjectOnboardingServiceTests
         Assert.Equal(ProjectContextResolutionState.ProjectNotFound, missing.State);
     }
 
+    [Fact]
+    public async Task ContextPersistenceFailureAfterProjectCreationReturnsPartialProject()
+    {
+        var fixture = CreateFixture();
+        fixture.Contexts.Failure = new IOException("simulated context write failure");
+
+        var result = await fixture.Service.CompleteAsync(new ProjectOnboardingRequest
+        {
+            Name = "Partial context project",
+            LocalPath = "C:\\partial-context",
+            SkipRepository = true
+        });
+
+        Assert.Equal(ProjectOnboardingCompletionStatus.PartialProjectCreated, result.Status);
+        Assert.False(result.Succeeded);
+        Assert.NotNull(result.Project);
+        Assert.Single(fixture.Projects.Items);
+        var resolver = new ProjectContextResolver(fixture.Projects, fixture.Contexts, fixture.AgentRegistry);
+        var resolution = await resolver.ResolveAsync(result.Project!.Id);
+        Assert.Equal(ProjectContextResolutionState.ContextMissing, resolution.State);
+    }
+
+    [Fact]
+    public async Task OverrideFailureAfterProjectCreationReturnsPartialProject()
+    {
+        var fixture = CreateFixture();
+        fixture.Overrides.Failure = new IOException("simulated override write failure");
+        var disabledAgent = fixture.Catalog.GetDefaults()[0].Id;
+
+        var result = await fixture.Service.CompleteAsync(new ProjectOnboardingRequest
+        {
+            Name = "Partial override project",
+            LocalPath = "C:\\partial-override",
+            SkipRepository = true,
+            EnabledAgentIds = fixture.Catalog.GetDefaults().Skip(1).Select(agent => agent.Id).ToArray()
+        });
+
+        Assert.Equal(ProjectOnboardingCompletionStatus.PartialProjectCreated, result.Status);
+        Assert.NotNull(result.Project);
+        Assert.Single(fixture.Projects.Items);
+        Assert.Equal(disabledAgent, fixture.Catalog.GetDefaults()[0].Id);
+    }
+
+    [Fact]
+    public async Task CancellationAfterProjectCreationReturnsPartialProject()
+    {
+        var fixture = CreateFixture();
+        using var cancellation = new CancellationTokenSource();
+        fixture.Overrides.CancelSource = cancellation;
+
+        var result = await fixture.Service.CompleteAsync(new ProjectOnboardingRequest
+        {
+            Name = "Cancelled partial project",
+            LocalPath = "C:\\cancelled-partial",
+            SkipRepository = true,
+            EnabledAgentIds = fixture.Catalog.GetDefaults().Skip(1).Select(agent => agent.Id).ToArray()
+        }, cancellation.Token);
+
+        Assert.Equal(ProjectOnboardingCompletionStatus.PartialProjectCreated, result.Status);
+        Assert.Contains("cancelled", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(result.Project);
+        Assert.Single(fixture.Projects.Items);
+    }
+
+    [Fact]
+    public async Task ResolverDoesNotReturnReadyForUnacceptedInspectedRepositoryEvidence()
+    {
+        var fixture = CreateFixture();
+        var created = await fixture.Service.CompleteAsync(new ProjectOnboardingRequest
+        {
+            Name = "Unaccepted repository evidence",
+            LocalPath = "C:\\unaccepted-evidence",
+            SkipRepository = true
+        });
+        var invalidForReady = new ProjectContextReference(
+            created.Project!.Id,
+            Guid.NewGuid(),
+            ProjectContextContract.CurrentVersion,
+            created.Project.CreatedAt,
+            created.Project.UpdatedAt,
+            new ProjectRepositoryContextReference(
+                created.Project.Id,
+                created.Project.LocalPath,
+                RepositorySelectionState.Inspect,
+                RepositoryVerificationStatus.NotGitRepository),
+            new ProjectTrackerContextReference(TrackerReferenceState.Skipped),
+            created.Context!.ModelRoleReferences,
+            created.Context.CurrentWork,
+            created.Context.GovernanceReferences,
+            created.Context.RoutingPolicyReference,
+            created.Context.SafetyPolicyReference,
+            ProjectNextSafeAction.ReadyForPlanning);
+        await fixture.Contexts.UpsertAsync(invalidForReady);
+
+        var resolver = new ProjectContextResolver(fixture.Projects, fixture.Contexts, fixture.AgentRegistry);
+        var result = await resolver.ResolveAsync(created.Project.Id);
+
+        Assert.Equal(ProjectContextResolutionState.Incomplete, result.State);
+    }
+
     private static Fixture CreateFixture(LocalRepositoryInspection? inspection = null)
     {
         var projects = new MemoryProjectRepository();
@@ -294,6 +395,8 @@ public sealed class ProjectOnboardingServiceTests
     private sealed class MemoryOverrideRepository : IAgentProjectOverrideRepository
     {
         public List<AgentProjectOverride> Items { get; } = [];
+        public Exception? Failure { get; set; }
+        public CancellationTokenSource? CancelSource { get; set; }
 
         public Task<IReadOnlyList<AgentProjectOverride>> GetAllAsync(Guid projectId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<AgentProjectOverride>>(Items.Where(value => value.ProjectId == projectId).ToArray());
@@ -303,8 +406,14 @@ public sealed class ProjectOnboardingServiceTests
 
         public Task UpsertAsync(AgentProjectOverride projectOverride, CancellationToken cancellationToken = default)
         {
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
             Items.RemoveAll(value => value.ProjectId == projectOverride.ProjectId && value.AgentId == projectOverride.AgentId);
             Items.Add(projectOverride);
+            CancelSource?.Cancel();
             return Task.CompletedTask;
         }
     }
@@ -312,6 +421,7 @@ public sealed class ProjectOnboardingServiceTests
     private sealed class MemoryContextRepository : IProjectContextReferenceRepository
     {
         private readonly Dictionary<Guid, ProjectContextReference> _items = [];
+        public Exception? Failure { get; set; }
 
         public Task<ProjectContextReadResult> GetAsync(Guid projectId, CancellationToken cancellationToken = default) =>
             Task.FromResult(_items.TryGetValue(projectId, out var value)
@@ -320,6 +430,11 @@ public sealed class ProjectOnboardingServiceTests
 
         public Task UpsertAsync(ProjectContextReference context, CancellationToken cancellationToken = default)
         {
+            if (Failure is not null)
+            {
+                throw Failure;
+            }
+
             _items[context.ProjectId] = context;
             return Task.CompletedTask;
         }

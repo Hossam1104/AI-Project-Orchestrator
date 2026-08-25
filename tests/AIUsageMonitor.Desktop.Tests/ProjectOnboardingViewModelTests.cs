@@ -132,6 +132,43 @@ public sealed class ProjectOnboardingViewModelTests
     }
 
     [Fact]
+    public async Task PartialFinishSelectsExistingProjectAndCannotRetryCreation()
+    {
+        var service = new FakeOnboardingService
+        {
+            Result = ProjectOnboardingResult.PartialProjectCreated(
+                new Project(
+                    Guid.NewGuid(),
+                    "Partial project",
+                    "C:\\partial",
+                    null,
+                    ProjectStatus.Active,
+                    new DateTimeOffset(2026, 8, 26, 0, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 8, 26, 0, 0, 0, TimeSpan.Zero)),
+                "The project was created, but onboarding could not be completed.")
+        };
+        var projects = CreateProjectsViewModel(service);
+        await projects.InitializeAsync();
+        projects.NewProjectCommand.Execute(null);
+        var onboarding = projects.Onboarding!;
+        SetProjectValues(onboarding);
+        onboarding.NextCommand.Execute(null);
+        onboarding.SkipRepositoryCommand.Execute(null);
+        onboarding.NextCommand.Execute(null);
+        onboarding.NextCommand.Execute(null);
+
+        await onboarding.FinishAsync();
+        await onboarding.FinishAsync();
+
+        Assert.Equal(1, service.CompleteCalls);
+        Assert.True(onboarding.IsCompletionTerminal);
+        Assert.False(onboarding.FinishCommand.CanExecute(null));
+        Assert.False(projects.IsOnboardingVisible);
+        Assert.Equal(service.Result!.Project!.Id, projects.SelectedProject!.Id);
+        Assert.Contains("onboarding could not be completed", projects.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task CancelReturnsToProjectsWithoutCreatingProject()
     {
         var service = new FakeOnboardingService();

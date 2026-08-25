@@ -105,6 +105,36 @@ public sealed class ProjectContextReferencePersistenceTests
         Assert.Null(result.Context);
     }
 
+    [Fact]
+    public async Task SemanticallyContradictoryContextIsRejectedAtPersistenceBoundary()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var projectId = Guid.NewGuid();
+        var record = ProjectContextReferenceRecord.FromApplication(CreateContext(projectId, "C:\\contradictory"));
+        record.Repository.Selection = RepositorySelectionState.Skipped;
+        record.Repository.VerificationStatus = RepositoryVerificationStatus.AvailableClean;
+        record.Repository.BranchName = "main";
+        record.Repository.ConfiguredRemotes =
+        [
+            new RepositoryRemoteReferenceRecord
+            {
+                Name = "origin",
+                SanitizedUrl = "https://example.test/repo.git"
+            }
+        ];
+        var path = store.Paths.GetProjectContextReferenceFile(projectId);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(
+            path,
+            JsonSerializer.Serialize(new { schemaVersion = JsonFileStore.CurrentSchemaVersion, payload = record }, JsonFileStore.SerializerOptions));
+
+        var result = await repository.GetAsync(projectId);
+
+        Assert.Equal(ProjectContextReadState.Invalid, result.State);
+        Assert.Null(result.Context);
+    }
+
     private static JsonProjectContextReferenceRepository CreateRepository(TemporaryStore store) =>
         new(store.Paths, store.Files, NullLogger<JsonProjectContextReferenceRepository>.Instance);
 

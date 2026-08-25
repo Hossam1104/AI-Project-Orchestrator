@@ -88,15 +88,23 @@ public sealed class ProjectOnboardingService : IProjectOnboardingService
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            if (createdProject is not null)
+            {
+                return ProjectOnboardingResult.PartialProjectCreated(
+                    createdProject,
+                    "The project was created, but onboarding was cancelled before its context was completed.");
+            }
+
             throw;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            return ProjectOnboardingResult.Failure(
-                createdProject,
-                exception is ArgumentException
-                    ? exception.Message
-                    : "Project onboarding could not be completed safely.");
+            var message = exception is ArgumentException
+                ? exception.Message
+                : "Project onboarding could not be completed safely.";
+            return createdProject is null
+                ? ProjectOnboardingResult.FailedBeforeProjectCreation(message)
+                : ProjectOnboardingResult.PartialProjectCreated(createdProject, message);
         }
     }
 

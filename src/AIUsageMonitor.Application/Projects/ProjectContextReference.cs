@@ -102,6 +102,24 @@ public sealed class ProjectRepositoryContextReference
         IsDetachedHead = isDetachedHead;
         ConfiguredRemotes = (configuredRemotes ?? Array.Empty<RepositoryRemoteReference>()).ToArray();
         CapturedAt = capturedAt ?? DateTimeOffset.UtcNow;
+
+        if (ConfiguredRemotes.Any(static remote => remote is null))
+        {
+            throw new ArgumentException("Configured remotes cannot contain null entries.", nameof(configuredRemotes));
+        }
+
+        if (selection == RepositorySelectionState.Skipped &&
+            (verificationStatus != RepositoryVerificationStatus.NotInspected ||
+             RepositoryRoot is not null ||
+             LocalPathIsRepositoryRoot is not null ||
+             BranchName is not null ||
+             IsDetachedHead ||
+             ConfiguredRemotes.Count != 0))
+        {
+            throw new ArgumentException(
+                "A skipped repository must not carry repository inspection evidence.",
+                nameof(selection));
+        }
     }
 
     public Guid ProjectId { get; }
@@ -161,9 +179,32 @@ public sealed class ProjectModelRoleReference
             throw new ArgumentException("Agent display name is required.", nameof(displayName));
         }
 
+        var suppliedRoles = roles ?? throw new ArgumentNullException(nameof(roles));
+        if (suppliedRoles.Any(role => !Enum.IsDefined(role)))
+        {
+            throw new ArgumentException("Model-role references cannot contain undefined roles.", nameof(roles));
+        }
+
+        if (!Enum.IsDefined(availability))
+        {
+            throw new ArgumentException("Agent availability is undefined.", nameof(availability));
+        }
+
+        if (!Enum.IsDefined(authentication))
+        {
+            throw new ArgumentException("Agent authentication state is undefined.", nameof(authentication));
+        }
+
+        if (!Enum.IsDefined(entitlement))
+        {
+            throw new ArgumentException("Agent entitlement state is undefined.", nameof(entitlement));
+        }
+
         AgentId = agentId;
         DisplayName = displayName.Trim();
-        Roles = (roles ?? throw new ArgumentNullException(nameof(roles))).Distinct().ToArray();
+        // A stable enum order makes equivalent persisted role lists canonical while preserving
+        // only established roles; this is metadata normalization, not routing.
+        Roles = suppliedRoles.Distinct().OrderBy(static role => role).ToArray();
         Enabled = enabled;
         Availability = availability;
         Authentication = authentication;
@@ -200,6 +241,14 @@ public sealed class ProjectTrackerContextReference
         State = state;
         Type = NormalizeOptional(type);
         Reference = NormalizeOptional(reference);
+
+        if (state is TrackerReferenceState.Skipped or TrackerReferenceState.NotConfigured &&
+            (Type is not null || Reference is not null))
+        {
+            throw new ArgumentException(
+                "Skipped or not-configured trackers cannot carry a configured tracker identity.",
+                nameof(state));
+        }
     }
 
     public TrackerReferenceState State { get; }
@@ -276,6 +325,18 @@ public sealed class ProjectContextReference
         ArgumentNullException.ThrowIfNull(modelRoleReferences);
         ArgumentNullException.ThrowIfNull(currentWork);
 
+        if (modelRoleReferences.Any(static value => value is null))
+        {
+            throw new ArgumentException("Model-role references cannot contain null entries.", nameof(modelRoleReferences));
+        }
+
+        if (modelRoleReferences
+            .GroupBy(static value => value.AgentId)
+            .Any(static group => group.Count() > 1))
+        {
+            throw new ArgumentException("A context cannot contain duplicate model-role agent references.", nameof(modelRoleReferences));
+        }
+
         if (repository.ProjectId != projectId)
         {
             throw new ArgumentException("Repository reference belongs to another project.", nameof(repository));
@@ -312,6 +373,29 @@ public sealed class ProjectContextReference
     public string? RoutingPolicyReference { get; }
     public string? SafetyPolicyReference { get; }
     public ProjectNextSafeAction NextSafeAction { get; }
+
+    /// <summary>
+    /// Returns whether the stored context contains the minimum accepted v1 evidence required for
+    /// the resolver to publish Ready. This deliberately does not perform fresh inspection.
+    /// </summary>
+    public bool HasAcceptedReadyEvidence(Project project)
+    {
+        ArgumentNullException.ThrowIfNull(project);
+
+        if (NextSafeAction != ProjectNextSafeAction.ReadyForPlanning)
+        {
+            return false;
+        }
+
+        if (Repository.Selection == RepositorySelectionState.Skipped)
+        {
+            return Repository.VerificationStatus == RepositoryVerificationStatus.NotInspected;
+        }
+
+        return Repository.Selection == RepositorySelectionState.Inspect &&
+            (Repository.VerificationStatus is RepositoryVerificationStatus.AvailableClean or RepositoryVerificationStatus.AvailableDirty) &&
+            !string.IsNullOrWhiteSpace(project.DefaultBranch);
+    }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

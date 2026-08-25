@@ -678,12 +678,17 @@ public sealed class ProjectsViewModel : ObservableObject
 
     private async Task FinishOnboardingAsync(ProjectOnboardingResult result)
     {
-        if (!result.Succeeded || result.Project is null)
+        if (result.Project is null)
         {
             return;
         }
 
         ReplaceProject(result.Project);
+        if (result.IsPartialProjectCreated)
+        {
+            ErrorMessage = result.ErrorMessage ??
+                "The project was created, but onboarding could not be completed. Its context is incomplete and the project is not ready for planning.";
+        }
         Onboarding = null;
         OnPropertyChanged(nameof(IsOnboardingVisible));
         OnPropertyChanged(nameof(IsEditorVisible));

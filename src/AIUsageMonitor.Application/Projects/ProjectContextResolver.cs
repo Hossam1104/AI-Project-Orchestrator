@@ -64,6 +64,13 @@ public sealed class ProjectContextResolver : IProjectContextResolver
             return new(ProjectContextResolutionState.Incomplete, ErrorMessage: "Project context does not match the current project contract.");
         }
 
+        if (!stored.Context.HasAcceptedReadyEvidence(project))
+        {
+            return new(
+                ProjectContextResolutionState.Incomplete,
+                ErrorMessage: "Project context does not contain the accepted v1 onboarding evidence required for planning.");
+        }
+
         var effectiveAgents = await _agents
             .GetEffectiveAgentsAsync(projectId, cancellationToken)
             .ConfigureAwait(false);

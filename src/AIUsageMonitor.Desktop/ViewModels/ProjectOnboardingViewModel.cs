@@ -62,6 +62,7 @@ public sealed class ProjectOnboardingViewModel : ObservableObject
     private string _selectedTrackerOption = TrackerOptionsList[0];
     private string _trackerReference = string.Empty;
     private bool _isBusy;
+    private bool _isCompletionTerminal;
     private string? _errorMessage;
 
     private static readonly IReadOnlyList<string> TrackerOptionsList =
@@ -90,7 +91,7 @@ public sealed class ProjectOnboardingViewModel : ObservableObject
             () => RepositoryChoice = RepositoryOnboardingChoice.Skip,
             () => !IsBusy && IsRepositoryStep);
         FinishCommand = new AsyncCommand(FinishAsync, CanFinish);
-        CancelCommand = new RelayCommand(Cancel, () => !IsBusy);
+        CancelCommand = new RelayCommand(Cancel, () => !IsBusy && !IsCompletionTerminal);
     }
 
     public ObservableCollection<ProjectOnboardingAgentOptionViewModel> AgentOptions { get; }
@@ -300,6 +301,12 @@ public sealed class ProjectOnboardingViewModel : ObservableObject
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
+    /// <summary>
+    /// A successful or partial completion ends this wizard instance. A partial project is durable
+    /// and must not be created again by pressing Finish or retrying the same wizard.
+    /// </summary>
+    public bool IsCompletionTerminal => _isCompletionTerminal;
+
     public RelayCommand NextCommand { get; }
     public RelayCommand BackCommand { get; }
     public AsyncCommand InspectRepositoryCommand { get; }
@@ -387,10 +394,15 @@ public sealed class ProjectOnboardingViewModel : ObservableObject
         }
     }
 
-    private bool CanFinish() => !IsBusy && IsAgentsStep;
+    private bool CanFinish() => !IsBusy && IsAgentsStep && !IsCompletionTerminal;
 
     public async Task FinishAsync()
     {
+        if (!CanFinish())
+        {
+            return;
+        }
+
         ErrorMessage = null;
         IsBusy = true;
         try
@@ -415,10 +427,28 @@ public sealed class ProjectOnboardingViewModel : ObservableObject
 
             if (!result.Succeeded)
             {
+                if (result.IsPartialProjectCreated && result.Project is not null)
+                {
+                    _isCompletionTerminal = true;
+                    OnPropertyChanged(nameof(IsCompletionTerminal));
+                    NotifyCommands();
+                    ErrorMessage = result.ErrorMessage ??
+                        "The project was created, but onboarding could not be completed. Its context is incomplete and the project is not ready for planning.";
+                    if (_onFinished is not null)
+                    {
+                        await _onFinished(result).ConfigureAwait(true);
+                    }
+
+                    return;
+                }
+
                 ErrorMessage = result.ErrorMessage ?? "Project onboarding could not be completed.";
                 return;
             }
 
+            _isCompletionTerminal = true;
+            OnPropertyChanged(nameof(IsCompletionTerminal));
+            NotifyCommands();
             if (_onFinished is not null)
             {
                 await _onFinished(result).ConfigureAwait(true);
