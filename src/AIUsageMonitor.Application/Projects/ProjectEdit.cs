@@ -19,11 +19,20 @@ public sealed class ProjectEdit
 
     public string? RepositoryId { get; init; }
 
+    /// <summary>
+    /// Bounded local evidence accepted during onboarding. This is metadata only; it must not
+    /// contain repository contents, diffs, command output, or credentials.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?>? RepositoryMetadata { get; init; }
+
     public string? DefaultBranch { get; init; }
 
     public string? TrackerType { get; init; }
 
     public string? TrackerId { get; init; }
+
+    /// <summary>Bounded tracker reference state; no live tracker payload is stored.</summary>
+    public IReadOnlyDictionary<string, string?>? TrackerMetadata { get; init; }
 
     public IReadOnlyList<string>? GovernanceReferences { get; init; }
 

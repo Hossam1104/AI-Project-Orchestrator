@@ -1,6 +1,6 @@
 # AI Project Orchestrator (APO) - Current State
 
-**Last Updated:** 25 August 2026
+**Last Updated:** 26 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Previous Product Identity:** AI Usage Monitor
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
@@ -29,12 +29,14 @@
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-38 — Establish Provider-Independent Agent and Model Registry Truth.
-**Current Epic:** APO-8 — AI Agent / Model Registry & Connectivity.
-**Status:** IN PROGRESS / PROMPT 2/5 / SOL ACCEPTANCE REMEDIATION; SOL-38-01..05 CLOSED. Draft PR #9 OPEN / DRAFT / UNMERGED.
-**Next action:** GPT-5.6 Sol exact-head final acceptance after SOL-38-05 remediation.
-**APO-39:** NOT AUTHORIZED.
-**APO-44:** NOT AUTHORIZED.
+**Current Story:** APO-39 — Progressive Project Onboarding and Canonical Context Resolution.
+**Current Epic:** APO-5 — Project Context, Workspace & Lifecycle.
+**Status:** IN PROGRESS / PROMPT 3/5 / IMPLEMENTATION COMPLETE; Draft PR OPEN / DRAFT / UNMERGED.
+**Next action:** GPT-5.6 Sol exact-head acceptance review for APO-39.
+**APO-38:** COMPLETE / MERGED / DONE at `7cb94104c25fdb552c010835158e3c7e3eb813fe`.
+**APO-39:** IN PROGRESS; implementation complete, awaiting Sol acceptance.
+**APO-43:** TO DO / NOT AUTHORIZED.
+**APO-44:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
 
 ## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)
@@ -2083,3 +2085,91 @@ executor completion report after handoff metadata synchronization.
 Next planner boundary: Prompt 2/5 APO-38 SOL-38-01..05 remediation complete. Draft PR #9 remains
 OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
 APO-39 and APO-44 remain NOT AUTHORIZED.
+
+## 21. APO-39 Progressive Project Onboarding and Canonical Context Resolution (Prompt 3/5)
+
+APO-39 was authorized by the Prompt 3/5 execution contract after the exact `main` base
+`7cb94104c25fdb552c010835158e3c7e3eb813fe`. Jira APO-39 is In Progress under APO-5; the required
+implementation-start comment is `12036`. The implementation branch is
+`feat/APO-39-progressive-project-onboarding`, and the functional implementation commit is
+`bcbf966`.
+
+The production WPF New Project flow is progressive: Project captures name and local workspace;
+Repository offers safe read-only existing local Git inspection or explicit skip; Tracker stores
+only a skipped or configured-unverified reference; and AI Roles exposes the six APO-38 catalog
+defaults with project-specific disable restrictions. Existing project editing remains the
+advanced edit surface. The implementation reuses the existing project registry, JSON persistence,
+local repository inspector, and APO-38 agent catalog/registry/override contracts.
+
+The canonical project context reference is contract version 1 and is persisted only at the
+GUID-scoped path `%LOCALAPPDATA%\AIUsageMonitor\projects\<guid>\context-reference.json`. It records
+project identity, repository truth, tracker reference truth, effective model roles, current work,
+policy references, and the next safe action. Resolver and persistence states explicitly distinguish
+missing, invalid, unsupported, incomplete, unavailable, and ready contexts. Project IDs and project
+paths are checked for isolation. No tracker API, OAuth, PAT, browser, CLI, remote SCM/CI evidence,
+routing, orchestration runtime, or APO-43 implementation was added.
+
+Validation for the APO-39 implementation: restore succeeded; build succeeded with 0 warnings and
+0 errors; full solution tests passed 367/367 with zero failures/skips (Domain 28, Connection 30,
+Provider 46, Desktop 80, Infrastructure 183); `git diff --check` is clean; changed-line secret
+scan is clean; and the base-to-head scope review found no unrelated Story work. GitHub CI has no
+configured/reported checks, so no CI success is claimed.
+
+The self-contained single-file `win-x64` publish succeeded. The current executable is
+`D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
+with PID `26360`, title `AI Project Orchestrator`, `Responding=True`, one APO process, and a
+normal/non-degraded shell exposing `CAPACITY READY`. The UI navigation probe was not completed:
+Computer Use could not foreground APO while an unrelated RMS POS modal owned the active desktop, and
+no interaction with that unrelated app was attempted. APO was left running after the bounded probe.
+`LEFT RUNNING = YES`.
+
+The branch was pushed through delivery metadata commit `27ad594`; the final state synchronization
+commit is the current branch head reported in the completion handoff. Draft PR
+#10 is OPEN / DRAFT / UNMERGED against `main`:
+https://github.com/Hossam1104/AI-Project-Orchestrator/pull/10. Jira APO-39 remains In Progress;
+implementation-handoff comment `12040` records the final scope and validation evidence. APO-38 is Done at
+`7cb94104c25fdb552c010835158e3c7e3eb813fe`; APO-43 and APO-44 remain To Do and unauthorized.
+
+Next planner boundary: Prompt 3/5 APO-39 implementation complete. Draft PR remains OPEN / DRAFT /
+UNMERGED. Next action is GPT-5.6 Sol exact-head acceptance review. APO-40, APO-43, and APO-44 remain
+NOT AUTHORIZED.
+
+## 22. APO-39 Prompt 3/5 — SOL-39-01..02 Bounded Acceptance Remediation
+
+Sol's Prompt 3/5 acceptance found two open defects in the otherwise accepted APO-39 foundation:
+SOL-39-01 semantic contradictions in canonical context references could deserialize and resolve as
+Ready, and SOL-39-02 a later onboarding persistence failure could leave the WPF wizard retryable
+after a Project had already been created. Both findings are closed in functional remediation commit
+`f3af19c1c18c25c48afcbf568132afbe6579ab08`.
+
+SOL-39-01 now rejects skipped repository evidence, configured tracker identity on Skipped or
+NotConfigured tracker states, undefined model-role/access enums, duplicate model AgentId references,
+and null nested reference entries at the Application/persistence boundary. Duplicate roles normalize
+in deterministic enum order. The resolver additionally requires accepted v1 repository evidence and
+ReadyForPlanning before it returns Ready; contradictory or unaccepted inspected evidence resolves
+Incomplete. No provider, tracker, remote SCM, routing, orchestration, Smart Continue, or APO-43
+behavior was added.
+
+SOL-39-02 now exposes `Succeeded`, `FailedBeforeProjectCreation`, and `PartialProjectCreated`
+completion status. Failures after durable project creation, including late cancellation, preserve and
+return the created Project. The WPF wizard closes/selects the partial Project, shows that its context
+is incomplete and not ready for planning, and makes the wizard instance terminal so Finish cannot
+create a duplicate. Failures before creation remain retryable; no rollback or recovery engine was
+added.
+
+Remediation validation is 377/377 passed with zero failures/skips: Domain 28, Connection 38,
+Provider 46, Desktop 81, Infrastructure 184. The remediation adds 10 focused tests over the prior
+367-test baseline. Restore succeeded; build succeeded with 0 warnings and 0 errors; `git diff --check`
+is clean; changed-line and tracked-repository credential-shaped scans are clean. GitHub CI: NONE /
+NOT CLAIMED.
+
+Draft PR #10 remains OPEN / DRAFT / UNMERGED against `main`; no merge, rebase, force push, or
+replacement PR is authorized. APO-39 remains In Progress. APO-38 remains Done at
+`7cb94104c25fdb552c010835158e3c7e3eb813fe`; APO-40, APO-43, and APO-44 remain To Do and
+unauthorized. The previous UI navigation limitation remains accepted: `UI navigation smoke: NOT
+COMPLETED — external desktop modal` unless APO can be safely foregrounded without touching the
+unrelated application.
+
+Next planner boundary: Prompt 3/5 APO-39 SOL-39-01..02 remediation complete. Draft PR #10 remains
+OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
+APO-40, APO-43, and APO-44 remain NOT AUTHORIZED.

@@ -28,7 +28,9 @@ public static class DesktopServiceCollectionExtensions
 
         services.AddSingleton<ProjectsViewModel>(provider => new ProjectsViewModel(
             provider.GetRequiredService<IProjectRegistryService>(),
-            provider.GetRequiredService<IProjectRepositoryStateService>()));
+            provider.GetRequiredService<IProjectRepositoryStateService>(),
+            provider.GetRequiredService<IProjectOnboardingService>(),
+            provider.GetRequiredService<AIUsageMonitor.Application.Agents.IDefaultAgentCatalog>()));
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
 

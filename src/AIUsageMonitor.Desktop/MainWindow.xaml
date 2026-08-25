@@ -217,6 +217,141 @@
             </ScrollViewer>
         </DataTemplate>
 
+        <DataTemplate DataType="{x:Type vm:ProjectOnboardingViewModel}">
+            <DataTemplate.Resources>
+                <Style x:Key="OnboardingInputTextBoxStyle" TargetType="TextBox">
+                    <Setter Property="Background" Value="{StaticResource BrandNavyBlueBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource BrandTextBrush}" />
+                    <Setter Property="BorderBrush" Value="{StaticResource BrandBorderBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Padding" Value="10,8" />
+                    <Setter Property="FontFamily" Value="{StaticResource BrandBodyFontFamily}" />
+                    <Setter Property="FontSize" Value="13" />
+                </Style>
+            </DataTemplate.Resources>
+            <ScrollViewer Padding="20" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="NEW PROJECT" Style="{StaticResource EyebrowTextStyle}" />
+                            <TextBlock Text="A useful project in four short steps" Margin="0,7,0,0" Style="{StaticResource DisplayTitleStyle}" FontSize="25" />
+                            <TextBlock Text="Optional integrations stay explicit and unverified until a later capability proves them." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                        </StackPanel>
+                        <Border Grid.Column="1" Style="{StaticResource StatusChipStyle}" VerticalAlignment="Top" Padding="10,6">
+                            <TextBlock Text="{Binding StepNumber, StringFormat=Step {0} of 4}" Foreground="{StaticResource BrandTextBrush}" FontWeight="SemiBold" />
+                        </Border>
+                    </Grid>
+
+                    <UniformGrid Columns="4" Margin="0,20,0,0">
+                        <Border Margin="0,0,6,0" Padding="8" CornerRadius="8" Background="{StaticResource BrandSurfaceRaisedBrush}">
+                            <TextBlock Text="1  Project" Style="{StaticResource CaptionTextStyle}" />
+                        </Border>
+                        <Border Margin="0,0,6,0" Padding="8" CornerRadius="8" Background="{StaticResource BrandNavyBlueBrush}">
+                            <TextBlock Text="2  Repository" Style="{StaticResource CaptionTextStyle}" />
+                        </Border>
+                        <Border Margin="0,0,6,0" Padding="8" CornerRadius="8" Background="{StaticResource BrandNavyBlueBrush}">
+                            <TextBlock Text="3  Tracker" Style="{StaticResource CaptionTextStyle}" />
+                        </Border>
+                        <Border Padding="8" CornerRadius="8" Background="{StaticResource BrandNavyBlueBrush}">
+                            <TextBlock Text="4  AI roles" Style="{StaticResource CaptionTextStyle}" />
+                        </Border>
+                    </UniformGrid>
+
+                    <Border Margin="0,16,0,0" Padding="18" Background="{StaticResource BrandNavyBlueBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="1" CornerRadius="12">
+                        <Grid>
+                            <StackPanel Visibility="{Binding IsProjectStep, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="PROJECT" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Name the workspace and choose its local folder." Margin="0,7,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="These two fields are enough to create the project; advanced settings remain optional." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                <TextBlock Text="PROJECT NAME" Margin="0,18,0,5" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource OnboardingInputTextBoxStyle}" AutomationProperties.Name="Onboarding project name" />
+                                <TextBlock Text="LOCAL WORKSPACE PATH" Margin="0,14,0,5" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBox Text="{Binding LocalPath, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource OnboardingInputTextBoxStyle}" AutomationProperties.Name="Onboarding local workspace path" />
+                            </StackPanel>
+
+                            <StackPanel Visibility="{Binding IsRepositoryStep, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="REPOSITORY" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Inspect local Git safely, then choose what to retain." Margin="0,7,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="Inspection is read-only and local. It does not read file contents, contact a remote, fetch, pull, or push." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                    <Button Content="Inspect local repository" Command="{Binding InspectRepositoryCommand}" AutomationProperties.Name="Inspect local repository" Style="{StaticResource PrimaryButtonStyle}" />
+                                    <Button Content="Continue without repository integration" Command="{Binding SkipRepositoryCommand}" Margin="8,0,0,0" AutomationProperties.Name="Continue without repository integration" Style="{StaticResource GhostButtonStyle}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding RepositoryStatusText}" Margin="0,16,0,0" Style="{StaticResource BodyTextStyle}" FontWeight="SemiBold" />
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <TextBlock Text="ROOT" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding RepositoryRootText}" Margin="16,0,0,6" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Grid.Row="1" Text="BRANCH" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding RepositoryBranchText}" Margin="16,0,0,6" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Grid.Row="2" Text="REMOTE" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding RepositoryRemoteText}" Margin="16,0,0,6" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Grid.Row="3" Text="CAPTURED" Style="{StaticResource ProjectFieldLabelStyle}" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding RepositoryCapturedAtText}" Margin="16,0,0,0" Style="{StaticResource CaptionTextStyle}" />
+                                </Grid>
+                                <TextBlock Text="A default branch is proposed only from a normal current branch. Detached or unborn repositories require an explicit branch or skip." Margin="0,14,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                <TextBox Text="{Binding RepositoryDefaultBranch, UpdateSourceTrigger=PropertyChanged}" Margin="0,8,0,0" Style="{StaticResource OnboardingInputTextBoxStyle}" AutomationProperties.Name="Repository default branch for onboarding" ToolTip="Only needed when no usable current branch was detected" />
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <Button Content="Accept detected metadata" Command="{Binding AcceptRepositoryCommand}" AutomationProperties.Name="Accept detected repository metadata" Style="{StaticResource SecondaryButtonStyle}" />
+                                    <TextBlock Text="{Binding RepositoryDecisionText}" Margin="12,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Visibility="{Binding IsTrackerStep, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="TRACKER" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Keep a bounded reference, or skip setup for now." Margin="0,7,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="No tracker API, OAuth, PAT, browser, or CLI call is made during onboarding." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                <TextBlock Text="TRACKER OPTION" Margin="0,18,0,5" Style="{StaticResource EyebrowTextStyle}" />
+                                <ComboBox ItemsSource="{Binding TrackerOptions}" SelectedItem="{Binding SelectedTrackerOption}" Style="{StaticResource ProjectInputComboBoxStyle}" AutomationProperties.Name="Onboarding tracker option" />
+                                <TextBlock Text="REFERENCE / PROJECT KEY" Margin="0,14,0,5" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBox Text="{Binding TrackerReference, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource OnboardingInputTextBoxStyle}" AutomationProperties.Name="Onboarding tracker reference" />
+                                <TextBlock Text="{Binding TrackerStateText}" Margin="0,12,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                            </StackPanel>
+
+                            <StackPanel Visibility="{Binding IsAgentsStep, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <TextBlock Text="AI ROLES" Style="{StaticResource EyebrowTextStyle}" />
+                                <TextBlock Text="Review the approved defaults for this project." Margin="0,7,0,0" Style="{StaticResource SectionHeadingStyle}" />
+                                <TextBlock Text="All six roles start enabled. Disabling one creates only a project-scoped restriction; global definitions and access truth are unchanged." Margin="0,7,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                <ItemsControl ItemsSource="{Binding AgentOptions}" Margin="0,14,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="10" Margin="0,0,0,8" Background="{StaticResource BrandDeepNavyBrush}" BorderBrush="{StaticResource BrandBorderBrush}" BorderThickness="1" CornerRadius="8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                    <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Top" AutomationProperties.Name="Enable project AI role" />
+                                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                                        <TextBlock Text="{Binding DisplayName}" Style="{StaticResource BodyTextStyle}" FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding RolesText}" Margin="0,3,0,0" Style="{StaticResource CaptionTextStyle}" />
+                                                        <TextBlock Text="{Binding AccessTruthText}" Margin="0,3,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="{Binding ErrorMessage}" Margin="0,12,0,0" TextWrapping="Wrap" Foreground="{StaticResource BrandErrorBrush}" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <Grid Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <Button Content="Cancel" Command="{Binding CancelCommand}" AutomationProperties.Name="Cancel project onboarding" Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Left" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button Content="Back" Command="{Binding BackCommand}" AutomationProperties.Name="Back in project onboarding" Style="{StaticResource SecondaryButtonStyle}" />
+                            <Button Content="Next" Command="{Binding NextCommand}" AutomationProperties.Name="Next in project onboarding" Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}" />
+                            <Button Content="Finish" Command="{Binding FinishCommand}" AutomationProperties.Name="Finish project onboarding" Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </DataTemplate>
+
         <DataTemplate DataType="{x:Type vm:ProjectsViewModel}">
             <DataTemplate.Resources>
                 <Style x:Key="ProjectInputTextBoxStyle" TargetType="TextBox">
@@ -412,7 +547,16 @@
 
                         <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="20">
                             <Grid>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding IsEditorVisible, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ScrollViewer.Style>
+                                        <Style TargetType="ScrollViewer">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEditorVisible}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                                <DataTrigger Binding="{Binding IsOnboardingVisible}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ScrollViewer.Style>
                                     <StackPanel>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -657,6 +801,10 @@
                                         </Grid>
                                         <TextBlock Text="Registration stores metadata only. APO does not check the path, Git, tracker authentication, or repository connectivity in this workspace." Margin="0,18,0,0" TextWrapping="Wrap" Style="{StaticResource CaptionTextStyle}" />
                                     </StackPanel>
+                                </ScrollViewer>
+
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="{Binding IsOnboardingVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <ContentControl Content="{Binding Onboarding}" />
                                 </ScrollViewer>
                             </Grid>
                         </Border>
