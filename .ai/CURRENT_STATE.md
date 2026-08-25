@@ -2123,7 +2123,8 @@ Computer Use could not foreground APO while an unrelated RMS POS modal owned the
 no interaction with that unrelated app was attempted. APO was left running after the bounded probe.
 `LEFT RUNNING = YES`.
 
-The branch was pushed at final handoff head `fe1491d1a1fa3cdcfe30accd919d7dbf59289e6e`. Draft PR
+The branch was pushed through delivery metadata commit `27ad594`; the final state synchronization
+commit is the current branch head reported in the completion handoff. Draft PR
 #10 is OPEN / DRAFT / UNMERGED against `main`:
 https://github.com/Hossam1104/AI-Project-Orchestrator/pull/10. Jira APO-39 remains In Progress;
 the final implementation-handoff comment is recorded after synchronization. APO-38 is Done at
