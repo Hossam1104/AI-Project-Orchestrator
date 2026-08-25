@@ -54,7 +54,8 @@
 
 - Restore: SUCCESS.
 - Build: SUCCESS; 0 warnings, 0 errors.
-- Focused tests: Connection 15/15 and Infrastructure 4/4 after the final test additions.
+- Focused APO-38 test files: Connection 5/5 and Infrastructure 4/4; the complete Connection project
+  total is 15/15.
 - Full solution tests: 336/336 passed, 0 failed, 0 skipped — Domain 28, Connection 15, Provider 46,
   Desktop 71, Infrastructure 176.
 - `git diff --check`: SUCCESS.
