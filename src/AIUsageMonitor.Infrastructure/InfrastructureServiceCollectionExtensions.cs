@@ -64,6 +64,11 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IProjectOnboardingService, ProjectOnboardingService>();
         services.AddSingleton<IPlanningExecutionContractRepository, JsonPlanningExecutionContractRepository>();
         services.AddSingleton<IPlanningExecutionContractService, PlanningExecutionContractService>();
+        services.AddSingleton<IWorkGraphRepository, JsonWorkGraphRepository>();
+        services.AddSingleton<IWorkGraphCompletionEvidenceRepository, JsonWorkGraphCompletionEvidenceRepository>();
+        services.AddSingleton<IWorkGraphService, WorkGraphService>();
+        services.AddSingleton<IWorkGraphCompletionEvidenceService, WorkGraphCompletionEvidenceService>();
+        services.AddSingleton<WorkGraphScheduler>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
 

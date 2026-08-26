@@ -112,6 +112,37 @@ public sealed class ApplicationDataPaths
     public string GetProjectContextReferenceFile(Guid projectId) =>
         GetProjectPaths(projectId).ContextReferenceFile;
 
+    public string GetProjectWorkGraphsDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).WorkGraphsDirectory;
+
+    public string GetWorkGraphDirectory(Guid projectId, Guid graphId)
+    {
+        if (graphId == Guid.Empty)
+        {
+            throw new ArgumentException("Graph id cannot be empty.", nameof(graphId));
+        }
+
+        return Path.Combine(GetProjectWorkGraphsDirectory(projectId), graphId.ToString("D"));
+    }
+
+    public string GetWorkGraphFile(Guid projectId, Guid graphId) =>
+        Path.Combine(GetWorkGraphDirectory(projectId, graphId), "graph.json");
+
+    public string GetWorkGraphCompletionEvidenceDirectory(Guid projectId, Guid graphId) =>
+        Path.Combine(GetWorkGraphDirectory(projectId, graphId), "completion-evidence");
+
+    public string GetWorkGraphCompletionEvidenceFile(Guid projectId, Guid graphId, Guid nodeId)
+    {
+        if (nodeId == Guid.Empty)
+        {
+            throw new ArgumentException("Node id cannot be empty.", nameof(nodeId));
+        }
+
+        return Path.Combine(
+            GetWorkGraphCompletionEvidenceDirectory(projectId, graphId),
+            $"node-{nodeId:D}.json");
+    }
+
     public string GetProjectContractsDirectory(Guid projectId) =>
         GetProjectPaths(projectId).ContractsDirectory;
 
@@ -152,6 +183,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.RootDirectory);
         Directory.CreateDirectory(projectPaths.OrchestrationDirectory);
         Directory.CreateDirectory(projectPaths.ContractsDirectory);
+        Directory.CreateDirectory(projectPaths.WorkGraphsDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
@@ -187,6 +219,7 @@ public sealed class ProjectDataPaths
         ReviewsDirectory = Path.Combine(OrchestrationDirectory, "reviews");
         ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
         ContractsDirectory = Path.Combine(rootDirectory, "contracts");
+        WorkGraphsDirectory = Path.Combine(rootDirectory, "work-graphs");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
         AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
         ContextReferenceFile = Path.Combine(rootDirectory, "context-reference.json");
@@ -207,6 +240,9 @@ public sealed class ProjectDataPaths
     public string ActivityDirectory { get; }
 
     public string ContractsDirectory { get; }
+
+    /// <summary>Immutable dependency-aware graph snapshots for this project.</summary>
+    public string WorkGraphsDirectory { get; }
 
     public string RoutingPolicyFile { get; }
 

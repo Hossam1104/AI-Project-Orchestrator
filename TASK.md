@@ -1,127 +1,145 @@
-# Prompt 5/5B - OPUS-05 Foundation Remediation Handoff
+# APO-41 - SOL-41-01 Terminal Completion Evidence Integrity Remediation
 
 ## Result
 
-`COMPLETE` - functional remediation and validation complete; awaiting GPT-5.6 Sol exact-head
-acceptance.
+`COMPLETE` - SOL-41-01 functional remediation and validation complete; awaiting GPT-5.6 Sol
+exact-head acceptance. Draft PR #13 remains OPEN / DRAFT / UNMERGED.
 
 ## Work item
 
-- Story: APO-40 - Define Versioned Planning and Execution Contracts
-- Remediation: OPUS-05-01 and OPUS-05-02 foundation corrections
-- Executor: GPT-5.6 Luna xHigh
+- Story: APO-41 - Implement Dependency-Aware Work Graph and Scheduling Semantics
+- Remediation: SOL-41-01 - Terminal Completion Evidence Integrity
+- Jira issue id: 10869
+- Jira status: `In Progress`
 - Planner / acceptance authority: GPT-5.6 Sol
-- Branch: `fix/OPUS-05-foundation-remediation`
-- Jira status: APO-40 `In Progress`
-- Jira remediation comment: `12125`
+- Assigned executor: GPT-5.6 Luna xHigh
+- Feature branch: `feat/APO-41-dependency-aware-work-graph`
+- Implementation-start comment: `12128`
+- Remediation comment: `12133`
 
-## Starting state
+## Authorized baseline
 
-- `origin/main`: `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`
-- Starting remediation head: `42993f0944469ac9100ba280f122cd720cd1d533`
-- Sonnet direct parent: `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`
+- Starting main SHA: `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`
+- Starting main tree: `62103d1b7833a3891d87113dd6b8bd094882cf91`
+- Starting branch: `main`
+- Starting origin/main: same SHA
 - Working tree preflight: clean
-- Immutable ref preflight: passed; local and remote remediation refs matched the authorized Sonnet
-  SHA and `origin/main` matched the authorized main SHA.
 
-## Merged baseline
+## Functional implementation
 
-APO-40 was merged at `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`; accepted/merged tree was
-`b2668c6d5531bf02a507f9b51eafbb808a3d7e13`; PR #11 is `MERGED`; and APO-40 had reached `Done`
-before the Prompt-5 review.
+- Original functional SHA: `cb23c85cf51747cadbb6aafd5612b886d987ec2c`
+- Starting handoff SHA: `0a44e7cf1f6af1d5c285d4018120d878a135c7ae`
+- SOL-41-01 remediation functional SHA: `490fc77c631710d5690f88637556968e2f5b53bc`
+- Draft PR: `#13`, base `main`, OPEN / DRAFT / UNMERGED
+- Graph authority is immutable, bounded, canonical, content-hash protected, and project-isolated.
+- Nodes bind to exact APO-40 planning-contract references; graph creation resolves the requested
+  revision and rejects project, identity, revision, schema, or hash mismatches without fallback.
+- Completion evidence is separate create-once terminal authority for `Succeeded`, `Failed`, and
+  `Skipped`; conflicting truth cannot overwrite the first record.
+- The scheduler is a pure deterministic evaluator. It performs no execution, process launch,
+  provider call, tracker sync, Git mutation, or execution-start persistence.
+- Dependency, active-concurrency, budget, and approval decisions are bounded and explainable.
 
-Prompt 5/5 independent Claude Opus review returned `CHANGES REQUIRED`. APO-40's suite was green
-when accepted. OPUS-05-01 discovered a hidden calendar dependency in one Desktop test that caused
-the unchanged merged baseline to become permanently red after the fixture's fixed-clock boundary
-was crossed.
+## SOL-41-01 remediation handoff
 
-## OPUS-05-01
+`SOL-41-01 = REMEDIATED — AWAITING SOL ACCEPTANCE`
 
-`CLOSED - SOL-VERIFIED`
+Work-graph definition integrity was already protected. SOL-41-01 adds equivalent payload-
+integrity detection to create-once terminal completion evidence so semantically valid on-disk edits
+cannot silently become trusted terminal scheduling truth.
 
-Claude Sonnet 5's Sol-accepted test-only deterministic clock correction is
-`42993f0944469ac9100ba280f122cd720cd1d533`; its direct parent is the required main SHA. Production
-date validation was not changed and the formerly failing Desktop test remains green (1/1 focused;
-Desktop 82/82 in the full suite).
+- `WorkGraphCompletionEvidence.ContentHash` is deterministic SHA-256 integrity evidence over all
+  terminal authority fields, excluding `ContentHash` itself; it is not a signature or authenticity
+  proof.
+- `WorkGraphCompletionEvidenceRecord` persists the content hash without changing
+  `JsonFileStore.CurrentSchemaVersion`.
+- New evidence calculates its hash automatically; supplied persisted hashes are validated and are
+  rejected when missing, malformed, or mismatching rather than silently recalculated.
+- Completion evidence writes fail closed if calculated and application hashes disagree.
+- `ReadForGraphAsync()` returns `IntegrityFailure` with an empty trusted collection for missing,
+  malformed, or mismatching evidence hashes.
+- Integrity-failure reads use `ReadPreservingAsync()` and remain observational: no rewrite, repair,
+  quarantine, rename, move, delete, or `.bak` artifact.
+- Existing `Created`, `AlreadyRecorded`, and `Conflict` semantics remain unchanged.
+- No scheduler, graph, execution, provider, tracker, Git, UI, or downstream Story redesign was
+  added.
 
-## OPUS-05-02
+### Tamper coverage
 
-`REMEDIATED - AWAITING SOL ACCEPTANCE`
+- Failed -> Succeeded stored-state edit: `IntegrityFailure`, empty evidence, unchanged bytes, and
+  stable repeated result.
+- Stored `ContentHash` edit: `IntegrityFailure`.
+- `EvidenceReference` edit: `IntegrityFailure`.
+- `RecordedAt` edit: `IntegrityFailure`.
+- Binding-field edit (`ContractRevision`): `IntegrityFailure`.
+- Missing and malformed `ContentHash`: `IntegrityFailure`.
+- Round trip: valid 64-character hash is persisted, rehydrated, and equals the canonical hash.
 
-Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`.
+## Exact semantics
 
-The service now binds `LocalGit` belonging to the resolved canonical project context. It rejects
-LocalGit when repository context selection was skipped, accepts a matching registered path using
-the existing `StringComparison.OrdinalIgnoreCase` semantics against both canonical context and
-project paths, and preserves explicit `None` for either context selection. Planner-authorized
-expected branch and HEAD values remain intended target assertions; no live branch/HEAD truth is
-claimed.
+`Succeeded dependency = SATISFIED`
 
-This remediation performs no fresh Git inspection, no filesystem probe, no ProjectContext schema
-expansion, and no APO-41 execution verification.
+`Failed dependency = BLOCKED`
 
-## Changed files
+`Skipped dependency = BLOCKED`
 
-Sonnet:
-
-- `tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`
-
-Luna:
-
-- `src/AIUsageMonitor.Application/Planning/IPlanningExecutionContractService.cs`
-- `src/AIUsageMonitor.Application/Planning/PlanningExecutionContractService.cs`
-- `tests/AIUsageMonitor.Connection.Tests/PlanningExecutionContractServiceTests.cs`
-
-Metadata:
-
-- `.ai/CURRENT_STATE.md`
-- `TASK.md`
+`Missing completion evidence = INCOMPLETE / BLOCKED`
 
 ## Validation
 
-- Restore: SUCCESS.
-- Build: SUCCESS; 0 warnings, 0 errors.
-- Full solution tests: 442/442 passed; 0 failed; 0 skipped.
-- Totals: Domain 28; Connection 80; Provider 46; Desktop 82; Infrastructure 206.
-- `PlanningExecutionContractServiceTests`: 18/18 passed.
-- Former OPUS-05-01 Desktop test: 1/1 passed.
-- APO-40 persistence lineage and immutable-read tests: 22/22 passed.
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 513/513 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 131; Provider 46; Desktop 82; Infrastructure 226.
+- Focused `WorkGraphPersistenceTests`: 20/20 passed.
+- Focused APO-41 `WorkGraph*` Connection tests: 51/51 passed; 0 failed; 0 skipped.
 - `git diff --check`: clean.
 - Changed-line credential-shaped scan: clean.
 - GitHub CI: `NONE / NOT CLAIMED`.
 
-## Git and PR
+## Explicit exclusions
 
-- Sonnet SHA: `42993f0944469ac9100ba280f122cd720cd1d533`
-- Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`
-- Functional push: normal push; no rebase or force push.
-- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`, merged = `NO`; its exact final head is
-  recorded after the metadata-only handoff synchronization and in the executor completion report.
-- Metadata reconciliation commit: `8a1da32764133954875e503c658a59c4fa3d5661`.
+No executor lifecycle, provider invocation, tracker synchronization, UI, model routing, Git
+mutation, worktree creation, APO-42, APO-43, APO-44, APO-45, APO-46, or other downstream Story
+implementation is authorized by this handoff.
 
-## Jira
+## Prompt 5 closure normalization
 
-- APO-40: `In Progress` after the required `Done -> In Progress` remediation transition.
-- Remediation-start comment ID: `12125`.
-- Post-synchronization handoff comment ID: `12126`.
-- APO-41: `To Do` / `NOT AUTHORIZED`.
-- APO-42: `To Do` / `NOT AUTHORIZED`.
-- APO-43: `To Do` / `NOT AUTHORIZED`.
-- APO-44: `To Do` / `NOT AUTHORIZED`.
-- APO-45: `To Do` / `NOT AUTHORIZED`.
+- PR #12 merged.
+- Actual merge: `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
+- Accepted/merged tree: `62103d1b7833a3891d87113dd6b8bd094882cf91`.
+- OPUS-05-01 CLOSED.
+- OPUS-05-02 CLOSED.
+- Prompt 5/5 CLOSED.
+- APO-40 Done.
 
-## Deferred findings and runtime
+## Review cycle and next planner boundary
 
-`OPUS-05-03..11 = NOT IMPLEMENTED`; all are recorded as `NON-BLOCKING / DEFERRED FOR PLANNER
-DISPOSITION`. `OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
-`OPUS-05-10 IS DESIGN INPUT FOR APO-41, NOT A CURRENT CODE DEFECT`.
+`APO-41 = Prompt 1/5 after Opus checkpoint`
+
+No Opus review is due after this prompt. Await GPT-5.6 Sol exact-head review. Do not begin APO-42,
+APO-43, APO-44, APO-45, APO-46, or any executor/tracker/UI integration.
+
+## Runtime
+
+This remediation explicitly forbids UI runtime testing and APO was not launched.
 
 `APO PROCESS COUNT = 0`
 
 `APPLICATION LEFT RUNNING = NO`
 
+## Git / PR / Jira handoff
+
+- Functional remediation commit: `490fc77c631710d5690f88637556968e2f5b53bc`, direct parent
+  `0a44e7cf1f6af1d5c285d4018120d878a135c7ae`.
+- Branch was pushed normally; no rebase, merge, force push, or replacement PR was performed.
+- PR #13 remains `OPEN / DRAFT / UNMERGED` against `main` at the required base
+  `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
+- Jira APO-41 remains `In Progress`; remediation comment `12133` was added.
+- APO-42 through APO-45 remain `To Do` and unauthorized.
+
 ## Next planner boundary
 
-Prompt 5/5 remediation implementation complete. OPUS-05-01 is closed and Sol-verified. OPUS-05-02
-is remediated and awaits GPT-5.6 Sol exact-head acceptance. The remediation PR remains OPEN / DRAFT /
-UNMERGED. APO-41 is NOT AUTHORIZED.
+SOL-41-01 remediation complete. APO-41 remains In Progress and PR #13 remains OPEN / DRAFT /
+UNMERGED. Return this result to GPT-5.6 Sol for exact-head acceptance. Do not begin APO-42 or any
+downstream implementation.
