@@ -279,7 +279,7 @@ public sealed class JsonPlanningExecutionContractRepository : IPlanningExecution
         CancellationToken cancellationToken)
     {
         var path = _paths.GetPlanningExecutionContractRevisionFile(projectId, contractId, revision);
-        var result = await _files.ReadAsync<PlanningExecutionContractRecord>(path, cancellationToken)
+        var result = await _files.ReadPreservingAsync<PlanningExecutionContractRecord>(path, cancellationToken)
             .ConfigureAwait(false);
         return MapReadResult(projectId, contractId, revision, path, result);
     }

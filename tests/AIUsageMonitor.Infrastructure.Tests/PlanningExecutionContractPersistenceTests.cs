@@ -229,6 +229,10 @@ public sealed class PlanningExecutionContractPersistenceTests
 
         Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
         await WriteRecordAsync(store, second.ProjectId, second.ContractId, PlanningExecutionContractRecord.FromApplication(second));
+        var firstPath = store.Paths.GetPlanningExecutionContractRevisionFile(first.ProjectId, first.ContractId, first.Revision);
+        var secondPath = store.Paths.GetPlanningExecutionContractRevisionFile(second.ProjectId, second.ContractId, second.Revision);
+        var firstBytes = await File.ReadAllBytesAsync(firstPath);
+        var secondBytes = await File.ReadAllBytesAsync(secondPath);
 
         var get = await repository.GetAsync(first.ProjectId, first.ContractId, 2);
         var list = await repository.ListRevisionsAsync(first.ProjectId, first.ContractId);
@@ -237,6 +241,11 @@ public sealed class PlanningExecutionContractPersistenceTests
         Assert.NotEqual(PlanningContractReadState.Valid, get.State);
         Assert.NotEqual(PlanningContractReadState.Valid, list.State);
         Assert.NotEqual(PlanningContractReadState.Valid, latest.State);
+        Assert.True(File.Exists(firstPath));
+        Assert.True(File.Exists(secondPath));
+        Assert.Equal(firstBytes, await File.ReadAllBytesAsync(firstPath));
+        Assert.Equal(secondBytes, await File.ReadAllBytesAsync(secondPath));
+        AssertNoQuarantineArtifacts(store);
     }
 
     [Fact]
@@ -355,8 +364,13 @@ public sealed class PlanningExecutionContractPersistenceTests
         var tamperedPayload = JsonNode.Parse(await File.ReadAllTextAsync(path))!.AsObject();
         tamperedPayload["payload"]!["ownerReference"] = "changed-owner";
         await File.WriteAllTextAsync(path, tamperedPayload.ToJsonString(JsonFileStore.SerializerOptions));
+        var tamperedPayloadBytes = await File.ReadAllBytesAsync(path);
         var payloadResult = await repository.GetAsync(contract.ProjectId, contract.ContractId, 1);
+        var repeatedPayloadResult = await repository.GetAsync(contract.ProjectId, contract.ContractId, 1);
         Assert.Equal(PlanningContractReadState.IntegrityFailure, payloadResult.State);
+        Assert.Equal(PlanningContractReadState.IntegrityFailure, repeatedPayloadResult.State);
+        Assert.True(File.Exists(path));
+        Assert.Equal(tamperedPayloadBytes, await File.ReadAllBytesAsync(path));
 
         var hashRecord = PlanningExecutionContractRecord.FromApplication(contract);
         hashRecord.ContentHash = new string('a', 64);
@@ -367,8 +381,14 @@ public sealed class PlanningExecutionContractPersistenceTests
                 payload = hashRecord
             },
             JsonFileStore.SerializerOptions));
+        var tamperedHashBytes = await File.ReadAllBytesAsync(path);
         var hashResult = await repository.GetAsync(contract.ProjectId, contract.ContractId, 1);
+        var repeatedHashResult = await repository.GetAsync(contract.ProjectId, contract.ContractId, 1);
         Assert.Equal(PlanningContractReadState.IntegrityFailure, hashResult.State);
+        Assert.Equal(PlanningContractReadState.IntegrityFailure, repeatedHashResult.State);
+        Assert.True(File.Exists(path));
+        Assert.Equal(tamperedHashBytes, await File.ReadAllBytesAsync(path));
+        AssertNoQuarantineArtifacts(store);
     }
 
     [Fact]
@@ -404,11 +424,103 @@ public sealed class PlanningExecutionContractPersistenceTests
         await store.Paths.EnsureProjectDirectoriesAsync(projectId);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, "{ invalid json");
+        var originalBytes = await File.ReadAllBytesAsync(path);
 
         var result = await repository.GetAsync(projectId, contractId, 1);
+        var repeatedResult = await repository.GetAsync(projectId, contractId, 1);
 
         Assert.Equal(PlanningContractReadState.Invalid, result.State);
         Assert.Null(result.Contract);
+        Assert.Equal(PlanningContractReadState.Invalid, repeatedResult.State);
+        Assert.Null(repeatedResult.Contract);
+        Assert.True(File.Exists(path));
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(path));
+        AssertNoQuarantineArtifacts(store);
+    }
+
+    [Fact]
+    public async Task MissingPayloadIsInvalidOnRepeatedReadsWithoutQuarantine()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var projectId = Guid.NewGuid();
+        var contractId = Guid.NewGuid();
+        var path = store.Paths.GetPlanningExecutionContractRevisionFile(projectId, contractId, 1);
+        await store.Paths.EnsureProjectDirectoriesAsync(projectId);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(
+            path,
+            "{ \"schemaVersion\": 1, \"payload\": null }");
+        var originalBytes = await File.ReadAllBytesAsync(path);
+
+        var result = await repository.GetAsync(projectId, contractId, 1);
+        var repeatedResult = await repository.GetAsync(projectId, contractId, 1);
+
+        Assert.Equal(PlanningContractReadState.Invalid, result.State);
+        Assert.Equal(PlanningContractReadState.Invalid, repeatedResult.State);
+        Assert.True(File.Exists(path));
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(path));
+        AssertNoQuarantineArtifacts(store);
+    }
+
+    [Fact]
+    public async Task UnsupportedOuterSchemaIsStableOnRepeatedReadsWithoutQuarantine()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var projectId = Guid.NewGuid();
+        var contractId = Guid.NewGuid();
+        var path = store.Paths.GetPlanningExecutionContractRevisionFile(projectId, contractId, 1);
+        await store.Paths.EnsureProjectDirectoriesAsync(projectId);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(
+            path,
+            "{ \"schemaVersion\": 999, \"payload\": {} }");
+        var originalBytes = await File.ReadAllBytesAsync(path);
+
+        var result = await repository.GetAsync(projectId, contractId, 1);
+        var repeatedResult = await repository.GetAsync(projectId, contractId, 1);
+
+        Assert.Equal(PlanningContractReadState.UnsupportedFutureVersion, result.State);
+        Assert.Equal(PlanningContractReadState.UnsupportedFutureVersion, repeatedResult.State);
+        Assert.True(File.Exists(path));
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(path));
+        AssertNoQuarantineArtifacts(store);
+    }
+
+    [Fact]
+    public async Task CorruptPredecessorRejectsCreateWithoutMutatingPredecessor()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var firstPath = store.Paths.GetPlanningExecutionContractRevisionFile(
+            first.ProjectId,
+            first.ContractId,
+            first.Revision);
+        await store.Paths.EnsureProjectDirectoriesAsync(first.ProjectId);
+        Directory.CreateDirectory(Path.GetDirectoryName(firstPath)!);
+        await File.WriteAllTextAsync(firstPath, "{ invalid predecessor json");
+        var firstBytes = await File.ReadAllBytesAsync(firstPath);
+
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: first.ContentHash);
+        var secondPath = store.Paths.GetPlanningExecutionContractRevisionFile(
+            second.ProjectId,
+            second.ContractId,
+            second.Revision);
+
+        var result = await repository.CreateAsync(second);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.InvalidLineage, result.Status);
+        Assert.True(File.Exists(firstPath));
+        Assert.Equal(firstBytes, await File.ReadAllBytesAsync(firstPath));
+        Assert.False(File.Exists(secondPath));
+        AssertNoQuarantineArtifacts(store);
     }
 
     [Fact]
@@ -444,6 +556,9 @@ public sealed class PlanningExecutionContractPersistenceTests
 
     private static JsonPlanningExecutionContractRepository CreateRepository(TemporaryStore store) =>
         new(store.Paths, store.Files, NullLogger<JsonPlanningExecutionContractRepository>.Instance);
+
+    private static void AssertNoQuarantineArtifacts(TemporaryStore store) =>
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.bak", SearchOption.AllDirectories));
 
     private static class ContractFixture
     {

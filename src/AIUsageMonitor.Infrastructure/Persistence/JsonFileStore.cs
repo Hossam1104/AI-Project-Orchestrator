@@ -79,8 +79,24 @@ public sealed class JsonFileStore
         CancellationToken cancellationToken = default) =>
         FilePathLocks.ExecuteAsync(path, operation, cancellationToken);
 
-    public async Task<FileReadResult<T>> ReadAsync<T>(
+    public Task<FileReadResult<T>> ReadAsync<T>(
         string path,
+        CancellationToken cancellationToken = default) =>
+        ReadCoreAsync<T>(path, quarantineUnreadable: true, cancellationToken);
+
+    /// <summary>
+    /// Reads a versioned JSON document without moving or otherwise mutating the source file when
+    /// its content is empty, unsupported, or unreadable. The parsing and classification behavior
+    /// is shared with <see cref="ReadAsync{T}(string, CancellationToken)"/>.
+    /// </summary>
+    public Task<FileReadResult<T>> ReadPreservingAsync<T>(
+        string path,
+        CancellationToken cancellationToken = default) =>
+        ReadCoreAsync<T>(path, quarantineUnreadable: false, cancellationToken);
+
+    private async Task<FileReadResult<T>> ReadCoreAsync<T>(
+        string path,
+        bool quarantineUnreadable,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -109,7 +125,7 @@ public sealed class JsonFileStore
                 !schemaVersionElement.TryGetInt32(out var schemaVersion) ||
                 schemaVersion != CurrentSchemaVersion)
             {
-                await TryQuarantineAsync(path, "unsupported-schema").ConfigureAwait(false);
+                await HandleUnreadableAsync(path, "unsupported-schema", quarantineUnreadable).ConfigureAwait(false);
                 return new FileReadResult<T>(
                     FileReadStatus.UnsupportedSchema,
                     default,
@@ -120,7 +136,7 @@ public sealed class JsonFileStore
             var envelope = JsonSerializer.Deserialize<VersionedDocument<T>>(content, SerializerOptions);
             if (envelope is null || envelope.Payload is null)
             {
-                await TryQuarantineAsync(path, "corrupt").ConfigureAwait(false);
+                await HandleUnreadableAsync(path, "corrupt", quarantineUnreadable).ConfigureAwait(false);
                 return new FileReadResult<T>(FileReadStatus.Corrupt, default, path, "The document payload is missing.");
             }
 
@@ -128,8 +144,13 @@ public sealed class JsonFileStore
         }
         catch (JsonException exception)
         {
-            await TryQuarantineAsync(path, "corrupt").ConfigureAwait(false);
-            _logger.LogWarning(exception, "Quarantined corrupt JSON document {FilePath}", path);
+            await HandleUnreadableAsync(path, "corrupt", quarantineUnreadable).ConfigureAwait(false);
+            _logger.LogWarning(
+                exception,
+                quarantineUnreadable
+                    ? "Quarantined corrupt JSON document {FilePath}"
+                    : "Read corrupt JSON document without mutating {FilePath}",
+                path);
             return new FileReadResult<T>(FileReadStatus.Corrupt, default, path, exception.Message);
         }
         catch (UnauthorizedAccessException exception)
@@ -214,6 +235,9 @@ public sealed class JsonFileStore
 
         await Task.CompletedTask.ConfigureAwait(false);
     }
+
+    private Task HandleUnreadableAsync(string path, string reason, bool quarantineUnreadable) =>
+        quarantineUnreadable ? TryQuarantineAsync(path, reason) : Task.CompletedTask;
 
     private static async Task AtomicWriteTextAsync(string path, string content, CancellationToken cancellationToken)
     {
