@@ -201,6 +201,219 @@ public sealed class HandoffPackageServiceTests
     }
 
     [Fact]
+    public async Task DescriptiveTextIsRedactedAcrossScopeFindingOutcomeLimitationAndNextAction()
+    {
+        var fixture = Fixture.Create(includeSecretInContract: true);
+        var planner = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "password=next-action-secret"));
+        var executor = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ExecutorToReviewer,
+            Guid.NewGuid(),
+            previous: planner.Package!.Reference,
+            evidence: [fixture.Evidence("build")],
+            artifacts: [fixture.Artifact("src/file.cs")],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.Succeeded, "password=outcome-secret"),
+            limitations: ["password=limitation-secret"],
+            nextAction: "Review the bounded work."));
+        var reviewer = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ReviewerToRemediation,
+            Guid.NewGuid(),
+            previous: executor.Package!.Reference,
+            evidence: [fixture.Evidence("review")],
+            findings: [fixture.Finding(
+                "finding-descriptive",
+                HandoffFindingState.Unresolved,
+                summary: "password=finding-secret")],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.ChangesRequired),
+            nextAction: "Address the finding."));
+
+        Assert.Equal(HandoffPackageCreationStatus.Created, planner.Status);
+        Assert.Equal(HandoffPackageCreationStatus.Created, executor.Status);
+        Assert.Equal(HandoffPackageCreationStatus.Created, reviewer.Status);
+        Assert.Contains("[REDACTED]", planner.Package!.ExecutionScope!.IncludedScope[0].Statement, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", planner.Package.NextAction, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", executor.Package!.Outcome!.Summary, StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", executor.Package.Limitations[0], StringComparison.Ordinal);
+        Assert.Contains("[REDACTED]", reviewer.Package!.FindingReferences[0].Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("next-action-secret", planner.Package.NextAction, StringComparison.Ordinal);
+        Assert.DoesNotContain("outcome-secret", executor.Package.Outcome.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("limitation-secret", executor.Package.Limitations[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("finding-secret", reviewer.Package.FindingReferences[0].Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SecretShapedWorkItemReferenceIsRejectedWithoutPersistence()
+    {
+        var fixture = Fixture.Create(contractIdentity: "work-item-reference");
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Empty(fixture.Packages.Created);
+    }
+
+    [Theory]
+    [InlineData("registered-local-path")]
+    [InlineData("expected-branch")]
+    public async Task SecretShapedRepositoryIdentityIsRejectedWithoutPersistence(string identity)
+    {
+        var fixture = Fixture.Create(contractIdentity: identity);
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Empty(fixture.Packages.Created);
+    }
+
+    [Theory]
+    [InlineData("scope-clause-id")]
+    [InlineData("deliverable-id")]
+    [InlineData("validation-id")]
+    [InlineData("stop-condition-id")]
+    public async Task SecretShapedCanonicalContractIdentifierIsRejectedWithoutPersistence(string identity)
+    {
+        var fixture = Fixture.Create(contractIdentity: identity);
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Empty(fixture.Packages.Created);
+    }
+
+    [Fact]
+    public async Task SecretShapedAcceptanceCriterionIdIsRejectedWithoutPersistence()
+    {
+        var fixture = Fixture.Create(contractIdentity: "acceptance-criterion-id");
+        var planner = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ExecutorToReviewer,
+            Guid.NewGuid(),
+            previous: planner.Package!.Reference,
+            evidence: [fixture.Evidence("build")],
+            artifacts: [fixture.Artifact("src/file.cs")],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.Succeeded),
+            nextAction: "Review the bounded work."));
+
+        Assert.Equal(HandoffPackageCreationStatus.Created, planner.Status);
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Single(fixture.Packages.Created);
+    }
+
+    [Fact]
+    public async Task SecretShapedFindingIdIsRejectedWithoutPersistence()
+    {
+        var fixture = Fixture.Create();
+        var planner = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+        var executor = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ExecutorToReviewer,
+            Guid.NewGuid(),
+            previous: planner.Package!.Reference,
+            evidence: [fixture.Evidence("build")],
+            artifacts: [fixture.Artifact("src/file.cs")],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.Succeeded),
+            nextAction: "Review the bounded work."));
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ReviewerToRemediation,
+            Guid.NewGuid(),
+            previous: executor.Package!.Reference,
+            evidence: [fixture.Evidence("review")],
+            findings: [fixture.Finding("finding-api_key=identity-secret-value", HandoffFindingState.Unresolved)],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.ChangesRequired),
+            nextAction: "Address the finding."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Equal(2, fixture.Packages.Created.Count);
+    }
+
+    [Fact]
+    public async Task SecretShapedEvidenceReferenceIsRejectedWithoutPersistence()
+    {
+        var fixture = Fixture.Create();
+        var planner = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ExecutorToReviewer,
+            Guid.NewGuid(),
+            previous: planner.Package!.Reference,
+            evidence: [new HandoffEvidenceReference(
+                Guid.NewGuid(),
+                HandoffEvidenceKind.Test,
+                "evidence:api_key=identity-secret-value",
+                Fixture.Now,
+                HandoffEvidenceFreshness.PointInTime)],
+            artifacts: [fixture.Artifact("src/file.cs")],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.Succeeded),
+            nextAction: "Review the bounded work."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Single(fixture.Packages.Created);
+    }
+
+    [Theory]
+    [InlineData("path")]
+    [InlineData("external-reference")]
+    public async Task SecretShapedChangedArtifactReferenceIsRejectedWithoutPersistence(string identity)
+    {
+        var fixture = Fixture.Create();
+        var planner = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.PlannerToExecutor,
+            Guid.NewGuid(),
+            nextAction: "Execute the bounded work."));
+        var executor = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ExecutorToReviewer,
+            Guid.NewGuid(),
+            previous: planner.Package!.Reference,
+            evidence: [fixture.Evidence("build")],
+            artifacts: [fixture.Artifact("src/file.cs")],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.Succeeded),
+            nextAction: "Review the bounded work."));
+        var artifact = identity == "path"
+            ? new HandoffChangedArtifactReference("src/api_key=identity-secret-value.cs", new string('a', 40))
+            : new HandoffChangedArtifactReference(commitSha: new string('a', 40), externalReference: "artifact:api_key=identity-secret-value");
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            HandoffTransition.ReviewerToAcceptance,
+            Guid.NewGuid(),
+            previous: executor.Package!.Reference,
+            evidence: [fixture.Evidence("acceptance")],
+            artifacts: [artifact],
+            outcome: new HandoffOutcomeMetadata(HandoffOutcomeState.Passed),
+            nextAction: "Record acceptance."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.Equal(2, fixture.Packages.Created.Count);
+    }
+
+    [Fact]
     public async Task CancellationPropagatesBeforeAnyPackageIsCreated()
     {
         var fixture = Fixture.Create();
@@ -387,7 +600,10 @@ public sealed class HandoffPackageServiceTests
         public FakePackageRepository Packages { get; }
         public HandoffPackageService Service { get; }
 
-        public static Fixture Create(bool includeSecretInContract = false, bool largeScope = false)
+        public static Fixture Create(
+            bool includeSecretInContract = false,
+            bool largeScope = false,
+            string? contractIdentity = null)
         {
             var project = new Project(
                 Guid.Parse("11111111-1111-1111-1111-111111111111"),
@@ -397,7 +613,7 @@ public sealed class HandoffPackageServiceTests
                 ProjectStatus.Active,
                 Now,
                 Now);
-            var contract = CreateContract(project.Id, includeSecretInContract, largeScope);
+            var contract = CreateContract(project.Id, includeSecretInContract, largeScope, contractIdentity);
             return new(project, contract);
         }
 
@@ -409,7 +625,8 @@ public sealed class HandoffPackageServiceTests
             IReadOnlyList<HandoffFindingReference>? findings = null,
             IReadOnlyList<HandoffChangedArtifactReference>? artifacts = null,
             HandoffOutcomeMetadata? outcome = null,
-            string? nextAction = null) => new(
+            string? nextAction = null,
+            IReadOnlyList<string>? limitations = null) => new(
             Project.Id,
             packageId,
             transition,
@@ -420,6 +637,7 @@ public sealed class HandoffPackageServiceTests
             findingReferences: findings,
             changedArtifactReferences: artifacts,
             outcome: outcome,
+            limitations: limitations,
             nextAction: nextAction ?? "Continue the bounded handoff.");
 
         public HandoffEvidenceReference Evidence(string suffix) => new(
@@ -429,13 +647,17 @@ public sealed class HandoffPackageServiceTests
             Now,
             HandoffEvidenceFreshness.PointInTime);
 
-        public HandoffFindingReference Finding(string id, HandoffFindingState state) => new(
+        public HandoffFindingReference Finding(
+            string id,
+            HandoffFindingState state,
+            string? summary = null,
+            string? sourceReference = null) => new(
             id,
             HandoffFindingCategory.Correctness,
             HandoffFindingSeverity.High,
             state,
-            "Bounded finding",
-            "review:finding",
+            summary ?? "Bounded finding",
+            sourceReference ?? "review:finding",
             []);
 
         public HandoffChangedArtifactReference Artifact(string path) => new(
@@ -443,36 +665,67 @@ public sealed class HandoffPackageServiceTests
             new string('a', 40),
             null);
 
-        private static PlanningExecutionContract CreateContract(Guid projectId, bool includeSecret, bool largeScope) => new(
-            projectId,
-            Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            PlanningExecutionContractSchema.CurrentVersion,
-            1,
-            Now,
-            "owner",
-            Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            new PlanningContextBinding(Guid.Parse("44444444-4444-4444-4444-444444444444"), 1),
-            new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-42", "Structured handoff packages"),
-            new PlanningRepositoryTarget(PlanningRepositoryMode.None),
-            largeScope
-                ? Enumerable.Range(0, HandoffPackageLimits.MaxScopeItemsPerSection)
-                    .Select(index => new PlanningScopeClause($"include-{index:D3}", new string('x', 4_000)))
-                    .ToArray()
-                : [new PlanningScopeClause("include", includeSecret ? "password=super-secret" : "structured handoff" )],
-            [new PlanningScopeClause("constraint", "bounded")],
-            [new PlanningScopeClause("forbid", "model invocation")],
-            [new PlanningDeliverable("package", "immutable package", true)],
-            [new PlanningValidationRequirement("test", PlanningValidationKind.Test, "focused tests", true)],
-            [new PlanningAcceptanceCriterion("accept", "hash is deterministic", true)],
-            [new PlanningExecutionBudget(PlanningBudgetKind.Attempts, 1)],
-            [
-                new PlanningStopCondition("stop-target", PlanningStopConditionKind.ImmutableTargetMoved, "stop when target moves"),
-                new PlanningStopCondition("stop-scope", PlanningStopConditionKind.ScopeViolation, "stop on scope violation"),
-                new PlanningStopCondition("stop-budget", PlanningStopConditionKind.BudgetExceeded, "stop when budget is exceeded")
-            ],
-            [],
-            null,
-            null);
+        private static PlanningExecutionContract CreateContract(
+            Guid projectId,
+            bool includeSecret,
+            bool largeScope,
+            string? identity)
+        {
+            const string identitySecret = "api_key=identity-secret-value";
+            var workItemReference = identity == "work-item-reference"
+                ? identitySecret
+                : "APO-42";
+            var repositoryTarget = identity switch
+            {
+                "registered-local-path" => new PlanningRepositoryTarget(
+                    PlanningRepositoryMode.LocalGit,
+                    @"C:\repo\api_key=identity-secret-value",
+                    "main",
+                    new string('a', 40)),
+                "expected-branch" => new PlanningRepositoryTarget(
+                    PlanningRepositoryMode.LocalGit,
+                    @"C:\repo",
+                    "feature/api_key=identity-secret-value",
+                    new string('a', 40)),
+                _ => new PlanningRepositoryTarget(PlanningRepositoryMode.None)
+            };
+            var includedScopeId = identity == "scope-clause-id" ? identitySecret : "include";
+            var deliverableId = identity == "deliverable-id" ? identitySecret : "package";
+            var validationId = identity == "validation-id" ? identitySecret : "test";
+            var acceptanceCriterionId = identity == "acceptance-criterion-id" ? identitySecret : "accept";
+            var stopConditionId = identity == "stop-condition-id" ? identitySecret : "stop-target";
+
+            return new(
+                projectId,
+                Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                PlanningExecutionContractSchema.CurrentVersion,
+                1,
+                Now,
+                "owner",
+                Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                new PlanningContextBinding(Guid.Parse("44444444-4444-4444-4444-444444444444"), 1),
+                new PlanningWorkItem(PlanningWorkItemSource.Jira, workItemReference, "Structured handoff packages"),
+                repositoryTarget,
+                largeScope
+                    ? Enumerable.Range(0, HandoffPackageLimits.MaxScopeItemsPerSection)
+                        .Select(index => new PlanningScopeClause($"include-{index:D3}", new string('x', 4_000)))
+                        .ToArray()
+                    : [new PlanningScopeClause(includedScopeId, includeSecret ? "password=super-secret" : "structured handoff")],
+                [new PlanningScopeClause("constraint", "bounded")],
+                [new PlanningScopeClause("forbid", "model invocation")],
+                [new PlanningDeliverable(deliverableId, "immutable package", true)],
+                [new PlanningValidationRequirement(validationId, PlanningValidationKind.Test, "focused tests", true)],
+                [new PlanningAcceptanceCriterion(acceptanceCriterionId, "hash is deterministic", true)],
+                [new PlanningExecutionBudget(PlanningBudgetKind.Attempts, 1)],
+                [
+                    new PlanningStopCondition(stopConditionId, PlanningStopConditionKind.ImmutableTargetMoved, "stop when target moves"),
+                    new PlanningStopCondition("stop-scope", PlanningStopConditionKind.ScopeViolation, "stop on scope violation"),
+                    new PlanningStopCondition("stop-budget", PlanningStopConditionKind.BudgetExceeded, "stop when budget is exceeded")
+                ],
+                [],
+                null,
+                null);
+        }
     }
 
     private sealed class FakeProjectRepository(Project project) : IProjectRepository

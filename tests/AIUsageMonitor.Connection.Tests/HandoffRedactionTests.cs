@@ -12,6 +12,8 @@ public sealed class HandoffRedactionTests
         yield return ["Bearer abcdefghijklmnop", "abcdefghijklmnop", HandoffRedactionCategory.BearerToken];
         yield return ["token ghp_12345678901234567890", "ghp_12345678901234567890", HandoffRedactionCategory.PersonalAccessToken];
         yield return ["Server=local;Password=connection-secret;Database=apo", "connection-secret", HandoffRedactionCategory.ConnectionStringPassword];
+        yield return ["password=\"my secret value\"", "my secret value", HandoffRedactionCategory.ConnectionStringPassword];
+        yield return ["api_key='my secret value'", "my secret value", HandoffRedactionCategory.ApiKeyAssignment];
     }
 
     [Theory]
@@ -33,5 +35,15 @@ public sealed class HandoffRedactionTests
     public void UnsupportedControlCharactersFailClosed()
     {
         Assert.Throws<ArgumentException>(() => new HandoffRedactionService().Redact("unsafe\0text"));
+    }
+
+    [Fact]
+    public void IdentityValidationReportsSecretsWithoutReturningAChangedIdentity()
+    {
+        var result = new HandoffRedactionService().ValidateIdentityText("api_key=identity-secret-value");
+
+        Assert.True(result.RequiresRedaction);
+        Assert.Equal(1, result.Count);
+        Assert.Contains(HandoffRedactionCategory.ApiKeyAssignment, result.Categories);
     }
 }

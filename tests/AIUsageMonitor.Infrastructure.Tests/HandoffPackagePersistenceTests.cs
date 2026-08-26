@@ -221,35 +221,82 @@ public sealed class HandoffPackagePersistenceTests
         Assert.Equal(HandoffPackageReadState.Valid, (await repository.GetAsync(project.Id, result.Package.PackageId)).State);
     }
 
+    [Fact]
+    public async Task ServiceRejectsSecretShapedIdentityWithoutWritingAPackage()
+    {
+        using var store = new TemporaryStore();
+        var project = new Project(
+            ProjectA,
+            "Identity rejection project",
+            @"C:\APO-Test",
+            null,
+            ProjectStatus.Active,
+            Now,
+            Now);
+        const string secret = "api_key=identity-secret-value";
+        var contract = CreateRedactionContract(project.Id, secret);
+        var repository = CreateRepository(store);
+        var service = new HandoffPackageService(
+            new SingleProjectRepository(project),
+            new SingleContractRepository(contract),
+            new MissingGraphRepository(),
+            repository,
+            new HandoffRedactionService());
+        var packageId = Guid.Parse("abababab-abab-abab-abab-abababababab");
+        var path = store.Paths.GetHandoffPackageFile(project.Id, packageId);
+        var packageDirectory = store.Paths.GetHandoffPackageDirectory(project.Id, packageId);
+
+        var result = await service.CreateAsync(new HandoffPackageCreationRequest(
+            project.Id,
+            packageId,
+            HandoffTransition.PlannerToExecutor,
+            contract.Reference,
+            Now,
+            nextAction: "Execute the bounded work."));
+
+        Assert.Equal(HandoffPackageCreationStatus.RedactionRejected, result.Status);
+        Assert.Null(result.Package);
+        Assert.False(File.Exists(path));
+        if (Directory.Exists(packageDirectory))
+        {
+            foreach (var file in Directory.EnumerateFiles(packageDirectory, "*", SearchOption.AllDirectories))
+            {
+                Assert.DoesNotContain(secret, await File.ReadAllTextAsync(file), StringComparison.Ordinal);
+            }
+        }
+    }
+
     private static JsonHandoffPackageRepository CreateRepository(TemporaryStore store) =>
         new(store.Paths, store.Files, NullLogger<JsonHandoffPackageRepository>.Instance);
 
-    private static PlanningExecutionContract CreateRedactionContract(Guid projectId) => new(
-        projectId,
-        Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-        PlanningExecutionContractSchema.CurrentVersion,
-        1,
-        Now,
-        "owner",
-        Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-        new PlanningContextBinding(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), 1),
-        new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-42", "Handoff packages"),
-        new PlanningRepositoryTarget(PlanningRepositoryMode.None),
-        [new PlanningScopeClause("include", "password=super-secret")],
-        [],
-        [new PlanningScopeClause("forbid", "model invocation")],
-        [new PlanningDeliverable("package", "immutable package", true)],
-        [new PlanningValidationRequirement("test", PlanningValidationKind.Test, "focused tests", true)],
-        [new PlanningAcceptanceCriterion("accept", "package is valid", true)],
-        [new PlanningExecutionBudget(PlanningBudgetKind.Attempts, 1)],
-        [
-            new PlanningStopCondition("stop-target", PlanningStopConditionKind.ImmutableTargetMoved, "target"),
-            new PlanningStopCondition("stop-scope", PlanningStopConditionKind.ScopeViolation, "scope"),
-            new PlanningStopCondition("stop-budget", PlanningStopConditionKind.BudgetExceeded, "budget")
-        ],
-        [],
-        null,
-        null);
+    private static PlanningExecutionContract CreateRedactionContract(
+        Guid projectId,
+        string workItemReference = "APO-42") => new(
+            projectId,
+            Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+            PlanningExecutionContractSchema.CurrentVersion,
+            1,
+            Now,
+            "owner",
+            Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+            new PlanningContextBinding(Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), 1),
+            new PlanningWorkItem(PlanningWorkItemSource.Jira, workItemReference, "Handoff packages"),
+            new PlanningRepositoryTarget(PlanningRepositoryMode.None),
+            [new PlanningScopeClause("include", "password=super-secret")],
+            [],
+            [new PlanningScopeClause("forbid", "model invocation")],
+            [new PlanningDeliverable("package", "immutable package", true)],
+            [new PlanningValidationRequirement("test", PlanningValidationKind.Test, "focused tests", true)],
+            [new PlanningAcceptanceCriterion("accept", "package is valid", true)],
+            [new PlanningExecutionBudget(PlanningBudgetKind.Attempts, 1)],
+            [
+                new PlanningStopCondition("stop-target", PlanningStopConditionKind.ImmutableTargetMoved, "target"),
+                new PlanningStopCondition("stop-scope", PlanningStopConditionKind.ScopeViolation, "scope"),
+                new PlanningStopCondition("stop-budget", PlanningStopConditionKind.BudgetExceeded, "budget")
+            ],
+            [],
+            null,
+            null);
 
     private static async Task AssertTamperedPackageAsync(
         HandoffTransition transition,

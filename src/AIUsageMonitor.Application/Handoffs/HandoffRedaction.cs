@@ -7,9 +7,18 @@ public sealed record HandoffRedactionResult(
     int Count,
     IReadOnlyList<HandoffRedactionCategory> Categories);
 
+public sealed record HandoffRedactionInspection(
+    int Count,
+    IReadOnlyList<HandoffRedactionCategory> Categories)
+{
+    public bool RequiresRedaction => Count > 0;
+}
+
 public interface IHandoffRedactionService
 {
     HandoffRedactionResult Redact(string value);
+
+    HandoffRedactionInspection ValidateIdentityText(string value);
 }
 
 /// <summary>
@@ -22,7 +31,7 @@ public sealed class HandoffRedactionService : IHandoffRedactionService
     private const string Marker = "[REDACTED]";
 
     private static readonly Regex ConnectionStringPassword = new(
-        @"(?<prefix>\b(?:password|pwd)\s*=\s*)(?<quote>[""']?)(?<value>[^;\s""']+)(?:\k<quote>)",
+        @"(?<prefix>\b(?:password|pwd)\s*=\s*)(?:(?<quote>[""'])(?<quotedValue>[^""']+)(?:\k<quote>)|(?<unquotedValue>[^;\s,""']+))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly Regex AuthorizationHeader = new(
@@ -30,11 +39,11 @@ public sealed class HandoffRedactionService : IHandoffRedactionService
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly Regex PasswordAssignment = new(
-        @"(?<prefix>\b(?:password|passwd|pwd)\b\s*[:=]\s*)(?<quote>[""']?)(?<value>[^\s,;""']+)(?:\k<quote>)",
+        @"(?<prefix>\b(?:password|passwd|pwd)\b\s*[:=]\s*)(?:(?<quote>[""'])(?<quotedValue>[^""']+)(?:\k<quote>)|(?<unquotedValue>[^\s,;""']+))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly Regex ApiKeyAssignment = new(
-        @"(?<prefix>\b(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key)\b\s*[:=]\s*)(?<quote>[""']?)(?<value>[^\s,;""']+)(?:\k<quote>)",
+        @"(?<prefix>\b(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key)\b\s*[:=]\s*)(?:(?<quote>[""'])(?<quotedValue>[^""']+)(?:\k<quote>)|(?<unquotedValue>[^\s,;""']+))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static readonly Regex BearerToken = new(
@@ -47,15 +56,21 @@ public sealed class HandoffRedactionService : IHandoffRedactionService
 
     public HandoffRedactionResult Redact(string value)
     {
-        if (value is null)
-        {
-            throw new ArgumentNullException(nameof(value));
-        }
+        var analysis = AnalyzeAndRedact(value);
+        return new(analysis.Value, analysis.Count, analysis.Categories);
+    }
 
-        if (value.Any(static character => char.IsControl(character) && character is not ('\r' or '\n' or '\t')))
-        {
-            throw new ArgumentException("Text contains unsupported control characters.", nameof(value));
-        }
+    public HandoffRedactionInspection ValidateIdentityText(string value)
+    {
+        // Use the same ordered rule set as descriptive redaction, but expose only the inspection
+        // result so callers can reject a secret-shaped identity without receiving a transformed id.
+        var analysis = AnalyzeAndRedact(value);
+        return new(analysis.Count, analysis.Categories);
+    }
+
+    private static RedactionAnalysis AnalyzeAndRedact(string value)
+    {
+        ValidateInput(value);
 
         var categories = new HashSet<HandoffRedactionCategory>();
         var count = 0;
@@ -71,6 +86,19 @@ public sealed class HandoffRedactionService : IHandoffRedactionService
         return new(result, count, categories.OrderBy(static category => category).ToArray());
     }
 
+    private static void ValidateInput(string value)
+    {
+        if (value is null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        if (value.Any(static character => char.IsControl(character) && character is not ('\r' or '\n' or '\t')))
+        {
+            throw new ArgumentException("Text contains unsupported control characters.", nameof(value));
+        }
+    }
+
     private static string Replace(
         string input,
         Regex pattern,
@@ -81,7 +109,12 @@ public sealed class HandoffRedactionService : IHandoffRedactionService
         var replacements = 0;
         var result = pattern.Replace(input, match =>
         {
-            if (!match.Groups["value"].Success || string.Equals(match.Groups["value"].Value, Marker, StringComparison.Ordinal))
+            var value = match.Groups["value"].Success
+                ? match.Groups["value"].Value
+                : match.Groups["quotedValue"].Success
+                    ? match.Groups["quotedValue"].Value
+                    : match.Groups["unquotedValue"].Value;
+            if (string.IsNullOrEmpty(value) || string.Equals(value, Marker, StringComparison.Ordinal))
             {
                 return match.Value;
             }
@@ -98,4 +131,9 @@ public sealed class HandoffRedactionService : IHandoffRedactionService
         count += replacements;
         return result;
     }
+
+    private sealed record RedactionAnalysis(
+        string Value,
+        int Count,
+        IReadOnlyList<HandoffRedactionCategory> Categories);
 }

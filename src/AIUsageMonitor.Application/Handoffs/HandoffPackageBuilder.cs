@@ -43,12 +43,12 @@ internal sealed class HandoffPackageBuilder
         {
             var workItem = new PlanningWorkItem(
                 contract.WorkItem.Source,
-                accumulator.Redact(contract.WorkItem.Reference),
+                accumulator.Identity(contract.WorkItem.Reference),
                 accumulator.Redact(contract.WorkItem.Title));
             var repositoryTarget = new PlanningRepositoryTarget(
                 contract.RepositoryTarget.Mode,
-                accumulator.RedactOptional(contract.RepositoryTarget.RegisteredLocalPath),
-                accumulator.RedactOptional(contract.RepositoryTarget.ExpectedBranch),
+                accumulator.IdentityOptional(contract.RepositoryTarget.RegisteredLocalPath),
+                accumulator.IdentityOptional(contract.RepositoryTarget.ExpectedBranch),
                 contract.RepositoryTarget.ExpectedHeadCommit);
             var context = new HandoffContextReference(
                 contract.Context.ProjectContextId,
@@ -74,7 +74,7 @@ internal sealed class HandoffPackageBuilder
                 case HandoffTransition.ReviewerToAcceptance:
                     acceptanceScope = new HandoffAcceptanceScope(
                         contract.AcceptanceCriteria.Select(value => new PlanningAcceptanceCriterion(
-                            value.CriterionId,
+                            accumulator.Identity(value.CriterionId),
                             accumulator.Redact(value.Statement),
                             value.Required)).ToArray());
                     break;
@@ -241,44 +241,44 @@ internal sealed class HandoffPackageBuilder
     private static HandoffExecutionScope BuildExecutionScope(
         PlanningExecutionContract contract,
         RedactionAccumulator accumulator) => new(
-        contract.IncludedScope.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.Constraints.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.ForbiddenScope.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.Deliverables.Select(value => new PlanningDeliverable(value.DeliverableId, accumulator.Redact(value.Description), value.Required)).ToArray(),
+        contract.IncludedScope.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.Constraints.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.ForbiddenScope.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.Deliverables.Select(value => new PlanningDeliverable(accumulator.Identity(value.DeliverableId), accumulator.Redact(value.Description), value.Required)).ToArray(),
         contract.ValidationRequirements.Select(value => new PlanningValidationRequirement(
-            value.ValidationId,
+            accumulator.Identity(value.ValidationId),
             value.Kind,
             accumulator.Redact(value.Description),
             value.Required,
-            accumulator.RedactOptional(value.CommandOrReference))).ToArray(),
+            accumulator.IdentityOptional(value.CommandOrReference))).ToArray(),
         contract.ExecutionBudgets.ToArray(),
         contract.StopConditions.Select(value => new PlanningStopCondition(
-            value.ConditionId,
+            accumulator.Identity(value.ConditionId),
             value.Kind,
             accumulator.Redact(value.Description))).ToArray(),
-        contract.GovernanceReferences.Select(accumulator.Redact).ToArray(),
-        accumulator.RedactOptional(contract.RoutingPolicyReference),
-        accumulator.RedactOptional(contract.SafetyPolicyReference));
+        contract.GovernanceReferences.Select(accumulator.Identity).ToArray(),
+        accumulator.IdentityOptional(contract.RoutingPolicyReference),
+        accumulator.IdentityOptional(contract.SafetyPolicyReference));
 
     private static HandoffReviewScope BuildReviewScope(
         PlanningExecutionContract contract,
         RedactionAccumulator accumulator) => new(
-        contract.IncludedScope.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.Constraints.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.ForbiddenScope.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
+        contract.IncludedScope.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.Constraints.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.ForbiddenScope.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
         contract.AcceptanceCriteria.Select(value => new PlanningAcceptanceCriterion(
-            value.CriterionId,
+            accumulator.Identity(value.CriterionId),
             accumulator.Redact(value.Statement),
             value.Required)).ToArray());
 
     private static HandoffRemediationScope BuildRemediationScope(
         PlanningExecutionContract contract,
         RedactionAccumulator accumulator) => new(
-        contract.IncludedScope.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.Constraints.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
-        contract.ForbiddenScope.Select(value => new PlanningScopeClause(value.Id, accumulator.Redact(value.Statement))).ToArray(),
+        contract.IncludedScope.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.Constraints.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
+        contract.ForbiddenScope.Select(value => new PlanningScopeClause(accumulator.Identity(value.Id), accumulator.Redact(value.Statement))).ToArray(),
         contract.StopConditions.Select(value => new PlanningStopCondition(
-            value.ConditionId,
+            accumulator.Identity(value.ConditionId),
             value.Kind,
             accumulator.Redact(value.Description))).ToArray());
 
@@ -292,7 +292,7 @@ internal sealed class HandoffPackageBuilder
             ? request.EvidenceReferences.Select(value => new HandoffEvidenceReference(
                 value.EvidenceId,
                 value.Kind,
-                accumulator.Redact(value.Reference),
+                accumulator.Identity(value.Reference),
                 value.CapturedAt,
                 value.Freshness,
                 value.ContentHash)).ToArray()
@@ -317,12 +317,12 @@ internal sealed class HandoffPackageBuilder
         var values = request.FindingReferences
             .Where(finding => finding.IsUnresolved || (includeAddressed && finding.State == HandoffFindingState.Addressed))
             .Select(value => new HandoffFindingReference(
-                value.FindingId,
+                accumulator.Identity(value.FindingId),
                 value.Category,
                 value.Severity,
                 value.State,
                 accumulator.RedactOptional(value.Summary),
-                accumulator.RedactOptional(value.SourceReference),
+                accumulator.IdentityOptional(value.SourceReference),
                 value.EvidenceIds))
             .ToArray();
         return values;
@@ -338,9 +338,9 @@ internal sealed class HandoffPackageBuilder
             HandoffTransition.ReviewerToAcceptance;
         return include
             ? request.ChangedArtifactReferences.Select(value => new HandoffChangedArtifactReference(
-                accumulator.RedactOptional(value.RepositoryRelativePath),
+                accumulator.IdentityOptional(value.RepositoryRelativePath),
                 value.CommitSha,
-                accumulator.RedactOptional(value.ExternalReference))).ToArray()
+                accumulator.IdentityOptional(value.ExternalReference))).ToArray()
             : Array.Empty<HandoffChangedArtifactReference>();
     }
 
@@ -352,7 +352,7 @@ internal sealed class HandoffPackageBuilder
             : new HandoffOutcomeMetadata(
                 request.Outcome.State,
                 accumulator.RedactOptional(request.Outcome.Summary),
-                accumulator.RedactOptional(request.Outcome.ResultReference));
+                accumulator.IdentityOptional(request.Outcome.ResultReference));
 
     private static int CountScopeItems(
         HandoffExecutionScope? execution,
@@ -400,6 +400,25 @@ internal sealed class HandoffPackageBuilder
         }
 
         public string? RedactOptional(string? value) => value is null ? null : Redact(value);
+
+        public string Identity(string value)
+        {
+            try
+            {
+                if (_service.ValidateIdentityText(value).RequiresRedaction)
+                {
+                    throw new HandoffRedactionRejectedException();
+                }
+
+                return value;
+            }
+            catch (ArgumentException)
+            {
+                throw new HandoffRedactionRejectedException();
+            }
+        }
+
+        public string? IdentityOptional(string? value) => value is null ? null : Identity(value);
     }
 
     private sealed class HandoffRedactionRejectedException : Exception
