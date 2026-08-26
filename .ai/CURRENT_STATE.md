@@ -2382,10 +2382,12 @@ or downstream Story implementation was added.
 - Remediation branch: `fix/OPUS-05-foundation-remediation`.
 - Starting Sonnet SHA: `42993f0944469ac9100ba280f122cd720cd1d533`.
 - Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`.
-- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`, head `28b5ad66681451900cf21b78540059b513184f5e`.
+- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`; its exact final head is recorded in the
+  executor completion report after the metadata-only handoff synchronization.
 - PR #12 was created after confirming no existing open PR used this remediation branch.
 - Jira APO-40 was reopened from `Done` to `In Progress` for remediation.
 - Jira remediation-start comment: `12125`.
+- Jira post-synchronization handoff comment: `12126`.
 - APO-40 remains `In Progress`; APO-41, APO-42, APO-43, APO-44, and APO-45 remain `To Do` and
   unauthorized.
 - No rebase, force push, merge, Ready transition, or downstream Story transition was performed.

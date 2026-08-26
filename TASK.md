@@ -95,15 +95,15 @@ Metadata:
 - Sonnet SHA: `42993f0944469ac9100ba280f122cd720cd1d533`
 - Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`
 - Functional push: normal push; no rebase or force push.
-- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`, head
-  `28b5ad66681451900cf21b78540059b513184f5e`, merged = `NO`.
-- Final metadata/handoff SHA: recorded after the metadata-only handoff commit and in the executor
-  completion report.
+- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`, merged = `NO`; its exact final head is
+  recorded after the metadata-only handoff synchronization and in the executor completion report.
+- Metadata reconciliation commit: `8a1da32764133954875e503c658a59c4fa3d5661`.
 
 ## Jira
 
 - APO-40: `In Progress` after the required `Done -> In Progress` remediation transition.
-- Remediation comment ID: `12125`.
+- Remediation-start comment ID: `12125`.
+- Post-synchronization handoff comment ID: `12126`.
 - APO-41: `To Do` / `NOT AUTHORIZED`.
 - APO-42: `To Do` / `NOT AUTHORIZED`.
 - APO-43: `To Do` / `NOT AUTHORIZED`.
