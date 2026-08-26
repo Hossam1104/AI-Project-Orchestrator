@@ -90,13 +90,214 @@ public sealed class PlanningExecutionContractPersistenceTests
             previousRevision: 1,
             previousContentHash: first.ContentHash);
 
-        await repository.CreateAsync(first);
-        await repository.CreateAsync(second);
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        var firstPath = store.Paths.GetPlanningExecutionContractRevisionFile(
+            first.ProjectId,
+            first.ContractId,
+            first.Revision);
+        var firstBytes = await File.ReadAllBytesAsync(firstPath);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(second)).Status);
         var revisions = await repository.ListRevisionsAsync(first.ProjectId, first.ContractId);
+        var unchangedFirstBytes = await File.ReadAllBytesAsync(firstPath);
 
         Assert.Equal(PlanningContractReadState.Valid, revisions.State);
         Assert.Equal([1, 2], revisions.Revisions.Select(value => value.Revision));
         Assert.Equal(first.ContentHash, (await repository.GetAsync(first.ProjectId, first.ContractId, 1)).Contract!.ContentHash);
+        Assert.Equal(firstBytes, unchangedFirstBytes);
+    }
+
+    [Fact]
+    public async Task DirectCreateRejectsRevisionTwoWhenRevisionOneIsMissingWithoutWriting()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var revisionTwo = ContractFixture.Create(
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: new string('a', 64));
+        var path = store.Paths.GetPlanningExecutionContractRevisionFile(
+            revisionTwo.ProjectId,
+            revisionTwo.ContractId,
+            revisionTwo.Revision);
+
+        var result = await repository.CreateAsync(revisionTwo);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.PredecessorMissing, result.Status);
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task DirectCreateRejectsWrongPredecessorHashEvenWhenRevisionTwoSelfHashIsValid()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: new string('a', 64));
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        var firstPath = store.Paths.GetPlanningExecutionContractRevisionFile(
+            first.ProjectId,
+            first.ContractId,
+            first.Revision);
+        var firstBytes = await File.ReadAllBytesAsync(firstPath);
+
+        var result = await repository.CreateAsync(second);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.InvalidLineage, result.Status);
+        Assert.Equal(firstBytes, await File.ReadAllBytesAsync(firstPath));
+        Assert.False(File.Exists(store.Paths.GetPlanningExecutionContractRevisionFile(
+            second.ProjectId,
+            second.ContractId,
+            second.Revision)));
+    }
+
+    [Fact]
+    public async Task DirectCreateRejectsChangedOwnerReference()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            ownerReference: "changed-owner",
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: first.ContentHash);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        var result = await repository.CreateAsync(second);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.InvalidLineage, result.Status);
+        Assert.False(File.Exists(store.Paths.GetPlanningExecutionContractRevisionFile(
+            second.ProjectId,
+            second.ContractId,
+            second.Revision)));
+    }
+
+    [Theory]
+    [InlineData("reference")]
+    [InlineData("source")]
+    [InlineData("title")]
+    public async Task DirectCreateRejectsChangedWorkItemIdentity(string changedField)
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var workItem = changedField switch
+        {
+            "reference" => new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-41", "Define contracts"),
+            "source" => new PlanningWorkItem(PlanningWorkItemSource.Other, "APO-40", "Define contracts"),
+            _ => new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-40", "Changed title")
+        };
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            workItem: workItem,
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: first.ContentHash);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        var result = await repository.CreateAsync(second);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.InvalidLineage, result.Status);
+        Assert.False(File.Exists(store.Paths.GetPlanningExecutionContractRevisionFile(
+            second.ProjectId,
+            second.ContractId,
+            second.Revision)));
+    }
+
+    [Fact]
+    public async Task PersistedSelfConsistentWrongPredecessorHashInvalidatesGetListAndLatest()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: new string('b', 64));
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        await WriteRecordAsync(store, second.ProjectId, second.ContractId, PlanningExecutionContractRecord.FromApplication(second));
+
+        var get = await repository.GetAsync(first.ProjectId, first.ContractId, 2);
+        var list = await repository.ListRevisionsAsync(first.ProjectId, first.ContractId);
+        var latest = await repository.GetLatestAsync(first.ProjectId, first.ContractId);
+
+        Assert.NotEqual(PlanningContractReadState.Valid, get.State);
+        Assert.NotEqual(PlanningContractReadState.Valid, list.State);
+        Assert.NotEqual(PlanningContractReadState.Valid, latest.State);
+    }
+
+    [Fact]
+    public async Task PersistedSelfConsistentChangedOwnerInvalidatesGetListAndLatest()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            ownerReference: "changed-owner",
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: first.ContentHash);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        await WriteRecordAsync(store, second.ProjectId, second.ContractId, PlanningExecutionContractRecord.FromApplication(second));
+
+        var get = await repository.GetAsync(first.ProjectId, first.ContractId, 2);
+        var list = await repository.ListRevisionsAsync(first.ProjectId, first.ContractId);
+        var latest = await repository.GetLatestAsync(first.ProjectId, first.ContractId);
+
+        Assert.NotEqual(PlanningContractReadState.Valid, get.State);
+        Assert.NotEqual(PlanningContractReadState.Valid, list.State);
+        Assert.NotEqual(PlanningContractReadState.Valid, latest.State);
+    }
+
+    [Fact]
+    public async Task ValidThreeRevisionLineageIsAcceptedByCreateReadListAndLatest()
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateRepository(store);
+        var first = ContractFixture.Create();
+        var second = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            revision: 2,
+            previousRevision: 1,
+            previousContentHash: first.ContentHash);
+        var third = ContractFixture.Create(
+            projectId: first.ProjectId,
+            contractId: first.ContractId,
+            revision: 3,
+            previousRevision: 2,
+            previousContentHash: second.ContentHash);
+
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(first)).Status);
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(second)).Status);
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await repository.CreateAsync(third)).Status);
+
+        var get = await repository.GetAsync(first.ProjectId, first.ContractId, 3);
+        var list = await repository.ListRevisionsAsync(first.ProjectId, first.ContractId);
+        var latest = await repository.GetLatestAsync(first.ProjectId, first.ContractId);
+
+        Assert.Equal(PlanningContractReadState.Valid, get.State);
+        Assert.Equal(3, get.Contract!.Revision);
+        Assert.Equal(PlanningContractReadState.Valid, list.State);
+        Assert.Equal([1, 2, 3], list.Revisions.Select(value => value.Revision));
+        Assert.Equal(PlanningContractReadState.Valid, latest.State);
+        Assert.Equal(3, latest.Contract!.Revision);
     }
 
     [Fact]
@@ -249,6 +450,8 @@ public sealed class PlanningExecutionContractPersistenceTests
         public static PlanningExecutionContract Create(
             Guid? projectId = null,
             Guid? contractId = null,
+            string ownerReference = "owner-ref",
+            PlanningWorkItem? workItem = null,
             int revision = 1,
             int? previousRevision = null,
             string? previousContentHash = null)
@@ -259,10 +462,10 @@ public sealed class PlanningExecutionContractPersistenceTests
                 PlanningExecutionContractSchema.CurrentVersion,
                 revision,
                 new DateTimeOffset(2026, 8, 26, 0, 0, 0, TimeSpan.Zero),
-                "owner-ref",
+                ownerReference,
                 Guid.NewGuid(),
                 new PlanningContextBinding(Guid.NewGuid(), 1),
-                new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-40", "Define contracts"),
+                workItem ?? new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-40", "Define contracts"),
                 new PlanningRepositoryTarget(PlanningRepositoryMode.None),
                 [new("include", "Included")],
                 [new("constraint", "Constraint")],

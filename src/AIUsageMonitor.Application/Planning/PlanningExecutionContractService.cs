@@ -199,6 +199,14 @@ public sealed class PlanningExecutionContractService : IPlanningExecutionContrac
                     new(
                         PlanningExecutionContractCreationStatus.RevisionConflict,
                         ErrorMessage: writeResult.ErrorMessage ?? "The immutable revision already exists."),
+                PlanningContractRepositoryWriteStatus.PredecessorMissing =>
+                    new(
+                        PlanningExecutionContractCreationStatus.PredecessorMissing,
+                        ErrorMessage: writeResult.ErrorMessage ?? "The immediate predecessor revision is missing."),
+                PlanningContractRepositoryWriteStatus.InvalidLineage =>
+                    new(
+                        PlanningExecutionContractCreationStatus.PredecessorMismatch,
+                        ErrorMessage: writeResult.ErrorMessage ?? "The durable predecessor lineage is invalid."),
                 _ => new(
                     PlanningExecutionContractCreationStatus.PersistenceUnavailable,
                     ErrorMessage: writeResult.ErrorMessage ?? "The contract could not be persisted safely.")

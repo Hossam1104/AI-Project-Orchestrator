@@ -4,6 +4,8 @@ public enum PlanningContractRepositoryWriteStatus
 {
     Created,
     RevisionConflict,
+    PredecessorMissing,
+    InvalidLineage,
     Unavailable
 }
 

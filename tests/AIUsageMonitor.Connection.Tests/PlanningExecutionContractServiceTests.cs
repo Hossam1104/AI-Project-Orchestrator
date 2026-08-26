@@ -129,6 +129,23 @@ public sealed class PlanningExecutionContractServiceTests
     }
 
     [Fact]
+    public async Task RepositoryInvalidLineageWriteStatusMapsToPredecessorMismatch()
+    {
+        var fixture = Fixture.Create();
+        var first = await fixture.Service.CreateAsync(fixture.Request());
+        fixture.Contracts.NextWriteResult = new(
+            PlanningContractRepositoryWriteStatus.InvalidLineage,
+            "durable lineage rejected");
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(revision: 2));
+
+        Assert.True(first.Succeeded);
+        Assert.Equal(PlanningExecutionContractCreationStatus.PredecessorMismatch, result.Status);
+        Assert.Equal("durable lineage rejected", result.ErrorMessage);
+        Assert.Single(fixture.Contracts.Created);
+    }
+
+    [Fact]
     public async Task ExistingRevisionIsAConflictAndInvalidRequestsAreTyped()
     {
         var fixture = Fixture.Create();
@@ -349,11 +366,20 @@ public sealed class PlanningExecutionContractServiceTests
 
         public List<PlanningExecutionContract> Created { get; } = [];
 
+        public PlanningContractRepositoryWriteResult? NextWriteResult { get; set; }
+
         public Task<PlanningContractRepositoryWriteResult> CreateAsync(
             PlanningExecutionContract contract,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (NextWriteResult is not null)
+            {
+                var result = NextWriteResult;
+                NextWriteResult = null;
+                return Task.FromResult(result);
+            }
+
             var key = (contract.ProjectId, contract.ContractId, contract.Revision);
             if (_items.ContainsKey(key))
             {

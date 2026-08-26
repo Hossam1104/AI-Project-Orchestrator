@@ -46,6 +46,53 @@ public sealed class JsonPlanningExecutionContractRepository : IPlanningExecution
 
         try
         {
+            if (contract.Revision == 1)
+            {
+                if (contract.PreviousRevision is not null || contract.PreviousContentHash is not null)
+                {
+                    return new(
+                        PlanningContractRepositoryWriteStatus.InvalidLineage,
+                        "Revision 1 cannot carry predecessor evidence.");
+                }
+            }
+            else
+            {
+                var predecessorResult = await GetAsync(
+                        contract.ProjectId,
+                        contract.ContractId,
+                        contract.Revision - 1,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (predecessorResult.State == PlanningContractReadState.Missing)
+                {
+                    return new(
+                        PlanningContractRepositoryWriteStatus.PredecessorMissing,
+                        "The immediate predecessor revision is missing.");
+                }
+
+                if (predecessorResult.State == PlanningContractReadState.Unavailable)
+                {
+                    return new(
+                        PlanningContractRepositoryWriteStatus.Unavailable,
+                        predecessorResult.ErrorMessage ?? "The predecessor could not be read safely.");
+                }
+
+                if (!predecessorResult.IsValid || predecessorResult.Contract is null)
+                {
+                    return new(
+                        PlanningContractRepositoryWriteStatus.InvalidLineage,
+                        predecessorResult.ErrorMessage ?? "The predecessor is not a valid contract revision.");
+                }
+
+                if (!HasMatchingLineage(contract, predecessorResult.Contract))
+                {
+                    return new(
+                        PlanningContractRepositoryWriteStatus.InvalidLineage,
+                        "The contract revision does not match its durable predecessor lineage.");
+                }
+            }
+
             await _paths.EnsureProjectDirectoriesAsync(contract.ProjectId, cancellationToken).ConfigureAwait(false);
             Directory.CreateDirectory(directory);
             await _files.CreateNewAsync(
@@ -89,10 +136,50 @@ public sealed class JsonPlanningExecutionContractRepository : IPlanningExecution
             throw new ArgumentOutOfRangeException(nameof(revision));
         }
 
-        var path = _paths.GetPlanningExecutionContractRevisionFile(projectId, contractId, revision);
-        var result = await _files.ReadAsync<PlanningExecutionContractRecord>(path, cancellationToken)
+        var currentResult = await ReadRevisionAsync(projectId, contractId, revision, cancellationToken)
             .ConfigureAwait(false);
-        return MapReadResult(projectId, contractId, revision, path, result);
+        if (!currentResult.IsValid || currentResult.Contract is null || revision == 1)
+        {
+            return currentResult;
+        }
+
+        var current = currentResult.Contract;
+        while (current.Revision > 1)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (current.PreviousRevision != current.Revision - 1 ||
+                string.IsNullOrWhiteSpace(current.PreviousContentHash))
+            {
+                return InvalidLineage("Contract revision does not identify its immediate predecessor.");
+            }
+
+            var predecessorRevision = current.Revision - 1;
+            var predecessorResult = await ReadRevisionAsync(
+                    projectId,
+                    contractId,
+                    predecessorRevision,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!predecessorResult.IsValid || predecessorResult.Contract is null)
+            {
+                return MapBrokenPredecessor(predecessorRevision, predecessorResult);
+            }
+
+            if (!HasMatchingLineage(current, predecessorResult.Contract))
+            {
+                return InvalidLineage("Contract revision does not match its durable predecessor lineage.");
+            }
+
+            current = predecessorResult.Contract;
+        }
+
+        if (current.PreviousRevision is not null || current.PreviousContentHash is not null)
+        {
+            return InvalidLineage("Revision 1 cannot carry predecessor evidence.");
+        }
+
+        return currentResult;
     }
 
     public async Task<PlanningContractReadResult> GetLatestAsync(
@@ -183,6 +270,57 @@ public sealed class JsonPlanningExecutionContractRepository : IPlanningExecution
         {
             return new(PlanningContractReadState.Unavailable, Array.Empty<PlanningExecutionContract>(), exception.Message);
         }
+    }
+
+    private async Task<PlanningContractReadResult> ReadRevisionAsync(
+        Guid projectId,
+        Guid contractId,
+        int revision,
+        CancellationToken cancellationToken)
+    {
+        var path = _paths.GetPlanningExecutionContractRevisionFile(projectId, contractId, revision);
+        var result = await _files.ReadAsync<PlanningExecutionContractRecord>(path, cancellationToken)
+            .ConfigureAwait(false);
+        return MapReadResult(projectId, contractId, revision, path, result);
+    }
+
+    private static PlanningContractReadResult MapBrokenPredecessor(
+        int predecessorRevision,
+        PlanningContractReadResult predecessorResult)
+    {
+        if (predecessorResult.State == PlanningContractReadState.Missing)
+        {
+            return InvalidLineage($"Contract predecessor revision {predecessorRevision} is missing.");
+        }
+
+        return new(
+            predecessorResult.State,
+            ErrorMessage: predecessorResult.ErrorMessage ??
+                $"Contract predecessor revision {predecessorRevision} is not valid.");
+    }
+
+    private static PlanningContractReadResult InvalidLineage(string message) =>
+        new(PlanningContractReadState.Invalid, ErrorMessage: message);
+
+    private static bool HasMatchingLineage(
+        PlanningExecutionContract contract,
+        PlanningExecutionContract predecessor)
+    {
+        return contract.PreviousRevision == predecessor.Revision &&
+            string.Equals(contract.PreviousContentHash, predecessor.ContentHash, StringComparison.OrdinalIgnoreCase) &&
+            contract.ProjectId == predecessor.ProjectId &&
+            contract.ContractId == predecessor.ContractId &&
+            string.Equals(contract.OwnerReference, predecessor.OwnerReference, StringComparison.Ordinal) &&
+            SameWorkItemIdentity(contract, predecessor);
+    }
+
+    private static bool SameWorkItemIdentity(
+        PlanningExecutionContract left,
+        PlanningExecutionContract right)
+    {
+        return left.WorkItem.Source == right.WorkItem.Source &&
+            string.Equals(left.WorkItem.Reference, right.WorkItem.Reference, StringComparison.Ordinal) &&
+            string.Equals(left.WorkItem.Title, right.WorkItem.Title, StringComparison.Ordinal);
     }
 
     private PlanningContractReadResult MapReadResult(
