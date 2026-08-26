@@ -83,6 +83,123 @@ public sealed class PlanningExecutionContractServiceTests
     }
 
     [Fact]
+    public async Task SkippedRepositoryContextAllowsExplicitRepositoryFreeTarget()
+    {
+        var fixture = Fixture.Create();
+
+        var result = await fixture.Service.CreateAsync(
+            fixture.Request(repositoryTarget: new PlanningRepositoryTarget(PlanningRepositoryMode.None)));
+
+        Assert.Equal(PlanningExecutionContractCreationStatus.Created, result.Status);
+        Assert.Single(fixture.Contracts.Created);
+    }
+
+    [Fact]
+    public async Task SkippedRepositoryContextRejectsLocalGitTargetWithoutPersisting()
+    {
+        var fixture = Fixture.Create();
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            repositoryTarget: CreateLocalGitTarget(fixture.Project.LocalPath)));
+
+        Assert.Equal(PlanningExecutionContractCreationStatus.RepositoryTargetMismatch, result.Status);
+        Assert.Equal(
+            "A LocalGit repository target requires inspected canonical repository context.",
+            result.ErrorMessage);
+        Assert.Empty(fixture.Contracts.Created);
+    }
+
+    [Fact]
+    public async Task InspectedRepositoryContextAllowsMatchingLocalGitTargetAndPreservesAssertions()
+    {
+        var fixture = Fixture.Create();
+        fixture.UseInspectedContext();
+        var expectedBranch = "feature/planning";
+        var expectedHeadCommit = new string('a', 64);
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            repositoryTarget: new PlanningRepositoryTarget(
+                PlanningRepositoryMode.LocalGit,
+                fixture.Project.LocalPath,
+                expectedBranch,
+                expectedHeadCommit)));
+
+        Assert.Equal(PlanningExecutionContractCreationStatus.Created, result.Status);
+        Assert.Equal(PlanningRepositoryMode.LocalGit, result.Contract!.RepositoryTarget.Mode);
+        Assert.Equal(fixture.Project.LocalPath, result.Contract.RepositoryTarget.RegisteredLocalPath);
+        Assert.Equal(expectedBranch, result.Contract.RepositoryTarget.ExpectedBranch);
+        Assert.Equal(expectedHeadCommit, result.Contract.RepositoryTarget.ExpectedHeadCommit);
+        Assert.Single(fixture.Contracts.Created);
+    }
+
+    [Fact]
+    public async Task InspectedRepositoryContextRejectsForeignLocalGitTargetWithoutPersisting()
+    {
+        var fixture = Fixture.Create();
+        fixture.UseInspectedContext();
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            repositoryTarget: CreateLocalGitTarget(@"D:\another-project")));
+
+        Assert.Equal(PlanningExecutionContractCreationStatus.RepositoryTargetMismatch, result.Status);
+        Assert.Equal(
+            "The LocalGit repository target does not belong to the resolved project context.",
+            result.ErrorMessage);
+        Assert.Empty(fixture.Contracts.Created);
+    }
+
+    [Fact]
+    public async Task InspectedRepositoryContextUsesCaseInsensitivePathBelonging()
+    {
+        var fixture = Fixture.Create();
+        fixture.UseInspectedContext();
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            repositoryTarget: CreateLocalGitTarget(@"d:\PLANNING-PROJECT")));
+
+        Assert.Equal(PlanningExecutionContractCreationStatus.Created, result.Status);
+        Assert.Equal(@"d:\PLANNING-PROJECT", result.Contract!.RepositoryTarget.RegisteredLocalPath);
+        Assert.Single(fixture.Contracts.Created);
+    }
+
+    [Fact]
+    public async Task InspectedRepositoryContextStillAllowsExplicitRepositoryFreeTarget()
+    {
+        var fixture = Fixture.Create();
+        fixture.UseInspectedContext();
+
+        var result = await fixture.Service.CreateAsync(
+            fixture.Request(repositoryTarget: new PlanningRepositoryTarget(PlanningRepositoryMode.None)));
+
+        Assert.Equal(PlanningExecutionContractCreationStatus.Created, result.Status);
+        Assert.Equal(PlanningRepositoryMode.None, result.Contract!.RepositoryTarget.Mode);
+        Assert.Single(fixture.Contracts.Created);
+    }
+
+    [Fact]
+    public async Task LaterRevisionRejectsForeignLocalGitTargetWithoutPersistingRevision()
+    {
+        var fixture = Fixture.Create();
+        var first = await fixture.Service.CreateAsync(fixture.Request());
+
+        var result = await fixture.Service.CreateAsync(fixture.Request(
+            revision: 2,
+            repositoryTarget: CreateLocalGitTarget(@"D:\another-project")));
+
+        Assert.True(first.Succeeded);
+        Assert.Equal(PlanningExecutionContractCreationStatus.RepositoryTargetMismatch, result.Status);
+        Assert.Single(fixture.Contracts.Created);
+        Assert.Equal(1, fixture.Contracts.Created[0].Revision);
+    }
+
+    private static PlanningRepositoryTarget CreateLocalGitTarget(string registeredLocalPath) =>
+        new(
+            PlanningRepositoryMode.LocalGit,
+            registeredLocalPath,
+            "main",
+            new string('b', 40));
+
+    [Fact]
     public async Task RevisionTwoBindsToImmediatePredecessorAndKeepsLogicalIdentity()
     {
         var fixture = Fixture.Create();
@@ -209,7 +326,7 @@ public sealed class PlanningExecutionContractServiceTests
                 projectId,
                 "Planning project",
                 @"D:\planning-project",
-                null,
+                "main",
                 ProjectStatus.Active,
                 new DateTimeOffset(2026, 8, 26, 0, 0, 0, TimeSpan.Zero),
                 new DateTimeOffset(2026, 8, 26, 0, 0, 0, TimeSpan.Zero));
@@ -251,7 +368,8 @@ public sealed class PlanningExecutionContractServiceTests
             int revision = 1,
             string ownerReference = "owner-ref",
             PlanningWorkItem? workItem = null,
-            string? previousContentHash = null) =>
+            string? previousContentHash = null,
+            PlanningRepositoryTarget? repositoryTarget = null) =>
             new(
                 projectId ?? Project.Id,
                 Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -259,7 +377,7 @@ public sealed class PlanningExecutionContractServiceTests
                 ownerReference,
                 PlannerAgentId,
                 workItem ?? new PlanningWorkItem(PlanningWorkItemSource.Jira, "APO-40", "Define contracts"),
-                new PlanningRepositoryTarget(PlanningRepositoryMode.None),
+                repositoryTarget ?? new PlanningRepositoryTarget(PlanningRepositoryMode.None),
                 [new("included", "Included")],
                 [new("constraint", "Constraint")],
                 [new("forbidden", "Forbidden")],
@@ -273,6 +391,42 @@ public sealed class PlanningExecutionContractServiceTests
                     new("budget", PlanningStopConditionKind.BudgetExceeded, "Budget exceeded")
                 ],
                 previousContentHash: previousContentHash);
+
+        public void UseInspectedContext(
+            string? registeredLocalPath = null,
+            RepositoryVerificationStatus status = RepositoryVerificationStatus.AvailableClean)
+        {
+            var inspection = new LocalRepositoryInspection(
+                status,
+                registeredLocalPath ?? Project.LocalPath,
+                repositoryRoot: registeredLocalPath ?? Project.LocalPath,
+                localPathIsRepositoryRoot: true,
+                branchName: "main",
+                headSha: new string('c', 40),
+                headShortSha: new string('c', 7),
+                isClean: status == RepositoryVerificationStatus.AvailableClean,
+                capturedAt: Project.CreatedAt);
+            var context = new ProjectContextReference(
+                Project.Id,
+                Guid.NewGuid(),
+                ProjectContextContract.CurrentVersion,
+                Project.CreatedAt,
+                Project.UpdatedAt,
+                ProjectRepositoryContextReference.FromInspection(Project.Id, inspection),
+                new ProjectTrackerContextReference(TrackerReferenceState.Skipped),
+                [],
+                new ProjectCurrentWorkReference(CurrentWorkState.NotSelected),
+                ["governance/from-context"],
+                "routing/from-context",
+                "safety/from-context",
+                ProjectNextSafeAction.ReadyForPlanning);
+            Contexts.Resolution = new ProjectContextResolution(
+                ProjectContextResolutionState.Ready,
+                new ProjectContextView(
+                    Project,
+                    context,
+                    [CreateEffectiveAgent(Project.Id, PlannerAgentId, enabled: true, AgentRole.Planner)]));
+        }
 
         public static EffectiveAgentDefinition CreateEffectiveAgent(
             Guid projectId,

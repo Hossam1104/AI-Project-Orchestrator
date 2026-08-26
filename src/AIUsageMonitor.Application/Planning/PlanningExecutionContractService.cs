@@ -75,6 +75,17 @@ public sealed class PlanningExecutionContractService : IPlanningExecutionContrac
                     ErrorMessage: "The resolved context does not belong to the requested project.");
             }
 
+            var repositoryTargetValidation = ValidateRepositoryTarget(
+                project,
+                contextResolution.View.Context,
+                request.RepositoryTarget!);
+            if (repositoryTargetValidation is not null)
+            {
+                return new(
+                    PlanningExecutionContractCreationStatus.RepositoryTargetMismatch,
+                    ErrorMessage: repositoryTargetValidation);
+            }
+
             var plannerResolution = await _agents
                 .ResolveAsync(request.ProjectId, request.PlannerAgentId, cancellationToken)
                 .ConfigureAwait(false);
@@ -284,6 +295,36 @@ public sealed class PlanningExecutionContractService : IPlanningExecutionContrac
             request.StopConditions is null)
         {
             return "Deliverables, validation, acceptance, budgets, and stop conditions are required.";
+        }
+
+        return null;
+    }
+
+    private static string? ValidateRepositoryTarget(
+        Project project,
+        ProjectContextReference context,
+        PlanningRepositoryTarget repositoryTarget)
+    {
+        if (repositoryTarget.Mode == PlanningRepositoryMode.None)
+        {
+            return null;
+        }
+
+        if (context.Repository.Selection != RepositorySelectionState.Inspect)
+        {
+            return "A LocalGit repository target requires inspected canonical repository context.";
+        }
+
+        if (!string.Equals(
+                repositoryTarget.RegisteredLocalPath,
+                context.Repository.RegisteredLocalPath,
+                StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(
+                repositoryTarget.RegisteredLocalPath,
+                project.LocalPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return "The LocalGit repository target does not belong to the resolved project context.";
         }
 
         return null;
