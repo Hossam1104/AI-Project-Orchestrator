@@ -31,8 +31,8 @@
 **Default Branch:** `main`
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
-**Status:** IN PROGRESS / PROMPT 4/5 / IMPLEMENTATION UNDERWAY.
-**Next action:** Complete APO-40 validation and provide the exact feature head to GPT-5.6 Sol.
+**Status:** IN PROGRESS / PROMPT 4/5 / IMPLEMENTATION COMPLETE; Draft PR OPEN / DRAFT / UNMERGED.
+**Next action:** GPT-5.6 Sol exact-head acceptance review for APO-40.
 **APO-38:** COMPLETE / MERGED / DONE at `7cb94104c25fdb552c010835158e3c7e3eb813fe`.
 **APO-39:** COMPLETE / MERGED / DONE at `ac1b7445f4120304b76845ba307c54111c557ec8`.
 **APO-39 accepted source / merge tree:** `4dfe83703e1899a4e5eb35a1530e0434924eb3db`.
@@ -43,6 +43,41 @@
 **APO-44:** TO DO / NOT AUTHORIZED.
 **APO-45:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+
+## 23. APO-40 Versioned Planning and Execution Contracts (Prompt 4/5)
+
+APO-40 was authorized from the exact accepted APO-39 merge base
+`ac1b7445f4120304b76845ba307c54111c557ec8` after the Git/Jira preflight. Jira APO-40 remains In
+Progress under APO-10; implementation-start comment `12043` records Prompt 4/5, the exact base,
+feature branch, Sol authorization, bounded scope, and the explicit no-execution/no-routing boundary.
+
+The feature branch is `feat/APO-40-versioned-planning-execution-contracts`. Functional implementation
+commit: `184e16257626d4b3b3ecd949b5e87613e428fc9a`. Draft PR #11 is OPEN / DRAFT / UNMERGED against
+`main`: https://github.com/Hossam1104/AI-Project-Orchestrator/pull/11.
+
+APO-40 adds application-owned immutable `PlanningExecutionContract` data with schema version 1,
+stable ContractId and independent planner-authorized revisions, APO-39 Ready context binding,
+APO-38 planner capability validation, bounded work-item and repository target identity, machine-
+readable scope/deliverables/validation/acceptance/budget/stop-condition data, and inherited policy
+references. Infrastructure persists revisions in GUID-derived project storage using create-new
+atomic no-overwrite files. Canonical SHA-256 content-integrity evidence is recomputed on read;
+this is not a signature or authentication mechanism. Future schema is UnsupportedFutureVersion,
+older schema is MigrationRequired, and no silent migration occurs. No update/delete contract API
+exists.
+
+Validation evidence: restore succeeded; solution build succeeded with 0 warnings and 0 errors; full
+solution tests passed 422/422 with zero failures/skips (Domain 28, Connection 72, Provider 46,
+Desktop 82, Infrastructure 194); focused semantic/service/persistence/lineage/integrity/
+compatibility/isolation/DI tests passed; diff check, credential-shaped scan, and base-to-head scope
+review are clean. GitHub CI is `NONE / NOT CLAIMED`.
+
+APO-41, APO-42, APO-43, APO-44, and APO-45 remain To Do and unauthorized. APO-40 did not add DAG/
+scheduling, handoff generation, Smart Continue/checkpoints, routing, execution, tracker integration,
+validation or approval engines, model invocation, Git mutation, remote SCM, or contract-designer UI.
+
+Next planner boundary: Prompt 4/5 APO-40 implementation complete. Draft PR remains OPEN / DRAFT /
+UNMERGED. Next action is GPT-5.6 Sol exact-head acceptance review. APO-41, APO-42, APO-43, APO-44,
+and APO-45 remain NOT AUTHORIZED.
 
 ## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)
 
