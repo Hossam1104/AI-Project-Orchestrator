@@ -2,6 +2,7 @@ using AIUsageMonitor.Application.Alerts;
 using AIUsageMonitor.Application.Agents;
 using AIUsageMonitor.Application.Orchestration;
 using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Application.Planning;
 using AIUsageMonitor.Application.Projects;
 using AIUsageMonitor.Application.Quotas;
 using AIUsageMonitor.Application.Routing;
@@ -61,6 +62,8 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IProjectContextReferenceRepository, JsonProjectContextReferenceRepository>();
         services.AddSingleton<IProjectContextResolver, ProjectContextResolver>();
         services.AddSingleton<IProjectOnboardingService, ProjectOnboardingService>();
+        services.AddSingleton<IPlanningExecutionContractRepository, JsonPlanningExecutionContractRepository>();
+        services.AddSingleton<IPlanningExecutionContractService, PlanningExecutionContractService>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
 

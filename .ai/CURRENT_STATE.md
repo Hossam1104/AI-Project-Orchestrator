@@ -29,14 +29,19 @@
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-39 — Progressive Project Onboarding and Canonical Context Resolution.
-**Current Epic:** APO-5 — Project Context, Workspace & Lifecycle.
-**Status:** IN PROGRESS / PROMPT 3/5 / IMPLEMENTATION COMPLETE; Draft PR OPEN / DRAFT / UNMERGED.
-**Next action:** GPT-5.6 Sol exact-head acceptance review for APO-39.
+**Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
+**Current Epic:** APO-10 — Planning & Execution Contracts.
+**Status:** IN PROGRESS / PROMPT 4/5 / IMPLEMENTATION UNDERWAY.
+**Next action:** Complete APO-40 validation and provide the exact feature head to GPT-5.6 Sol.
 **APO-38:** COMPLETE / MERGED / DONE at `7cb94104c25fdb552c010835158e3c7e3eb813fe`.
-**APO-39:** IN PROGRESS; implementation complete, awaiting Sol acceptance.
+**APO-39:** COMPLETE / MERGED / DONE at `ac1b7445f4120304b76845ba307c54111c557ec8`.
+**APO-39 accepted source / merge tree:** `4dfe83703e1899a4e5eb35a1530e0434924eb3db`.
+**APO-40:** IN PROGRESS / PROMPT 4/5.
+**APO-41:** TO DO / NOT AUTHORIZED.
+**APO-42:** TO DO / NOT AUTHORIZED.
 **APO-43:** TO DO / NOT AUTHORIZED.
 **APO-44:** TO DO / NOT AUTHORIZED.
+**APO-45:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
 
 ## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)

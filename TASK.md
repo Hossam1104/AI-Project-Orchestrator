@@ -1,85 +1,53 @@
-# APO-39 Prompt 3/5 — Progressive Project Onboarding and Canonical Context Resolution
+# APO-40 Prompt 4/5 — Versioned Planning and Execution Contracts
 
-## Work item
+## Authorization
 
-- Story: APO-39 — Progressive Project Onboarding and Canonical Context Resolution
-- Parent Epic: APO-5 — Project Context, Workspace & Lifecycle
+- Story: APO-40 — Define Versioned Planning and Execution Contracts
+- Parent Epic: APO-10 — Planning & Execution Contracts
 - Executor: GPT-5.6 Luna xHigh
 - Planner / acceptance authority: GPT-5.6 Sol
-- Jira status: In Progress
-- Jira implementation-start comment: `12036`
-- Jira implementation-handoff comment: `12040`
-- Exact `main` base: `7cb94104c25fdb552c010835158e3c7e3eb813fe`
-- Branch: `feat/APO-39-progressive-project-onboarding`
-- Functional implementation commit: `bcbf966`
-- Prior delivery metadata commit: `fe1491d1a1fa3cdcfe30accd919d7dbf59289e6e`; the final state
-  synchronization commit is the current branch head reported in the completion handoff.
-- Draft PR: #10 — https://github.com/Hossam1104/AI-Project-Orchestrator/pull/10
-- PR state: OPEN / DRAFT / UNMERGED; base `main`; merge was not performed
+- Jira: APO-40 In Progress
+- Jira implementation-start comment: \`12043\`
+- Authorized main base: \`ac1b7445f4120304b76845ba307c54111c557ec8\`
+- Feature branch: \`feat/APO-40-versioned-planning-execution-contracts\`
 
-## Bounded scope delivered
+APO-39 is accepted as merged and Done at \`ac1b7445f4120304b76845ba307c54111c557ec8\`.
+The accepted APO-39 source and squash merge share tree
+\`4dfe83703e1899a4e5eb35a1530e0434924eb3db\`.
 
-- Added a four-step WPF New Project flow: Project, Repository, Tracker, and AI Roles.
-- Reused `Project`, `ProjectEdit`, `IProjectRepository`, `ProjectRegistryService`, and the
-  existing versioned JSON project store; no new registry, database, cloud backend, or persistence
-  root was introduced.
-- Reused `ILocalRepositoryInspector`, `LocalRepositoryInspection`, and
-  `RepositoryStateSnapshot` for safe, read-only local Git evidence.
-- Added reference-only tracker setup with explicit Skipped, ConfiguredUnverified, and
-  NotConfigured truth; no tracker API, OAuth, PAT, browser, CLI, or credential access was added.
-- Reused the APO-38 agent catalog, registry, project override, and credential-reference contracts.
-  Global defaults are bootstrapped absent-only for Sol, Luna xHigh, Sonnet 5, Opus 5, Terra HIGH,
-  and Gemini 3.7; access, authentication, entitlement, and connection truth remain Unknown.
-- Added GUID-scoped project context references at
-  `%LOCALAPPDATA%\AIUsageMonitor\projects\<guid>\context-reference.json` with contract version 1,
-  repository/tracker/model-role/current-work/policy references, and a truthful next-safe-action.
-- Added explicit context persistence read states and resolver states, including project isolation,
-  embedded ProjectId validation, unsupported-version handling, and incomplete/unavailable states.
-- Added project-specific agent disable restrictions without mutating global defaults or granting
-  capabilities.
-- Existing project editing remains the advanced edit surface; New Project uses progressive
-  onboarding in production composition.
+## Bounded objective
 
-## Truth and safety boundaries
+Implement immutable, inspectable, machine-readable planning/execution contracts with:
 
-- Repository onboarding accepts only existing local inspection evidence; it never probes directly,
-  infers remote connectivity, invents `main`/`master`, stores file contents/diffs/raw command output,
-  or persists secrets.
-- Repository skip is explicit. Detached or unborn Git state requires an explicit branch or skip.
-- Tracker onboarding stores references only and labels configured references unverified.
-- Context references are not orchestration JSONL and do not implement Smart Continue, routing,
-  tracker integration, remote SCM/CI evidence, or runtime execution. APO-43 remains unstarted and
-  not authorized by this handoff.
-- Project creation followed by a later persistence failure is reported as partial; the service never
-  reports Ready without a durable context reference.
+- distinct schema version and planner-authorized revision;
+- project/context binding to an APO-39 Ready context;
+- caller-supplied APO-38 planner identity and effective Planner authorization;
+- bounded work-item and immutable repository target identity;
+- included scope, constraints, forbidden scope, deliverables, validations, acceptance criteria,
+  budgets, stop conditions, and inherited policy references;
+- deterministic SHA-256 content-integrity evidence;
+- GUID-derived project-isolated JSON persistence with create-new/no-overwrite revision files;
+- explicit valid/missing/invalid/integrity/unavailable/future/older schema read states; and
+- focused semantic, lineage, integrity, compatibility, isolation, and DI tests.
 
-## Validation evidence
+Contract schema version is \`1\`. Contract revisions are independent immutable records under:
 
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS; all projects up to date.
-- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore --verbosity minimal`: 367/367 passed, 0 failed,
-  0 skipped — Domain 28, Connection 30, Provider 46, Desktop 80, Infrastructure 183.
-- `git diff --check`: SUCCESS.
-- Changed-line secret scan: CLEAN.
-- Base-to-head scope review: completed; no provider API, tracker runtime, orchestration runtime,
-  routing, database, cloud, or unrelated Story implementation found.
-- GitHub CI: no checks are configured/reported; no CI success is claimed.
+\`projects/<project-guid>/contracts/<contract-guid>/revision-000001.json\`
 
-## Runtime and delivery evidence
+## Required boundaries
 
-- Self-contained single-file `win-x64` publish: SUCCESS.
-- Executable:
-  `D:\AI Tools\Active Projects\AI-Project-Orchestrator\src\AIUsageMonitor.Desktop\bin\Release\net10.0-windows10.0.17763.0\win-x64\publish\AIUsageMonitor.Desktop.exe`
-- Final live process: PID `26360`; window title `AI Project Orchestrator`; `Responding=True`;
-  normal/non-degraded shell with `CAPACITY READY`; exactly one APO process at handoff.
-- The UI navigation probe could not be completed because the Computer Use target could not be
-  foregrounded while an unrelated RMS POS modal owned the active desktop. No interaction with that
-  unrelated app was attempted. The APO process was left running after the bounded probe.
-- `LEFT RUNNING = YES`
-- Branch was pushed and exactly one Draft PR (#10) was created against `main`; it remains unmerged.
-- Keep Jira APO-39 In Progress. APO-38 remains Done; APO-43 and APO-44 remain To Do and
-  unauthorized.
+This task is data and validation only. Do not implement APO-41 dependency graphs/scheduling,
+APO-42 handoff package generation, APO-43 Smart Continue/checkpoints, APO-44 routing, APO-45
+execution, tracker integration, validation/approval engines, model invocation, prompt transport,
+worktree creation, Git mutation, remote SCM, or a contract designer UI.
 
-## Required next planner boundary
+APO-41, APO-42, APO-43, APO-44, and APO-45 remain unauthorized and must remain To Do.
 
-Prompt 3/5 APO-39 implementation complete. Draft PR remains OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head acceptance review. APO-40, APO-43, and APO-44 remain NOT AUTHORIZED.
+## Required validation
+
+Run restore, build with zero warnings/errors, focused contract/repository/integrity/compatibility/
+isolation/DI tests, full solution tests, \`git diff --check\`, credential-shaped scans, and a
+base-to-head scope review. Push this branch and create exactly one OPEN/DRAFT/UNMERGED PR against
+\`main\`; do not merge or mark APO-40 Done.
+
+At final handoff, replace this file with a Sol acceptance handoff for APO-40 and stop.

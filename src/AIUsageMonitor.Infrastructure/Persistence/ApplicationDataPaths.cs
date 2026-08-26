@@ -112,6 +112,31 @@ public sealed class ApplicationDataPaths
     public string GetProjectContextReferenceFile(Guid projectId) =>
         GetProjectPaths(projectId).ContextReferenceFile;
 
+    public string GetProjectContractsDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).ContractsDirectory;
+
+    public string GetPlanningExecutionContractDirectory(Guid projectId, Guid contractId)
+    {
+        if (contractId == Guid.Empty)
+        {
+            throw new ArgumentException("Contract id cannot be empty.", nameof(contractId));
+        }
+
+        return Path.Combine(GetProjectContractsDirectory(projectId), contractId.ToString("D"));
+    }
+
+    public string GetPlanningExecutionContractRevisionFile(Guid projectId, Guid contractId, int revision)
+    {
+        if (revision <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(revision));
+        }
+
+        return Path.Combine(
+            GetPlanningExecutionContractDirectory(projectId, contractId),
+            $"revision-{revision:D6}.json");
+    }
+
     public string GetProjectRunsDirectory(Guid projectId) => GetProjectPaths(projectId).RunsDirectory;
 
     public string GetProjectEvidenceDirectory(Guid projectId) => GetProjectPaths(projectId).EvidenceDirectory;
@@ -126,6 +151,7 @@ public sealed class ApplicationDataPaths
         EnsureDirectories();
         Directory.CreateDirectory(projectPaths.RootDirectory);
         Directory.CreateDirectory(projectPaths.OrchestrationDirectory);
+        Directory.CreateDirectory(projectPaths.ContractsDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
@@ -160,6 +186,7 @@ public sealed class ProjectDataPaths
         EvidenceDirectory = Path.Combine(OrchestrationDirectory, "evidence");
         ReviewsDirectory = Path.Combine(OrchestrationDirectory, "reviews");
         ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
+        ContractsDirectory = Path.Combine(rootDirectory, "contracts");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
         AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
         ContextReferenceFile = Path.Combine(rootDirectory, "context-reference.json");
@@ -178,6 +205,8 @@ public sealed class ProjectDataPaths
     public string ReviewsDirectory { get; }
 
     public string ActivityDirectory { get; }
+
+    public string ContractsDirectory { get; }
 
     public string RoutingPolicyFile { get; }
 

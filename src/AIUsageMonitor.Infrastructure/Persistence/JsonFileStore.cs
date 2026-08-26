@@ -150,6 +150,16 @@ public sealed class JsonFileStore
         CancellationToken cancellationToken = default) =>
         ExecuteExclusiveAsync(path, () => WriteCoreAsync(path, payload, cancellationToken), cancellationToken);
 
+    /// <summary>
+    /// Creates a versioned document without replacing an existing destination. The final move
+    /// deliberately uses no-overwrite semantics so immutable stores can safely reject races.
+    /// </summary>
+    public Task CreateNewAsync<T>(
+        string path,
+        T payload,
+        CancellationToken cancellationToken = default) =>
+        ExecuteExclusiveAsync(path, () => CreateNewCoreAsync(path, payload, cancellationToken), cancellationToken);
+
     internal async Task WriteCoreAsync<T>(
         string path,
         T payload,
@@ -165,6 +175,23 @@ public sealed class JsonFileStore
 
         var json = JsonSerializer.Serialize(envelope, SerializerOptions);
         await AtomicWriteTextAsync(path, json, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal async Task CreateNewCoreAsync<T>(
+        string path,
+        T payload,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        var envelope = new VersionedDocument<T>
+        {
+            SchemaVersion = CurrentSchemaVersion,
+            Payload = payload
+        };
+
+        var json = JsonSerializer.Serialize(envelope, SerializerOptions);
+        await AtomicCreateTextAsync(path, json, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task TryQuarantineAsync(string path, string reason)
@@ -230,6 +257,46 @@ public sealed class JsonFileStore
             {
                 File.Move(temporaryPath, path);
             }
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
+    }
+
+    private static async Task AtomicCreateTextAsync(string path, string content, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            throw new ArgumentException("The JSON destination must include a directory.", nameof(path));
+        }
+
+        Directory.CreateDirectory(directory);
+        var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
+
+        try
+        {
+            await using (var stream = new FileStream(
+                temporaryPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 16 * 1024,
+                options: FileOptions.Asynchronous | FileOptions.SequentialScan))
+            {
+                var bytes = Encoding.UTF8.GetBytes(content);
+                await stream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream.Flush(flushToDisk: true);
+            }
+
+            // File.Move without overwrite is the create-new finalization. If another writer won
+            // the race, the existing immutable destination remains untouched and this throws.
+            File.Move(temporaryPath, path);
         }
         finally
         {
