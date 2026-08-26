@@ -115,6 +115,22 @@ public sealed class ApplicationDataPaths
     public string GetProjectWorkGraphsDirectory(Guid projectId) =>
         GetProjectPaths(projectId).WorkGraphsDirectory;
 
+    public string GetProjectHandoffsDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).HandoffsDirectory;
+
+    public string GetHandoffPackageDirectory(Guid projectId, Guid packageId)
+    {
+        if (packageId == Guid.Empty)
+        {
+            throw new ArgumentException("Package id cannot be empty.", nameof(packageId));
+        }
+
+        return Path.Combine(GetProjectHandoffsDirectory(projectId), packageId.ToString("D"));
+    }
+
+    public string GetHandoffPackageFile(Guid projectId, Guid packageId) =>
+        Path.Combine(GetHandoffPackageDirectory(projectId, packageId), "package.json");
+
     public string GetWorkGraphDirectory(Guid projectId, Guid graphId)
     {
         if (graphId == Guid.Empty)
@@ -184,6 +200,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.OrchestrationDirectory);
         Directory.CreateDirectory(projectPaths.ContractsDirectory);
         Directory.CreateDirectory(projectPaths.WorkGraphsDirectory);
+        Directory.CreateDirectory(projectPaths.HandoffsDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
@@ -220,6 +237,7 @@ public sealed class ProjectDataPaths
         ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
         ContractsDirectory = Path.Combine(rootDirectory, "contracts");
         WorkGraphsDirectory = Path.Combine(rootDirectory, "work-graphs");
+        HandoffsDirectory = Path.Combine(rootDirectory, "handoffs");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
         AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
         ContextReferenceFile = Path.Combine(rootDirectory, "context-reference.json");
@@ -243,6 +261,9 @@ public sealed class ProjectDataPaths
 
     /// <summary>Immutable dependency-aware graph snapshots for this project.</summary>
     public string WorkGraphsDirectory { get; }
+
+    /// <summary>Immutable planner/executor/reviewer lifecycle packages for this project.</summary>
+    public string HandoffsDirectory { get; }
 
     public string RoutingPolicyFile { get; }
 
