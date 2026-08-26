@@ -175,11 +175,67 @@ public sealed class WorkGraphPersistenceTests
         Assert.Equal(WorkGraphCompletionEvidenceWriteStatus.Conflict, conflict.Status);
         Assert.Equal(originalBytes, await File.ReadAllBytesAsync(path));
         Assert.Equal(WorkGraphCompletionEvidenceReadState.Valid, read.State);
-        Assert.Equal(WorkGraphCompletionState.Succeeded, Assert.Single(read.Evidence).State);
+        var readEvidence = Assert.Single(read.Evidence);
+        Assert.Equal(WorkGraphCompletionState.Succeeded, readEvidence.State);
+        Assert.Equal(64, evidence.ContentHash.Length);
+        Assert.Equal(
+            WorkGraphCompletionEvidenceIntegrity.ComputeContentHash(evidence),
+            evidence.ContentHash);
+        Assert.Equal(evidence.ContentHash, readEvidence.ContentHash);
+        Assert.Equal(evidence.ContentHash, ReadPayload(path)["contentHash"]!.GetValue<string>());
         Assert.Contains(
             $"work-graphs{Path.DirectorySeparatorChar}{graph.GraphId:D}{Path.DirectorySeparatorChar}completion-evidence",
             path,
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceStateTamperingIsIntegrityFailureAndRemainsObservational()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload["state"] = (int)WorkGraphCompletionState.Succeeded);
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceContentHashTamperingIsIntegrityFailure()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload["contentHash"] = new string('b', 64));
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceMissingContentHashIsIntegrityFailure()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload.Remove("contentHash"));
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceMalformedContentHashIsIntegrityFailure()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload["contentHash"] = "not-a-sha256");
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceReferenceTamperingIsIntegrityFailure()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload["evidenceReference"] = "evidence:tampered");
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceRecordedAtTamperingIsIntegrityFailure()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload["recordedAt"] = "2026-08-27T12:01:00+00:00");
+    }
+
+    [Fact]
+    public async Task CompletionEvidenceBindingFieldTamperingIsIntegrityFailure()
+    {
+        await AssertIntegrityFailureAndPreservesFileAsync(
+            static payload => payload["contractRevision"] = 2);
     }
 
     [Fact]
@@ -307,6 +363,36 @@ public sealed class WorkGraphPersistenceTests
         var root = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
         update(root["payload"]!.AsObject());
         File.WriteAllText(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    private static JsonObject ReadPayload(string path) =>
+        JsonNode.Parse(File.ReadAllText(path))!["payload"]!.AsObject();
+
+    private static async Task AssertIntegrityFailureAndPreservesFileAsync(
+        Action<JsonObject> tamper)
+    {
+        using var store = new TemporaryStore();
+        var repository = CreateEvidenceRepository(store);
+        var graph = CreateGraph(ProjectA);
+        var evidence = CreateEvidence(graph, WorkGraphCompletionState.Failed);
+        var path = store.Paths.GetWorkGraphCompletionEvidenceFile(
+            graph.ProjectId,
+            graph.GraphId,
+            evidence.NodeId);
+
+        Assert.Equal(WorkGraphCompletionEvidenceWriteStatus.Created, (await repository.CreateAsync(evidence)).Status);
+        ReplacePayload(path, tamper);
+        var originalBytes = await File.ReadAllBytesAsync(path);
+
+        var first = await repository.ReadForGraphAsync(graph.ProjectId, graph.Reference);
+        var second = await repository.ReadForGraphAsync(graph.ProjectId, graph.Reference);
+
+        Assert.Equal(WorkGraphCompletionEvidenceReadState.IntegrityFailure, first.State);
+        Assert.Equal(WorkGraphCompletionEvidenceReadState.IntegrityFailure, second.State);
+        Assert.Empty(first.Evidence);
+        Assert.Empty(second.Evidence);
+        Assert.Equal(originalBytes, await File.ReadAllBytesAsync(path));
+        Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(path)!, "*.bak"));
     }
 
     private static readonly Guid ProjectA = Guid.Parse("11111111-1111-1111-1111-111111111111");

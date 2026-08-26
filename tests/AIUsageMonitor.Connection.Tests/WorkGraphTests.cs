@@ -175,6 +175,49 @@ public sealed class WorkGraphTests
         Assert.Contains("sha256:", graph.Reference.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CompletionEvidenceCalculatesAndValidatesDeterministicContentHash()
+    {
+        var graph = CreateGraph(Nodes(Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")));
+        var evidenceId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        var recordedAt = new DateTimeOffset(2026, 8, 26, 12, 1, 0, TimeSpan.Zero);
+        var evidence = new WorkGraphCompletionEvidence(
+            evidenceId,
+            graph.ProjectId,
+            graph.Reference,
+            graph.Nodes[0].NodeId,
+            graph.Nodes[0].ContractReference,
+            WorkGraphCompletionState.Failed,
+            "evidence:failed",
+            recordedAt);
+        var equivalent = new WorkGraphCompletionEvidence(
+            evidenceId,
+            graph.ProjectId,
+            graph.Reference,
+            graph.Nodes[0].NodeId,
+            graph.Nodes[0].ContractReference,
+            WorkGraphCompletionState.Failed,
+            "evidence:failed",
+            recordedAt,
+            evidence.ContentHash.ToUpperInvariant());
+
+        Assert.Equal(64, evidence.ContentHash.Length);
+        Assert.Equal(
+            WorkGraphCompletionEvidenceIntegrity.ComputeContentHash(evidence),
+            evidence.ContentHash);
+        Assert.Equal(evidence.ContentHash, equivalent.ContentHash);
+        Assert.Throws<ArgumentException>(() => new WorkGraphCompletionEvidence(
+            evidenceId,
+            graph.ProjectId,
+            graph.Reference,
+            graph.Nodes[0].NodeId,
+            graph.Nodes[0].ContractReference,
+            WorkGraphCompletionState.Failed,
+            "evidence:failed",
+            recordedAt,
+            new string('b', 64)));
+    }
+
     private static readonly Guid ProjectId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly DateTimeOffset Now = new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
 

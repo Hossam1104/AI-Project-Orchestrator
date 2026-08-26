@@ -30,6 +30,14 @@ public sealed class JsonWorkGraphCompletionEvidenceRepository : IWorkGraphComple
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(evidence);
+        if (!string.Equals(
+                WorkGraphCompletionEvidenceIntegrity.ComputeContentHash(evidence),
+                evidence.ContentHash,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Completion evidence content integrity is invalid.", nameof(evidence));
+        }
+
         var path = _paths.GetWorkGraphCompletionEvidenceFile(
             evidence.ProjectId,
             evidence.GraphReference.GraphId,
@@ -153,13 +161,19 @@ public sealed class JsonWorkGraphCompletionEvidenceRepository : IWorkGraphComple
                 return new(WorkGraphCompletionEvidenceReadState.MigrationRequired, Array.Empty<WorkGraphCompletionEvidence>(), "An explicit work-graph migrator is required.");
             }
 
-            var mapped = MapRecord(fileResult.Value);
-            if (mapped is null)
+            if (!TryMapRecord(fileResult.Value, out var mapped, out var integrityFailure))
             {
-                return new(WorkGraphCompletionEvidenceReadState.Invalid, Array.Empty<WorkGraphCompletionEvidence>(), "Completion evidence is semantically invalid.");
+                return new(
+                    integrityFailure
+                        ? WorkGraphCompletionEvidenceReadState.IntegrityFailure
+                        : WorkGraphCompletionEvidenceReadState.Invalid,
+                    Array.Empty<WorkGraphCompletionEvidence>(),
+                    integrityFailure
+                        ? "Completion evidence content hash does not match its payload."
+                        : "Completion evidence is semantically invalid.");
             }
 
-            if (mapped.ProjectId != projectId || !SameGraphReference(mapped.GraphReference, graphReference))
+            if (mapped!.ProjectId != projectId || !SameGraphReference(mapped.GraphReference, graphReference))
             {
                 return new(WorkGraphCompletionEvidenceReadState.Invalid, Array.Empty<WorkGraphCompletionEvidence>(), "Completion evidence does not belong to the requested graph.");
             }
@@ -194,8 +208,9 @@ public sealed class JsonWorkGraphCompletionEvidenceRepository : IWorkGraphComple
             return new(WorkGraphCompletionEvidenceWriteStatus.Unavailable, "Existing completion evidence is unavailable.");
         }
 
-        var mapped = existing.Status == FileReadStatus.Valid ? MapRecord(existing.Value) : null;
-        if (mapped is not null && SameEvidence(mapped, evidence))
+        if (existing.Status == FileReadStatus.Valid &&
+            TryMapRecord(existing.Value, out var mapped, out _) &&
+            SameEvidence(mapped!, evidence))
         {
             return new(WorkGraphCompletionEvidenceWriteStatus.AlreadyRecorded);
         }
@@ -205,16 +220,35 @@ public sealed class JsonWorkGraphCompletionEvidenceRepository : IWorkGraphComple
             "A different terminal truth already exists for this node.");
     }
 
-    private WorkGraphCompletionEvidence? MapRecord(WorkGraphCompletionEvidenceRecord? record)
+    private bool TryMapRecord(
+        WorkGraphCompletionEvidenceRecord? record,
+        out WorkGraphCompletionEvidence? mapped,
+        out bool integrityFailure)
     {
+        mapped = null;
+        integrityFailure = false;
         if (record is null || !string.Equals(record.RecordType, ExpectedRecordType, StringComparison.Ordinal))
         {
-            return null;
+            return false;
+        }
+
+        if (!WorkGraphReference.IsSha256(record.ContentHash))
+        {
+            integrityFailure = true;
+            return false;
         }
 
         try
         {
-            return record.ToApplication();
+            var candidate = record.ToApplicationForIntegrityValidation();
+            if (!string.Equals(candidate.ContentHash, record.ContentHash, StringComparison.OrdinalIgnoreCase))
+            {
+                integrityFailure = true;
+                return false;
+            }
+
+            mapped = candidate;
+            return true;
         }
         catch (Exception exception) when (
             exception is ArgumentException or
@@ -222,7 +256,7 @@ public sealed class JsonWorkGraphCompletionEvidenceRepository : IWorkGraphComple
             NullReferenceException)
         {
             _logger.LogWarning(exception, "Rejected invalid immutable completion evidence record");
-            return null;
+            return false;
         }
     }
 
@@ -236,7 +270,8 @@ public sealed class JsonWorkGraphCompletionEvidenceRepository : IWorkGraphComple
         SameContractReference(left.ContractReference, right.ContractReference) &&
         left.State == right.State &&
         string.Equals(left.EvidenceReference, right.EvidenceReference, StringComparison.Ordinal) &&
-        left.RecordedAt == right.RecordedAt;
+        left.RecordedAt == right.RecordedAt &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
 
     private static bool SameGraphReference(WorkGraphReference left, WorkGraphReference right) =>
         left.GraphId == right.GraphId &&

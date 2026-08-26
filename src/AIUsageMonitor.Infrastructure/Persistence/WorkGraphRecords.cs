@@ -94,6 +94,7 @@ internal sealed class WorkGraphCompletionEvidenceRecord
     public WorkGraphCompletionState State { get; set; }
     public string EvidenceReference { get; set; } = string.Empty;
     public DateTimeOffset RecordedAt { get; set; }
+    public string? ContentHash { get; set; }
 
     public static WorkGraphCompletionEvidenceRecord FromApplication(
         WorkGraphCompletionEvidence evidence) => new()
@@ -111,10 +112,34 @@ internal sealed class WorkGraphCompletionEvidenceRecord
         ContractContentHash = evidence.ContractReference.ContentHash,
         State = evidence.State,
         EvidenceReference = evidence.EvidenceReference,
-        RecordedAt = evidence.RecordedAt
+        RecordedAt = evidence.RecordedAt,
+        ContentHash = evidence.ContentHash
     };
 
-    public WorkGraphCompletionEvidence ToApplication() => new(
+    public WorkGraphCompletionEvidence ToApplication()
+    {
+        if (ContentHash is null)
+        {
+            throw new ArgumentException("Completion evidence content hash is missing.", nameof(ContentHash));
+        }
+
+        return new(
+            EvidenceId,
+            ProjectId,
+            new WorkGraphReference(GraphId, GraphSchemaVersion, GraphContentHash),
+            NodeId,
+            new PlanningExecutionContractReference(
+                ContractId,
+                ContractRevision,
+                ContractSchemaVersion,
+                ContractContentHash),
+            State,
+            EvidenceReference,
+            RecordedAt,
+            ContentHash);
+    }
+
+    public WorkGraphCompletionEvidence ToApplicationForIntegrityValidation() => new(
         EvidenceId,
         ProjectId,
         new WorkGraphReference(GraphId, GraphSchemaVersion, GraphContentHash),

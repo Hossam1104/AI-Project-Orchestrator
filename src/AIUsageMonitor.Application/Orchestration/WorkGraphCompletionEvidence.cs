@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using AIUsageMonitor.Application.Planning;
 
 namespace AIUsageMonitor.Application.Orchestration;
@@ -23,7 +26,8 @@ public sealed class WorkGraphCompletionEvidence
         PlanningExecutionContractReference contractReference,
         WorkGraphCompletionState state,
         string evidenceReference,
-        DateTimeOffset recordedAt)
+        DateTimeOffset recordedAt,
+        string? contentHash = null)
     {
         if (evidenceId == Guid.Empty)
         {
@@ -74,6 +78,19 @@ public sealed class WorkGraphCompletionEvidence
         State = state;
         EvidenceReference = normalizedReference;
         RecordedAt = recordedAt;
+
+        ContentHash = string.Empty;
+        var calculatedHash = WorkGraphCompletionEvidenceIntegrity.ComputeContentHash(this);
+        if (contentHash is not null &&
+            (!WorkGraphReference.IsSha256(contentHash) ||
+             !string.Equals(contentHash, calculatedHash, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException(
+                "The supplied completion evidence content hash does not match the evidence payload.",
+                nameof(contentHash));
+        }
+
+        ContentHash = calculatedHash;
     }
 
     public Guid EvidenceId { get; }
@@ -92,4 +109,48 @@ public sealed class WorkGraphCompletionEvidence
     public string EvidenceReference { get; }
 
     public DateTimeOffset RecordedAt { get; }
+
+    /// <summary>SHA-256 content-integrity evidence, not a signature or authenticity proof.</summary>
+    public string ContentHash { get; }
+}
+
+/// <summary>Computes deterministic SHA-256 integrity over terminal completion evidence.</summary>
+public static class WorkGraphCompletionEvidenceIntegrity
+{
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.General)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
+
+    public static string ComputeContentHash(WorkGraphCompletionEvidence evidence)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+
+        var payload = new
+        {
+            evidence.EvidenceId,
+            evidence.ProjectId,
+            graphReference = new
+            {
+                evidence.GraphReference.GraphId,
+                evidence.GraphReference.SchemaVersion,
+                evidence.GraphReference.ContentHash
+            },
+            evidence.NodeId,
+            contractReference = new
+            {
+                evidence.ContractReference.ContractId,
+                evidence.ContractReference.Revision,
+                evidence.ContractReference.SchemaVersion,
+                evidence.ContractReference.ContentHash
+            },
+            evidence.State,
+            evidence.EvidenceReference,
+            evidence.RecordedAt
+        };
+
+        var json = JsonSerializer.Serialize(payload, SerializerOptions);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json))).ToLowerInvariant();
+    }
 }
