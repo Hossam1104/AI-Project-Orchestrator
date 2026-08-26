@@ -29,12 +29,13 @@
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**AUTHORITATIVE CURRENT TRUTH (APO-41):** The legacy Prompt-5 summary below is historical and
-superseded by the APO-41 handoff section immediately following this header.
+**AUTHORITATIVE CURRENT TRUTH (APO-41):** The original APO-41 implementation handoff and the
+legacy Prompt-5 summary below are historical and superseded by the SOL-41-01 remediation handoff
+section immediately following this header.
 **Current Story (authoritative):** APO-41 - Implement Dependency-Aware Work Graph and Scheduling Semantics.
 **Current Epic (authoritative):** APO-10 - Planning & Execution Contracts.
-**Status (authoritative):** IN PROGRESS / PROMPT 1/5 AFTER OPUS CHECKPOINT; Draft PR #13 OPEN / DRAFT / UNMERGED.
-**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the APO-41 implementation PR.
+**Status (authoritative):** IN PROGRESS / PROMPT 1/5R; SOL-41-01 REMEDIATED - AWAITING SOL EXACT-HEAD ACCEPTANCE; Draft PR #13 OPEN / DRAFT / UNMERGED.
+**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the SOL-41-01 APO-41 remediation.
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
 **Status:** IN PROGRESS / PROMPT 5/5B / FOUNDATION REMEDIATION COMPLETE; Draft PR #12 OPEN / DRAFT / UNMERGED.
@@ -42,13 +43,72 @@ superseded by the APO-41 handoff section immediately following this header.
 **APO-38:** COMPLETE / MERGED / DONE at `7cb94104c25fdb552c010835158e3c7e3eb813fe`.
 **APO-39:** COMPLETE / MERGED / DONE at `ac1b7445f4120304b76845ba307c54111c557ec8`.
 **APO-39 accepted source / merge tree:** `4dfe83703e1899a4e5eb35a1530e0434924eb3db`.
-**APO-40:** IN PROGRESS / PROMPT 4/5.
-**APO-41:** TO DO / NOT AUTHORIZED.
+**APO-40:** COMPLETE / MERGED / DONE at `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
+**APO-41:** IN PROGRESS / PROMPT 1/5R; SOL-41-01 REMEDIATED - AWAITING SOL EXACT-HEAD ACCEPTANCE.
 **APO-42:** TO DO / NOT AUTHORIZED.
 **APO-43:** TO DO / NOT AUTHORIZED.
 **APO-44:** TO DO / NOT AUTHORIZED.
 **APO-45:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+
+## 27. APO-41 SOL-41-01 Terminal Completion Evidence Integrity Remediation (Prompt 1/5R)
+
+**Lifecycle:** APO-41 Prompt 1/5 implementation -> GPT-5.6 Sol exact-head review `CHANGES
+REQUIRED` -> blocking finding `SOL-41-01` -> bounded remediation -> validation -> functional
+commit -> governance handoff. Claude Opus and Claude Sonnet were not invoked.
+
+**Exact delivery identity:**
+
+- Original APO-41 functional SHA: `cb23c85cf51747cadbb6aafd5612b886d987ec2c`.
+- Original metadata handoff / remediation starting SHA: `0a44e7cf1f6af1d5c285d4018120d878a135c7ae`.
+- Direct parent of the remediation: `0a44e7cf1f6af1d5c285d4018120d878a135c7ae`.
+- SOL-41-01 functional remediation SHA: `490fc77c631710d5690f88637556968e2f5b53bc`.
+- Branch: `feat/APO-41-dependency-aware-work-graph`.
+- Required `origin/main` base remains `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
+- PR #13 remains `OPEN / DRAFT / UNMERGED` against `main`.
+- Jira APO-41 remains `In Progress`; remediation comment `12133`.
+
+**SOL-41-01 = REMEDIATED — AWAITING SOL ACCEPTANCE.** Work-graph definition integrity was
+already protected. SOL-41-01 adds equivalent payload-integrity detection to create-once terminal
+completion evidence so semantically valid on-disk edits cannot silently become trusted terminal
+scheduling truth.
+
+`WorkGraphCompletionEvidence` now calculates deterministic SHA-256 content-integrity evidence over
+EvidenceId, ProjectId, graph identity/schema/hash, NodeId, contract identity/revision/schema/hash,
+terminal State, EvidenceReference, and RecordedAt, excluding ContentHash itself. The immutable
+application constructor calculates new hashes and validates supplied persisted hashes. The
+completion-evidence JSON record persists the hash without changing `JsonFileStore.CurrentSchemaVersion`.
+The repository verifies the hash before writes and on observational reads; missing, malformed, or
+mismatching hashes return `IntegrityFailure` with an empty trusted evidence collection. The
+immutable file remains byte-for-byte unchanged and is never repaired, quarantined, renamed, moved,
+deleted, or given a `.bak` artifact. Existing Created, AlreadyRecorded, and Conflict semantics are
+preserved. No scheduler, graph, execution, provider, tracker, Git, UI, or downstream Story scope
+was added.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 513/513 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 131; Provider 46; Desktop 82; Infrastructure 226.
+- Focused `WorkGraphPersistenceTests`: 20/20 passed.
+- Focused APO-41 `WorkGraph*` Connection tests: 51/51 passed.
+- `git diff --check`: clean.
+- Changed-line credential-shaped scan: 0 high-confidence matches.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+Tamper-detection coverage proves Failed -> Succeeded state edits, stored ContentHash edits,
+EvidenceReference edits, RecordedAt edits, binding-field edits, missing hashes, and malformed
+hashes return `IntegrityFailure`, empty evidence, unchanged bytes, and stable repeated results.
+Round-trip coverage verifies a valid 64-character hash is persisted, rehydrated, and equal to the
+canonical calculated hash.
+
+**Runtime:** This remediation explicitly forbids launching APO. `APO PROCESS COUNT = 0` and
+`APPLICATION LEFT RUNNING = NO`.
+
+**Next boundary:** SOL-41-01 remediation complete. APO-41 remains In Progress and PR #13 remains
+OPEN / DRAFT / UNMERGED. Return this result to GPT-5.6 Sol for exact-head acceptance. Do not begin
+APO-42 or any downstream implementation.
 
 ## 26. APO-41 Dependency-Aware Work Graph and Scheduling Semantics (Prompt 1/5 after Opus checkpoint)
 
