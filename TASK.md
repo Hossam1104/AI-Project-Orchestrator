@@ -1,109 +1,127 @@
-# APO-40 Sol Acceptance Handoff — SOL-40-01 and SOL-40-02
+# Prompt 5/5B - OPUS-05 Foundation Remediation Handoff
 
 ## Result
 
-`COMPLETE` — functional remediation and validation complete; awaiting GPT-5.6 Sol exact-head
+`COMPLETE` - functional remediation and validation complete; awaiting GPT-5.6 Sol exact-head
 acceptance.
 
 ## Work item
 
-- Story: APO-40 — Define Versioned Planning and Execution Contracts
-- Remediations: SOL-40-01 durable revision lineage; SOL-40-02 immutable read preservation
+- Story: APO-40 - Define Versioned Planning and Execution Contracts
+- Remediation: OPUS-05-01 and OPUS-05-02 foundation corrections
 - Executor: GPT-5.6 Luna xHigh
 - Planner / acceptance authority: GPT-5.6 Sol
-- Jira status: APO-40 In Progress
-- Exact SOL-40-02 starting head: `17c5af58944679ef43dd2aca59763b2a032f8d99`
-- Authorized main base / origin/main: `ac1b7445f4120304b76845ba307c54111c557ec8`
-- Feature branch: `feat/APO-40-versioned-planning-execution-contracts`
-- Functional remediation SHA: `f5630b5a1c2c121d50bf5ded36732f918c6ba66b`
-- Final exact feature head: recorded in the executor completion report after this metadata-only
-  handoff synchronization
-- Draft PR: #11 — https://github.com/Hossam1104/AI-Project-Orchestrator/pull/11
-- PR state: OPEN / DRAFT / UNMERGED; base `main`; merge and Ready transition were not performed
+- Branch: `fix/OPUS-05-foundation-remediation`
+- Jira status: APO-40 `In Progress`
+- Jira remediation comment: `12125`
 
-## Sol findings
+## Starting state
 
-```text
-SOL-40-01: CLOSED
-SOL-40-02: CLOSED
-```
+- `origin/main`: `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`
+- Starting remediation head: `42993f0944469ac9100ba280f122cd720cd1d533`
+- Sonnet direct parent: `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`
+- Working tree preflight: clean
+- Immutable ref preflight: passed; local and remote remediation refs matched the authorized Sonnet
+  SHA and `origin/main` matched the authorized main SHA.
 
-## Immutable read preservation
+## Merged baseline
 
-`JsonFileStore` has an explicit `ReadPreservingAsync<T>()` API using the same parser/classifier as
-the backward-compatible quarantine-enabled `ReadAsync<T>()`. Only the planning-contract repository
-uses the preserving path. GetAsync, GetLatestAsync, ListRevisionsAsync, and CreateAsync predecessor
-validation therefore perform observational reads over immutable contract evidence.
+APO-40 was merged at `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`; accepted/merged tree was
+`b2668c6d5531bf02a507f9b51eafbb808a3d7e13`; PR #11 is `MERGED`; and APO-40 had reached `Done`
+before the Prompt-5 review.
 
-Required evidence:
+Prompt 5/5 independent Claude Opus review returned `CHANGES REQUIRED`. APO-40's suite was green
+when accepted. OPUS-05-01 discovered a hidden calendar dependency in one Desktop test that caused
+the unchanged merged baseline to become permanently red after the fixture's fixed-clock boundary
+was crossed.
 
-```text
-Corrupt JSON first read: Invalid
-Corrupt JSON second read: Invalid
-Canonical corrupt file preserved: YES
-Missing payload repeated reads: Invalid / Invalid
-Canonical missing-payload file preserved: YES
-Unsupported envelope repeated reads: UnsupportedFutureVersion / UnsupportedFutureVersion
-Canonical unsupported file preserved: YES
-IntegrityFailure repeated reads: IntegrityFailure / IntegrityFailure
-Tampered file preserved: YES
-Broken-lineage files preserved: YES
-Corrupt predecessor check mutates predecessor: NO
-Normal JsonFileStore quarantine regression: PRESERVED
-```
+## OPUS-05-01
 
-No contract read quarantines, renames, moves, overwrites, repairs, migrates, normalizes, or
-replaces the original revision file. Existing ordinary `JsonFileStore.ReadAsync<T>()` quarantine
-behavior remains covered and passing.
+`CLOSED - SOL-VERIFIED`
+
+Claude Sonnet 5's Sol-accepted test-only deterministic clock correction is
+`42993f0944469ac9100ba280f122cd720cd1d533`; its direct parent is the required main SHA. Production
+date validation was not changed and the formerly failing Desktop test remains green (1/1 focused;
+Desktop 82/82 in the full suite).
+
+## OPUS-05-02
+
+`REMEDIATED - AWAITING SOL ACCEPTANCE`
+
+Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`.
+
+The service now binds `LocalGit` belonging to the resolved canonical project context. It rejects
+LocalGit when repository context selection was skipped, accepts a matching registered path using
+the existing `StringComparison.OrdinalIgnoreCase` semantics against both canonical context and
+project paths, and preserves explicit `None` for either context selection. Planner-authorized
+expected branch and HEAD values remain intended target assertions; no live branch/HEAD truth is
+claimed.
+
+This remediation performs no fresh Git inspection, no filesystem probe, no ProjectContext schema
+expansion, and no APO-41 execution verification.
+
+## Changed files
+
+Sonnet:
+
+- `tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`
+
+Luna:
+
+- `src/AIUsageMonitor.Application/Planning/IPlanningExecutionContractService.cs`
+- `src/AIUsageMonitor.Application/Planning/PlanningExecutionContractService.cs`
+- `tests/AIUsageMonitor.Connection.Tests/PlanningExecutionContractServiceTests.cs`
+
+Metadata:
+
+- `.ai/CURRENT_STATE.md`
+- `TASK.md`
 
 ## Validation
 
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS; all projects up to date.
-- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 435/435 passed, 0 failed, 0 skipped.
-- Exact totals: Domain 28; Connection 73; Provider 46; Desktop 82; Infrastructure 206.
-- Focused SOL-40-02 and mutable-store tests: 29/29 passed.
+- Restore: SUCCESS.
+- Build: SUCCESS; 0 warnings, 0 errors.
+- Full solution tests: 442/442 passed; 0 failed; 0 skipped.
+- Totals: Domain 28; Connection 80; Provider 46; Desktop 82; Infrastructure 206.
+- `PlanningExecutionContractServiceTests`: 18/18 passed.
+- Former OPUS-05-01 Desktop test: 1/1 passed.
+- APO-40 persistence lineage and immutable-read tests: 22/22 passed.
 - `git diff --check`: clean.
 - Changed-line credential-shaped scan: clean.
-- Base-to-head scope: limited to the shared JSON read policy, immutable contract read routing, and
-  focused preservation/regression tests; no downstream Story or unrelated product work.
 - GitHub CI: `NONE / NOT CLAIMED`.
 
-## Explicit exclusions
+## Git and PR
 
-APO-40 did not implement APO-41 DAG/scheduling, APO-42 handoff package generation, APO-43 Smart
-Continue/checkpoints, APO-44 routing, APO-45 execution, APO-47 tracker integration, APO-48
-validation execution/gates, APO-49 approval gates, model invocation, prompt transport, worktree
-creation, Git mutation, remote SCM integration, or a contract designer UI.
+- Sonnet SHA: `42993f0944469ac9100ba280f122cd720cd1d533`
+- Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`
+- Functional push: normal push; no rebase or force push.
+- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`, merged = `NO`; its exact final head is
+  recorded after the metadata-only handoff synchronization and in the executor completion report.
+- Metadata reconciliation commit: `8a1da32764133954875e503c658a59c4fa3d5661`.
 
-## Jira state
+## Jira
 
-```text
-APO-39: Done
-APO-40: In Progress
-APO-41: To Do
-APO-42: To Do
-APO-43: To Do
-APO-44: To Do
-APO-45: To Do
-```
+- APO-40: `In Progress` after the required `Done -> In Progress` remediation transition.
+- Remediation-start comment ID: `12125`.
+- Post-synchronization handoff comment ID: `12126`.
+- APO-41: `To Do` / `NOT AUTHORIZED`.
+- APO-42: `To Do` / `NOT AUTHORIZED`.
+- APO-43: `To Do` / `NOT AUTHORIZED`.
+- APO-44: `To Do` / `NOT AUTHORIZED`.
+- APO-45: `To Do` / `NOT AUTHORIZED`.
 
-The remediation handoff comment is added after the final metadata synchronization and its ID is
-reported in the executor completion report. Downstream Stories remain unauthorized.
+## Deferred findings and runtime
 
-## Runtime
+`OPUS-05-03..11 = NOT IMPLEMENTED`; all are recorded as `NON-BLOCKING / DEFERRED FOR PLANNER
+DISPOSITION`. `OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+`OPUS-05-10 IS DESIGN INPUT FOR APO-41, NOT A CURRENT CODE DEFECT`.
 
-The SOL-40-02 contract explicitly requires no application launch:
+`APO PROCESS COUNT = 0`
 
-```text
-APO PROCESS COUNT = 0
-APPLICATION LEFT RUNNING = NO
-```
-
-No APO desktop process was launched or left running.
+`APPLICATION LEFT RUNNING = NO`
 
 ## Next planner boundary
 
-Prompt 4/5 APO-40 SOL-40-01 and SOL-40-02 remediation complete. Draft PR #11 remains OPEN / DRAFT /
-UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision. APO-41, APO-42,
-APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
+Prompt 5/5 remediation implementation complete. OPUS-05-01 is closed and Sol-verified. OPUS-05-02
+is remediated and awaits GPT-5.6 Sol exact-head acceptance. The remediation PR remains OPEN / DRAFT /
+UNMERGED. APO-41 is NOT AUTHORIZED.

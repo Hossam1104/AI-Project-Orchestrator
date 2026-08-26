@@ -91,7 +91,8 @@ public enum PlanningExecutionContractCreationStatus
     PredecessorMissing,
     PredecessorMismatch,
     RevisionConflict,
-    PersistenceUnavailable
+    PersistenceUnavailable,
+    RepositoryTargetMismatch
 }
 
 public sealed record PlanningExecutionContractCreationResult(

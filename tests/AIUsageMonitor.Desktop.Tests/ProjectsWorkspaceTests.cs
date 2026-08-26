@@ -211,8 +211,8 @@ public sealed class ProjectsWorkspaceTests
             "C:\\alpha",
             "main",
             ProjectStatus.Active,
-            DateTimeOffset.UtcNow.AddDays(-2),
-            DateTimeOffset.UtcNow.AddDays(-1),
+            EditorViewModelFixedClock.AddDays(-2),
+            EditorViewModelFixedClock.AddDays(-1),
             repositoryProvider: "GitHub",
             repositoryUrl: "https://example.invalid/alpha",
             repositoryId: "alpha-1",
@@ -634,10 +634,11 @@ public sealed class ProjectsWorkspaceTests
         Assert.True(viewModel.IsAiCapacitySelected);
     }
 
+    private static readonly DateTimeOffset EditorViewModelFixedClock =
+        new(2026, 8, 24, 12, 0, 0, TimeSpan.Zero);
+
     private static ProjectsViewModel CreateViewModel(FakeProjectRepository repository) =>
-        new(new ProjectRegistryService(
-            repository,
-            new FixedClock(new DateTimeOffset(2026, 8, 24, 12, 0, 0, TimeSpan.Zero))));
+        new(new ProjectRegistryService(repository, new FixedClock(EditorViewModelFixedClock)));
 
     private static Project CreateProject(
         string name,

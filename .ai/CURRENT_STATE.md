@@ -31,8 +31,8 @@
 **Default Branch:** `main`
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
-**Status:** IN PROGRESS / PROMPT 4/5 / IMPLEMENTATION COMPLETE; Draft PR OPEN / DRAFT / UNMERGED.
-**Next action:** GPT-5.6 Sol exact-head acceptance review for APO-40.
+**Status:** IN PROGRESS / PROMPT 5/5B / FOUNDATION REMEDIATION COMPLETE; Draft PR #12 OPEN / DRAFT / UNMERGED.
+**Next action:** GPT-5.6 Sol exact-head acceptance of the Prompt-5 remediation PR.
 **APO-38:** COMPLETE / MERGED / DONE at `7cb94104c25fdb552c010835158e3c7e3eb813fe`.
 **APO-39:** COMPLETE / MERGED / DONE at `ac1b7445f4120304b76845ba307c54111c557ec8`.
 **APO-39 accepted source / merge tree:** `4dfe83703e1899a4e5eb35a1530e0434924eb3db`.
@@ -2296,3 +2296,117 @@ Runtime verification for this remediation is intentionally stopped by the SOL-40
 Next planner boundary: Prompt 4/5 APO-40 SOL-40-01 and SOL-40-02 remediation complete. Draft PR #11
 remains OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge
 decision. APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
+
+## 25. Prompt 5/5B - OPUS-05 Foundation Remediation Handoff
+
+Prompt 5/5 independent Claude Opus review returned `CHANGES REQUIRED`. GPT-5.6 Sol dispositioned
+OPUS-05-01 as closed and authorized this bounded OPUS-05-02 correction. The historic APO-40
+acceptance result was not fabricated: APO-40's suite was green when accepted. OPUS-05-01 discovered
+a hidden calendar dependency in one Desktop test that caused the unchanged merged baseline to become
+permanently red after the fixture's fixed-clock boundary was crossed.
+
+### Merged baseline
+
+- APO-40 was merged at `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`.
+- The accepted/merged tree was `b2668c6d5531bf02a507f9b51eafbb808a3d7e13`.
+- PR #11 is `MERGED`.
+- APO-40 had reached Jira `Done` before the Prompt-5 review.
+- `origin/main` remains `6f3b50ac3728544c4d183cfeda65d78441a9c4d8`.
+
+### OPUS-05-01 - CLOSED / SOL-VERIFIED
+
+Claude Sonnet 5's Sol-accepted correction remains unchanged at
+`42993f0944469ac9100ba280f122cd720cd1d533`, with direct parent
+`6f3b50ac3728544c4d183cfeda65d78441a9c4d8`. It is a test-only deterministic clock fixture in
+`tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`; production date validation was not
+modified. The formerly failing Desktop test remains green (1/1 focused; Desktop 82/82 in the full
+suite).
+
+### OPUS-05-02 - REMEDIATED / AWAITING SOL EXACT-HEAD ACCEPTANCE
+
+GPT-5.6 Luna functional remediation commit:
+`28b5ad66681451900cf21b78540059b513184f5e`.
+
+The service now binds a requested `LocalGit` target to the resolved canonical APO-39 project context:
+
+- explicit `PlanningRepositoryMode.None` remains valid for both `Skipped` and `Inspect` contexts;
+- `LocalGit` is rejected with `RepositoryTargetMismatch` when canonical repository selection was
+  `Skipped`;
+- `LocalGit.RegisteredLocalPath` must match both the canonical context registered path and the
+  resolved project local path using `StringComparison.OrdinalIgnoreCase`;
+- planner-authorized expected branch and HEAD assertions are retained in the immutable contract,
+  without claiming they were live re-verified by this service; and
+- no fresh filesystem probe or Git call is made, no branch/HEAD truth is fabricated, and
+  `ProjectContextReference` v1 is not expanded.
+
+The correction is covered by focused service tests for skipped/None, skipped/LocalGit rejection,
+inspected matching LocalGit, inspected foreign LocalGit rejection, casing-only path equivalence,
+inspected/None, and rejected foreign LocalGit on a later revision. Durable lineage and immutable
+read behavior remain unchanged.
+
+### Prompt-5 changed files
+
+Sonnet change:
+
+- `tests/AIUsageMonitor.Desktop.Tests/ProjectsWorkspaceTests.cs`
+
+Luna product/test changes:
+
+- `src/AIUsageMonitor.Application/Planning/IPlanningExecutionContractService.cs`
+- `src/AIUsageMonitor.Application/Planning/PlanningExecutionContractService.cs`
+- `tests/AIUsageMonitor.Connection.Tests/PlanningExecutionContractServiceTests.cs`
+
+Governance handoff changes:
+
+- `.ai/CURRENT_STATE.md`
+- `TASK.md`
+
+No Infrastructure persistence, ProjectContext schema, provider, Git inspection, routing, execution,
+or downstream Story implementation was added.
+
+### Validation evidence
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 442/442 passed; 0 failed; 0 skipped.
+- Exact totals: Domain 28; Connection 80; Provider 46; Desktop 82; Infrastructure 206.
+- All `PlanningExecutionContractServiceTests`: 18/18 passed.
+- Former OPUS-05-01 Desktop test: 1/1 passed.
+- APO-40 persistence lineage and immutable-read class: 22/22 passed.
+- `git diff --check`: clean.
+- Changed-line credential-shaped scan: clean.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+### GitHub and Jira handoff
+
+- Remediation branch: `fix/OPUS-05-foundation-remediation`.
+- Starting Sonnet SHA: `42993f0944469ac9100ba280f122cd720cd1d533`.
+- Luna functional SHA: `28b5ad66681451900cf21b78540059b513184f5e`.
+- Draft PR #12: `OPEN / DRAFT / UNMERGED`, base `main`; its exact final head is recorded in the
+  executor completion report after the metadata-only handoff synchronization.
+- PR #12 was created after confirming no existing open PR used this remediation branch.
+- Jira APO-40 was reopened from `Done` to `In Progress` for remediation.
+- Jira remediation-start comment: `12125`.
+- Jira post-synchronization handoff comment: `12126`.
+- APO-40 remains `In Progress`; APO-41, APO-42, APO-43, APO-44, and APO-45 remain `To Do` and
+  unauthorized.
+- No rebase, force push, merge, Ready transition, or downstream Story transition was performed.
+
+### Non-blocking Opus follow-ups
+
+`OPUS-05-03` through `OPUS-05-11` are `NON-BLOCKING / DEFERRED FOR PLANNER DISPOSITION` and were
+not implemented in this remediation. `OPUS-05-05 MUST BE CLOSED BEFORE
+JsonFileStore.CurrentSchemaVersion IS INCREMENTED`. `OPUS-05-10 IS DESIGN INPUT FOR APO-41, NOT A
+CURRENT CODE DEFECT`.
+
+### Runtime and next planner boundary
+
+This prompt explicitly forbids launching APO:
+
+`APO PROCESS COUNT = 0`
+
+`APPLICATION LEFT RUNNING = NO`
+
+Prompt 5/5B remediation implementation is complete. OPUS-05-01 is closed and Sol-verified.
+OPUS-05-02 is remediated and awaits GPT-5.6 Sol exact-head acceptance. Draft PR #12 remains OPEN /
+DRAFT / UNMERGED. APO-41 is NOT AUTHORIZED.
