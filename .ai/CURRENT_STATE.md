@@ -29,6 +29,12 @@
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
+**AUTHORITATIVE CURRENT TRUTH (APO-41):** The legacy Prompt-5 summary below is historical and
+superseded by the APO-41 handoff section immediately following this header.
+**Current Story (authoritative):** APO-41 - Implement Dependency-Aware Work Graph and Scheduling Semantics.
+**Current Epic (authoritative):** APO-10 - Planning & Execution Contracts.
+**Status (authoritative):** IN PROGRESS / PROMPT 1/5 AFTER OPUS CHECKPOINT; Draft PR #13 OPEN / DRAFT / UNMERGED.
+**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the APO-41 implementation PR.
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
 **Status:** IN PROGRESS / PROMPT 5/5B / FOUNDATION REMEDIATION COMPLETE; Draft PR #12 OPEN / DRAFT / UNMERGED.
@@ -43,6 +49,46 @@
 **APO-44:** TO DO / NOT AUTHORIZED.
 **APO-45:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+
+## 26. APO-41 Dependency-Aware Work Graph and Scheduling Semantics (Prompt 1/5 after Opus checkpoint)
+
+### Prompt 5 closure
+
+- PR #12 merged.
+- Actual merge: `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
+- Accepted/merged tree: `62103d1b7833a3891d87113dd6b8bd094882cf91`.
+- OPUS-05-01 CLOSED.
+- OPUS-05-02 CLOSED.
+- Prompt 5/5 CLOSED.
+- APO-40 Done.
+
+### APO-41 current handoff
+
+- Jira issue APO-41 (issue id 10869): In Progress; implementation-start comment `12128`.
+- Authorized starting main SHA: `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
+- Authorized starting tree: `62103d1b7833a3891d87113dd6b8bd094882cf91`.
+- Feature branch: `feat/APO-41-dependency-aware-work-graph`.
+- Functional SHA: `cb23c85cf51747cadbb6aafd5612b886d987ec2c`.
+- Draft PR #13: OPEN / DRAFT / UNMERGED against `main`; awaiting Sol acceptance.
+- Validation: full solution 505/505 passed, zero failed/skipped; Domain 28, Connection 130,
+  Provider 46, Desktop 82, Infrastructure 219; focused APO-41 Connection 50 and Infrastructure
+  13; build warnings/errors 0/0.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+The implementation adds immutable, canonical, project-isolated graph authority with stable graph,
+node, and edge identities; exact APO-40 contract binding; create-once terminal completion evidence;
+and a pure deterministic scheduler with dependency, bounded concurrency, budget, and approval gate
+semantics. Missing completion evidence is incomplete/blocked; succeeded prerequisites satisfy;
+failed and skipped prerequisites block. Persistence is JSON under GUID-derived project paths and
+authoritative reads are observational. No executor, provider invocation, tracker sync, Git mutation,
+UI, or APO-42+ work is included.
+
+### Review cycle and next planner boundary
+
+`APO-41 = Prompt 1/5 after Opus checkpoint`
+
+No Opus review is due after this prompt. Await GPT-5.6 Sol exact-head review and acceptance. Do not
+begin APO-42, APO-43, APO-44, APO-45, APO-46, or any executor/tracker/UI integration.
 
 ## 23. APO-40 Versioned Planning and Execution Contracts (Prompt 4/5)
 
