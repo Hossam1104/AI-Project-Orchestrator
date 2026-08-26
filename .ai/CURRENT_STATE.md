@@ -2213,3 +2213,43 @@ unrelated application.
 Next planner boundary: Prompt 3/5 APO-39 SOL-39-01..02 remediation complete. Draft PR #10 remains
 OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
 APO-40, APO-43, and APO-44 remain NOT AUTHORIZED.
+
+## 23. APO-40 Prompt 4/5 — SOL-40-01 Durable Revision Lineage Remediation
+
+SOL-40-01 is CLOSED in functional remediation commit
+`4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf` (`fix: enforce durable planning contract lineage
+APO-40`). The remediation remains on the existing branch
+`feat/APO-40-versioned-planning-execution-contracts`, based on the immutable starting head
+`a733a6b8697652afba76232fd5a19b6891d858ea`; no rebase, force push, merge, replacement PR, or
+downstream Story implementation was performed.
+
+The durable repository boundary now validates immediate predecessor existence and validity before
+create, rejects false predecessor hash/owner/work-item lineage with explicit bounded write results,
+and iteratively validates the complete chain back to revision 1 on Get, List, and Latest reads.
+Self-consistent manually persisted revisions cannot hide a broken predecessor link. Service-side
+lineage validation remains in place as intentional defense-in-depth. ContentHash remains SHA-256
+content-integrity evidence, not a signature or authentication proof.
+
+Required direct repository bypass coverage now proves rejection of revision 2 without revision 1,
+wrong predecessor hash despite a valid revision-2 self-hash, changed owner, and changed work-item
+source/reference/title. Persisted self-consistent wrong-hash and changed-owner records are not
+Valid through GetAsync, ListRevisionsAsync, or GetLatestAsync. Valid 1 → 2 → 3 lineage succeeds,
+and predecessor bytes remain unchanged after later creation.
+
+Validation: restore succeeded; build succeeded with 0 warnings and 0 errors; full solution tests
+passed 432/432 with zero failures/skips — Domain 28, Connection 73, Provider 46, Desktop 82,
+Infrastructure 203. Focused persistence lineage tests passed 19/19 and service tests passed 11/11.
+`git diff --check` and changed-line credential-shaped scan are clean. GitHub CI: NONE / NOT CLAIMED.
+
+PR #11 remains OPEN / DRAFT / UNMERGED against `main`; functional feature SHA before metadata-only
+handoff synchronization is `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf`. Jira remediation comment
+`12082` records SOL-40-01 closure, the functional SHA, exact tests, PR state, and unchanged
+downstream authorization. APO-39 is Done; APO-40 remains In Progress; APO-41, APO-42, APO-43,
+APO-44, and APO-45 remain To Do and unauthorized.
+
+Runtime verification for this remediation: `APO PROCESS COUNT = 0` and
+`APPLICATION LEFT RUNNING = NO`. No APO desktop app was launched.
+
+Next planner boundary: Prompt 4/5 APO-40 SOL-40-01 remediation complete. Draft PR #11 remains
+OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
+APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.

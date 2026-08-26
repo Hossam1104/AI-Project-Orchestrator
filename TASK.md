@@ -1,79 +1,71 @@
-# APO-40 Sol Acceptance Handoff — Versioned Planning and Execution Contracts
+# APO-40 Sol Acceptance Handoff — SOL-40-01 Durable Revision Lineage Remediation
 
 ## Result
 
-`COMPLETE` — implementation and validation complete; awaiting GPT-5.6 Sol exact-head acceptance.
+`COMPLETE` — functional remediation and validation complete; awaiting GPT-5.6 Sol exact-head
+acceptance.
 
 ## Work item
 
 - Story: APO-40 — Define Versioned Planning and Execution Contracts
-- Parent Epic: APO-10 — Planning & Execution Contracts
+- Remediation: SOL-40-01 — enforce durable revision lineage at the repository boundary
 - Executor: GPT-5.6 Luna xHigh
 - Planner / acceptance authority: GPT-5.6 Sol
-- Jira status: In Progress
-- Jira implementation-start comment: `12043`
-- Authorized main base: `ac1b7445f4120304b76845ba307c54111c557ec8`
+- Jira status: In Progress; remediation comment: `12082`
+- Exact starting head: `a733a6b8697652afba76232fd5a19b6891d858ea`
+- Authorized main base / origin/main: `ac1b7445f4120304b76845ba307c54111c557ec8`
 - Feature branch: `feat/APO-40-versioned-planning-execution-contracts`
-- Functional implementation commit: `184e16257626d4b3b3ecd949b5e87613e428fc9a`
+- Functional remediation SHA: `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf`
+- Final feature SHA before metadata-only handoff synchronization:
+  `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf`
 - Draft PR: #11 — https://github.com/Hossam1104/AI-Project-Orchestrator/pull/11
 - PR state: OPEN / DRAFT / UNMERGED; base `main`; merge was not performed
 
-## Contract architecture
+## Durable lineage implementation
 
-- `SchemaVersion = 1`; schema version and contract revision are distinct.
-- `ContractId` is a stable caller-supplied GUID for one logical contract.
-- Revision 1 has no predecessor. Revision N requires revision N-1, matching project/contract
-  identity, logical work-item identity, owner identity, and predecessor content hash.
-- Immutable records use the GUID-derived path
-  `projects/<project-guid>/contracts/<contract-guid>/revision-000001.json`.
-- Existing revisions are protected by create-new/no-overwrite atomic finalization.
-- `ContentHash` is deterministic SHA-256 over the canonical serialized contract payload excluding
-  the stored hash. It is content-integrity evidence, not a signature or authentication mechanism.
-- Typed contract references expose ContractId, Revision, SchemaVersion, and ContentHash.
+- Repository `CreateAsync()` now requires revision 1 predecessor fields to be null and requires a
+  durably valid immediate predecessor for revision N > 1 before immutable finalization.
+- Explicit repository write states distinguish `Created`, `RevisionConflict`, `PredecessorMissing`,
+  `InvalidLineage`, and `Unavailable`; invalid lineage is never reported as a successful write.
+- Repository reads validate the complete predecessor chain iteratively back to revision 1 with
+  cancellation support and no mutation, migration, repair, or fallback.
+- `ListRevisionsAsync()` and `GetLatestAsync()` fail closed when any semantic or hash lineage link is
+  broken; no valid-prefix or earlier-revision fallback is returned.
+- Project/contract identity, owner identity, and all `PlanningWorkItem` identity fields (source,
+  reference, title) must remain continuous across revisions.
+- `ContentHash` remains SHA-256 content-integrity evidence, not a signature or authentication proof.
+- Existing application-service lineage validation remains in place as defense-in-depth.
 
-## Required semantic coverage
+## Durable lineage evidence
 
-Implemented and tested:
+```text
+Direct revision-2-without-revision-1: REJECTED
+Wrong predecessor hash with valid self-hash: REJECTED
+Changed owner: REJECTED
+Changed work-item identity: REJECTED
+Persisted wrong predecessor chain: NOT VALID
+GetAsync broken chain: NOT VALID
+ListRevisions broken chain: NOT VALID
+GetLatest broken chain: NOT VALID
+Valid 1 -> 2 -> 3: VALID
+```
 
-- Project identity and APO-39 Ready context binding;
-- owner and APO-38 planner identity/capability authority;
-- bounded work-item identity;
-- immutable `None` / `LocalGit` repository target;
-- included scope, constraints, and forbidden scope;
-- deliverables;
-- validation requirements and acceptance criteria as data only;
-- typed execution budgets and stop conditions; and
-- inherited governance, routing-policy, and safety-policy references.
-
-## Compatibility
-
-- Current schema: `1` — valid after semantic and integrity validation.
-- Future schema: `UnsupportedFutureVersion`.
-- Older schema: `MigrationRequired`.
-- Silent migration: `NO`.
-
-## Immutability and isolation
-
-- Existing revision overwrite: `IMPOSSIBLE / REJECTED`.
-- Revision gaps: `REJECTED`.
-- Predecessor mismatch: `REJECTED`.
-- Tampered content or stored hash: `REJECTED` as `IntegrityFailure` or `Invalid`.
-- Paths use only validated project/contract GUIDs and positive revisions; embedded identity
-  mismatches and cross-project reads are rejected.
-- No update or delete API exists for contract revisions.
+Historical revision bytes remain unchanged after later valid revision creation. Existing immutable
+create-new, overwrite, concurrency, content-integrity, compatibility, and project-isolation tests
+remain passing.
 
 ## Validation evidence
 
 - `dotnet restore AIUsageMonitor.sln`: SUCCESS; all projects up to date.
 - `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore --verbosity minimal`: 422/422 passed, 0 failed,
-  0 skipped — Domain 28, Connection 72, Provider 46, Desktop 82, Infrastructure 194.
-- Focused contract semantic, service, lineage, persistence, integrity, compatibility, isolation,
-  atomic immutability, and production-composition tests passed.
-- `git diff --cached --check` and post-commit `git diff --check`: clean.
-- Changed-line credential-shaped scan: clean; no credential-shaped literals found.
-- Base-to-head scope review: clean; no execution, routing, tracker, provider, model, remote SCM,
-  database, or unrelated Story implementation found.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 432/432 passed, 0 failed, 0 skipped.
+- Exact totals: Domain 28; Connection 73; Provider 46; Desktop 82; Infrastructure 203.
+- Focused repository lineage tests: 19/19 passed.
+- Focused service tests: 11/11 passed.
+- `git diff --check`: clean.
+- Credential-shaped changed-line scan: clean; no credential-shaped literals found.
+- Base-to-head scope review: limited to the repository write/read boundary, service result mapping,
+  and focused tests; no downstream Story or unrelated product work.
 - GitHub CI: `NONE / NOT CLAIMED`.
 
 ## Explicit exclusions
@@ -83,24 +75,29 @@ Continue/checkpoints, APO-44 routing, APO-45 execution, APO-47 tracker integrati
 validation execution/gates, APO-49 approval gates, model invocation, prompt transport, worktree
 creation, Git mutation, remote SCM integration, or a contract designer UI.
 
-APO-41, APO-42, APO-43, APO-44, and APO-45 remain To Do and unauthorized. APO-40 remains In
-Progress pending Sol acceptance; it must not be marked Done by this handoff.
-
-## Jira handoff
-
-The Jira implementation-handoff comment records Prompt 4/5, the functional and final feature
-SHAs, Draft PR #11, test totals, schema/revision/hash evidence, compatibility, zero APO processes,
-and unchanged downstream Story status. APO-39 is Done; APO-40 remains In Progress.
+APO-39 is Done. APO-40 remains In Progress pending Sol acceptance. APO-41, APO-42, APO-43, APO-44,
+and APO-45 remain To Do and unauthorized.
 
 ## Runtime
 
-No APO UI/runtime launch was required. Before final handoff, verify and report exactly:
+No APO desktop app was launched for this remediation. Final local process verification:
 
 ```text
 APO PROCESS COUNT = 0
 APPLICATION LEFT RUNNING = NO
 ```
 
+## Git handoff
+
+- Functional remediation was committed as `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf` and pushed to
+  the existing feature branch without rebase or force push.
+- Metadata-only handoff synchronization follows this file replacement; the exact final pushed SHA
+  is reported in the executor completion report.
+- `origin/main` remains `ac1b7445f4120304b76845ba307c54111c557ec8`.
+- PR #11 must remain OPEN / DRAFT / UNMERGED. Do not merge or mark Ready.
+
 ## Next planner boundary
 
-Prompt 4/5 APO-40 implementation complete. Draft PR remains OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head acceptance review. APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
+Prompt 4/5 APO-40 SOL-40-01 remediation complete. Draft PR #11 remains OPEN / DRAFT / UNMERGED.
+Next action is GPT-5.6 Sol exact-head final acceptance and merge decision. APO-41, APO-42, APO-43,
+APO-44, and APO-45 remain NOT AUTHORIZED.
