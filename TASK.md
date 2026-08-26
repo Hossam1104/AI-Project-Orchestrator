@@ -88,7 +88,7 @@ Progress pending Sol acceptance; it must not be marked Done by this handoff.
 
 ## Jira handoff
 
-Final implementation-handoff comment will record Prompt 4/5, the functional and final feature
+The Jira implementation-handoff comment records Prompt 4/5, the functional and final feature
 SHAs, Draft PR #11, test totals, schema/revision/hash evidence, compatibility, zero APO processes,
 and unchanged downstream Story status. APO-39 is Done; APO-40 remains In Progress.
 
