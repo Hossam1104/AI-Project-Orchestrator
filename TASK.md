@@ -1,4 +1,4 @@
-# APO-40 Sol Acceptance Handoff — SOL-40-01 Durable Revision Lineage Remediation
+# APO-40 Sol Acceptance Handoff — SOL-40-01 and SOL-40-02
 
 ## Result
 
@@ -8,64 +8,65 @@ acceptance.
 ## Work item
 
 - Story: APO-40 — Define Versioned Planning and Execution Contracts
-- Remediation: SOL-40-01 — enforce durable revision lineage at the repository boundary
+- Remediations: SOL-40-01 durable revision lineage; SOL-40-02 immutable read preservation
 - Executor: GPT-5.6 Luna xHigh
 - Planner / acceptance authority: GPT-5.6 Sol
-- Jira status: In Progress; remediation comment: `12082`
-- Exact starting head: `a733a6b8697652afba76232fd5a19b6891d858ea`
+- Jira status: APO-40 In Progress
+- Exact SOL-40-02 starting head: `17c5af58944679ef43dd2aca59763b2a032f8d99`
 - Authorized main base / origin/main: `ac1b7445f4120304b76845ba307c54111c557ec8`
 - Feature branch: `feat/APO-40-versioned-planning-execution-contracts`
-- Functional remediation SHA: `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf`
-- Final feature SHA before metadata-only handoff synchronization:
-  `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf`
+- Functional remediation SHA: `f5630b5a1c2c121d50bf5ded36732f918c6ba66b`
+- Final exact feature head: recorded in the executor completion report after this metadata-only
+  handoff synchronization
 - Draft PR: #11 — https://github.com/Hossam1104/AI-Project-Orchestrator/pull/11
-- PR state: OPEN / DRAFT / UNMERGED; base `main`; merge was not performed
+- PR state: OPEN / DRAFT / UNMERGED; base `main`; merge and Ready transition were not performed
 
-## Durable lineage implementation
-
-- Repository `CreateAsync()` now requires revision 1 predecessor fields to be null and requires a
-  durably valid immediate predecessor for revision N > 1 before immutable finalization.
-- Explicit repository write states distinguish `Created`, `RevisionConflict`, `PredecessorMissing`,
-  `InvalidLineage`, and `Unavailable`; invalid lineage is never reported as a successful write.
-- Repository reads validate the complete predecessor chain iteratively back to revision 1 with
-  cancellation support and no mutation, migration, repair, or fallback.
-- `ListRevisionsAsync()` and `GetLatestAsync()` fail closed when any semantic or hash lineage link is
-  broken; no valid-prefix or earlier-revision fallback is returned.
-- Project/contract identity, owner identity, and all `PlanningWorkItem` identity fields (source,
-  reference, title) must remain continuous across revisions.
-- `ContentHash` remains SHA-256 content-integrity evidence, not a signature or authentication proof.
-- Existing application-service lineage validation remains in place as defense-in-depth.
-
-## Durable lineage evidence
+## Sol findings
 
 ```text
-Direct revision-2-without-revision-1: REJECTED
-Wrong predecessor hash with valid self-hash: REJECTED
-Changed owner: REJECTED
-Changed work-item identity: REJECTED
-Persisted wrong predecessor chain: NOT VALID
-GetAsync broken chain: NOT VALID
-ListRevisions broken chain: NOT VALID
-GetLatest broken chain: NOT VALID
-Valid 1 -> 2 -> 3: VALID
+SOL-40-01: CLOSED
+SOL-40-02: CLOSED
 ```
 
-Historical revision bytes remain unchanged after later valid revision creation. Existing immutable
-create-new, overwrite, concurrency, content-integrity, compatibility, and project-isolation tests
-remain passing.
+## Immutable read preservation
 
-## Validation evidence
+`JsonFileStore` has an explicit `ReadPreservingAsync<T>()` API using the same parser/classifier as
+the backward-compatible quarantine-enabled `ReadAsync<T>()`. Only the planning-contract repository
+uses the preserving path. GetAsync, GetLatestAsync, ListRevisionsAsync, and CreateAsync predecessor
+validation therefore perform observational reads over immutable contract evidence.
+
+Required evidence:
+
+```text
+Corrupt JSON first read: Invalid
+Corrupt JSON second read: Invalid
+Canonical corrupt file preserved: YES
+Missing payload repeated reads: Invalid / Invalid
+Canonical missing-payload file preserved: YES
+Unsupported envelope repeated reads: UnsupportedFutureVersion / UnsupportedFutureVersion
+Canonical unsupported file preserved: YES
+IntegrityFailure repeated reads: IntegrityFailure / IntegrityFailure
+Tampered file preserved: YES
+Broken-lineage files preserved: YES
+Corrupt predecessor check mutates predecessor: NO
+Normal JsonFileStore quarantine regression: PRESERVED
+```
+
+No contract read quarantines, renames, moves, overwrites, repairs, migrates, normalizes, or
+replaces the original revision file. Existing ordinary `JsonFileStore.ReadAsync<T>()` quarantine
+behavior remains covered and passing.
+
+## Validation
 
 - `dotnet restore AIUsageMonitor.sln`: SUCCESS; all projects up to date.
 - `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 432/432 passed, 0 failed, 0 skipped.
-- Exact totals: Domain 28; Connection 73; Provider 46; Desktop 82; Infrastructure 203.
-- Focused repository lineage tests: 19/19 passed.
-- Focused service tests: 11/11 passed.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 435/435 passed, 0 failed, 0 skipped.
+- Exact totals: Domain 28; Connection 73; Provider 46; Desktop 82; Infrastructure 206.
+- Focused SOL-40-02 and mutable-store tests: 29/29 passed.
 - `git diff --check`: clean.
-- Credential-shaped changed-line scan: clean; no credential-shaped literals found.
-- Base-to-head scope review: limited to the repository write/read boundary, service result mapping,
-  and focused tests; no downstream Story or unrelated product work.
+- Changed-line credential-shaped scan: clean.
+- Base-to-head scope: limited to the shared JSON read policy, immutable contract read routing, and
+  focused preservation/regression tests; no downstream Story or unrelated product work.
 - GitHub CI: `NONE / NOT CLAIMED`.
 
 ## Explicit exclusions
@@ -75,29 +76,34 @@ Continue/checkpoints, APO-44 routing, APO-45 execution, APO-47 tracker integrati
 validation execution/gates, APO-49 approval gates, model invocation, prompt transport, worktree
 creation, Git mutation, remote SCM integration, or a contract designer UI.
 
-APO-39 is Done. APO-40 remains In Progress pending Sol acceptance. APO-41, APO-42, APO-43, APO-44,
-and APO-45 remain To Do and unauthorized.
+## Jira state
+
+```text
+APO-39: Done
+APO-40: In Progress
+APO-41: To Do
+APO-42: To Do
+APO-43: To Do
+APO-44: To Do
+APO-45: To Do
+```
+
+The remediation handoff comment is added after the final metadata synchronization and its ID is
+reported in the executor completion report. Downstream Stories remain unauthorized.
 
 ## Runtime
 
-No APO desktop app was launched for this remediation. Final local process verification:
+The SOL-40-02 contract explicitly requires no application launch:
 
 ```text
 APO PROCESS COUNT = 0
 APPLICATION LEFT RUNNING = NO
 ```
 
-## Git handoff
-
-- Functional remediation was committed as `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf` and pushed to
-  the existing feature branch without rebase or force push.
-- Metadata-only handoff synchronization follows this file replacement; the exact final pushed SHA
-  is reported in the executor completion report.
-- `origin/main` remains `ac1b7445f4120304b76845ba307c54111c557ec8`.
-- PR #11 must remain OPEN / DRAFT / UNMERGED. Do not merge or mark Ready.
+No APO desktop process was launched or left running.
 
 ## Next planner boundary
 
-Prompt 4/5 APO-40 SOL-40-01 remediation complete. Draft PR #11 remains OPEN / DRAFT / UNMERGED.
-Next action is GPT-5.6 Sol exact-head final acceptance and merge decision. APO-41, APO-42, APO-43,
-APO-44, and APO-45 remain NOT AUTHORIZED.
+Prompt 4/5 APO-40 SOL-40-01 and SOL-40-02 remediation complete. Draft PR #11 remains OPEN / DRAFT /
+UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision. APO-41, APO-42,
+APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.

@@ -2253,3 +2253,46 @@ Runtime verification for this remediation: `APO PROCESS COUNT = 0` and
 Next planner boundary: Prompt 4/5 APO-40 SOL-40-01 remediation complete. Draft PR #11 remains
 OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
 APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
+
+## 24. APO-40 Prompt 4/5 — SOL-40-02 Immutable Read Preservation Remediation
+
+SOL-40-01 and SOL-40-02 are CLOSED in functional remediation commit
+`f5630b5a1c2c121d50bf5ded36732f918c6ba66b` (`fix: preserve immutable contract evidence on reads
+APO-40`). The remediation remains on the existing branch
+`feat/APO-40-versioned-planning-execution-contracts`, based on the immutable SOL-40-02 starting
+head `17c5af58944679ef43dd2aca59763b2a032f8d99`; no rebase, force push, merge, replacement PR, or
+downstream Story implementation was performed.
+
+`JsonFileStore` now exposes an explicit `ReadPreservingAsync<T>()` API backed by the same parsing
+and classification implementation as the existing `ReadAsync<T>()` API. The normal reader retains
+its existing quarantine behavior. `JsonPlanningExecutionContractRepository.ReadRevisionAsync()`
+uses the preserving path, so Get, List, Latest, and Create predecessor validation never rename,
+move, quarantine, overwrite, repair, migrate, or otherwise mutate immutable planning-contract
+revision evidence. Invalid and unsupported bytes remain at their canonical paths for repeated
+observation.
+
+SOL-40-02 evidence covers malformed JSON, missing payload, unsupported outer storage schema,
+integrity/hash tampering, broken lineage, and corrupt predecessor validation. Each required
+preservation assertion verifies canonical existence, unchanged original bytes, stable repeated-read
+classification, and no `.bak` quarantine artifact. Existing mutable `JsonFileStore.ReadAsync<T>()`
+quarantine regression coverage remains passing.
+
+Validation: restore succeeded; build succeeded with 0 warnings and 0 errors; full solution tests
+passed 435/435 with zero failures/skips — Domain 28, Connection 73, Provider 46, Desktop 82,
+Infrastructure 206. Focused SOL-40-02 plus mutable-store tests passed 29/29. `git diff --check`
+and changed-line credential-shaped scan are clean. GitHub CI: NONE / NOT CLAIMED.
+
+Functional remediation SHA: `f5630b5a1c2c121d50bf5ded36732f918c6ba66b`. The exact final feature
+head after this metadata-only handoff synchronization is reported in the executor completion
+report; the functional head before metadata synchronization is the SHA above.
+
+PR #11 remains OPEN / DRAFT / UNMERGED against `main`; it was not merged or marked Ready. Jira
+APO-40 remains In Progress; remediation handoff comment is added after final synchronization.
+APO-39 is Done. APO-41, APO-42, APO-43, APO-44, and APO-45 remain To Do and unauthorized.
+
+Runtime verification for this remediation is intentionally stopped by the SOL-40-02 contract:
+`APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`. APO was not launched.
+
+Next planner boundary: Prompt 4/5 APO-40 SOL-40-01 and SOL-40-02 remediation complete. Draft PR #11
+remains OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge
+decision. APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
