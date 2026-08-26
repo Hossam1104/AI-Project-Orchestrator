@@ -1,145 +1,90 @@
-# APO-41 - SOL-41-01 Terminal Completion Evidence Integrity Remediation
+# APO-42 - Structured Planner-to-Executor-to-Reviewer Handoff Packages
 
-## Result
+## Active execution contract
 
-`COMPLETE` - SOL-41-01 functional remediation and validation complete; awaiting GPT-5.6 Sol
-exact-head acceptance. Draft PR #13 remains OPEN / DRAFT / UNMERGED.
-
-## Work item
-
-- Story: APO-41 - Implement Dependency-Aware Work Graph and Scheduling Semantics
-- Remediation: SOL-41-01 - Terminal Completion Evidence Integrity
-- Jira issue id: 10869
-- Jira status: `In Progress`
+- Prompt: `2/5R` - SOL-42-01 redaction and authority-identity remediation
+- Jira: `APO-42` (issue id `10870`), parent `APO-10`, priority `High`
 - Planner / acceptance authority: GPT-5.6 Sol
 - Assigned executor: GPT-5.6 Luna xHigh
-- Feature branch: `feat/APO-41-dependency-aware-work-graph`
-- Implementation-start comment: `12128`
-- Remediation comment: `12133`
+- Jira status: `In Progress`
+- Jira implementation-start comment: `12137`
+- Feature branch: `feat/APO-42-structured-handoff-packages`
+- Authorized starting main SHA: `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`
+- Authorized starting main tree: `4b05cd85c8f6434ba3750c444e0c66da671bd18a`
+- Original APO-42 functional commit: `93e759646c0098974eb089c72b50d8f3cecf24f1`
+- SOL-42-01 remediation starting handoff: `90497896222063bf796d7720458242c952d14f75`
+- SOL-42-01 functional remediation commit: `8cdd7d20d5e5e875d638312c2f3bbf44d9082d07`
+- Draft PR: `#14 OPEN / DRAFT / UNMERGED`, base `main`
 
-## Authorized baseline
+## Delivered scope
 
-- Starting main SHA: `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`
-- Starting main tree: `62103d1b7833a3891d87113dd6b8bd094882cf91`
-- Starting branch: `main`
-- Starting origin/main: same SHA
-- Working tree preflight: clean
+APO-42 is implemented and SOL-42-01 remediation is complete; the final metadata handoff awaits Sol
+exact-head acceptance. The implementation provides a
+provider-independent immutable structured handoff authority, an application creation service, and
+project-isolated create-once JSON persistence. It resolves the exact requested APO-40 planning
+contract revision, derives work-item/repository/scope authority from that contract, optionally
+validates an exact APO-41 graph/node binding, validates shallow same-project predecessor lineage,
+applies role-specific inclusion policy, redacts bounded descriptive text, rejects secret-shaped
+authority/identity/reference values before persistence, enforces a 128 KiB canonical
+payload budget, and calculates deterministic SHA-256 content-integrity evidence.
 
-## Functional implementation
+Supported transitions are exactly:
 
-- Original functional SHA: `cb23c85cf51747cadbb6aafd5612b886d987ec2c`
-- Starting handoff SHA: `0a44e7cf1f6af1d5c285d4018120d878a135c7ae`
-- SOL-41-01 remediation functional SHA: `490fc77c631710d5690f88637556968e2f5b53bc`
-- Draft PR: `#13`, base `main`, OPEN / DRAFT / UNMERGED
-- Graph authority is immutable, bounded, canonical, content-hash protected, and project-isolated.
-- Nodes bind to exact APO-40 planning-contract references; graph creation resolves the requested
-  revision and rejects project, identity, revision, schema, or hash mismatches without fallback.
-- Completion evidence is separate create-once terminal authority for `Succeeded`, `Failed`, and
-  `Skipped`; conflicting truth cannot overwrite the first record.
-- The scheduler is a pure deterministic evaluator. It performs no execution, process launch,
-  provider call, tracker sync, Git mutation, or execution-start persistence.
-- Dependency, active-concurrency, budget, and approval decisions are bounded and explainable.
+1. `PlannerToExecutor`
+2. `ExecutorToReviewer`
+3. `ReviewerToRemediation`
+4. `RemediationToReviewer`
+5. `ReviewerToAcceptance`
+6. `AcceptanceToPlanner`
 
-## SOL-41-01 remediation handoff
+The package carries typed work-item, exact contract, point-in-time context, planner-defined
+repository target, optional graph/node, predecessor, role-relevant scope, evidence/finding and
+changed-artifact references, bounded outcome/limitations/next action, redaction metadata, size
+metadata, and `ContentHash`. It contains no raw prompts, transcripts, chat, source, repository
+contents, diffs, full logs, provider-specific format, model selection, or execution behavior.
 
-`SOL-41-01 = REMEDIATED — AWAITING SOL ACCEPTANCE`
+Persistence uses `projects/<ProjectId>/handoffs/<PackageId>/package.json`, exact GUID-derived
+identity, `CreateNewAsync`, and `ReadPreservingAsync`. Malformed, unsupported, and tampered reads
+are observational and never quarantine, rewrite, repair, rename, move, delete, or create a
+backup. `JsonFileStore.CurrentSchemaVersion` remains unchanged at `1`.
 
-Work-graph definition integrity was already protected. SOL-41-01 adds equivalent payload-
-integrity detection to create-once terminal completion evidence so semantically valid on-disk edits
-cannot silently become trusted terminal scheduling truth.
+Redaction recognizes password assignments, API-key assignments, bearer/authorization values,
+common PAT/token prefixes, and connection-string passwords. Descriptive values retain only the
+stable marker, bounded count, and categories; authority, identity, and reference values are kept
+exactly when safe and otherwise fail closed as `RedactionRejected` without persistence. Original
+values and secret hashes are not retained. This is conservative defense-in-depth, not a universal
+secret-detection guarantee. Quoted password and API-key assignments containing spaces are covered.
 
-- `WorkGraphCompletionEvidence.ContentHash` is deterministic SHA-256 integrity evidence over all
-  terminal authority fields, excluding `ContentHash` itself; it is not a signature or authenticity
-  proof.
-- `WorkGraphCompletionEvidenceRecord` persists the content hash without changing
-  `JsonFileStore.CurrentSchemaVersion`.
-- New evidence calculates its hash automatically; supplied persisted hashes are validated and are
-  rejected when missing, malformed, or mismatching rather than silently recalculated.
-- Completion evidence writes fail closed if calculated and application hashes disagree.
-- `ReadForGraphAsync()` returns `IntegrityFailure` with an empty trusted collection for missing,
-  malformed, or mismatching evidence hashes.
-- Integrity-failure reads use `ReadPreservingAsync()` and remain observational: no rewrite, repair,
-  quarantine, rename, move, delete, or `.bak` artifact.
-- Existing `Created`, `AlreadyRecorded`, and `Conflict` semantics remain unchanged.
-- No scheduler, graph, execution, provider, tracker, Git, UI, or downstream Story redesign was
-  added.
-
-### Tamper coverage
-
-- Failed -> Succeeded stored-state edit: `IntegrityFailure`, empty evidence, unchanged bytes, and
-  stable repeated result.
-- Stored `ContentHash` edit: `IntegrityFailure`.
-- `EvidenceReference` edit: `IntegrityFailure`.
-- `RecordedAt` edit: `IntegrityFailure`.
-- Binding-field edit (`ContractRevision`): `IntegrityFailure`.
-- Missing and malformed `ContentHash`: `IntegrityFailure`.
-- Round trip: valid 64-character hash is persisted, rehydrated, and equals the canonical hash.
-
-## Exact semantics
-
-`Succeeded dependency = SATISFIED`
-
-`Failed dependency = BLOCKED`
-
-`Skipped dependency = BLOCKED`
-
-`Missing completion evidence = INCOMPLETE / BLOCKED`
-
-## Validation
+## Validation evidence
 
 - `dotnet restore AIUsageMonitor.sln`: SUCCESS.
 - `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 513/513 passed; 0 failed; 0 skipped.
-- Suite totals: Domain 28; Connection 131; Provider 46; Desktop 82; Infrastructure 226.
-- Focused `WorkGraphPersistenceTests`: 20/20 passed.
-- Focused APO-41 `WorkGraph*` Connection tests: 51/51 passed; 0 failed; 0 skipped.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 566/566 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 243.
+- Focused remediation tests: HandoffRedactionTests 10/10; HandoffPackageServiceTests 26/26;
+  HandoffPackagePersistenceTests 17/17.
 - `git diff --check`: clean.
-- Changed-line credential-shaped scan: clean.
+- Changed-line credential-shaped scan: only intentional redaction patterns/fixtures; no real
+  credentials detected.
 - GitHub CI: `NONE / NOT CLAIMED`.
 
-## Explicit exclusions
+## Governance and boundary
 
-No executor lifecycle, provider invocation, tracker synchronization, UI, model routing, Git
-mutation, worktree creation, APO-42, APO-43, APO-44, APO-45, APO-46, or other downstream Story
-implementation is authorized by this handoff.
+APO-41 is fully merged/closed and Done at the authorized baseline SHA and tree above. SOL-42-01 is
+remediated and APO-42 is not accepted; it must remain In Progress until Sol reviews this exact
+final branch head. Do not
+merge PR #14, mark it Ready, transition APO-42 to Done, or begin APO-43, APO-44, APO-45, or any
+other downstream Story. Do not invoke Opus or Sonnet.
 
-## Prompt 5 closure normalization
-
-- PR #12 merged.
-- Actual merge: `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
-- Accepted/merged tree: `62103d1b7833a3891d87113dd6b8bd094882cf91`.
-- OPUS-05-01 CLOSED.
-- OPUS-05-02 CLOSED.
-- Prompt 5/5 CLOSED.
-- APO-40 Done.
-
-## Review cycle and next planner boundary
-
-`APO-41 = Prompt 1/5 after Opus checkpoint`
-
-No Opus review is due after this prompt. Await GPT-5.6 Sol exact-head review. Do not begin APO-42,
-APO-43, APO-44, APO-45, APO-46, or any executor/tracker/UI integration.
-
-## Runtime
-
-This remediation explicitly forbids UI runtime testing and APO was not launched.
+No APO runtime launch is permitted for this work item:
 
 `APO PROCESS COUNT = 0`
 
 `APPLICATION LEFT RUNNING = NO`
 
-## Git / PR / Jira handoff
+## Metadata handoff
 
-- Functional remediation commit: `490fc77c631710d5690f88637556968e2f5b53bc`, direct parent
-  `0a44e7cf1f6af1d5c285d4018120d878a135c7ae`.
-- Branch was pushed normally; no rebase, merge, force push, or replacement PR was performed.
-- PR #13 remains `OPEN / DRAFT / UNMERGED` against `main` at the required base
-  `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
-- Jira APO-41 remains `In Progress`; remediation comment `12133` was added.
-- APO-42 through APO-45 remain `To Do` and unauthorized.
-
-## Next planner boundary
-
-SOL-41-01 remediation complete. APO-41 remains In Progress and PR #13 remains OPEN / DRAFT /
-UNMERGED. Return this result to GPT-5.6 Sol for exact-head acceptance. Do not begin APO-42 or any
-downstream implementation.
+This file and `.ai/CURRENT_STATE.md` are the only files authorized for the post-functional
+metadata-only commit. The final branch head is the SHA of that metadata-only commit and is captured
+in the executor completion report and Jira handoff comment. The next action is GPT-5.6 Sol exact-head
+acceptance of SOL-42-01/APO-42.

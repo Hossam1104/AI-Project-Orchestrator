@@ -1,5 +1,6 @@
 using AIUsageMonitor.Application.Alerts;
 using AIUsageMonitor.Application.Agents;
+using AIUsageMonitor.Application.Handoffs;
 using AIUsageMonitor.Application.Orchestration;
 using AIUsageMonitor.Application.Providers;
 using AIUsageMonitor.Application.Planning;
@@ -68,6 +69,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IWorkGraphCompletionEvidenceRepository, JsonWorkGraphCompletionEvidenceRepository>();
         services.AddSingleton<IWorkGraphService, WorkGraphService>();
         services.AddSingleton<IWorkGraphCompletionEvidenceService, WorkGraphCompletionEvidenceService>();
+        services.AddSingleton<IHandoffPackageRepository, JsonHandoffPackageRepository>();
+        services.AddSingleton<IHandoffRedactionService, HandoffRedactionService>();
+        services.AddSingleton<IHandoffPackageService, HandoffPackageService>();
         services.AddSingleton<WorkGraphScheduler>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
