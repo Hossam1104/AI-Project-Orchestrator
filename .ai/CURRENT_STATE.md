@@ -31,17 +31,20 @@
 **Default Branch:** `main`
 **APO-41:** COMPLETE / MERGED / DONE at `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`.
 **APO-41 Accepted Tree:** `4b05cd85c8f6434ba3750c444e0c66da671bd18a`.
-**APO-42:** IN PROGRESS / PROMPT 2/5; IMPLEMENTATION COMPLETE - AWAITING SOL EXACT-HEAD ACCEPTANCE.
-**APO-42 Functional SHA:** `93e759646c0098974eb089c72b50d8f3cecf24f1`.
+**APO-42:** IN PROGRESS / PROMPT 2/5R; SOL-42-01 REMEDIATED - AWAITING SOL EXACT-HEAD ACCEPTANCE.
+**APO-42 Original Functional SHA:** `93e759646c0098974eb089c72b50d8f3cecf24f1`.
+**APO-42 Remediation Starting Handoff SHA:** `90497896222063bf796d7720458242c952d14f75`.
+**APO-42 Remediation Functional SHA:** `8cdd7d20d5e5e875d638312c2f3bbf44d9082d07`.
 **APO-42 Draft PR:** `#14 OPEN / DRAFT / UNMERGED`.
 **APO-42 Jira start comment:** `12137`.
 **AUTHORITATIVE CURRENT TRUTH (APO-42):** APO-41 Prompt 1/5 is fully merged/closed and Done;
-the historical APO-41 and earlier sections below are preserved as history. APO-42 Prompt 2/5 is
-functionally implemented on its feature branch and awaits GPT-5.6 Sol exact-head acceptance.
+the historical APO-41 and earlier sections below are preserved as history. APO-42 Prompt 2/5R
+SOL-42-01 remediation is functionally complete on its feature branch and awaits GPT-5.6 Sol
+exact-head acceptance.
 **Current Story (authoritative):** APO-42 - Generate Structured Planner-to-Executor-to-Reviewer Handoff Packages.
 **Current Epic (authoritative):** APO-10 - Planning & Execution Contracts.
-**Status (authoritative):** IN PROGRESS / PROMPT 2/5; functional commit complete; Draft PR #14 OPEN / DRAFT / UNMERGED.
-**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the APO-42 implementation.
+**Status (authoritative):** IN PROGRESS / PROMPT 2/5R; SOL-42-01 remediated; Draft PR #14 OPEN / DRAFT / UNMERGED.
+**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the SOL-42-01/APO-42 remediation.
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
 **Status:** IN PROGRESS / PROMPT 5/5B / FOUNDATION REMEDIATION COMPLETE; Draft PR #12 OPEN / DRAFT / UNMERGED.
@@ -2585,3 +2588,52 @@ engine, evidence engine, Smart Continue, recovery checkpoint, or APO-43+ impleme
 **Next planner boundary:** APO-42 functional implementation and metadata handoff are complete;
 Draft PR #14 remains OPEN / DRAFT / UNMERGED. Return this exact feature head to GPT-5.6 Sol for
 acceptance. Do not merge, mark Ready, transition APO-42 to Done, or begin APO-43/44/45.
+
+## 29. APO-42 SOL-42-01 Redaction and Authority-Identity Remediation (Prompt 2/5R)
+
+**Lifecycle:** SOL-42-01 is remediated in the functional commit below and awaits GPT-5.6 Sol
+exact-head acceptance. No Claude Opus or Claude Sonnet was invoked. APO-42 remains In Progress in
+Jira and is not accepted or Done.
+
+**Exact remediation identity:**
+
+- Authorized `origin/main` base: `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`.
+- Remediation starting handoff: `90497896222063bf796d7720458242c952d14f75`.
+- Direct parent of the remediation: `90497896222063bf796d7720458242c952d14f75`.
+- SOL-42-01 functional remediation SHA: `8cdd7d20d5e5e875d638312c2f3bbf44d9082d07`.
+- Branch: `feat/APO-42-structured-handoff-packages`.
+- Draft PR #14 remains `OPEN / DRAFT / UNMERGED` against `main`.
+- Jira APO-42 remediation handoff comment: `12138`; Jira status remains `In Progress`.
+
+**Remediation authority:** A shared inspection path now separates descriptive text from authority,
+identity, and reference fields. Descriptive values may be redacted and retain only bounded
+redaction metadata. Authority/identity/reference values are preserved exactly when safe; if the
+same recognizer would alter one, package creation returns `HandoffPackageCreationStatus.RedactionRejected`
+before repository persistence and exposes no transformed authority identity. Coverage includes
+work-item, repository, scope, deliverable, validation, stop-condition, acceptance-criterion,
+evidence, finding, and changed-artifact identity/reference fields. Quoted password and API-key
+assignments containing spaces are fully recognized. No schema bump or package identity change was
+made; the six transitions, size/hash metadata, and create-once persistence semantics are preserved.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- Full solution tests: 566/566 passed; 0 failed; 0 skipped (Domain 28, Connection 167, Provider 46,
+  Desktop 82, Infrastructure 243).
+- Focused `HandoffRedactionTests`: 10/10; `HandoffPackageServiceTests`: 26/26;
+  `HandoffPackagePersistenceTests`: 17/17.
+- Real infrastructure JSON repository no-write rejection proof passed.
+- `git diff --check` and changed-line credential-shaped review passed; only intentional patterns and
+  sanitized fixtures were present.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+**Boundary and runtime:** No model invocation, provider-specific prompt rendering, UI, routing,
+execution/process lifecycle, tracker synchronization, provider integration, approval/review engine,
+evidence engine, Smart Continue, recovery checkpoint, or APO-43+ implementation was added. The
+remediation prompt explicitly forbids launching APO: `APO PROCESS COUNT = 0` and
+`APPLICATION LEFT RUNNING = NO`. APO-43, APO-44, and APO-45 remain To Do and unauthorized.
+
+**Next planner boundary:** After the authorized metadata-only synchronization, return the exact final
+feature head to GPT-5.6 Sol for SOL-42-01/APO-42 acceptance. Do not merge PR #14, mark it Ready,
+transition APO-42 to Done, or begin APO-43/44/45.
