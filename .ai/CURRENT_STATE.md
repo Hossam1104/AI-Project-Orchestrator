@@ -29,15 +29,55 @@
 **Repository/local-folder rename:** COMPLETE; repository and physical local-root rename complete
 **Jira Project:** `APO`
 **Default Branch:** `main`
-**Current Story:** APO-39 — Progressive Project Onboarding and Canonical Context Resolution.
-**Current Epic:** APO-5 — Project Context, Workspace & Lifecycle.
-**Status:** IN PROGRESS / PROMPT 3/5 / IMPLEMENTATION COMPLETE; Draft PR OPEN / DRAFT / UNMERGED.
-**Next action:** GPT-5.6 Sol exact-head acceptance review for APO-39.
+**Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
+**Current Epic:** APO-10 — Planning & Execution Contracts.
+**Status:** IN PROGRESS / PROMPT 4/5 / IMPLEMENTATION COMPLETE; Draft PR OPEN / DRAFT / UNMERGED.
+**Next action:** GPT-5.6 Sol exact-head acceptance review for APO-40.
 **APO-38:** COMPLETE / MERGED / DONE at `7cb94104c25fdb552c010835158e3c7e3eb813fe`.
-**APO-39:** IN PROGRESS; implementation complete, awaiting Sol acceptance.
+**APO-39:** COMPLETE / MERGED / DONE at `ac1b7445f4120304b76845ba307c54111c557ec8`.
+**APO-39 accepted source / merge tree:** `4dfe83703e1899a4e5eb35a1530e0434924eb3db`.
+**APO-40:** IN PROGRESS / PROMPT 4/5.
+**APO-41:** TO DO / NOT AUTHORIZED.
+**APO-42:** TO DO / NOT AUTHORIZED.
 **APO-43:** TO DO / NOT AUTHORIZED.
 **APO-44:** TO DO / NOT AUTHORIZED.
+**APO-45:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+
+## 23. APO-40 Versioned Planning and Execution Contracts (Prompt 4/5)
+
+APO-40 was authorized from the exact accepted APO-39 merge base
+`ac1b7445f4120304b76845ba307c54111c557ec8` after the Git/Jira preflight. Jira APO-40 remains In
+Progress under APO-10; implementation-start comment `12043` records Prompt 4/5, the exact base,
+feature branch, Sol authorization, bounded scope, and the explicit no-execution/no-routing boundary.
+
+The feature branch is `feat/APO-40-versioned-planning-execution-contracts`. Functional implementation
+commit: `184e16257626d4b3b3ecd949b5e87613e428fc9a`. Draft PR #11 is OPEN / DRAFT / UNMERGED against
+`main`: https://github.com/Hossam1104/AI-Project-Orchestrator/pull/11.
+
+APO-40 adds application-owned immutable `PlanningExecutionContract` data with schema version 1,
+stable ContractId and independent planner-authorized revisions, APO-39 Ready context binding,
+APO-38 planner capability validation, bounded work-item and repository target identity, machine-
+readable scope/deliverables/validation/acceptance/budget/stop-condition data, and inherited policy
+references. Infrastructure persists revisions in GUID-derived project storage using create-new
+atomic no-overwrite files. Canonical SHA-256 content-integrity evidence is recomputed on read;
+this is not a signature or authentication mechanism. Future schema is UnsupportedFutureVersion,
+older schema is MigrationRequired, and no silent migration occurs. No update/delete contract API
+exists.
+
+Validation evidence: restore succeeded; solution build succeeded with 0 warnings and 0 errors; full
+solution tests passed 422/422 with zero failures/skips (Domain 28, Connection 72, Provider 46,
+Desktop 82, Infrastructure 194); focused semantic/service/persistence/lineage/integrity/
+compatibility/isolation/DI tests passed; diff check, credential-shaped scan, and base-to-head scope
+review are clean. GitHub CI is `NONE / NOT CLAIMED`.
+
+APO-41, APO-42, APO-43, APO-44, and APO-45 remain To Do and unauthorized. APO-40 did not add DAG/
+scheduling, handoff generation, Smart Continue/checkpoints, routing, execution, tracker integration,
+validation or approval engines, model invocation, Git mutation, remote SCM, or contract-designer UI.
+
+Next planner boundary: Prompt 4/5 APO-40 implementation complete. Draft PR remains OPEN / DRAFT /
+UNMERGED. Next action is GPT-5.6 Sol exact-head acceptance review. APO-41, APO-42, APO-43, APO-44,
+and APO-45 remain NOT AUTHORIZED.
 
 ## Strategic Rebaseline - Prompt 1/5 Continuation (25 August 2026)
 
@@ -2173,3 +2213,86 @@ unrelated application.
 Next planner boundary: Prompt 3/5 APO-39 SOL-39-01..02 remediation complete. Draft PR #10 remains
 OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
 APO-40, APO-43, and APO-44 remain NOT AUTHORIZED.
+
+## 23. APO-40 Prompt 4/5 — SOL-40-01 Durable Revision Lineage Remediation
+
+SOL-40-01 is CLOSED in functional remediation commit
+`4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf` (`fix: enforce durable planning contract lineage
+APO-40`). The remediation remains on the existing branch
+`feat/APO-40-versioned-planning-execution-contracts`, based on the immutable starting head
+`a733a6b8697652afba76232fd5a19b6891d858ea`; no rebase, force push, merge, replacement PR, or
+downstream Story implementation was performed.
+
+The durable repository boundary now validates immediate predecessor existence and validity before
+create, rejects false predecessor hash/owner/work-item lineage with explicit bounded write results,
+and iteratively validates the complete chain back to revision 1 on Get, List, and Latest reads.
+Self-consistent manually persisted revisions cannot hide a broken predecessor link. Service-side
+lineage validation remains in place as intentional defense-in-depth. ContentHash remains SHA-256
+content-integrity evidence, not a signature or authentication proof.
+
+Required direct repository bypass coverage now proves rejection of revision 2 without revision 1,
+wrong predecessor hash despite a valid revision-2 self-hash, changed owner, and changed work-item
+source/reference/title. Persisted self-consistent wrong-hash and changed-owner records are not
+Valid through GetAsync, ListRevisionsAsync, or GetLatestAsync. Valid 1 → 2 → 3 lineage succeeds,
+and predecessor bytes remain unchanged after later creation.
+
+Validation: restore succeeded; build succeeded with 0 warnings and 0 errors; full solution tests
+passed 432/432 with zero failures/skips — Domain 28, Connection 73, Provider 46, Desktop 82,
+Infrastructure 203. Focused persistence lineage tests passed 19/19 and service tests passed 11/11.
+`git diff --check` and changed-line credential-shaped scan are clean. GitHub CI: NONE / NOT CLAIMED.
+
+PR #11 remains OPEN / DRAFT / UNMERGED against `main`; functional feature SHA before metadata-only
+handoff synchronization is `4579f9152daa1a3d55c5cba3a5dd1c7e62c652bf`. Jira remediation comment
+`12082` records SOL-40-01 closure, the functional SHA, exact tests, PR state, and unchanged
+downstream authorization. APO-39 is Done; APO-40 remains In Progress; APO-41, APO-42, APO-43,
+APO-44, and APO-45 remain To Do and unauthorized.
+
+Runtime verification for this remediation: `APO PROCESS COUNT = 0` and
+`APPLICATION LEFT RUNNING = NO`. No APO desktop app was launched.
+
+Next planner boundary: Prompt 4/5 APO-40 SOL-40-01 remediation complete. Draft PR #11 remains
+OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge decision.
+APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
+
+## 24. APO-40 Prompt 4/5 — SOL-40-02 Immutable Read Preservation Remediation
+
+SOL-40-01 and SOL-40-02 are CLOSED in functional remediation commit
+`f5630b5a1c2c121d50bf5ded36732f918c6ba66b` (`fix: preserve immutable contract evidence on reads
+APO-40`). The remediation remains on the existing branch
+`feat/APO-40-versioned-planning-execution-contracts`, based on the immutable SOL-40-02 starting
+head `17c5af58944679ef43dd2aca59763b2a032f8d99`; no rebase, force push, merge, replacement PR, or
+downstream Story implementation was performed.
+
+`JsonFileStore` now exposes an explicit `ReadPreservingAsync<T>()` API backed by the same parsing
+and classification implementation as the existing `ReadAsync<T>()` API. The normal reader retains
+its existing quarantine behavior. `JsonPlanningExecutionContractRepository.ReadRevisionAsync()`
+uses the preserving path, so Get, List, Latest, and Create predecessor validation never rename,
+move, quarantine, overwrite, repair, migrate, or otherwise mutate immutable planning-contract
+revision evidence. Invalid and unsupported bytes remain at their canonical paths for repeated
+observation.
+
+SOL-40-02 evidence covers malformed JSON, missing payload, unsupported outer storage schema,
+integrity/hash tampering, broken lineage, and corrupt predecessor validation. Each required
+preservation assertion verifies canonical existence, unchanged original bytes, stable repeated-read
+classification, and no `.bak` quarantine artifact. Existing mutable `JsonFileStore.ReadAsync<T>()`
+quarantine regression coverage remains passing.
+
+Validation: restore succeeded; build succeeded with 0 warnings and 0 errors; full solution tests
+passed 435/435 with zero failures/skips — Domain 28, Connection 73, Provider 46, Desktop 82,
+Infrastructure 206. Focused SOL-40-02 plus mutable-store tests passed 29/29. `git diff --check`
+and changed-line credential-shaped scan are clean. GitHub CI: NONE / NOT CLAIMED.
+
+Functional remediation SHA: `f5630b5a1c2c121d50bf5ded36732f918c6ba66b`. The exact final feature
+head after this metadata-only handoff synchronization is reported in the executor completion
+report; the functional head before metadata synchronization is the SHA above.
+
+PR #11 remains OPEN / DRAFT / UNMERGED against `main`; it was not merged or marked Ready. Jira
+APO-40 remains In Progress; remediation handoff comment is added after final synchronization.
+APO-39 is Done. APO-41, APO-42, APO-43, APO-44, and APO-45 remain To Do and unauthorized.
+
+Runtime verification for this remediation is intentionally stopped by the SOL-40-02 contract:
+`APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`. APO was not launched.
+
+Next planner boundary: Prompt 4/5 APO-40 SOL-40-01 and SOL-40-02 remediation complete. Draft PR #11
+remains OPEN / DRAFT / UNMERGED. Next action is GPT-5.6 Sol exact-head final acceptance and merge
+decision. APO-41, APO-42, APO-43, APO-44, and APO-45 remain NOT AUTHORIZED.
