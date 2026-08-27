@@ -72,6 +72,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IHandoffPackageRepository, JsonHandoffPackageRepository>();
         services.AddSingleton<IHandoffRedactionService, HandoffRedactionService>();
         services.AddSingleton<IHandoffPackageService, HandoffPackageService>();
+        services.AddSingleton<IRecoveryCheckpointRepository, JsonRecoveryCheckpointRepository>();
+        services.AddSingleton<IContinuationHeadRepository, JsonContinuationHeadRepository>();
+        services.AddSingleton<IRecoveryCheckpointService, RecoveryCheckpointService>();
+        services.AddSingleton<ISmartContinueResolver, SmartContinueResolver>();
         services.AddSingleton<WorkGraphScheduler>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
