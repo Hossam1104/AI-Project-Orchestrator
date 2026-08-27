@@ -13,10 +13,12 @@ using AIUsageMonitor.Application.Subscriptions;
 using AIUsageMonitor.Application.Sync;
 using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Application.Usage;
+using AIUsageMonitor.Application.Workspaces;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Infrastructure.Persistence.Repositories;
 using AIUsageMonitor.Infrastructure.Security;
 using AIUsageMonitor.Infrastructure.Git;
+using AIUsageMonitor.Infrastructure.Workspaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Infrastructure;
@@ -83,6 +85,15 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IRoutingDecisionEngine, RoutingDecisionEngine>();
         services.AddSingleton<IRoutingDecisionService, RoutingDecisionService>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
+        services.AddSingleton<IManagedWorkspacePathProvider, ManagedWorkspacePathProvider>();
+        services.AddSingleton<IWorkspaceRepository, GitWorkspaceRepository>();
+        services.AddSingleton<IRepositoryPreparationLock, RepositoryPreparationFileLock>();
+        services.AddSingleton<IWorkspacePreparationPlanRepository, JsonWorkspacePreparationPlanRepository>();
+        services.AddSingleton<IWorkspacePreparationReceiptRepository, JsonWorkspacePreparationReceiptRepository>();
+        services.AddSingleton<IWorkspacePreparationPlanningService, WorkspacePreparationPlanningService>();
+        services.AddSingleton<IWorkspacePreparationService, WorkspacePreparationService>();
+        services.AddSingleton<IWorkspaceRecoveryInspectionService>(service =>
+            (WorkspacePreparationService)service.GetRequiredService<IWorkspacePreparationService>());
 
         // Stateless native-call wrapper; singleton avoids re-allocating it per resolution while
         // matching the lifetime of every other adapter registered here.
