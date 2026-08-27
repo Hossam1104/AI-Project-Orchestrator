@@ -78,6 +78,10 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ISmartContinueResolver, SmartContinueResolver>();
         services.AddSingleton<WorkGraphScheduler>();
         services.AddSingleton<IRoutingPolicyRepository, JsonRoutingPolicyStore>();
+        services.AddSingleton<IRoutingDecisionRepository, JsonRoutingDecisionRepository>();
+        services.AddSingleton<IRoutingInputAssembler, RoutingInputAssembler>();
+        services.AddSingleton<IRoutingDecisionEngine, RoutingDecisionEngine>();
+        services.AddSingleton<IRoutingDecisionService, RoutingDecisionService>();
         services.AddSingleton<IProjectOrchestrationStore, JsonProjectOrchestrationStore>();
 
         // Stateless native-call wrapper; singleton avoids re-allocating it per resolution while
