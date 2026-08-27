@@ -438,6 +438,7 @@ public sealed class RoutingDecisionEngine : IRoutingDecisionEngine
             reasons.Add(RoutingReasonCode.ConnectionUnknown);
         }
         else if (requireConnection && (candidate.SupportedConnectionModes.Count == 0 ||
+            !candidate.SupportedConnectionModes.Contains(candidate.ConnectionMode) ||
             candidate.SupportedConnectionModes.All(mode => mode is AgentConnectionMode.Unsupported or AgentConnectionMode.Unknown)))
         {
             reasons.Add(RoutingReasonCode.ConnectionUnsupported);
@@ -549,7 +550,7 @@ public sealed class RoutingDecisionEngine : IRoutingDecisionEngine
         bool isOverride = false)
     {
         var reasons = new List<RoutingReasonCode> { RoutingReasonCode.Selected };
-        if (winner.PreferencePosition is null)
+        if (input.Policy.PreferredAgentIds.Count > 0 && winner.PreferencePosition is null)
         {
             reasons.Add(RoutingReasonCode.LowerPreference);
         }

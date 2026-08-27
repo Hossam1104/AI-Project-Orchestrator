@@ -48,26 +48,95 @@ public sealed class RoutingDecisionPersistenceTests
         Assert.Equal(original, await File.ReadAllTextAsync(path));
     }
 
-    [Fact]
-    public async Task TamperedContentIsIntegrityFailureWithoutQuarantineOrRepair()
+    [Theory]
+    [MemberData(nameof(TamperCases))]
+    public async Task TamperMatrixFailsClosedAndRepeatedReadsNeverMutateTheOriginalBytes(string tamperCase)
     {
         using var store = new TemporaryStore();
         var repository = CreateRepository(store);
         var decision = CreateDecision();
         await repository.CreateAsync(decision);
         var path = store.Paths.GetRoutingDecisionFile(decision.ProjectId, decision.DecisionId);
-        var original = await File.ReadAllTextAsync(path);
         var record = RoutingDecisionRecord.FromApplication(decision);
-        record.Limitations.Add("tampered");
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(
-            new { schemaVersion = JsonFileStore.CurrentSchemaVersion, payload = record },
-            JsonFileStore.SerializerOptions));
+        ApplyTamper(record, tamperCase);
+        await WriteEnvelope(path, record);
+        var bytesBeforeRead = await File.ReadAllBytesAsync(path);
 
-        var read = await repository.GetAsync(decision.ProjectId, decision.DecisionId);
+        var firstRead = await repository.GetAsync(decision.ProjectId, decision.DecisionId);
+        var secondRead = await repository.GetAsync(decision.ProjectId, decision.DecisionId);
 
-        Assert.Equal(RoutingDecisionReadState.IntegrityFailure, read.State);
-        Assert.NotEqual(original, await File.ReadAllTextAsync(path));
+        Assert.Equal(RoutingDecisionReadState.IntegrityFailure, firstRead.State);
+        Assert.Equal(firstRead.State, secondRead.State);
+        Assert.Equal(firstRead.ErrorMessage, secondRead.ErrorMessage);
+        var bytesAfterRead = await File.ReadAllBytesAsync(path);
+        Assert.True(bytesBeforeRead.SequenceEqual(bytesAfterRead));
+        var directory = Path.GetDirectoryName(path)!;
+        Assert.Equal(["decision.json"], Directory.GetFiles(directory)
+            .Select(Path.GetFileName)
+            .OrderBy(value => value, StringComparer.Ordinal));
         Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, "*.bak", SearchOption.AllDirectories));
+    }
+
+    public static IEnumerable<object[]> TamperCases =>
+    [
+        ["RequestedRole"],
+        ["Risk"],
+        ["RequiredCapability"],
+        ["CandidateAgentId"],
+        ["CandidateIsEligible"],
+        ["CapacityState"],
+        ["PolicyPreferredAgent"],
+        ["SelectedAgentId"],
+        ["OwnerOverrideDisposition"],
+        ["OuterInputFingerprint"],
+        ["InnerInputFingerprint"],
+        ["ContentHash"]
+    ];
+
+    private static void ApplyTamper(RoutingDecisionRecord record, string tamperCase)
+    {
+        var alternateAgentId = Guid.Parse("30000000-0000-0000-0000-000000000002");
+        switch (tamperCase)
+        {
+            case "RequestedRole":
+                record.Recommendation!.RequestedRole = AgentRole.Reviewer;
+                break;
+            case "Risk":
+                record.Input.Classification.Risk = RoutingTaskRisk.High;
+                break;
+            case "RequiredCapability":
+                record.Input.Classification.RequiredCapabilities[0] = "review";
+                break;
+            case "CandidateAgentId":
+                record.CandidateAssessments[0].Candidate.AgentId = alternateAgentId;
+                break;
+            case "CandidateIsEligible":
+                record.CandidateAssessments[0].IsEligible = false;
+                break;
+            case "CapacityState":
+                record.CandidateAssessments[0].CapacityState = RoutingCapacityState.Constrained;
+                break;
+            case "PolicyPreferredAgent":
+                record.Input.Policy.PreferredAgentIds.Add(alternateAgentId);
+                break;
+            case "SelectedAgentId":
+                record.SelectedAgentId = alternateAgentId;
+                break;
+            case "OwnerOverrideDisposition":
+                record.OwnerOverrideDisposition = RoutingOverrideDisposition.Applied;
+                break;
+            case "OuterInputFingerprint":
+                record.InputFingerprint = new string('b', 64);
+                break;
+            case "InnerInputFingerprint":
+                record.Input.InputFingerprint = new string('b', 64);
+                break;
+            case "ContentHash":
+                record.ContentHash = new string('b', 64);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(tamperCase), tamperCase, "Unknown tamper case.");
+        }
     }
 
     [Fact]

@@ -49,6 +49,13 @@ public sealed class RoutingPolicySnapshot
             throw new ArgumentException("Routing policy minimum capacity state is undefined.", nameof(minimumCapacityState));
         }
 
+        if (capacityRequirement == RoutingCapacityRequirement.NotApplicable && minimumCapacityState is not null)
+        {
+            throw new ArgumentException(
+                "A not-applicable capacity requirement cannot declare a minimum capacity state.",
+                nameof(minimumCapacityState));
+        }
+
         PolicyId = Normalize(policyId, nameof(policyId), 200);
         RequiredRole = requiredRole;
         PreferredAgentIds = NormalizeIds(preferredAgentIds, MaximumPreferredAgents, nameof(preferredAgentIds), preserveOrder: true);

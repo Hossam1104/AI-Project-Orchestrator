@@ -122,6 +122,20 @@ public sealed class RoutingInputSnapshot
             throw new ArgumentException("Capacity evidence must refer to a considered candidate.", nameof(capacityEvidence));
         }
 
+        if (evidenceCopies.Any(value => value.ObservedAt > evaluatedAt))
+        {
+            throw new ArgumentException(
+                "Routing capacity evidence cannot be observed after the routing evaluation time.",
+                nameof(capacityEvidence));
+        }
+
+        if (ownerOverride is not null && ownerOverride.RequestedAt > evaluatedAt)
+        {
+            throw new ArgumentException(
+                "An owner override cannot be requested after the routing evaluation time.",
+                nameof(ownerOverride));
+        }
+
         ProjectId = projectId;
         PlanningContractReference = planningContractReference;
         Context = context;

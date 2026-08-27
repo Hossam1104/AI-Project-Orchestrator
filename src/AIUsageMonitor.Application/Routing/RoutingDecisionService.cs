@@ -114,6 +114,20 @@ public sealed class RoutingInputAssembler : IRoutingInputAssembler
             return new(RoutingInputAssemblyStatus.InvalidRequest, ErrorMessage: "Classification and executable routing policy roles must match.");
         }
 
+        if (request.CapacityEvidence.Any(value => value is not null && value.ObservedAt > evaluatedAt))
+        {
+            return new(
+                RoutingInputAssemblyStatus.InvalidRequest,
+                ErrorMessage: "Routing capacity evidence cannot be observed after the routing evaluation time.");
+        }
+
+        if (request.OwnerOverride is not null && request.OwnerOverride.RequestedAt > evaluatedAt)
+        {
+            return new(
+                RoutingInputAssemblyStatus.InvalidRequest,
+                ErrorMessage: "An owner override cannot be requested after the routing evaluation time.");
+        }
+
         try
         {
             foreach (var capability in request.Classification.RequiredCapabilities)

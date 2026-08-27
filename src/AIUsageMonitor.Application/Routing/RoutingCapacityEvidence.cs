@@ -99,8 +99,12 @@ public sealed class RoutingCapacityEvidence
     public double? RemainingFraction { get; }
     public RoutingCapacityEvidenceSource Source { get; }
 
+    /// <summary>
+    /// Returns the capacity state that was authoritative at the supplied evaluation time.
+    /// Every state expires at the same inclusive validity boundary; an expired insufficiency
+    /// must not remain authoritative indefinitely.
+    /// </summary>
     public RoutingCapacityState GetStateAt(DateTimeOffset evaluationTime) =>
-        CapacityState is RoutingCapacityState.Sufficient or RoutingCapacityState.Constrained &&
         ValidUntil is not null && ValidUntil.Value <= evaluationTime
             ? RoutingCapacityState.Stale
             : CapacityState;

@@ -85,6 +85,164 @@ public sealed class RoutingDecisionTests
         Assert.Contains(RoutingReasonCode.OptionalCapacityEvidence, optionalEvaluation.Recommendation!.Reasons);
     }
 
+    [Theory]
+    [InlineData(RoutingCapacityState.Sufficient)]
+    [InlineData(RoutingCapacityState.Constrained)]
+    [InlineData(RoutingCapacityState.Insufficient)]
+    public void EveryExpiredCapacityStateBecomesStaleAtTheValidityBoundary(RoutingCapacityState state)
+    {
+        var candidate = Agent(id: 1);
+        var evaluation = new RoutingDecisionEngine().Evaluate(Input(
+            [candidate],
+            evidence: [Evidence(candidate.AgentId, state, validUntil: Now)]));
+
+        var assessment = Assert.Single(evaluation.Assessments);
+        Assert.Equal(RoutingCapacityState.Stale, assessment.CapacityState);
+        Assert.Contains(RoutingReasonCode.CapacityStale, assessment.Reasons);
+        Assert.Equal(RoutingDecisionOutcome.StaleCapacityEvidence, evaluation.Outcome);
+        Assert.Null(evaluation.Recommendation);
+    }
+
+    [Fact]
+    public void FreshInsufficientCapacityRemainsInsufficient()
+    {
+        var candidate = Agent(id: 1);
+        var input = Input(
+            [candidate],
+            evidence: [Evidence(candidate.AgentId, RoutingCapacityState.Insufficient, validUntil: Now.AddMinutes(1))]);
+
+        var evaluation = new RoutingDecisionEngine().Evaluate(input);
+
+        Assert.Equal(RoutingCapacityState.Insufficient, Assert.Single(evaluation.Assessments).CapacityState);
+        Assert.Equal(RoutingDecisionOutcome.InsufficientCapacity, evaluation.Outcome);
+    }
+
+    [Fact]
+    public void ValidHistoricalCapacityRetainsItsObservedState()
+    {
+        var candidate = Agent(id: 1);
+        var input = Input(
+            [candidate],
+            evidence: [Evidence(candidate.AgentId, RoutingCapacityState.Constrained, validUntil: Now.AddMinutes(1))]);
+
+        var evaluation = new RoutingDecisionEngine().Evaluate(input);
+
+        Assert.Equal(RoutingCapacityState.Constrained, Assert.Single(evaluation.Assessments).CapacityState);
+        Assert.Equal(candidate.AgentId, evaluation.SelectedAgentId);
+    }
+
+    [Fact]
+    public void FutureCapacityObservationAndOwnerOverrideAreRejectedByInputInvariant()
+    {
+        var candidate = Agent(id: 1);
+
+        Assert.Throws<ArgumentException>(() => Input(
+            [candidate],
+            evidence: [Evidence(
+                candidate.AgentId,
+                RoutingCapacityState.Sufficient,
+                observedAt: Now.AddMinutes(1),
+                validUntil: Now.AddMinutes(2))]));
+
+        Assert.Throws<ArgumentException>(() => Input(
+            [candidate],
+            ownerOverride: new RoutingOwnerOverrideRequest(
+                candidate.AgentId,
+                "owner:1",
+                "Future override",
+                Now.AddMinutes(1)),
+            evidence: [Evidence(candidate.AgentId, RoutingCapacityState.Sufficient)]));
+    }
+
+    [Fact]
+    public void NoPreferencePolicyUsesStableAgentIdTieBreakWithoutLowerPreferenceReason()
+    {
+        var first = Agent(id: 1);
+        var second = Agent(id: 2);
+        var evaluation = new RoutingDecisionEngine().Evaluate(Input(
+            [second, first],
+            evidence: [Evidence(second.AgentId, RoutingCapacityState.Sufficient), Evidence(first.AgentId, RoutingCapacityState.Sufficient)]));
+
+        Assert.Equal(first.AgentId, evaluation.SelectedAgentId);
+        Assert.DoesNotContain(RoutingReasonCode.LowerPreference, evaluation.Recommendation!.Reasons);
+    }
+
+    [Fact]
+    public void ExplicitPreferredAgentUnavailableAddsLowerPreferenceToFallbackExplanation()
+    {
+        var preferred = Agent(id: 1);
+        var fallback = Agent(id: 2);
+        var evaluation = new RoutingDecisionEngine().Evaluate(Input(
+            [preferred, fallback],
+            preferred: [preferred.AgentId],
+            evidence: [
+                Evidence(preferred.AgentId, RoutingCapacityState.Insufficient),
+                Evidence(fallback.AgentId, RoutingCapacityState.Sufficient)]));
+
+        Assert.Equal(fallback.AgentId, evaluation.SelectedAgentId);
+        Assert.Contains(RoutingReasonCode.LowerPreference, evaluation.Recommendation!.Reasons);
+    }
+
+    [Fact]
+    public void NoEligibleCandidatesHaveAnExplicitOutcome()
+    {
+        var first = Agent(id: 1, capabilities: ["review"]);
+        var second = Agent(id: 2, capabilities: ["review"]);
+        var evaluation = new RoutingDecisionEngine().Evaluate(Input(
+            [first, second],
+            requiredCapabilities: ["code"],
+            evidence: [Evidence(first.AgentId, RoutingCapacityState.Sufficient), Evidence(second.AgentId, RoutingCapacityState.Sufficient)]));
+
+        Assert.Equal(RoutingDecisionOutcome.NoEligibleCandidate, evaluation.Outcome);
+        Assert.Null(evaluation.SelectedAgentId);
+        Assert.Null(evaluation.Recommendation);
+    }
+
+    [Fact]
+    public void ProjectConnectionModeOverrideRemovesGloballySupportedModeFromRouting()
+    {
+        var global = new AgentDefinition(
+            Guid.Parse("30000000-0000-0000-0000-000000000001"),
+            "API and CLI Agent",
+            "executor",
+            AgentConnectionMode.Api,
+            AgentAvailability.Available,
+            true,
+            Now,
+            Now,
+            provider: "provider",
+            capabilities: ["code"],
+            roleCapabilities: [AgentRole.Executor],
+            supportedConnectionModes: [AgentConnectionMode.Api, AgentConnectionMode.Cli],
+            authenticationState: AgentAuthenticationState.Authenticated,
+            entitlementState: AgentEntitlementState.VerifiedAvailable,
+            modelIdentifier: "model");
+        var effective = new EffectiveAgentDefinition(
+            ProjectId,
+            global,
+            new AgentProjectOverride(ProjectId, global.Id, permittedConnectionModes: [AgentConnectionMode.Cli]));
+        var candidate = RoutingAgentSnapshot.FromEffective(effective);
+
+        var evaluation = new RoutingDecisionEngine().Evaluate(Input(
+            [candidate],
+            evidence: [Evidence(candidate.AgentId, RoutingCapacityState.Sufficient)]));
+
+        Assert.Equal([AgentConnectionMode.Cli], candidate.SupportedConnectionModes);
+        Assert.False(Assert.Single(evaluation.Assessments).IsHardEligible);
+        Assert.Contains(RoutingReasonCode.ConnectionUnsupported, Assert.Single(evaluation.Assessments).Reasons);
+        Assert.Null(evaluation.SelectedAgentId);
+    }
+
+    [Fact]
+    public void NotApplicableCapacityPolicyCannotDeclareMinimumState()
+    {
+        Assert.Throws<ArgumentException>(() => new RoutingPolicySnapshot(
+            "policy:contradictory",
+            AgentRole.Executor,
+            capacityRequirement: RoutingCapacityRequirement.NotApplicable,
+            minimumCapacityState: RoutingCapacityState.Sufficient));
+    }
+
     [Fact]
     public void GatesRemainRecordedAndDoNotBecomeSatisfiedBySelection()
     {
@@ -255,10 +413,11 @@ public sealed class RoutingDecisionTests
         Guid agentId,
         RoutingCapacityState state,
         double? remaining = null,
-        DateTimeOffset? validUntil = null) => new(
+        DateTimeOffset? validUntil = null,
+        DateTimeOffset? observedAt = null) => new(
         agentId,
         state,
-        Now.AddMinutes(-1),
+        observedAt ?? Now.AddMinutes(-1),
         validUntil ?? Now.AddHours(1),
         $"fixture:{agentId:D}",
         remainingFraction: remaining,

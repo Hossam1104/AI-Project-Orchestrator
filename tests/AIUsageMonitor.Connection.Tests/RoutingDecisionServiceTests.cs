@@ -58,6 +58,95 @@ public sealed class RoutingDecisionServiceTests
     }
 
     [Fact]
+    public async Task FutureCapacityObservationIsRejectedAsInvalidRequestWithoutPersistence()
+    {
+        var (service, decisions) = CreateService();
+        var request = Request(
+            Contract().Reference,
+            [new RoutingCapacityEvidence(
+                AgentId,
+                RoutingCapacityState.Sufficient,
+                Now.AddMinutes(1),
+                Now.AddMinutes(2),
+                "manual:future",
+                source: RoutingCapacityEvidenceSource.Manual)]);
+
+        var result = await service.CreateAsync(request);
+
+        Assert.Equal(RoutingDecisionCreationStatus.InvalidRequest, result.Status);
+        Assert.Equal(RoutingInputAssemblyStatus.InvalidRequest, result.AssemblyStatus);
+        Assert.Null(decisions.Decision);
+    }
+
+    [Fact]
+    public async Task FutureOwnerOverrideIsRejectedAsInvalidRequestWithoutPersistence()
+    {
+        var (service, decisions) = CreateService();
+        var request = Request(
+            Contract().Reference,
+            ownerOverride: new RoutingOwnerOverrideRequest(
+                AgentId,
+                "owner:future",
+                "Future override",
+                Now.AddMinutes(1)));
+
+        var result = await service.CreateAsync(request);
+
+        Assert.Equal(RoutingDecisionCreationStatus.InvalidRequest, result.Status);
+        Assert.Equal(RoutingInputAssemblyStatus.InvalidRequest, result.AssemblyStatus);
+        Assert.Null(decisions.Decision);
+    }
+
+    [Fact]
+    public async Task RealProjectDisableOverrideReachesRoutingAsDisabledCandidate()
+    {
+        var contract = Contract();
+        var global = RegistryAgent(AgentRole.Executor);
+        var effective = new EffectiveAgentDefinition(
+            ProjectId,
+            global,
+            new AgentProjectOverride(ProjectId, global.Id, enabledOverride: false));
+        var (service, _) = CreateService(effective);
+
+        var result = await service.CreateAsync(Request(
+            contract.Reference,
+            [new RoutingCapacityEvidence(AgentId, RoutingCapacityState.Sufficient, Now, Now.AddHours(1), "manual:sufficient", source: RoutingCapacityEvidenceSource.Manual)]));
+
+        Assert.True(result.Succeeded);
+        var candidate = Assert.Single(result.Decision!.Input.Candidates);
+        var assessment = Assert.Single(result.Decision.CandidateAssessments);
+        Assert.False(candidate.Enabled);
+        Assert.False(assessment.IsHardEligible);
+        Assert.Contains(RoutingReasonCode.Disabled, assessment.Reasons);
+        Assert.Null(result.Decision.SelectedAgentId);
+    }
+
+    [Fact]
+    public async Task RealProjectRoleOverrideRemovesExecutorRoleFromRoutingCandidate()
+    {
+        var contract = Contract();
+        var global = RegistryAgent(AgentRole.Executor, AgentRole.Reviewer);
+        var effective = new EffectiveAgentDefinition(
+            ProjectId,
+            global,
+            new AgentProjectOverride(ProjectId, global.Id, permittedRoles: [AgentRole.Reviewer]));
+        var (service, _) = CreateService(effective);
+
+        var result = await service.CreateAsync(Request(
+            contract.Reference,
+            [new RoutingCapacityEvidence(AgentId, RoutingCapacityState.Sufficient, Now, Now.AddHours(1), "manual:sufficient", source: RoutingCapacityEvidenceSource.Manual)]));
+
+        Assert.True(result.Succeeded);
+        var candidate = Assert.Single(result.Decision!.Input.Candidates);
+        var assessment = Assert.Single(result.Decision.CandidateAssessments);
+        Assert.DoesNotContain(AgentRole.Executor, candidate.RoleCapabilities);
+        Assert.Contains(AgentRole.Reviewer, candidate.RoleCapabilities);
+        Assert.False(assessment.IsHardEligible);
+        Assert.Contains(RoutingReasonCode.RoleUnsupported, assessment.Reasons);
+        Assert.Null(result.Decision.SelectedAgentId);
+    }
+
+    [Fact]
     public async Task SecretShapedTrustedIdentityIsRejectedRatherThanInventingSafeIdentity()
     {
         var contract = Contract();
@@ -93,7 +182,10 @@ public sealed class RoutingDecisionServiceTests
         Assert.Equal(RoutingDecisionCreationStatus.RedactionRejected, result.Status);
     }
 
-    private static RoutingDecisionRequest Request(PlanningExecutionContractReference reference) => new(
+    private static RoutingDecisionRequest Request(
+        PlanningExecutionContractReference reference,
+        IReadOnlyList<RoutingCapacityEvidence>? capacityEvidence = null,
+        RoutingOwnerOverrideRequest? ownerOverride = null) => new(
         ProjectId,
         reference,
         new RoutingTaskClassification(
@@ -104,7 +196,43 @@ public sealed class RoutingDecisionServiceTests
             AgentRole.Executor,
             ["code"]),
         new RoutingPolicySnapshot("policy:service", AgentRole.Executor),
-        [new RoutingCapacityEvidence(AgentId, RoutingCapacityState.Sufficient, Now, Now.AddHours(1), "manual:fixture", source: RoutingCapacityEvidenceSource.Manual)]);
+        capacityEvidence ?? [new RoutingCapacityEvidence(AgentId, RoutingCapacityState.Sufficient, Now, Now.AddHours(1), "manual:fixture", source: RoutingCapacityEvidenceSource.Manual)],
+        ownerOverride);
+
+    private static (RoutingDecisionService Service, FakeDecisionRepository Decisions) CreateService(
+        EffectiveAgentDefinition? effective = null)
+    {
+        var contract = Contract();
+        var decisions = new FakeDecisionRepository();
+        var context = Context(contract.Context, effective);
+        return (
+            new RoutingDecisionService(
+                new RoutingInputAssembler(
+                    new FakeContextResolver(context, effective),
+                    new FakeContractRepository(contract),
+                    new HandoffRedactionService()),
+                new RoutingDecisionEngine(),
+                decisions,
+                new FixedClock(Now)),
+            decisions);
+    }
+
+    private static AgentDefinition RegistryAgent(params AgentRole[] roles) => new(
+        AgentId,
+        "Service Agent",
+        "executor",
+        AgentConnectionMode.Api,
+        AgentAvailability.Available,
+        true,
+        Now,
+        Now,
+        provider: "provider",
+        capabilities: ["code"],
+        roleCapabilities: roles,
+        supportedConnectionModes: [AgentConnectionMode.Api],
+        authenticationState: AgentAuthenticationState.Authenticated,
+        entitlementState: AgentEntitlementState.VerifiedAvailable,
+        modelIdentifier: "model");
 
     private static ProjectContextReference Context(
         PlanningContextBinding binding,
