@@ -2720,3 +2720,66 @@ in the executor handoff; no product or test files are changed after that metadat
 exact-head acceptance. Draft PR #15 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-44,
 APO-45, APO-46, model invocation, routing, execution runtime, tracker synchronization,
 validation/approval engines, or Mission Control UI.
+
+## 31. APO-43 SOL-43-01 / SOL-43-02 / SOL-43-03 Exact-Head Remediation (Prompt 3/5R)
+
+**Lifecycle:** The bounded remediation is functionally complete and awaits GPT-5.6 Sol exact-head
+re-review. APO-43 remains `In Progress`; PR #15 remains `OPEN / DRAFT / UNMERGED` against `main`.
+No Claude Opus or Claude Sonnet was invoked, and APO was not launched.
+
+**Exact remediation identity:**
+
+- Original APO-43 functional SHA: `ad466d52ff2a66af098337aa2fd4df3988e4a339`.
+- Previous exact Sol-reviewed head: `3633b281a7509176f17d2f281185be82a18054f9`.
+- Previous exact Sol-reviewed tree: `64d281e16c18ccdff1bdf052b0b8ff0a7d277a89`.
+- Remediation functional SHA: `b382374b210db12c2f74032dc213e3a46b255bcc`.
+- Remediation functional tree: `13d22af49bfce00076190348076baef8289809a8`.
+- Branch: `feat/APO-43-smart-continue-recovery-checkpoints`.
+- PR #15: `OPEN / DRAFT / UNMERGED`, base `main`; no rebase, merge, force push, Ready transition,
+  or Jira Done transition was performed.
+
+**SOL-43-01:** `RecoveryBlocker.BlockerId` is an identity value and is now passed through the
+existing `IHandoffRedactionService.ValidateIdentityText(...)` recognizer. A secret-shaped blocker
+ID returns `RecoveryCheckpointCreationStatus.RedactionRejected` before immutable checkpoint or
+continuation-head persistence. The real-disk test proves null checkpoint/head, unchanged head
+generation, no checkpoint file, and no raw fixture value under continuation storage. A companion
+test proves blocker descriptions may still be redacted while a safe blocker ID remains exact.
+
+**SOL-43-02:** The project publication lock now performs dictionary lookup and usage-reference
+acquisition within one lifecycle lock, and releases/removes only the exact current entry when its
+usage count reaches zero. Cancellation releases references; idle entries are evicted; different
+project IDs retain independent gates. Deterministic pending-waiter and service-level concurrent
+publication tests prove one canonical successor, invalid-lineage loss before a sibling write, and
+no same-project orphan caused by serialization failure.
+
+**SOL-43-03:** A failing head repository test proves checkpoint-write success followed by forced
+head-publication failure leaves an immutable orphan, preserves canonical head A, and is ignored by
+Smart Continue both before and after resolver restart without repair, deletion, directory scanning,
+or head mutation. Parameterized real-JSON checkpoint tampering covers lifecycle, contract revision,
+context, handoff reference, predecessor hash, evidence freshness, blocker content, next action,
+and content hash. Head tampering covers generation, latest reference, last-safe reference, and
+content hash with valid previous-generation fallback; both-invalid fail-closed behavior and
+two-project restart/isolation evidence are preserved.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 617/617 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 294.
+- Focused APO-43 recovery tests: 51/51 passed.
+- `git diff --check`: clean.
+- Changed-line credential-shaped scan: only intentional sanitized fixtures; no real credentials.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+**Deferred and unchanged:** `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`.
+`JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`); `RecoveryCheckpointSchema` and
+`ContinuationHeadSchema` remain V1. No APO-44+ work, routing, model invocation, execution runtime,
+tracker synchronization, validation/approval engine, or Mission Control UI was started.
+
+**Runtime:** `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+
+**Next planner boundary:** APO-43 Prompt 3/5R remediation complete and awaiting GPT-5.6 Sol
+exact-head re-review. PR #15 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-44, APO-45, APO-46,
+routing, model invocation, execution runtime, tracker synchronization, validation/approval
+engines, or Mission Control UI.

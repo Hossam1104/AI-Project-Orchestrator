@@ -2,15 +2,18 @@
 
 ## Active execution contract
 
-- Prompt: `3/5` - GPT-5.6 Sol authorized implementation; GPT-5.6 Luna xHigh executor
+- Prompt: `3/5R` - GPT-5.6 Sol authorized exact-head remediation; GPT-5.6 Luna xHigh executor
 - Jira: `APO-43` (issue id `10871`), parent `APO-3`, priority `High`
 - Jira status: `In Progress`
 - Jira implementation-start comment: `12176`
 - Authorized starting main SHA: `fcbb3e82460f9ed689b446eef16b6c2904d643c6`
 - Authorized starting main tree: `f7920d9a06d3acd4443937b77f5eed45c6210740`
 - Feature branch: `feat/APO-43-smart-continue-recovery-checkpoints`
-- Functional commit: `ad466d52ff2a66af098337aa2fd4df3988e4a339`
-- Functional tree: `82b15b4311025098d8ca534caa9b2e28e1c6b078`
+- Original APO-43 functional commit: `ad466d52ff2a66af098337aa2fd4df3988e4a339`
+- Previous exact Sol-reviewed head: `3633b281a7509176f17d2f281185be82a18054f9`
+- Previous exact Sol-reviewed tree: `64d281e16c18ccdff1bdf052b0b8ff0a7d277a89`
+- Remediation functional commit: `b382374b210db12c2f74032dc213e3a46b255bcc`
+- Remediation functional tree: `13d22af49bfce00076190348076baef8289809a8`
 - Draft PR: `#15 OPEN / DRAFT / UNMERGED`, base `main`
 
 ## Delivered scope
@@ -44,11 +47,30 @@ APO-44+ scope is authorized by this task.
 - `dotnet restore AIUsageMonitor.sln`
 - `dotnet build AIUsageMonitor.sln --no-restore`
 - `dotnet test AIUsageMonitor.sln --no-restore`
-- Required final totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 275;
-  Total 598/598; Failed 0; Skipped 0; warnings 0; errors 0.
-- Focused APO-43 recovery tests: 32/32 passed.
+- Final totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 294;
+  Total 617/617; Failed 0; Skipped 0; warnings 0; errors 0.
+- Focused APO-43 recovery tests: 51/51 passed, covering SOL-43-01 blocker identity and
+  descriptive redaction, SOL-43-02 keyed-lock lifecycle and concurrent publication, and SOL-43-03
+  orphan/restart, checkpoint tamper, head tamper, and two-project isolation evidence.
 - `git diff --check`: clean.
 - GitHub CI: `NONE / NOT CLAIMED`.
+
+## SOL-43-01 / SOL-43-02 / SOL-43-03 remediation handoff
+
+The bounded Prompt 3/5R correction is complete in remediation functional commit
+`b382374b210db12c2f74032dc213e3a46b255bcc` (tree
+`13d22af49bfce00076190348076baef8289809a8`). SOL-43-01 now validates every `RecoveryBlocker.BlockerId`
+with the existing `IHandoffRedactionService.ValidateIdentityText(...)` recognizer and rejects
+secret-shaped identity before checkpoint/head persistence; descriptive blocker text remains
+redactable and safe blocker IDs remain exact. SOL-43-02 now coordinates keyed entry lookup,
+reference acquisition, gate use, cancellation, and identity-checked idle eviction under one
+lifecycle synchronization boundary. SOL-43-03 now has real persistence evidence for publication
+failure orphans, restart behavior, no directory-scan authority, the checkpoint tamper matrix,
+the head tamper matrix, and two-project restart isolation.
+
+This is a remediation handoff, not acceptance. APO-43 remains `In Progress`; PR #15 remains
+`OPEN / DRAFT / UNMERGED`; the final metadata-only feature head is awaiting GPT-5.6 Sol exact-head
+re-review. No schema version changed.
 
 ## Governance and handoff boundary
 
