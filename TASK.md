@@ -1,92 +1,76 @@
-# APO-43 - Canonical Context, Smart Continue & Recovery Checkpoints
+# APO-44 - Explainable Quality-First Quota-Aware Routing Decisions
 
 ## Active execution contract
 
-- Prompt: `3/5R` - GPT-5.6 Sol authorized exact-head remediation; GPT-5.6 Luna xHigh executor
-- Jira: `APO-43` (issue id `10871`), parent `APO-3`, priority `High`
+- Prompt: `4/5` - GPT-5.6 Sol authorized exact-head implementation; GPT-5.6 Luna xHigh executor
+- Jira: `APO-44` (issue id `10872`), parent `APO-9`, priority `High`
 - Jira status: `In Progress`
-- Jira implementation-start comment: `12176`
-- Authorized starting main SHA: `fcbb3e82460f9ed689b446eef16b6c2904d643c6`
-- Authorized starting main tree: `f7920d9a06d3acd4443937b77f5eed45c6210740`
-- Feature branch: `feat/APO-43-smart-continue-recovery-checkpoints`
-- Original APO-43 functional commit: `ad466d52ff2a66af098337aa2fd4df3988e4a339`
-- Previous exact Sol-reviewed head: `3633b281a7509176f17d2f281185be82a18054f9`
-- Previous exact Sol-reviewed tree: `64d281e16c18ccdff1bdf052b0b8ff0a7d277a89`
-- Remediation functional commit: `b382374b210db12c2f74032dc213e3a46b255bcc`
-- Remediation functional tree: `13d22af49bfce00076190348076baef8289809a8`
-- Draft PR: `#15 OPEN / DRAFT / UNMERGED`, base `main`
+- Jira implementation-start comment: `12180`
+- Authorized starting main SHA: `35ee09d8095a01fc7a0221f27b793c758da5e6d9`
+- Authorized starting main tree: `c968eac17efdc6883a20d1281e97ac9dacddd60b`
+- Feature branch: `feat/APO-44-quality-first-quota-routing`
+- Functional commit: `a9e7b0f69478337261bf81bc97fb487367bafa81`
+- Functional tree: `805ceded05c251d311e431755a991d3c2bd34263`
+- Draft PR: `#16 OPEN / DRAFT / UNMERGED`, base `main`
+- APO-43: `COMPLETE / MERGED / DONE` at the authorized baseline
+- APO-45: `TO DO / NOT AUTHORIZED`
 
 ## Delivered scope
 
-APO-43 provides three composed, provider-independent authorities:
+APO-44 adds a bounded, provider-independent routing decision authority:
 
-1. An immutable, create-once `RecoveryCheckpoint` with schema V1, GUID-derived project/checkpoint
-   storage, deterministic lower-case SHA-256 content-integrity evidence, bounded reference-only
-   metadata, lifecycle state, exact context/contract binding, optional exact WorkGraph/node and
-   HandoffPackage binding, shallow predecessor lineage, selected agent-role references, evidence,
-   gate snapshots, typed blockers, and a typed next safe action.
-2. A project-scoped two-slot `ContinuationHead` with atomic generations alternating A/B (`1 -> A`,
-   `2 -> B`, `3 -> A`), latest and last-known-safe references, observational reads, and corrupt
-   newest-generation fallback without repair or directory scanning.
-3. A read-only `SmartContinueResolver` that evaluates durable authority only and returns explicit
-   lifecycle, stale-evidence, context, integrity, version, and infrastructure outcomes. It never
-   executes the returned action, routes models, refreshes external evidence, or writes state.
-
-LastSafe is updated for `Ready`, `Waiting`, `Blocked`, and `ApprovalRequired`. `Interrupted`,
-`Failed`, and `Cancelled` preserve the previous safe reference; `Completed` is terminal. Mutable
-repository, tracker, routing, validation, and approval evidence is freshness-checked where present.
-Descriptive text uses the existing `IHandoffRedactionService`; authority/reference text is rejected
-if the same detector would transform it.
-
-No chat/transcript/prompt, repository content, credential, model invocation, provider call, routing,
-execution runtime, tracker synchronization, validation/approval engine, UI, automatic worktree, or
-APO-44+ scope is authorized by this task.
+1. `RoutingTaskClassification` captures scope, risk, blast radius, validation cost, required role,
+   exact normalized capabilities, policy tags, capacity requirement, and downstream gate flags.
+2. `RoutingPolicySnapshot` is an explicit executable policy snapshot separate from descriptive
+   `AgentRolePolicyMetadata`, with ordered preferences, prohibitions, capacity requirements, and
+   verification requirements.
+3. `RoutingAgentSnapshot` copies trusted effective APO-38 registry truth, including project
+   overrides. No default catalog, caller-supplied identity, or competing registry is used.
+4. `RoutingCapacityEvidence` is exact agent-bound evidence with truthful Sufficient, Constrained,
+   Insufficient, Unknown, Stale, NotMapped, and NotApplicable states. Existing provider usage data
+   is not guessed into an agent mapping; no live provider call or refresh is performed.
+5. `RoutingDecisionEngine` is pure and deterministic. It evaluates enabled state, exact role and
+   capabilities, connection truth, availability, authentication, entitlement, and prohibited
+   policy before normalized capacity, explicit preference, and stable AgentId tie-breaking. It
+   recommends but never invokes or executes.
+6. Owner overrides are auditable and can change only soft ranking among already-eligible,
+   non-prohibited candidates. Rejected overrides have no silent fallback. Review, security, and
+   owner-approval gates remain recorded and unsatisfied by selection.
+7. `RoutingInputAssembler` binds the exact persisted planning-contract revision and current
+   project context identity/version/update time. It uses the existing handoff redaction service:
+   descriptive values may be redacted; authority, identity, and reference values are rejected if
+   secret-shaped.
+8. Immutable decisions use dedicated schema V1, create-once GUID/project-isolated persistence at
+   `projects/<ProjectId>/routing/decisions/<DecisionId>/decision.json`, deterministic input
+   fingerprints, lower-case SHA-256 content-integrity evidence, exact-ID reads, and observational
+   tamper/version handling. No migration, overwrite, repair, quarantine, deletion, backup, or
+   directory scan is performed.
 
 ## Validation contract and evidence
 
-- `dotnet restore AIUsageMonitor.sln`
-- `dotnet build AIUsageMonitor.sln --no-restore`
-- `dotnet test AIUsageMonitor.sln --no-restore`
-- Final totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 294;
-  Total 617/617; Failed 0; Skipped 0; warnings 0; errors 0.
-- Focused APO-43 recovery tests: 51/51 passed, covering SOL-43-01 blocker identity and
-  descriptive redaction, SOL-43-02 keyed-lock lifecycle and concurrent publication, and SOL-43-03
-  orphan/restart, checkpoint tamper, head tamper, and two-project isolation evidence.
-- `git diff --check`: clean.
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 633/633 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 178; Provider 46; Desktop 82; Infrastructure 299.
+- Focused routing tests: 16/16 passed (Connection 11; Infrastructure 5).
+- `git diff --check`: clean before metadata-only changes.
+- Changed-line credential-shaped review: no real credentials; only intentional redaction fixture and
+  security-related identifiers.
 - GitHub CI: `NONE / NOT CLAIMED`.
-
-## SOL-43-01 / SOL-43-02 / SOL-43-03 remediation handoff
-
-The bounded Prompt 3/5R correction is complete in remediation functional commit
-`b382374b210db12c2f74032dc213e3a46b255bcc` (tree
-`13d22af49bfce00076190348076baef8289809a8`). SOL-43-01 now validates every `RecoveryBlocker.BlockerId`
-with the existing `IHandoffRedactionService.ValidateIdentityText(...)` recognizer and rejects
-secret-shaped identity before checkpoint/head persistence; descriptive blocker text remains
-redactable and safe blocker IDs remain exact. SOL-43-02 now coordinates keyed entry lookup,
-reference acquisition, gate use, cancellation, and identity-checked idle eviction under one
-lifecycle synchronization boundary. SOL-43-03 now has real persistence evidence for publication
-failure orphans, restart behavior, no directory-scan authority, the checkpoint tamper matrix,
-the head tamper matrix, and two-project restart isolation.
-
-This is a remediation handoff, not acceptance. APO-43 remains `In Progress`; PR #15 remains
-`OPEN / DRAFT / UNMERGED`; the final metadata-only feature head is awaiting GPT-5.6 Sol exact-head
-re-review. No schema version changed.
 
 ## Governance and handoff boundary
 
-APO-42 is `COMPLETE / MERGED / DONE` at main SHA
-`fcbb3e82460f9ed689b446eef16b6c2904d643c6`, tree
-`f7920d9a06d3acd4443937b77f5eed45c6210740`; PR #14 merged, SOL-42-01 closed, accepted validation
-566/566. APO-43 is implemented but not accepted or Done. Return the exact final feature head to
-GPT-5.6 Sol for acceptance. Do not merge PR #15, mark it Ready, transition APO-43 to Done, or
-begin APO-44, APO-45, APO-46, model invocation, routing, execution runtime, tracker
-synchronization, validation/approval engines, or Mission Control UI.
+This is an implementation handoff, not acceptance. APO-44 remains `In Progress`; PR #16 remains
+`OPEN / DRAFT / UNMERGED`. GPT-5.6 Sol must perform exact-head acceptance. No Claude Opus or Claude
+Sonnet was invoked. Do not merge, mark the PR Ready, transition APO-44 to Done, or begin APO-45,
+APO-46, routing execution, model invocation, worktree automation, tracker synchronization,
+validation/approval engines, or Mission Control UI.
 
 `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
 
 `JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`).
 
-Runtime is explicitly not launched:
+Runtime is explicitly not launched per Prompt 4/5:
 
 `APO PROCESS COUNT = 0`
 
@@ -94,5 +78,6 @@ Runtime is explicitly not launched:
 
 ## Next planner boundary
 
-APO-43 Prompt 3/5 implementation complete and awaiting GPT-5.6 Sol exact-head acceptance. Draft PR
-#15 remains `OPEN / DRAFT / UNMERGED`.
+APO-44 Prompt 4/5 implementation complete and awaiting GPT-5.6 Sol exact-head acceptance. Draft PR
+remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46, routing execution, model invocation,
+worktree automation, tracker synchronization, validation/approval engines, or Mission Control UI.

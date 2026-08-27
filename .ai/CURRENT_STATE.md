@@ -33,7 +33,13 @@
 **APO-41 Accepted Tree:** `4b05cd85c8f6434ba3750c444e0c66da671bd18a`.
 **APO-42:** COMPLETE / MERGED / DONE; PR #14 merged at the authorized APO-42 baseline.
 **APO-42 Merge SHA:** `fcbb3e82460f9ed689b446eef16b6c2904d643c6`.
-**APO-43:** IN PROGRESS / PROMPT 3/5; implementation delivered; awaiting GPT-5.6 Sol exact-head acceptance.
+**APO-43:** COMPLETE / MERGED / DONE at `35ee09d8095a01fc7a0221f27b793c758da5e6d9`.
+**APO-44:** IN PROGRESS / PROMPT 4/5; implementation complete; awaiting GPT-5.6 Sol exact-head acceptance.
+**APO-44 Feature Branch:** `feat/APO-44-quality-first-quota-routing`.
+**APO-44 Functional SHA:** `a9e7b0f69478337261bf81bc97fb487367bafa81`.
+**APO-44 Functional Tree:** `805ceded05c251d311e431755a991d3c2bd34263`.
+**APO-44 Draft PR:** `#16 OPEN / DRAFT / UNMERGED` against `main`.
+**APO-44 Jira start comment:** `12180`.
 **APO-43 Feature Branch:** `feat/APO-43-smart-continue-recovery-checkpoints`.
 **APO-43 Functional SHA:** `ad466d52ff2a66af098337aa2fd4df3988e4a339`.
 **APO-43 Draft PR:** `#15 OPEN / DRAFT / UNMERGED`.
@@ -42,14 +48,14 @@
 **APO-42 Remediation Functional SHA:** `8cdd7d20d5e5e875d638312c2f3bbf44d9082d07`.
 **APO-42 Draft PR:** `#14 MERGED / CLOSED`.
 **APO-42 Jira start comment:** `12137`.
-**AUTHORITATIVE CURRENT TRUTH (APO-43):** APO-42 is fully merged/closed and Done at the exact
-authorized baseline; the historical APO-41/APO-42 sections below are preserved as history. APO-43
-Prompt 3/5 implementation is functionally complete on its feature branch and awaits GPT-5.6 Sol
+**AUTHORITATIVE CURRENT TRUTH (APO-44):** APO-43 is fully merged/closed and Done at the exact
+authorized baseline; the historical APO-41/APO-43 sections below are preserved as history. APO-44
+Prompt 4/5 implementation is functionally complete on its feature branch and awaits GPT-5.6 Sol
 exact-head acceptance.
-**Current Story (authoritative):** APO-43 - Persist Canonical Context, Smart Continue, and Recovery Checkpoints.
-**Current Epic (authoritative):** APO-3 - Local Persistence, Resilience & Security Foundation.
-**Status (authoritative):** IN PROGRESS / PROMPT 3/5; Draft PR #15 OPEN / DRAFT / UNMERGED.
-**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the APO-43 implementation handoff.
+**Current Story (authoritative):** APO-44 - Implement Explainable Quality-First Quota-Aware Routing Decisions.
+**Current Epic (authoritative):** APO-9 - Intelligent Model Routing & Quota-Aware Decisioning.
+**Status (authoritative):** IN PROGRESS / PROMPT 4/5; Draft PR #16 OPEN / DRAFT / UNMERGED.
+**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the APO-44 implementation handoff.
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
 **Status:** IN PROGRESS / PROMPT 5/5B / FOUNDATION REMEDIATION COMPLETE; Draft PR #12 OPEN / DRAFT / UNMERGED.
@@ -60,14 +66,14 @@ exact-head acceptance.
 **APO-40:** COMPLETE / MERGED / DONE at `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
 **APO-41:** COMPLETE / MERGED / DONE at `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`.
 **APO-42:** COMPLETE / MERGED / DONE at `fcbb3e82460f9ed689b446eef16b6c2904d643c6`.
-**APO-43:** IN PROGRESS / PROMPT 3/5; implementation complete / awaiting Sol exact-head acceptance.
-**APO-44:** TO DO / NOT AUTHORIZED.
+**APO-43:** COMPLETE / MERGED / DONE at `35ee09d8095a01fc7a0221f27b793c758da5e6d9`.
+**APO-44:** IN PROGRESS / PROMPT 4/5; implementation complete / awaiting Sol exact-head acceptance.
 **APO-45:** TO DO / NOT AUTHORIZED.
 **Release state:** APO-37 provides explicit, manual, read-only local repository verification. APO-43
-provides the durable Smart Continue/recovery foundation but remains awaiting Sol acceptance; Mission
-Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled
-delivery, review/acceptance engines, background automation, remote approval, and full release
-qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+is merged at the authorized baseline. APO-44 provides the explainable routing decision authority but
+remains awaiting Sol acceptance; routing execution, model invocation, worktree automation, tracker
+automation, validation/approval engines, Mission Control, and full release qualification remain
+planned or incomplete. No GitHub CI evidence is claimed.
 
 ## 27. APO-41 SOL-41-01 Terminal Completion Evidence Integrity Remediation (Prompt 1/5R)
 
@@ -2783,3 +2789,81 @@ tracker synchronization, validation/approval engine, or Mission Control UI was s
 exact-head re-review. PR #15 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-44, APO-45, APO-46,
 routing, model invocation, execution runtime, tracker synchronization, validation/approval
 engines, or Mission Control UI.
+
+## 32. APO-44 Explainable Quality-First Quota-Aware Routing (Prompt 4/5)
+
+**Lifecycle:** APO-44 implementation is complete on the assigned feature branch; Jira remains In
+Progress and the work awaits GPT-5.6 Sol exact-head acceptance. No Claude Opus or Claude Sonnet was
+invoked. APO was not launched, and no execution path was added.
+
+**Exact delivery identity:**
+
+- Authorized starting main SHA: `35ee09d8095a01fc7a0221f27b793c758da5e6d9`.
+- Authorized starting main tree: `c968eac17efdc6883a20d1281e97ac9dacddd60b`.
+- Branch: `feat/APO-44-quality-first-quota-routing`.
+- Functional SHA: `a9e7b0f69478337261bf81bc97fb487367bafa81`.
+- Functional tree: `805ceded05c251d311e431755a991d3c2bd34263`.
+- Draft PR #16 is `OPEN / DRAFT / UNMERGED` against `main`.
+- Jira implementation-start comment: `12180`; Jira APO-44 remains `In Progress`.
+
+**Delivered authority:** APO-44 adds bounded routing task classification, explicit executable
+`RoutingPolicySnapshot` data separate from descriptive `AgentRolePolicyMetadata`, exact effective
+APO-38 agent snapshots including project overrides, exact agent-bound capacity evidence, auditable
+owner override requests, and a pure deterministic `RoutingDecisionEngine`. Hard eligibility checks
+enabled state, required role, exact normalized capabilities, connection truth, availability,
+authentication, entitlement, and prohibited policy before capacity. Capacity is a normalized
+secondary state and never a raw cross-provider percentage ranking. Review, security, and owner
+approval gates remain recorded as downstream gates; choosing an agent does not satisfy them.
+
+`RoutingInputAssembler` resolves the exact project context and exact persisted
+`PlanningExecutionContractReference` revision, binds the current context identity/version/update
+time, sanitizes descriptive text through the existing `IHandoffRedactionService`, rejects
+secret-shaped authority/identity/reference fields, and never calls a provider or uses latest
+contract fallback. The service creates a decision but does not invoke or execute the recommendation.
+
+Immutable decisions use dedicated schema V1, GUID-derived project-isolated storage at
+`projects/<ProjectId>/routing/decisions/<DecisionId>/decision.json`, create-once writes, exact-ID
+reads, deterministic input fingerprints, and lower-case SHA-256 content-integrity evidence. Reads
+are observational: missing, malformed, future, lower-schema, tampered, and unavailable states are
+reported without repair, quarantine, deletion, backup, directory scanning, or overwrite.
+
+**Decision matrix evidence:** capable preferred candidates with sufficient capacity are recommended;
+incapable candidates remain ineligible even with abundant capacity; insufficient preferred capacity
+allows another eligible candidate; no eligible candidate is explicit; stale and unknown required
+capacity fail closed; optional capacity may proceed with limitations and reduced confidence; review,
+security, and owner-approval requirements remain visible; eligible owner overrides apply only to
+soft ranking; prohibited, disabled, unsupported, unauthenticated, unentitled, unavailable, or
+capacity-ineligible override targets are rejected with no silent fallback.
+
+**Reproducibility and safety:** candidates and evidence are normalized by stable identity, policy
+preference order is explicit, stable AgentId is the final tie-break, equivalent input order yields
+the same InputFingerprint and selection, no live provider calls occur, no capacity is written, and
+no model/worktree/command/tracker execution occurs.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 633/633 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 178; Provider 46; Desktop 82; Infrastructure 299.
+- Focused routing tests: 16/16 passed (Connection 11; Infrastructure 5).
+- `git diff --check`: clean before metadata-only changes.
+- Changed-line credential-shaped scan: no real credentials; only intentional redaction test fixture
+  and security-related identifiers.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+**Deferred and unchanged:** `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`.
+`JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`). APO-44 does not add provider
+adapters, live refresh, routing execution, model invocation, worktrees, tracker synchronization,
+validation/approval engines, or Mission Control UI.
+
+**Metadata handoff:** The functional commit was pushed before this authorized metadata-only update.
+The final feature head is the subsequent metadata commit containing this section and the active
+`TASK.md`; no product or test files are changed after the functional commit.
+
+**Runtime:** `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO` as required by Prompt 4/5.
+
+**Next planner boundary:** APO-44 Prompt 4/5 implementation complete and awaiting GPT-5.6 Sol
+exact-head acceptance. Draft PR #16 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46,
+routing execution, model invocation, worktree automation, tracker synchronization,
+validation/approval engines, or Mission Control UI.
