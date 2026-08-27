@@ -130,6 +130,22 @@ public sealed class ApplicationDataPaths
     public string GetProjectRecoveryCheckpointsDirectory(Guid projectId) =>
         GetProjectPaths(projectId).RecoveryCheckpointsDirectory;
 
+    public string GetProjectRoutingDecisionsDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).RoutingDecisionsDirectory;
+
+    public string GetRoutingDecisionDirectory(Guid projectId, Guid decisionId)
+    {
+        if (decisionId == Guid.Empty)
+        {
+            throw new ArgumentException("Decision id cannot be empty.", nameof(decisionId));
+        }
+
+        return Path.Combine(GetProjectRoutingDecisionsDirectory(projectId), decisionId.ToString("D"));
+    }
+
+    public string GetRoutingDecisionFile(Guid projectId, Guid decisionId) =>
+        Path.Combine(GetRoutingDecisionDirectory(projectId, decisionId), "decision.json");
+
     public string GetRecoveryCheckpointDirectory(Guid projectId, Guid checkpointId)
     {
         if (checkpointId == Guid.Empty)
@@ -228,6 +244,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.HandoffsDirectory);
         Directory.CreateDirectory(projectPaths.ContinuationDirectory);
         Directory.CreateDirectory(projectPaths.RecoveryCheckpointsDirectory);
+        Directory.CreateDirectory(projectPaths.RoutingDecisionsDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
@@ -267,6 +284,7 @@ public sealed class ProjectDataPaths
         HandoffsDirectory = Path.Combine(rootDirectory, "handoffs");
         ContinuationDirectory = Path.Combine(rootDirectory, "continuation");
         RecoveryCheckpointsDirectory = Path.Combine(ContinuationDirectory, "checkpoints");
+        RoutingDecisionsDirectory = Path.Combine(rootDirectory, "routing", "decisions");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
         AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
         ContextReferenceFile = Path.Combine(rootDirectory, "context-reference.json");
@@ -299,6 +317,9 @@ public sealed class ProjectDataPaths
 
     /// <summary>Immutable recovery checkpoints referenced by the continuation head.</summary>
     public string RecoveryCheckpointsDirectory { get; }
+
+    /// <summary>Immutable, GUID-scoped explainable routing decisions.</summary>
+    public string RoutingDecisionsDirectory { get; }
 
     public string RoutingPolicyFile { get; }
 
