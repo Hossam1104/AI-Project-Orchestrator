@@ -117,7 +117,7 @@ public sealed class RecoveryCheckpointService : IRecoveryCheckpointService
     private readonly IContinuationHeadRepository _heads;
     private readonly IHandoffRedactionService _redaction;
     private readonly IClock _clock;
-    private readonly ProjectPublicationLocks _publicationLocks = new();
+    private readonly ProjectPublicationLockManager _publicationLocks = new();
 
     public RecoveryCheckpointService(
         IProjectRepository projects,
@@ -484,6 +484,7 @@ public sealed class RecoveryCheckpointService : IRecoveryCheckpointService
                 throw new ArgumentException("Blockers cannot contain null entries.", nameof(request));
             }
 
+            ValidateAuthorityText(blocker.BlockerId);
             ValidateAuthorityText(blocker.Reference);
             redactedBlockers.Add(new RecoveryBlocker(
                 blocker.BlockerId,
@@ -620,57 +621,92 @@ public sealed class RecoveryCheckpointService : IRecoveryCheckpointService
         }
     }
 
-    private sealed class ProjectPublicationLocks
+}
+
+/// <summary>
+/// Project-keyed publication gates with an evictable, reference-counted entry lifecycle.
+/// Entry lookup and reference acquisition share one synchronization boundary so an acquire
+/// cannot retain a detached entry while another caller retires and replaces it.
+/// </summary>
+internal sealed class ProjectPublicationLockManager
+{
+    private readonly object _sync = new();
+    private readonly Dictionary<Guid, Entry> _entries = [];
+
+    internal int EntryCount
     {
-        private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
-
-        public async Task<IDisposable> AcquireAsync(Guid projectId, CancellationToken cancellationToken)
+        get
         {
-            var entry = _entries.GetOrAdd(projectId, static _ => new Entry());
-            Interlocked.Increment(ref entry.Users);
-            try
+            lock (_sync)
             {
-                await entry.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-                return new Lease(this, projectId, entry);
-            }
-            catch
-            {
-                ReleaseReference(projectId, entry);
-                throw;
+                return _entries.Count;
             }
         }
+    }
 
-        private void Release(Guid projectId, Entry entry)
+    public async Task<IDisposable> AcquireAsync(Guid projectId, CancellationToken cancellationToken)
+    {
+        Entry entry;
+        lock (_sync)
         {
-            entry.Gate.Release();
+            if (!_entries.TryGetValue(projectId, out entry!))
+            {
+                entry = new Entry();
+                _entries.Add(projectId, entry);
+            }
+
+            // This reference is acquired in the same critical section as dictionary lookup.
+            // Retirement therefore cannot remove this entry between lookup and increment.
+            entry.Users++;
+        }
+
+        try
+        {
+            await entry.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            return new Lease(this, projectId, entry);
+        }
+        catch
+        {
             ReleaseReference(projectId, entry);
+            throw;
         }
+    }
 
-        private void ReleaseReference(Guid projectId, Entry entry)
+    private void Release(Guid projectId, Entry entry)
+    {
+        entry.Gate.Release();
+        ReleaseReference(projectId, entry);
+    }
+
+    private void ReleaseReference(Guid projectId, Entry entry)
+    {
+        lock (_sync)
         {
-            if (Interlocked.Decrement(ref entry.Users) == 0)
+            entry.Users--;
+            if (entry.Users == 0 &&
+                _entries.TryGetValue(projectId, out var current) &&
+                ReferenceEquals(current, entry))
             {
-                ((ICollection<KeyValuePair<Guid, Entry>>)_entries)
-                    .Remove(new KeyValuePair<Guid, Entry>(projectId, entry));
+                _entries.Remove(projectId);
             }
         }
+    }
 
-        private sealed class Entry
+    private sealed class Entry
+    {
+        public SemaphoreSlim Gate { get; } = new(1, 1);
+        public int Users { get; set; }
+    }
+
+    private sealed class Lease(ProjectPublicationLockManager owner, Guid projectId, Entry entry) : IDisposable
+    {
+        private int _released;
+
+        public void Dispose()
         {
-            public SemaphoreSlim Gate { get; } = new(1, 1);
-            public int Users;
-        }
-
-        private sealed class Lease(ProjectPublicationLocks owner, Guid projectId, Entry entry) : IDisposable
-        {
-            private int _released;
-
-            public void Dispose()
+            if (Interlocked.Exchange(ref _released, 1) == 0)
             {
-                if (Interlocked.Exchange(ref _released, 1) == 0)
-                {
-                    owner.Release(projectId, entry);
-                }
+                owner.Release(projectId, entry);
             }
         }
     }

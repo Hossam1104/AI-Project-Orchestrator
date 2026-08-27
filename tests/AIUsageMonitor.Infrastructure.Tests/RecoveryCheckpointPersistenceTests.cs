@@ -76,6 +76,36 @@ public sealed class RecoveryCheckpointPersistenceTests
         Assert.Empty(Directory.EnumerateFiles(harness.Store.RootDirectory, "*.bak", SearchOption.AllDirectories));
     }
 
+    [Theory]
+    [InlineData("lifecycle")]
+    [InlineData("planning-contract-revision")]
+    [InlineData("context")]
+    [InlineData("handoff")]
+    [InlineData("predecessor")]
+    [InlineData("evidence-freshness")]
+    [InlineData("blocker")]
+    [InlineData("next-safe-action")]
+    [InlineData("content-hash")]
+    public async Task TamperingWithEachCheckpointAuthorityFieldFailsClosedWithoutMutation(string field)
+    {
+        using var harness = await RecoveryHarness.CreateAsync();
+        var checkpoint = await CreateCheckpointWithAllTamperableFieldsAsync(harness);
+        var path = harness.Store.Paths.GetRecoveryCheckpointFile(harness.Project.Id, checkpoint.CheckpointId);
+        TamperPayload(path, payload => TamperCheckpointField(payload, field));
+        var tamperedBytes = await File.ReadAllBytesAsync(path);
+
+        var firstRead = await harness.Checkpoints.GetAsync(harness.Project.Id, checkpoint.CheckpointId);
+        var secondRead = await harness.Checkpoints.GetAsync(harness.Project.Id, checkpoint.CheckpointId);
+        var resolution = await harness.Resolver.ResolveAsync(harness.Project.Id);
+
+        Assert.Equal(RecoveryCheckpointReadState.IntegrityFailure, firstRead.State);
+        Assert.Equal(RecoveryCheckpointReadState.IntegrityFailure, secondRead.State);
+        Assert.Equal(SmartContinueResolutionState.IntegrityFailure, resolution.ResolutionState);
+        Assert.True(File.Exists(path));
+        Assert.Equal(tamperedBytes, await File.ReadAllBytesAsync(path));
+        Assert.Empty(Directory.EnumerateFiles(harness.Store.RootDirectory, "*.bak", SearchOption.AllDirectories));
+    }
+
     [Fact]
     public async Task HeadGenerationsAlternateAThenBThenA()
     {
@@ -115,6 +145,34 @@ public sealed class RecoveryCheckpointPersistenceTests
         Assert.Equal(first.CheckpointId, result.SelectedCheckpointReference!.CheckpointId);
         Assert.True(result.FallbackToLastKnownGood);
         Assert.Equal(corruptedBytes, await File.ReadAllBytesAsync(newestPath));
+        Assert.Empty(Directory.EnumerateFiles(harness.Store.RootDirectory, "*.bak", SearchOption.AllDirectories));
+    }
+
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("latest-reference")]
+    [InlineData("last-safe-reference")]
+    [InlineData("content-hash")]
+    public async Task TamperedNewestHeadFieldFallsBackToValidPreviousGenerationWithoutMutation(string field)
+    {
+        using var harness = await RecoveryHarness.CreateAsync();
+        var predecessor = (await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready)).Checkpoint!;
+        _ = await harness.CreateAsync(RecoveryCheckpointLifecycleState.Waiting, predecessor.Reference);
+        var newestPath = harness.Store.Paths.GetProjectContinuationHeadSlotBFile(harness.Project.Id);
+        TamperPayload(newestPath, payload => TamperHeadField(payload, field));
+        var tamperedBytes = await File.ReadAllBytesAsync(newestPath);
+
+        var head = await harness.Heads.GetAsync(harness.Project.Id);
+        var result = await harness.Resolver.ResolveAsync(harness.Project.Id);
+
+        Assert.Equal(ContinuationHeadReadState.Valid, head.State);
+        Assert.True(head.FallbackToPreviousGeneration);
+        Assert.Equal(1, head.Head!.Generation);
+        Assert.Equal(predecessor.CheckpointId, head.Head.LatestCheckpointReference.CheckpointId);
+        Assert.Equal(SmartContinueResolutionState.Resumable, result.ResolutionState);
+        Assert.Equal(predecessor.CheckpointId, result.SelectedCheckpointReference!.CheckpointId);
+        Assert.True(File.Exists(newestPath));
+        Assert.Equal(tamperedBytes, await File.ReadAllBytesAsync(newestPath));
         Assert.Empty(Directory.EnumerateFiles(harness.Store.RootDirectory, "*.bak", SearchOption.AllDirectories));
     }
 
@@ -422,14 +480,21 @@ public sealed class RecoveryCheckpointPersistenceTests
     public async Task DescriptiveTextIsRedactedButAuthorityTextIsRejected()
     {
         using var harness = await RecoveryHarness.CreateAsync();
+        const string safeBlockerId = "blocker:dependency";
         var descriptive = await harness.CreateAsync(
             RecoveryCheckpointLifecycleState.Waiting,
-            explanation: "waiting because password=super-secret-value was supplied");
+            explanation: "waiting because password=super-secret-value was supplied",
+            blockers: [new RecoveryBlocker(
+                safeBlockerId,
+                RecoveryBlockerKind.Dependency,
+                "blocked because password=\"secret value\" was supplied")]);
         var persisted = await File.ReadAllTextAsync(harness.Store.Paths.GetRecoveryCheckpointFile(
             harness.Project.Id,
             descriptive.Checkpoint!.CheckpointId));
         Assert.Contains("[REDACTED]", persisted, StringComparison.Ordinal);
         Assert.DoesNotContain("super-secret-value", persisted, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret value", persisted, StringComparison.Ordinal);
+        Assert.Contains(safeBlockerId, persisted, StringComparison.Ordinal);
 
         var rejectedId = Guid.NewGuid();
         var rejected = await harness.CreateAsync(
@@ -445,6 +510,119 @@ public sealed class RecoveryCheckpointPersistenceTests
 
         Assert.Equal(RecoveryCheckpointCreationStatus.RedactionRejected, rejected.Status);
         Assert.False(File.Exists(harness.Store.Paths.GetRecoveryCheckpointFile(harness.Project.Id, rejectedId)));
+    }
+
+    [Fact]
+    public async Task SecretShapedBlockerIdIsRejectedBeforeCheckpointOrHeadPersistence()
+    {
+        using var harness = await RecoveryHarness.CreateAsync();
+        var first = (await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready)).Checkpoint!;
+        var before = await harness.Heads.GetAsync(harness.Project.Id);
+        const string secretBlockerId = "api_key=apo43-blocker-id-fixture";
+        var rejectedId = Guid.NewGuid();
+
+        var rejected = await harness.CreateAsync(
+            RecoveryCheckpointLifecycleState.Ready,
+            first.Reference,
+            checkpointId: rejectedId,
+            blockers: [new RecoveryBlocker(
+                secretBlockerId,
+                RecoveryBlockerKind.Dependency,
+                "safe blocker description")]);
+
+        Assert.Equal(RecoveryCheckpointCreationStatus.RedactionRejected, rejected.Status);
+        Assert.Null(rejected.Checkpoint);
+        Assert.Null(rejected.Head);
+        Assert.False(File.Exists(harness.Store.Paths.GetRecoveryCheckpointFile(harness.Project.Id, rejectedId)));
+
+        var after = await harness.Heads.GetAsync(harness.Project.Id);
+        Assert.Equal(before.State, after.State);
+        Assert.Equal(before.Head!.Generation, after.Head!.Generation);
+        AssertSameReference(before.Head!.LatestCheckpointReference, after.Head!.LatestCheckpointReference);
+
+        var continuationDirectory = harness.Store.Paths.GetProjectContinuationDirectory(harness.Project.Id);
+        foreach (var file in Directory.EnumerateFiles(continuationDirectory, "*", SearchOption.AllDirectories))
+        {
+            Assert.DoesNotContain(secretBlockerId, await File.ReadAllTextAsync(file), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task SameProjectConcurrentPublicationsHaveOneCanonicalSuccessor()
+    {
+        using var harness = await RecoveryHarness.CreateAsync();
+        var predecessor = (await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready)).Checkpoint!;
+        var start = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var checkpointB = Guid.NewGuid();
+        var checkpointC = Guid.NewGuid();
+
+        var requestB = Task.Run(async () =>
+        {
+            await start.Task;
+            return await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready, predecessor.Reference, checkpointId: checkpointB);
+        });
+        var requestC = Task.Run(async () =>
+        {
+            await start.Task;
+            return await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready, predecessor.Reference, checkpointId: checkpointC);
+        });
+        start.SetResult(null);
+
+        var results = await Task.WhenAll(requestB, requestC);
+        var created = Assert.Single(results, result => result.Status == RecoveryCheckpointCreationStatus.Created);
+        var loser = Assert.Single(results, result => result.Status == RecoveryCheckpointCreationStatus.InvalidLineage);
+        var canonical = await harness.Heads.GetAsync(harness.Project.Id);
+        var resolution = await harness.Resolver.ResolveAsync(harness.Project.Id);
+
+        Assert.Equal(2, canonical.Head!.Generation);
+        AssertSameReference(created.Checkpoint!.Reference, canonical.Head.LatestCheckpointReference);
+        AssertSameReference(created.Checkpoint.Reference, resolution.SelectedCheckpointReference!);
+        Assert.Equal(SmartContinueResolutionState.Resumable, resolution.ResolutionState);
+        Assert.Null(loser.Checkpoint);
+        Assert.False(File.Exists(harness.Store.Paths.GetRecoveryCheckpointFile(harness.Project.Id, checkpointB == created.Checkpoint.CheckpointId ? checkpointC : checkpointB)));
+        Assert.Equal(2, Directory.EnumerateFiles(
+            harness.Store.Paths.GetProjectContinuationDirectory(harness.Project.Id),
+            "checkpoint.json",
+            SearchOption.AllDirectories).Count());
+    }
+
+    [Fact]
+    public async Task HeadPublicationFailureLeavesImmutableOrphanThatRestartIgnores()
+    {
+        using var harness = await RecoveryHarness.CreateAsync();
+        var predecessor = (await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready)).Checkpoint!;
+        var orphanId = Guid.NewGuid();
+        var failingService = harness.CreateService(new FailingContinuationHeadRepository(harness.Heads));
+        var result = await harness.CreateAsync(
+            RecoveryCheckpointLifecycleState.Ready,
+            predecessor.Reference,
+            checkpointId: orphanId,
+            service: failingService);
+        var orphanPath = harness.Store.Paths.GetRecoveryCheckpointFile(harness.Project.Id, orphanId);
+        var beforeReads = SnapshotFiles(harness.Store.Paths.GetProjectContinuationDirectory(harness.Project.Id));
+
+        var headBeforeResolve = await harness.Heads.GetAsync(harness.Project.Id);
+        var resolved = await harness.Resolver.ResolveAsync(harness.Project.Id);
+        var restarted = await harness.CreateFreshResolver().ResolveAsync(harness.Project.Id);
+        var headAfterResolve = await harness.Heads.GetAsync(harness.Project.Id);
+        var afterReads = SnapshotFiles(harness.Store.Paths.GetProjectContinuationDirectory(harness.Project.Id));
+
+        Assert.Equal(RecoveryCheckpointCreationStatus.HeadPublicationFailed, result.Status);
+        Assert.NotNull(result.Checkpoint);
+        Assert.Null(result.Head);
+        Assert.True(File.Exists(orphanPath));
+        Assert.Equal(ContinuationHeadReadState.Valid, headBeforeResolve.State);
+        AssertSameReference(predecessor.Reference, headBeforeResolve.Head!.LatestCheckpointReference);
+        AssertSameReference(predecessor.Reference, headAfterResolve.Head!.LatestCheckpointReference);
+        Assert.Equal(SmartContinueResolutionState.Resumable, resolved.ResolutionState);
+        AssertSameReference(predecessor.Reference, resolved.SelectedCheckpointReference!);
+        Assert.Equal(resolved.ResolutionState, restarted.ResolutionState);
+        AssertSameReference(resolved.SelectedCheckpointReference!, restarted.SelectedCheckpointReference!);
+        Assert.Equal(beforeReads.Keys.OrderBy(static value => value), afterReads.Keys.OrderBy(static value => value));
+        foreach (var path in beforeReads.Keys)
+        {
+            Assert.Equal(beforeReads[path], afterReads[path]);
+        }
     }
 
     [Fact]
@@ -493,6 +671,60 @@ public sealed class RecoveryCheckpointPersistenceTests
     }
 
     [Fact]
+    public async Task TwoProjectRecoveryAuthoritiesRemainIsolatedAfterRepositoryRestart()
+    {
+        using var harness = await RecoveryHarness.CreateAsync();
+        var checkpointA = (await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready)).Checkpoint!;
+
+        var projectBId = Guid.NewGuid();
+        var contextB = CreateContext(projectBId, Guid.NewGuid(), Now);
+        var projectB = new Project(projectBId, "Recovery project B", @"C:\APO-Test-B", null, ProjectStatus.Active, Now, Now);
+        var contractB = CreateContract(projectBId, contextB.ContextId);
+        await harness.Projects.UpsertAsync(projectB);
+        await harness.Contexts.UpsertAsync(contextB);
+        Assert.Equal(PlanningContractRepositoryWriteStatus.Created, (await harness.Contracts.CreateAsync(contractB)).Status);
+
+        var service = harness.CreateService();
+        var resultB = await service.CreateAsync(new RecoveryCheckpointCreationRequest(
+            projectBId,
+            Guid.NewGuid(),
+            RecoveryCheckpointLifecycleState.Ready,
+            contractB.Reference,
+            createdAt: Now));
+        var checkpointB = resultB.Checkpoint!;
+        var freshResolver = harness.CreateFreshResolver();
+
+        var resolvedA = await freshResolver.ResolveAsync(harness.Project.Id);
+        var resolvedB = await freshResolver.ResolveAsync(projectBId);
+        var aReadingB = await harness.Checkpoints.GetAsync(harness.Project.Id, checkpointB.CheckpointId);
+        var bReadingA = await harness.Checkpoints.GetAsync(projectBId, checkpointA.CheckpointId);
+        var crossProjectA = await service.CreateAsync(new RecoveryCheckpointCreationRequest(
+            harness.Project.Id,
+            Guid.NewGuid(),
+            RecoveryCheckpointLifecycleState.Ready,
+            harness.Contract.Reference,
+            previousCheckpointReference: checkpointB.Reference,
+            createdAt: Now));
+        var crossProjectB = await service.CreateAsync(new RecoveryCheckpointCreationRequest(
+            projectBId,
+            Guid.NewGuid(),
+            RecoveryCheckpointLifecycleState.Ready,
+            contractB.Reference,
+            previousCheckpointReference: checkpointA.Reference,
+            createdAt: Now));
+
+        Assert.Equal(RecoveryCheckpointCreationStatus.Created, resultB.Status);
+        Assert.Equal(SmartContinueResolutionState.Resumable, resolvedA.ResolutionState);
+        Assert.Equal(SmartContinueResolutionState.Resumable, resolvedB.ResolutionState);
+        Assert.Equal(checkpointA.CheckpointId, resolvedA.SelectedCheckpointReference!.CheckpointId);
+        Assert.Equal(checkpointB.CheckpointId, resolvedB.SelectedCheckpointReference!.CheckpointId);
+        Assert.Equal(RecoveryCheckpointReadState.Missing, aReadingB.State);
+        Assert.Equal(RecoveryCheckpointReadState.Missing, bReadingA.State);
+        Assert.Equal(RecoveryCheckpointCreationStatus.PredecessorMissing, crossProjectA.Status);
+        Assert.Equal(RecoveryCheckpointCreationStatus.PredecessorMissing, crossProjectB.Status);
+    }
+
+    [Fact]
     public async Task InvalidCreationRequestReturnsTypedStatus()
     {
         using var harness = await RecoveryHarness.CreateAsync();
@@ -517,6 +749,106 @@ public sealed class RecoveryCheckpointPersistenceTests
         var root = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
         tamper(root["payload"]!.AsObject());
         File.WriteAllText(path, root.ToJsonString(JsonFileStore.SerializerOptions));
+    }
+
+    private static async Task<RecoveryCheckpoint> CreateCheckpointWithAllTamperableFieldsAsync(RecoveryHarness harness)
+    {
+        var predecessor = (await harness.CreateAsync(RecoveryCheckpointLifecycleState.Ready)).Checkpoint!;
+        var nodeId = Guid.NewGuid();
+        var graph = new WorkGraph(
+            harness.Project.Id,
+            Guid.NewGuid(),
+            WorkGraphSchema.CurrentVersion,
+            Now,
+            [new WorkGraphNode(nodeId, harness.Contract.Reference)],
+            []);
+        Assert.Equal(WorkGraphRepositoryWriteStatus.Created, (await harness.Graphs.CreateAsync(graph)).Status);
+        var handoff = CreateHandoff(harness, graph, nodeId);
+        Assert.Equal(HandoffPackageRepositoryWriteStatus.Created, (await harness.Handoffs.CreateAsync(handoff)).Status);
+
+        var result = await harness.CreateAsync(
+            RecoveryCheckpointLifecycleState.Waiting,
+            predecessor.Reference,
+            evidence: [Evidence(RecoveryEvidenceKind.Repository, RecoveryEvidenceFreshness.Verified, Now.AddHours(1))],
+            blockers: [new RecoveryBlocker(
+                "blocker:matrix",
+                RecoveryBlockerKind.Dependency,
+                "safe blocker description")],
+            workGraphReference: graph.Reference,
+            workGraphNodeId: nodeId,
+            handoffPackageReference: handoff.Reference);
+        Assert.Equal(RecoveryCheckpointCreationStatus.Created, result.Status);
+        return result.Checkpoint!;
+    }
+
+    private static void TamperCheckpointField(JsonObject payload, string field)
+    {
+        switch (field)
+        {
+            case "lifecycle":
+                payload["lifecycleState"] = "ready";
+                break;
+            case "planning-contract-revision":
+                payload["planningContractRevision"] = 2;
+                break;
+            case "context":
+                payload["context"]!.AsObject()["contextId"] = Guid.NewGuid().ToString("D");
+                break;
+            case "handoff":
+                payload["handoffPackageContentHash"] = new string('f', 64);
+                break;
+            case "predecessor":
+                payload["previousCheckpointReference"]!.AsObject()["contentHash"] = new string('f', 64);
+                break;
+            case "evidence-freshness":
+                payload["evidenceReferences"]!.AsArray()[0]!.AsObject()["freshness"] = "stale";
+                break;
+            case "blocker":
+                payload["blockers"]!.AsArray()[0]!.AsObject()["description"] = "tampered blocker description";
+                break;
+            case "next-safe-action":
+                payload["nextSafeAction"] = "replan";
+                break;
+            case "content-hash":
+                payload["contentHash"] = new string('f', 64);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown checkpoint tamper field.");
+        }
+    }
+
+    private static void TamperHeadField(JsonObject payload, string field)
+    {
+        switch (field)
+        {
+            case "generation":
+                payload["generation"] = 3;
+                break;
+            case "latest-reference":
+                payload["latestCheckpointReference"]!.AsObject()["contentHash"] = new string('f', 64);
+                break;
+            case "last-safe-reference":
+                payload["lastSafeCheckpointReference"]!.AsObject()["contentHash"] = new string('f', 64);
+                break;
+            case "content-hash":
+                payload["contentHash"] = new string('f', 64);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown head tamper field.");
+        }
+    }
+
+    private static Dictionary<string, byte[]> SnapshotFiles(string directory) =>
+        Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .ToDictionary(static path => path, File.ReadAllBytes);
+
+    private static void AssertSameReference(
+        RecoveryCheckpointReference expected,
+        RecoveryCheckpointReference actual)
+    {
+        Assert.Equal(expected.CheckpointId, actual.CheckpointId);
+        Assert.Equal(expected.SchemaVersion, actual.SchemaVersion);
+        Assert.Equal(expected.ContentHash, actual.ContentHash);
     }
 
     private static ProjectContextReference CreateContext(
@@ -602,18 +934,21 @@ public sealed class RecoveryCheckpointPersistenceTests
             string? explanation = null,
             IReadOnlyList<RecoveryEvidenceReference>? evidence = null,
             IReadOnlyList<RecoveryGateSnapshot>? gates = null,
+            IReadOnlyList<RecoveryBlocker>? blockers = null,
             Guid? checkpointId = null,
             Guid? projectId = null,
             WorkGraphReference? workGraphReference = null,
             Guid? workGraphNodeId = null,
             HandoffPackageReference? handoffPackageReference = null,
-            CancellationToken cancellationToken = default) => await Service.CreateAsync(new RecoveryCheckpointCreationRequest(
+            CancellationToken cancellationToken = default,
+            RecoveryCheckpointService? service = null) => await (service ?? Service).CreateAsync(new RecoveryCheckpointCreationRequest(
                 projectId ?? Project.Id,
                 checkpointId ?? Guid.NewGuid(),
                 state,
                 Contract.Reference,
                 evidenceReferences: evidence,
                 gateSnapshots: gates,
+                blockers: blockers,
                 explanation: explanation,
                 createdAt: Now,
                 workGraphReference: workGraphReference,
@@ -631,14 +966,14 @@ public sealed class RecoveryCheckpointPersistenceTests
             new JsonContinuationHeadRepository(Store.Paths, Store.Files, NullLogger<JsonContinuationHeadRepository>.Instance),
             Clock);
 
-        private RecoveryCheckpointService CreateService() => new(
+        public RecoveryCheckpointService CreateService(IContinuationHeadRepository? heads = null) => new(
             Projects,
             Contexts,
             Contracts,
             Graphs,
             Handoffs,
             Checkpoints,
-            Heads,
+            heads ?? Heads,
             new HandoffRedactionService(),
             Clock);
 
@@ -658,6 +993,20 @@ public sealed class RecoveryCheckpointPersistenceTests
     private sealed class FixedClock(DateTimeOffset now) : IClock
     {
         public DateTimeOffset UtcNow { get; set; } = now;
+    }
+
+    private sealed class FailingContinuationHeadRepository(IContinuationHeadRepository inner) : IContinuationHeadRepository
+    {
+        public Task<ContinuationHeadReadResult> GetAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default) => inner.GetAsync(projectId, cancellationToken);
+
+        public Task<ContinuationHeadRepositoryWriteResult> PublishAsync(
+            ContinuationHead head,
+            CancellationToken cancellationToken = default) => Task.FromResult(
+                new ContinuationHeadRepositoryWriteResult(
+                    ContinuationHeadRepositoryWriteStatus.Unavailable,
+                    "simulated head publication failure"));
     }
 
     private static PlanningExecutionContract CreateContract(Guid projectId, Guid contextId) => new(
