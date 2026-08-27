@@ -52,6 +52,7 @@ public sealed class WorkspacePreparationTests : IDisposable
         var pathProvider = new ManagedWorkspacePathProvider(_store.Paths);
         var plans = new JsonWorkspacePreparationPlanRepository(_store.Paths, _store.Files, NullLogger<JsonWorkspacePreparationPlanRepository>.Instance);
         var receipts = new JsonWorkspacePreparationReceiptRepository(_store.Paths, _store.Files, NullLogger<JsonWorkspacePreparationReceiptRepository>.Instance);
+        var approvals = new JsonWorkspacePreparationApprovalEvidenceRepository(_store.Paths, _store.Files, NullLogger<JsonWorkspacePreparationApprovalEvidenceRepository>.Instance);
         var planning = new WorkspacePreparationPlanningService(
             new FakeProjectRepository(project), new FakeContextResolver(project, context), new FakeContractRepository(contract),
             new FakeRoutingDecisionRepository(), repository, plans, new HandoffRedactionService(), new FixedClock(Now), pathProvider);
@@ -63,7 +64,7 @@ public sealed class WorkspacePreparationTests : IDisposable
         Assert.Empty(Directory.EnumerateDirectories(_repoPath, "apo-test-workspace", SearchOption.TopDirectoryOnly));
 
         var approval = new WorkspacePreparationApproval(Guid.NewGuid(), planned.Plan!.Reference, "owner:test", Now, "approved for isolated test work");
-        var preparation = new WorkspacePreparationService(plans, receipts, repository, new RepositoryPreparationFileLock(_store.Paths), pathProvider, new HandoffRedactionService(), new FixedClock(Now));
+        var preparation = new WorkspacePreparationService(plans, receipts, repository, new RepositoryPreparationFileLock(_store.Paths), pathProvider, new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: approvals);
         var prepared = await preparation.PrepareAsync(planned.Plan.Reference, approval);
         var debugDiscovery = await repository.DiscoverAsync(_repoPath);
         Assert.True(debugDiscovery.Status == WorkspaceRepositoryDiscoveryStatus.Available, $"{debugDiscovery.Status} {debugDiscovery.ErrorMessage}");
@@ -102,7 +103,7 @@ public sealed class WorkspacePreparationTests : IDisposable
     {
         var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
         var repository = new CountingRepository(plan.Repository);
-        var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now));
+        var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: new InMemoryApprovalEvidenceRepository());
         var wrongApproval = new WorkspacePreparationApproval(Guid.NewGuid(), new WorkspacePreparationPlanReference(plan.PlanId, 1, new string('c', 64), plan.ProjectId), "owner:test", Now);
 
         var mismatch = await service.PrepareAsync(plan.Reference, wrongApproval);
@@ -119,7 +120,7 @@ public sealed class WorkspacePreparationTests : IDisposable
     {
         var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
         var repository = new CountingRepository(plan.Repository);
-        var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now));
+        var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: new InMemoryApprovalEvidenceRepository());
         var approval = new WorkspacePreparationApproval(Guid.NewGuid(), plan.Reference, "owner:test", Now);
         repository.Current = new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, plan.Repository.RegisteredPath, plan.Repository.RepositoryRoot, plan.Repository.CommonDirectory, false, new string('c', 40), "main", false, true, 0, [], ["main"]);
         var stale = await service.PrepareAsync(plan.Reference, approval);
@@ -129,7 +130,7 @@ public sealed class WorkspacePreparationTests : IDisposable
         var dirtyEvidence = new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, plan.Repository.RegisteredPath, plan.Repository.RepositoryRoot, plan.Repository.CommonDirectory, false, plan.BaseCommitSha, "main", false, false, 1, [], ["main"]);
         var dirtyPlan = new WorkspacePreparationPlan(plan.ProjectId, plan.WorkspaceId, Guid.NewGuid(), plan.CorrelationId, Now, plan.Context, plan.ContractReference, null, null, null, dirtyEvidence, plan.BaseCommitSha, plan.WorkspaceBranch, plan.ProposedWorkspacePath, WorkspacePreparationPolicy.RequireCleanSource, true, "dirty source", ["source is dirty"]);
         repository.Current = dirtyEvidence;
-        var dirtyService = new WorkspacePreparationService(new InMemoryPlanRepository(dirtyPlan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(dirtyPlan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now));
+        var dirtyService = new WorkspacePreparationService(new InMemoryPlanRepository(dirtyPlan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(dirtyPlan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: new InMemoryApprovalEvidenceRepository());
         var blocked = await dirtyService.PrepareAsync(dirtyPlan.Reference, new WorkspacePreparationApproval(Guid.NewGuid(), dirtyPlan.Reference, "owner:test", Now));
         Assert.Equal(WorkspacePreparationStatus.PolicyBlocked, blocked.Status);
         Assert.Equal(0, repository.MutationCount);
@@ -144,14 +145,15 @@ public sealed class WorkspacePreparationTests : IDisposable
         Directory.CreateDirectory(path);
         try
         {
-            var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(path), new HandoffRedactionService(), new FixedClock(Now));
+            var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(path), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: new InMemoryApprovalEvidenceRepository());
             var result = await service.PrepareAsync(plan.Reference, new WorkspacePreparationApproval(Guid.NewGuid(), plan.Reference, "owner:test", Now));
             Assert.Equal(WorkspacePreparationStatus.PathConflict, result.Status);
             Assert.Equal(0, repository.MutationCount);
         }
         finally { Directory.Delete(path, true); }
-        repository.Current = new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, plan.Repository.RegisteredPath, plan.Repository.RepositoryRoot, plan.Repository.CommonDirectory, false, plan.BaseCommitSha, "main", false, true, 0, [], [plan.WorkspaceBranch]);
-        var branchService = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(path), new HandoffRedactionService(), new FixedClock(Now));
+        repository.Current = new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, plan.Repository.RegisteredPath, plan.Repository.RepositoryRoot, plan.Repository.CommonDirectory, false, plan.BaseCommitSha, "main", false, true, 0, [], [plan.WorkspaceBranch],
+            workingTreeStateFingerprint: plan.Repository.WorkingTreeStateFingerprint, divergence: plan.Repository.Divergence);
+        var branchService = new WorkspacePreparationService(new InMemoryPlanRepository(plan), new InMemoryReceiptRepository(), repository, new NoopLock(), new TestPathProvider(path), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: new InMemoryApprovalEvidenceRepository());
         Assert.Equal(WorkspacePreparationStatus.BranchConflict, (await branchService.PrepareAsync(plan.Reference, new WorkspacePreparationApproval(Guid.NewGuid(), plan.Reference, "owner:test", Now))).Status);
         Assert.False(WorkspacePreparationPlanningService.IsSafeBranchName("--upload; evil"));
     }
@@ -162,7 +164,8 @@ public sealed class WorkspacePreparationTests : IDisposable
         var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
         var repository = new StatefulRepository(plan);
         var failingReceipts = new FailingReceiptRepository();
-        var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), failingReceipts, repository, new NoopLock(), new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now));
+        var approvals = new InMemoryApprovalEvidenceRepository();
+        var service = new WorkspacePreparationService(new InMemoryPlanRepository(plan), failingReceipts, repository, new NoopLock(), new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: approvals);
         var approval = new WorkspacePreparationApproval(Guid.NewGuid(), plan.Reference, "owner:test", Now);
 
         var failedReceipt = await service.PrepareAsync(plan.Reference, approval);
@@ -236,7 +239,8 @@ public sealed class WorkspacePreparationTests : IDisposable
         return new WorkspacePreparationPlan(projectId, workspaceId, Guid.NewGuid(), Guid.NewGuid(), Now,
             new WorkspaceContextIdentity(projectId, Guid.NewGuid(), 1, Now),
             new PlanningExecutionContractReference(Guid.NewGuid(), 1, 1, new string('a', 64)), null, null, null,
-            new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, path, path, Path.Combine(path, ".git"), false, new string('b', 40), "main", false, true),
+            new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, path, path, Path.Combine(path, ".git"), false, new string('b', 40), "main", false, true,
+                workingTreeStateFingerprint: WorkspacePreparationIntegrity.ComputeWorkingTreeStateFingerprint(string.Empty)),
             new string('b', 40), "workspace", path, WorkspacePreparationPolicy.RequireCleanSource, true, "test plan");
     }
 
@@ -303,7 +307,8 @@ public sealed class WorkspacePreparationTests : IDisposable
         public Task<WorkspaceRepositoryMutationResult> AddExactWorktreeAsync(string commonDirectory, string workspaceBranch, string managedWorkspacePath, string exactBaseCommitSha, CancellationToken cancellationToken = default)
         {
             MutationCount++;
-            Current = new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, plan.Repository.RegisteredPath, plan.Repository.RepositoryRoot, plan.Repository.CommonDirectory, false, plan.BaseCommitSha, plan.Repository.BranchName, false, true, 0, [new WorkspaceWorktreeEvidence(managedWorkspacePath, plan.BaseCommitSha, plan.WorkspaceBranch, false, false, false)], [plan.Repository.BranchName! , plan.WorkspaceBranch]);
+            Current = new WorkspaceRepositoryDiscovery(WorkspaceRepositoryDiscoveryStatus.Available, plan.Repository.RegisteredPath, plan.Repository.RepositoryRoot, plan.Repository.CommonDirectory, false, plan.BaseCommitSha, plan.Repository.BranchName, false, true, 0, [new WorkspaceWorktreeEvidence(managedWorkspacePath, plan.BaseCommitSha, plan.WorkspaceBranch, false, false, false)], [plan.Repository.BranchName! , plan.WorkspaceBranch],
+                workingTreeStateFingerprint: plan.Repository.WorkingTreeStateFingerprint, divergence: plan.Repository.Divergence);
             return Task.FromResult(new WorkspaceRepositoryMutationResult(true));
         }
     }
@@ -311,6 +316,18 @@ public sealed class WorkspacePreparationTests : IDisposable
     {
         public Task<WorkspacePreparationReceiptWriteResult> CreateAsync(WorkspacePreparationReceipt receipt, CancellationToken cancellationToken = default) => Task.FromResult(new WorkspacePreparationReceiptWriteResult(WorkspacePreparationReceiptWriteStatus.Unavailable, "forced test failure"));
         public Task<WorkspacePreparationReceiptReadResult> GetAsync(Guid projectId, Guid workspaceId, CancellationToken cancellationToken = default) => Task.FromResult(new WorkspacePreparationReceiptReadResult(WorkspacePreparationReceiptReadState.Missing));
+    }
+    private sealed class InMemoryApprovalEvidenceRepository : IWorkspacePreparationApprovalEvidenceRepository
+    {
+        private WorkspacePreparationApprovalEvidence? _evidence;
+        public Task<WorkspacePreparationApprovalEvidenceWriteResult> CreateAsync(WorkspacePreparationApprovalEvidence evidence, CancellationToken cancellationToken = default)
+        {
+            if (_evidence is not null) return Task.FromResult(new WorkspacePreparationApprovalEvidenceWriteResult(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict));
+            _evidence = evidence;
+            return Task.FromResult(new WorkspacePreparationApprovalEvidenceWriteResult(WorkspacePreparationApprovalEvidenceWriteStatus.Created));
+        }
+        public Task<WorkspacePreparationApprovalEvidenceReadResult> GetAsync(Guid projectId, Guid workspaceId, Guid approvalId, CancellationToken cancellationToken = default) => Task.FromResult(_evidence is not null && _evidence.ProjectId == projectId && _evidence.WorkspaceId == workspaceId && _evidence.ApprovalId == approvalId ? new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Valid, _evidence) : new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Missing));
+        public Task<WorkspacePreparationApprovalEvidenceReadResult> GetForPlanAsync(Guid projectId, Guid workspaceId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult(_evidence is not null && _evidence.ProjectId == projectId && _evidence.WorkspaceId == workspaceId && _evidence.PlanReference.PlanId == planId ? new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Valid, _evidence) : new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Missing));
     }
     private sealed class NoopLock : IRepositoryPreparationLock { public Task<IAsyncDisposable> AcquireAsync(string repositoryIdentity, CancellationToken cancellationToken = default) => Task.FromResult<IAsyncDisposable>(new NoopAsyncDisposable()); }
     private sealed class NoopAsyncDisposable : IAsyncDisposable { public ValueTask DisposeAsync() => ValueTask.CompletedTask; }

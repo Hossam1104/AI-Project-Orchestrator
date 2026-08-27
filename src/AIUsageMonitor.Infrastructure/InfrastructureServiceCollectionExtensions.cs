@@ -90,6 +90,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IRepositoryPreparationLock, RepositoryPreparationFileLock>();
         services.AddSingleton<IWorkspacePreparationPlanRepository, JsonWorkspacePreparationPlanRepository>();
         services.AddSingleton<IWorkspacePreparationReceiptRepository, JsonWorkspacePreparationReceiptRepository>();
+        services.AddSingleton<IWorkspacePreparationApprovalEvidenceRepository, JsonWorkspacePreparationApprovalEvidenceRepository>();
         services.AddSingleton<IWorkspacePreparationPlanningService, WorkspacePreparationPlanningService>();
         services.AddSingleton<IWorkspacePreparationService, WorkspacePreparationService>();
         services.AddSingleton<IWorkspaceRecoveryInspectionService>(service =>

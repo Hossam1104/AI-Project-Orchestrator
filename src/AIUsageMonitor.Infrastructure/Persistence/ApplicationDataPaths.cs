@@ -263,6 +263,24 @@ public sealed class ApplicationDataPaths
     public string GetWorkspaceReceiptFile(Guid projectId, Guid workspaceId) =>
         Path.Combine(GetWorkspaceReceiptDirectory(projectId, workspaceId), "receipt.json");
 
+    public string GetWorkspaceApprovalEvidenceDirectory(Guid projectId, Guid workspaceId, Guid approvalId)
+    {
+        ValidateGuid(approvalId, nameof(approvalId));
+        return Path.Combine(GetWorkspaceReceiptDirectory(projectId, workspaceId), "approval-evidence", approvalId.ToString("D"));
+    }
+
+    public string GetWorkspaceApprovalEvidenceFile(Guid projectId, Guid workspaceId, Guid approvalId) =>
+        Path.Combine(GetWorkspaceApprovalEvidenceDirectory(projectId, workspaceId, approvalId), "approval.json");
+
+    public string GetWorkspaceApprovalEvidenceByPlanDirectory(Guid projectId, Guid workspaceId, Guid planId)
+    {
+        ValidateGuid(planId, nameof(planId));
+        return Path.Combine(GetWorkspaceReceiptDirectory(projectId, workspaceId), "approval-evidence-by-plan", planId.ToString("D"));
+    }
+
+    public string GetWorkspaceApprovalEvidenceByPlanFile(Guid projectId, Guid workspaceId, Guid planId) =>
+        Path.Combine(GetWorkspaceApprovalEvidenceByPlanDirectory(projectId, workspaceId, planId), "approval.json");
+
     public string GetManagedWorkspaceRoot(Guid projectId, Guid workspaceId) =>
         Path.Combine(WorkspacesDirectory, projectId.ToString("D"), workspaceId.ToString("D"));
 

@@ -99,25 +99,34 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
 
         return new GitCommandResult(
             process.ExitCode,
-            standardOutputTask.IsCompletedSuccessfully ? standardOutputTask.Result : string.Empty,
-            standardErrorTask.IsCompletedSuccessfully ? standardErrorTask.Result : string.Empty,
-            OutputTruncated: (standardOutputTask.IsCompletedSuccessfully && standardOutputTask.Result.Length >= MaxCapturedOutputCharacters) ||
-                             (standardErrorTask.IsCompletedSuccessfully && standardErrorTask.Result.Length >= MaxCapturedOutputCharacters));
+            standardOutputTask.IsCompletedSuccessfully ? TrimCapturedOutput(standardOutputTask.Result) : string.Empty,
+            standardErrorTask.IsCompletedSuccessfully ? TrimCapturedOutput(standardErrorTask.Result) : string.Empty,
+            OutputTruncated: (standardOutputTask.IsCompletedSuccessfully && standardOutputTask.Result.Length > MaxCapturedOutputCharacters) ||
+                             (standardErrorTask.IsCompletedSuccessfully && standardErrorTask.Result.Length > MaxCapturedOutputCharacters));
     }
 
     private static async Task<string> ReadBoundedAsync(StreamReader reader)
     {
-        var builder = new StringBuilder(MaxCapturedOutputCharacters);
+        // Capture one sentinel character beyond the public bound so output exactly at the bound
+        // is not falsely classified as truncated. Continue draining without retaining anything
+        // beyond the sentinel to keep the child process from blocking on a full pipe.
+        var builder = new StringBuilder(MaxCapturedOutputCharacters + 1);
         var buffer = new char[4096];
-        while (builder.Length < MaxCapturedOutputCharacters)
+        while (true)
         {
-            var read = await reader.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, MaxCapturedOutputCharacters - builder.Length))).ConfigureAwait(false);
+            var read = await reader.ReadAsync(buffer.AsMemory()).ConfigureAwait(false);
             if (read == 0) break;
-            builder.Append(buffer, 0, read);
+            if (builder.Length < MaxCapturedOutputCharacters + 1)
+            {
+                builder.Append(buffer, 0, Math.Min(read, MaxCapturedOutputCharacters + 1 - builder.Length));
+            }
         }
 
         return builder.ToString();
     }
+
+    private static string TrimCapturedOutput(string value) =>
+        value.Length <= MaxCapturedOutputCharacters ? value : value[..MaxCapturedOutputCharacters];
 
     internal static ProcessStartInfo CreateStartInfo(IReadOnlyList<string> arguments)
     {
