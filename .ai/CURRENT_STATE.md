@@ -2867,3 +2867,80 @@ The final feature head is the subsequent metadata commit containing this section
 exact-head acceptance. Draft PR #16 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46,
 routing execution, model invocation, worktree automation, tracker synchronization,
 validation/approval engines, or Mission Control UI.
+
+## 33. APO-44 SOL-44-01 / SOL-44-02 / SOL-44-03 Exact-Head Remediation (Prompt 4/5R)
+
+**Lifecycle:** The bounded remediation is functionally complete and awaits GPT-5.6 Sol exact-head
+re-review. APO-44 remains `In Progress`; PR #16 remains `OPEN / DRAFT / UNMERGED` against `main`.
+No Claude Opus or Claude Sonnet was invoked. APO was not launched, and no execution path was added.
+
+**Exact remediation identity:**
+
+- Original APO-44 functional SHA: `a9e7b0f69478337261bf81bc97fb487367bafa81`.
+- Previous exact Sol-reviewed head: `398e44e07a142cb199dd3eab9d5fc2689354c62f`.
+- Previous exact Sol-reviewed tree: `e4e37253d7293f31cecce5e373223ad0539ef4b7`.
+- Remediation functional SHA: `01e544eb22d005f22df4c7c3192bd74ccc7aed11`.
+- Remediation functional tree: `d81823279f9cbad81337f627d6373530b86cb100`.
+- Branch: `feat/APO-44-quality-first-quota-routing`.
+- `origin/main`: `35ee09d8095a01fc7a0221f27b793c758da5e6d9`.
+- PR #16 remains `OPEN / DRAFT / UNMERGED`, base `main`; no rebase, merge, force push, Ready
+  transition, or Jira Done transition was performed.
+
+**SOL-44-01:** `RoutingCapacityEvidence.GetStateAt(...)` now applies one explicit inclusive
+expiration rule: when `ValidUntil != null && ValidUntil <= evaluationTime`, the effective state is
+`Stale` regardless of the originally observed state. This covers expired `Sufficient`,
+`Constrained`, and `Insufficient` evidence while preserving fresh insufficiency and valid
+historical observations. `RoutingInputSnapshot` centrally rejects capacity evidence observed after
+`EvaluatedAt`; `RoutingInputAssembler` returns `InvalidRequest` before context/contract assembly
+for that case. The same invariant rejects an owner override requested after `EvaluatedAt`, with no
+decision persistence. The engine test proves an otherwise-valid candidate with expired original
+`Insufficient` capacity produces top-level `StaleCapacityEvidence`, not `InsufficientCapacity`.
+
+**SOL-44-02:** Recommendation construction now adds `LowerPreference` only when the executable
+policy contains an explicit preferred-agent list and the selected candidate is outside that list.
+An empty preference policy therefore has no false lower-preference explanation and still uses the
+stable AgentId tie-break. Explicit preferred-agent fallback coverage proves the reason remains when
+an explicitly preferred candidate is unavailable. A bounded policy invariant rejects contradictory
+`NotApplicable` capacity with a declared minimum state.
+
+**SOL-44-03:** Real service/input-assembly coverage constructs global `AgentDefinition` values,
+real `AgentProjectOverride` values, `EffectiveAgentDefinition` instances, and exposes them through
+the fake `ProjectContextView` used by the routing service. A disabled override reaches the candidate
+snapshot as `Enabled = false`, is hard-ineligible with `Disabled`, and cannot be selected with
+`Sufficient` capacity. A role override removing `Executor` reaches the effective snapshot and
+classifies the candidate as `RoleUnsupported`. A project-permitted connection-mode restriction is
+also covered so a globally supported but project-disallowed current mode is not silently used.
+Explicit no-eligible outcome assertions require `NoEligibleCandidate`, null selected agent, and
+null recommendation.
+
+The persistence matrix independently tampers `RequestedRole`, `Risk`, `RequiredCapability`,
+candidate `AgentId`, candidate `IsEligible`, candidate `CapacityState`, policy preferred-agent
+value, outer `SelectedAgentId`, `OwnerOverrideDisposition`, outer `InputFingerprint`, inner
+`InputFingerprint`, and `ContentHash`. Every case returns `IntegrityFailure` on repeated reads;
+the exact tampered bytes remain unchanged and no repair, recomputation, quarantine, deletion,
+rename, backup, or alternate decision file occurs.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 659/659 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 310.
+- Focused routing tests: 42/42 passed (Connection 26; Infrastructure 16).
+- `git diff --check`: clean before this metadata-only handoff.
+- Changed-line credential-shaped review: no real credentials; only bounded sanitized fixture values.
+- GitHub CI: `NONE / NOT CLAIMED` (zero combined statuses and zero workflow runs/checks).
+
+**Deferred and unchanged:** `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`.
+`RoutingDecisionSchema.CurrentVersion = 1` and `JsonFileStore.CurrentSchemaVersion = 1` remain
+unchanged. `OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+No provider adapter, live refresh, routing execution, model invocation, worktree automation,
+tracker synchronization, validation/approval engine, or Mission Control UI was added.
+
+**Runtime:** This remediation explicitly forbids launching APO. `APO PROCESS COUNT = 0` and
+`APPLICATION LEFT RUNNING = NO`.
+
+**Next planner boundary:** APO-44 Prompt 4/5R remediation complete and awaiting GPT-5.6 Sol
+exact-head re-review. PR #16 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46,
+routing execution, model invocation, worktree automation, tracker synchronization,
+validation/approval engines, or Mission Control UI.

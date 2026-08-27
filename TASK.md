@@ -2,15 +2,18 @@
 
 ## Active execution contract
 
-- Prompt: `4/5` - GPT-5.6 Sol authorized exact-head implementation; GPT-5.6 Luna xHigh executor
+- Prompt: `4/5R` - GPT-5.6 Sol exact-head remediation; GPT-5.6 Luna xHigh executor
 - Jira: `APO-44` (issue id `10872`), parent `APO-9`, priority `High`
 - Jira status: `In Progress`
 - Jira implementation-start comment: `12180`
 - Authorized starting main SHA: `35ee09d8095a01fc7a0221f27b793c758da5e6d9`
 - Authorized starting main tree: `c968eac17efdc6883a20d1281e97ac9dacddd60b`
 - Feature branch: `feat/APO-44-quality-first-quota-routing`
-- Functional commit: `a9e7b0f69478337261bf81bc97fb487367bafa81`
-- Functional tree: `805ceded05c251d311e431755a991d3c2bd34263`
+- Original functional commit: `a9e7b0f69478337261bf81bc97fb487367bafa81`
+- Previous Sol-reviewed head: `398e44e07a142cb199dd3eab9d5fc2689354c62f`
+- Previous Sol-reviewed tree: `e4e37253d7293f31cecce5e373223ad0539ef4b7`
+- Remediation functional commit: `01e544eb22d005f22df4c7c3192bd74ccc7aed11`
+- Remediation functional tree: `d81823279f9cbad81337f627d6373530b86cb100`
 - Draft PR: `#16 OPEN / DRAFT / UNMERGED`, base `main`
 - APO-43: `COMPLETE / MERGED / DONE` at the authorized baseline
 - APO-45: `TO DO / NOT AUTHORIZED`
@@ -50,17 +53,34 @@ APO-44 adds a bounded, provider-independent routing decision authority:
 
 - `dotnet restore AIUsageMonitor.sln`: SUCCESS.
 - `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 633/633 passed; 0 failed; 0 skipped.
-- Suite totals: Domain 28; Connection 178; Provider 46; Desktop 82; Infrastructure 299.
-- Focused routing tests: 16/16 passed (Connection 11; Infrastructure 5).
+- `dotnet test AIUsageMonitor.sln --no-restore`: 659/659 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 310.
+- Focused routing tests: 42/42 passed (Connection 26; Infrastructure 16).
 - `git diff --check`: clean before metadata-only changes.
-- Changed-line credential-shaped review: no real credentials; only intentional redaction fixture and
-  security-related identifiers.
+- Changed-line credential-shaped review: no real credentials; only bounded sanitized fixture values.
 - GitHub CI: `NONE / NOT CLAIMED`.
+
+## SOL-44-01 / SOL-44-02 / SOL-44-03 remediation
+
+- SOL-44-01: every capacity state becomes `Stale` when `ValidUntil <= EvaluatedAt`, including
+  `Insufficient`; future capacity observations and future owner overrides are rejected as typed
+  `InvalidRequest` before routing or persistence.
+- SOL-44-02: `LowerPreference` is emitted only when an explicit preferred-agent list exists and
+  the selected candidate is outside that list; empty preference policies retain deterministic
+  AgentId selection without the reason.
+- SOL-44-03: real effective `AgentProjectOverride` service coverage proves disable and role
+  restrictions reach routing; explicit `NoEligibleCandidate` coverage and a twelve-case JSON
+  tamper matrix prove fail-closed repeated observational reads with unchanged bytes and no repair,
+  quarantine, deletion, rename, or backup.
+- A bounded connection-mode override regression proves a project-permitted invocation set cannot
+  silently fall back to a globally supported but project-disallowed mode. Contradictory
+  `NotApplicable` plus minimum-capacity policy input is rejected.
+
+No provider calls, model invocation, execution, worktree mutation, or routing fallback were added.
 
 ## Governance and handoff boundary
 
-This is an implementation handoff, not acceptance. APO-44 remains `In Progress`; PR #16 remains
+This is a remediation handoff, not acceptance. APO-44 remains `In Progress`; PR #16 remains
 `OPEN / DRAFT / UNMERGED`. GPT-5.6 Sol must perform exact-head acceptance. No Claude Opus or Claude
 Sonnet was invoked. Do not merge, mark the PR Ready, transition APO-44 to Done, or begin APO-45,
 APO-46, routing execution, model invocation, worktree automation, tracker synchronization,
@@ -70,7 +90,7 @@ validation/approval engines, or Mission Control UI.
 
 `JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`).
 
-Runtime is explicitly not launched per Prompt 4/5:
+Runtime is explicitly not launched per Prompt 4/5R:
 
 `APO PROCESS COUNT = 0`
 
@@ -78,6 +98,7 @@ Runtime is explicitly not launched per Prompt 4/5:
 
 ## Next planner boundary
 
-APO-44 Prompt 4/5 implementation complete and awaiting GPT-5.6 Sol exact-head acceptance. Draft PR
-remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46, routing execution, model invocation,
-worktree automation, tracker synchronization, validation/approval engines, or Mission Control UI.
+APO-44 Prompt 4/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. Draft PR
+remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46, routing execution, model
+invocation, worktree automation, tracker synchronization, validation/approval engines, or Mission
+Control UI.
