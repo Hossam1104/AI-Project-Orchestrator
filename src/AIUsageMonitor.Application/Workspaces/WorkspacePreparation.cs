@@ -1402,7 +1402,10 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
         if (_approvalEvidence is not null)
         {
             var evidenceRead = await _approvalEvidence.GetForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.PlanId, cancellationToken).ConfigureAwait(false);
-            if (!evidenceRead.IsValid) return new(WorkspaceRecoveryState.Unavailable, ErrorMessage: evidenceRead.ErrorMessage ?? "Approval evidence is unavailable.");
+            if (evidenceRead.State == WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure)
+                return new(WorkspaceRecoveryState.IntegrityFailure, ErrorMessage: evidenceRead.ErrorMessage ?? "Approval evidence integrity failed.");
+            if (evidenceRead.State != WorkspacePreparationApprovalEvidenceReadState.Missing && !evidenceRead.IsValid)
+                return new(WorkspaceRecoveryState.Unavailable, ErrorMessage: evidenceRead.ErrorMessage ?? "Approval evidence is unavailable.");
             approvalEvidence = evidenceRead.Evidence;
         }
 

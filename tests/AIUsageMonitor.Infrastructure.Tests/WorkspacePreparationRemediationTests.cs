@@ -159,14 +159,141 @@ public sealed class WorkspacePreparationRemediationTests
         var restartedService = new WorkspacePreparationService(plans, receipts, repository, new NoopLock(),
             new TestPathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now), approvalEvidence: approvals);
         var inspection = await restartedService.InspectAsync(plan.Reference);
+        var mutationsBeforeFinalize = repository.MutationCount;
         var finalized = await restartedService.FinalizeReceiptAsync(plan.Reference, approval);
 
         Assert.Equal(WorkspacePreparationStatus.ReceiptPersistenceFailed, first.Status);
         Assert.Equal(WorkspaceRecoveryState.PreparedWithoutReceipt, inspection.State);
         Assert.Equal(WorkspacePreparationStatus.Prepared, finalized.Status);
         Assert.Equal(1, repository.MutationCount);
+        Assert.Equal(mutationsBeforeFinalize, repository.MutationCount);
         Assert.Equal(approval.ApprovalId, finalized.Receipt!.ApprovalReference!.ApprovalId);
         Assert.Equal(plan.Reference.ContentHash, finalized.Receipt.PlanReference.ContentHash);
+    }
+
+    [Fact]
+    public async Task Recovery_ValidPlanWithoutApprovalOrWorkspace_IsNotPrepared()
+    {
+        var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
+        var repository = new ScriptedRepository(plan);
+        var service = CreateService(plan, repository, new InMemoryReceiptRepository(), new InMemoryApprovalEvidenceRepository());
+
+        var result = await service.InspectAsync(plan.Reference);
+
+        Assert.Equal(WorkspaceRecoveryState.NotPrepared, result.State);
+        Assert.Null(result.Receipt);
+        Assert.Null(result.NextSafeAction);
+    }
+
+    [Fact]
+    public async Task Recovery_ExactLookingWorkspaceWithoutApproval_IsForeignWorkspace()
+    {
+        var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
+        var repository = new ScriptedRepository(plan)
+        {
+            Current = WithSource(plan.Repository,
+                worktree: new WorkspaceWorktreeEvidence(plan.ProposedWorkspacePath, plan.BaseCommitSha, plan.WorkspaceBranch, false, false, false))
+        };
+        var service = CreateService(plan, repository, new InMemoryReceiptRepository(), new InMemoryApprovalEvidenceRepository());
+
+        Directory.CreateDirectory(plan.ProposedWorkspacePath);
+        try
+        {
+            var result = await service.InspectAsync(plan.Reference);
+
+            Assert.Equal(WorkspaceRecoveryState.ForeignWorkspace, result.State);
+            Assert.Equal("Owner inspection required.", result.NextSafeAction);
+        }
+        finally
+        {
+            Directory.Delete(plan.ProposedWorkspacePath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Recovery_ApprovalEvidenceIntegrityFailure_IsFailClosed()
+    {
+        var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
+        var approvals = new InMemoryApprovalEvidenceRepository
+        {
+            PlanReadState = WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure
+        };
+        var service = CreateService(plan, new ScriptedRepository(plan), new InMemoryReceiptRepository(), approvals);
+
+        var result = await service.InspectAsync(plan.Reference);
+
+        Assert.Equal(WorkspaceRecoveryState.IntegrityFailure, result.State);
+    }
+
+    [Fact]
+    public async Task Recovery_ValidApprovalAndExactWorkspaceWithoutReceipt_IsPreparedWithoutReceipt()
+    {
+        var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
+        var repository = new ScriptedRepository(plan)
+        {
+            Current = WithSource(plan.Repository,
+                worktree: new WorkspaceWorktreeEvidence(plan.ProposedWorkspacePath, plan.BaseCommitSha, plan.WorkspaceBranch, false, false, false))
+        };
+        var approvals = new InMemoryApprovalEvidenceRepository();
+        approvals.Evidence = new WorkspacePreparationApprovalEvidence(plan.ProjectId, plan.WorkspaceId, Guid.NewGuid(), plan.Reference,
+            "owner:test", Now, Now);
+        var service = CreateService(plan, repository, new InMemoryReceiptRepository(), approvals);
+
+        Directory.CreateDirectory(plan.ProposedWorkspacePath);
+        try
+        {
+            var result = await service.InspectAsync(plan.Reference);
+
+            Assert.Equal(WorkspaceRecoveryState.PreparedWithoutReceipt, result.State);
+            Assert.Equal("FinalizeReceipt", result.NextSafeAction);
+        }
+        finally
+        {
+            Directory.Delete(plan.ProposedWorkspacePath, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Recovery_ValidApprovalWithoutWorkspace_IsNotPrepared()
+    {
+        var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
+        var approvals = new InMemoryApprovalEvidenceRepository();
+        approvals.Evidence = new WorkspacePreparationApprovalEvidence(plan.ProjectId, plan.WorkspaceId, Guid.NewGuid(), plan.Reference,
+            "owner:test", Now, Now);
+        var service = CreateService(plan, new ScriptedRepository(plan), new InMemoryReceiptRepository(), approvals);
+
+        var result = await service.InspectAsync(plan.Reference);
+
+        Assert.Equal(WorkspaceRecoveryState.NotPrepared, result.State);
+    }
+
+    [Fact]
+    public async Task Recovery_ValidReceiptApprovalAndExactWorkspace_IsPreparedAndRecorded()
+    {
+        var plan = CreatePlan(Guid.NewGuid(), Guid.NewGuid());
+        var evidence = new WorkspacePreparationApprovalEvidence(plan.ProjectId, plan.WorkspaceId, Guid.NewGuid(), plan.Reference,
+            "owner:test", Now, Now);
+        var receipts = new InMemoryReceiptRepository { Receipt = CreateReceipt(plan, evidence) };
+        var approvals = new InMemoryApprovalEvidenceRepository { Evidence = evidence };
+        var repository = new ScriptedRepository(plan)
+        {
+            Current = WithSource(plan.Repository,
+                worktree: new WorkspaceWorktreeEvidence(plan.ProposedWorkspacePath, plan.BaseCommitSha, plan.WorkspaceBranch, false, false, false))
+        };
+        var service = CreateService(plan, repository, receipts, approvals);
+
+        Directory.CreateDirectory(plan.ProposedWorkspacePath);
+        try
+        {
+            var result = await service.InspectAsync(plan.Reference);
+
+            Assert.Equal(WorkspaceRecoveryState.PreparedAndRecorded, result.State);
+            Assert.Same(receipts.Receipt, result.Receipt);
+        }
+        finally
+        {
+            Directory.Delete(plan.ProposedWorkspacePath, recursive: true);
+        }
     }
 
     [Fact]
@@ -355,7 +482,8 @@ public sealed class WorkspacePreparationRemediationTests
     private sealed class InMemoryApprovalEvidenceRepository : IWorkspacePreparationApprovalEvidenceRepository
     {
         public WorkspacePreparationApprovalEvidenceWriteStatus WriteStatus { get; set; } = WorkspacePreparationApprovalEvidenceWriteStatus.Created;
-        public WorkspacePreparationApprovalEvidence? Evidence { get; private set; }
+        public WorkspacePreparationApprovalEvidence? Evidence { get; set; }
+        public WorkspacePreparationApprovalEvidenceReadState PlanReadState { get; set; } = WorkspacePreparationApprovalEvidenceReadState.Missing;
         public int CreateCount { get; private set; }
         public Task<WorkspacePreparationApprovalEvidenceWriteResult> CreateAsync(WorkspacePreparationApprovalEvidence evidence, CancellationToken cancellationToken = default)
         {
@@ -364,7 +492,7 @@ public sealed class WorkspacePreparationRemediationTests
             return Task.FromResult(new WorkspacePreparationApprovalEvidenceWriteResult(WriteStatus));
         }
         public Task<WorkspacePreparationApprovalEvidenceReadResult> GetAsync(Guid projectId, Guid workspaceId, Guid approvalId, CancellationToken cancellationToken = default) => Task.FromResult<WorkspacePreparationApprovalEvidenceReadResult>(Evidence is not null && Evidence.ProjectId == projectId && Evidence.WorkspaceId == workspaceId && Evidence.ApprovalId == approvalId ? new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Valid, Evidence) : new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Missing));
-        public Task<WorkspacePreparationApprovalEvidenceReadResult> GetForPlanAsync(Guid projectId, Guid workspaceId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult<WorkspacePreparationApprovalEvidenceReadResult>(Evidence is not null && Evidence.ProjectId == projectId && Evidence.WorkspaceId == workspaceId && Evidence.PlanReference.PlanId == planId ? new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Valid, Evidence) : new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Missing));
+        public Task<WorkspacePreparationApprovalEvidenceReadResult> GetForPlanAsync(Guid projectId, Guid workspaceId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult<WorkspacePreparationApprovalEvidenceReadResult>(Evidence is not null && Evidence.ProjectId == projectId && Evidence.WorkspaceId == workspaceId && Evidence.PlanReference.PlanId == planId ? new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Valid, Evidence) : new WorkspacePreparationApprovalEvidenceReadResult(PlanReadState));
     }
 
     private sealed class ScriptedRepository(WorkspacePreparationPlan plan) : IWorkspaceRepository
