@@ -31,20 +31,25 @@
 **Default Branch:** `main`
 **APO-41:** COMPLETE / MERGED / DONE at `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`.
 **APO-41 Accepted Tree:** `4b05cd85c8f6434ba3750c444e0c66da671bd18a`.
-**APO-42:** IN PROGRESS / PROMPT 2/5R; SOL-42-01 REMEDIATED - AWAITING SOL EXACT-HEAD ACCEPTANCE.
+**APO-42:** COMPLETE / MERGED / DONE; PR #14 merged at the authorized APO-42 baseline.
+**APO-42 Merge SHA:** `fcbb3e82460f9ed689b446eef16b6c2904d643c6`.
+**APO-43:** IN PROGRESS / PROMPT 3/5; implementation delivered; awaiting GPT-5.6 Sol exact-head acceptance.
+**APO-43 Feature Branch:** `feat/APO-43-smart-continue-recovery-checkpoints`.
+**APO-43 Functional SHA:** `ad466d52ff2a66af098337aa2fd4df3988e4a339`.
+**APO-43 Draft PR:** `#15 OPEN / DRAFT / UNMERGED`.
 **APO-42 Original Functional SHA:** `93e759646c0098974eb089c72b50d8f3cecf24f1`.
 **APO-42 Remediation Starting Handoff SHA:** `90497896222063bf796d7720458242c952d14f75`.
 **APO-42 Remediation Functional SHA:** `8cdd7d20d5e5e875d638312c2f3bbf44d9082d07`.
-**APO-42 Draft PR:** `#14 OPEN / DRAFT / UNMERGED`.
+**APO-42 Draft PR:** `#14 MERGED / CLOSED`.
 **APO-42 Jira start comment:** `12137`.
-**AUTHORITATIVE CURRENT TRUTH (APO-42):** APO-41 Prompt 1/5 is fully merged/closed and Done;
-the historical APO-41 and earlier sections below are preserved as history. APO-42 Prompt 2/5R
-SOL-42-01 remediation is functionally complete on its feature branch and awaits GPT-5.6 Sol
+**AUTHORITATIVE CURRENT TRUTH (APO-43):** APO-42 is fully merged/closed and Done at the exact
+authorized baseline; the historical APO-41/APO-42 sections below are preserved as history. APO-43
+Prompt 3/5 implementation is functionally complete on its feature branch and awaits GPT-5.6 Sol
 exact-head acceptance.
-**Current Story (authoritative):** APO-42 - Generate Structured Planner-to-Executor-to-Reviewer Handoff Packages.
-**Current Epic (authoritative):** APO-10 - Planning & Execution Contracts.
-**Status (authoritative):** IN PROGRESS / PROMPT 2/5R; SOL-42-01 remediated; Draft PR #14 OPEN / DRAFT / UNMERGED.
-**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the SOL-42-01/APO-42 remediation.
+**Current Story (authoritative):** APO-43 - Persist Canonical Context, Smart Continue, and Recovery Checkpoints.
+**Current Epic (authoritative):** APO-3 - Local Persistence, Resilience & Security Foundation.
+**Status (authoritative):** IN PROGRESS / PROMPT 3/5; Draft PR #15 OPEN / DRAFT / UNMERGED.
+**Next action (authoritative):** GPT-5.6 Sol exact-head acceptance of the APO-43 implementation handoff.
 **Current Story:** APO-40 — Define Versioned Planning and Execution Contracts.
 **Current Epic:** APO-10 — Planning & Execution Contracts.
 **Status:** IN PROGRESS / PROMPT 5/5B / FOUNDATION REMEDIATION COMPLETE; Draft PR #12 OPEN / DRAFT / UNMERGED.
@@ -54,11 +59,15 @@ exact-head acceptance.
 **APO-39 accepted source / merge tree:** `4dfe83703e1899a4e5eb35a1530e0434924eb3db`.
 **APO-40:** COMPLETE / MERGED / DONE at `1b3223d9a696a580ec4c8b5f6853dcb471b59dad`.
 **APO-41:** COMPLETE / MERGED / DONE at `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`.
-**APO-42:** IN PROGRESS / PROMPT 2/5; IMPLEMENTATION COMPLETE / AWAITING SOL ACCEPTANCE.
-**APO-43:** TO DO / NOT AUTHORIZED.
+**APO-42:** COMPLETE / MERGED / DONE at `fcbb3e82460f9ed689b446eef16b6c2904d643c6`.
+**APO-43:** IN PROGRESS / PROMPT 3/5; implementation complete / awaiting Sol exact-head acceptance.
 **APO-44:** TO DO / NOT AUTHORIZED.
 **APO-45:** TO DO / NOT AUTHORIZED.
-**Release state:** APO-37 provides explicit, manual, read-only local repository verification. Smart Continue, Mission Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled delivery, review/acceptance engines, background automation, remote approval, and full release qualification remain planned or incomplete. No GitHub CI evidence is claimed.
+**Release state:** APO-37 provides explicit, manual, read-only local repository verification. APO-43
+provides the durable Smart Continue/recovery foundation but remains awaiting Sol acceptance; Mission
+Control, routing runtime, bounded execution, tracker automation, remote SCM evidence, controlled
+delivery, review/acceptance engines, background automation, remote approval, and full release
+qualification remain planned or incomplete. No GitHub CI evidence is claimed.
 
 ## 27. APO-41 SOL-41-01 Terminal Completion Evidence Integrity Remediation (Prompt 1/5R)
 
@@ -2637,3 +2646,77 @@ remediation prompt explicitly forbids launching APO: `APO PROCESS COUNT = 0` and
 **Next planner boundary:** After the authorized metadata-only synchronization, return the exact final
 feature head to GPT-5.6 Sol for SOL-42-01/APO-42 acceptance. Do not merge PR #14, mark it Ready,
 transition APO-42 to Done, or begin APO-43/44/45.
+
+## 30. APO-43 Canonical Context, Smart Continue & Recovery Checkpoints (Prompt 3/5)
+
+**Lifecycle:** APO-43 implementation is complete on the assigned feature branch; Jira remains In
+Progress and the work awaits GPT-5.6 Sol exact-head acceptance. No Claude Opus or Claude Sonnet was
+invoked. No APO runtime was launched.
+
+**Exact delivery identity:**
+
+- Authorized starting main SHA: `fcbb3e82460f9ed689b446eef16b6c2904d643c6`.
+- Authorized starting main tree: `f7920d9a06d3acd4443937b77f5eed45c6210740`.
+- Branch: `feat/APO-43-smart-continue-recovery-checkpoints`.
+- Functional SHA: `ad466d52ff2a66af098337aa2fd4df3988e4a339`.
+- Functional tree: `82b15b4311025098d8ca534caa9b2e28e1c6b078`.
+- Draft PR #15 is `OPEN / DRAFT / UNMERGED` against `main`.
+- Jira implementation-start comment: `12176`; Jira APO-43 remains `In Progress`.
+
+**APO-42 reconciliation:** APO-42 is `COMPLETE / MERGED / DONE`; PR #14 merged at
+`fcbb3e82460f9ed689b446eef16b6c2904d643c6` with tree
+`f7920d9a06d3acd4443937b77f5eed45c6210740`; SOL-42-01 is `CLOSED`; accepted validation was
+566/566 with Domain 28, Connection 167, Provider 46, Desktop 82, Infrastructure 243.
+
+**Delivered authority:** APO-43 adds an immutable, create-once RecoveryCheckpoint with a dedicated
+V1 schema, GUID-derived project/checkpoint paths, deterministic lower-case SHA-256
+content-integrity evidence, bounded reference-only metadata, lifecycle state, exact context and
+PlanningExecutionContract references, optional exact WorkGraph/node and HandoffPackage references,
+shallow predecessor lineage, selected agent-role references, evidence freshness, gate snapshots,
+typed blockers, and a typed next safe action. It does not copy ProjectContextReference, history,
+prompts, chat, transcripts, repository contents, credentials, or model payloads.
+
+ContinuationHead is a small project-scoped mutable reference authority with two atomic slots. Slots
+alternate A/B as generations 1/2/3; reads validate both observationally and select the highest
+valid generation. A corrupt newest slot falls back to the previous valid generation without repair,
+quarantine, rename, backup, or directory scanning. An orphan checkpoint after head publication
+failure remains ignored. Same-project publication is serialized with safely evicted keyed locks.
+
+LastSafe is updated only for Ready, Waiting, Blocked, and ApprovalRequired. Interrupted, Failed,
+and Cancelled latest states preserve the previous safe reference; Completed remains terminal. The
+read-only Smart Continue resolver validates current context, exact contract, optional graph/handoff,
+predecessor, gates, blockers, and evidence freshness without external calls or writes. Its matrix
+returns Resumable, Blocked, ApprovalRequired, Completed, Stale, or ContextInsufficient as
+appropriate, plus typed infrastructure failures. Cancelled work is never silently restarted.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 598/598 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 275.
+- Focused APO-43 recovery suite: 32/32 passed.
+- `git diff --check`: clean.
+- Changed-line credential-shaped review: only intentional redaction fixtures; no raw credentials.
+- GitHub CI: `NONE / NOT CLAIMED`.
+
+**Recovery evidence:** Real JSON restart recovery passed; corrupt-newest-head fallback passed with
+unchanged bytes; orphan checkpoint isolation is covered; project A/B isolation passed; exact
+contract, WorkGraph, and HandoffPackage binding checks passed; descriptive redaction and authority
+reference rejection passed; cancellation propagated without creating checkpoint/head authority.
+
+**Governance:** `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`. No model routing, provider calls,
+execution runtime, tracker synchronization, validation/approval engines, UI, automatic worktrees,
+or APO-44+ scope was added. `JsonFileStore.CurrentSchemaVersion = UNCHANGED` and remains `1`;
+`OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+
+**Metadata handoff:** This section and the active `TASK.md` are the authorized metadata-only
+reconciliation after the functional commit. The final feature head is the metadata commit recorded
+in the executor handoff; no product or test files are changed after that metadata commit.
+
+**Runtime:** `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+
+**Next planner boundary:** APO-43 Prompt 3/5 implementation complete and awaiting GPT-5.6 Sol
+exact-head acceptance. Draft PR #15 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-44,
+APO-45, APO-46, model invocation, routing, execution runtime, tracker synchronization,
+validation/approval engines, or Mission Control UI.
