@@ -9,7 +9,8 @@
 - Feature branch: `feat/APO-46-isolated-worktrees-safe-evidence`
 - Functional commit: `5aada3813741a22406b0ec4eecdd5b3fa7a37601`
 - Functional tree: `6e2bf39b591cdb6f8081584d529eaf1737593a2c`
-- Draft PR: pending creation; base `main`; head is this feature branch
+- Draft PR #17: `OPEN / DRAFT / UNMERGED`; base `main`; head is this feature branch
+  ([GitHub PR #17](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/17))
 - APO-44: `COMPLETE / MERGED / DONE` at the authorized baseline; merge SHA and tree are the starting main SHA/tree
 - APO-45: `TO DO / NOT AUTHORIZED`
 
@@ -47,7 +48,7 @@ APO-46 delivers bounded, project-isolated workspace preparation authority:
 - Focused APO-46 tests: 9/9 passed in `WorkspacePreparationTests`.
 - `git diff --check`: clean before metadata-only changes.
 - Changed-line credential-shaped review: no real credentials; only bounded sanitized fixture values.
-- GitHub CI: `NONE / NOT CLAIMED` until exact final feature head is checked.
+- GitHub CI: `NONE / NOT CLAIMED`; no checks are reported on Draft PR #17.
 
 ## Governance and handoff boundary
 
