@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.ComponentModel;
+using System.Text;
 
 namespace AIUsageMonitor.Infrastructure.Git;
 
@@ -9,7 +10,8 @@ internal sealed record GitCommandResult(
     string StandardError,
     bool TimedOut = false,
     bool Cancelled = false,
-    bool CouldNotStart = false);
+    bool CouldNotStart = false,
+    bool OutputTruncated = false);
 
 /// <summary>
 /// Infrastructure-internal process seam. It accepts an argument list so a registered local path
@@ -24,6 +26,7 @@ internal interface IGitCommandRunner
 
 internal sealed class SystemGitCommandRunner : IGitCommandRunner
 {
+    internal const int MaxCapturedOutputCharacters = 64 * 1024;
     private static readonly TimeSpan DefaultCommandTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan DefaultDrainTimeout = TimeSpan.FromSeconds(2);
 
@@ -69,8 +72,10 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
             return new GitCommandResult(-1, string.Empty, string.Empty, CouldNotStart: true);
         }
 
-        var standardOutputTask = process.StandardOutput.ReadToEndAsync();
-        var standardErrorTask = process.StandardError.ReadToEndAsync();
+        // Stop capturing at a bounded size. Git output is diagnostics/evidence only and must not
+        // become an unbounded memory or persistence channel.
+        var standardOutputTask = ReadBoundedAsync(process.StandardOutput);
+        var standardErrorTask = ReadBoundedAsync(process.StandardError);
         using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCancellation.CancelAfter(_commandTimeout);
 
@@ -94,9 +99,34 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
 
         return new GitCommandResult(
             process.ExitCode,
-            standardOutputTask.IsCompletedSuccessfully ? standardOutputTask.Result : string.Empty,
-            standardErrorTask.IsCompletedSuccessfully ? standardErrorTask.Result : string.Empty);
+            standardOutputTask.IsCompletedSuccessfully ? TrimCapturedOutput(standardOutputTask.Result) : string.Empty,
+            standardErrorTask.IsCompletedSuccessfully ? TrimCapturedOutput(standardErrorTask.Result) : string.Empty,
+            OutputTruncated: (standardOutputTask.IsCompletedSuccessfully && standardOutputTask.Result.Length > MaxCapturedOutputCharacters) ||
+                             (standardErrorTask.IsCompletedSuccessfully && standardErrorTask.Result.Length > MaxCapturedOutputCharacters));
     }
+
+    private static async Task<string> ReadBoundedAsync(StreamReader reader)
+    {
+        // Capture one sentinel character beyond the public bound so output exactly at the bound
+        // is not falsely classified as truncated. Continue draining without retaining anything
+        // beyond the sentinel to keep the child process from blocking on a full pipe.
+        var builder = new StringBuilder(MaxCapturedOutputCharacters + 1);
+        var buffer = new char[4096];
+        while (true)
+        {
+            var read = await reader.ReadAsync(buffer.AsMemory()).ConfigureAwait(false);
+            if (read == 0) break;
+            if (builder.Length < MaxCapturedOutputCharacters + 1)
+            {
+                builder.Append(buffer, 0, Math.Min(read, MaxCapturedOutputCharacters + 1 - builder.Length));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string TrimCapturedOutput(string value) =>
+        value.Length <= MaxCapturedOutputCharacters ? value : value[..MaxCapturedOutputCharacters];
 
     internal static ProcessStartInfo CreateStartInfo(IReadOnlyList<string> arguments)
     {

@@ -1,96 +1,77 @@
-# APO-44 - Explainable Quality-First Quota-Aware Routing Decisions
+# APO-46 - Isolated Worktrees and Safe Repository Workspace Evidence
 
 ## Active execution contract
 
-- Prompt: `4/5R` - GPT-5.6 Sol exact-head remediation; GPT-5.6 Luna xHigh executor
-- Jira: `APO-44` (issue id `10872`), parent `APO-9`, priority `High`
-- Jira status: `In Progress`
-- Jira implementation-start comment: `12180`
-- Authorized starting main SHA: `35ee09d8095a01fc7a0221f27b793c758da5e6d9`
-- Authorized starting main tree: `c968eac17efdc6883a20d1281e97ac9dacddd60b`
-- Feature branch: `feat/APO-44-quality-first-quota-routing`
-- Original functional commit: `a9e7b0f69478337261bf81bc97fb487367bafa81`
-- Previous Sol-reviewed head: `398e44e07a142cb199dd3eab9d5fc2689354c62f`
-- Previous Sol-reviewed tree: `e4e37253d7293f31cecce5e373223ad0539ef4b7`
-- Remediation functional commit: `01e544eb22d005f22df4c7c3192bd74ccc7aed11`
-- Remediation functional tree: `d81823279f9cbad81337f627d6373530b86cb100`
-- Draft PR: `#16 OPEN / DRAFT / UNMERGED`, base `main`
-- APO-43: `COMPLETE / MERGED / DONE` at the authorized baseline
+- Prompt: `5/5R2` - GPT-5.6 Sol planner/acceptance authority; GPT-5.6 Luna xHigh executor
+- Jira: `APO-46` (`In Progress`); parent `APO-6`
+- Sol Jira governance/review comments: `12188`, `12189`, `12190`, and `12191`
+- Authorized starting `origin/main`: `a37af4d7fd77eaacdfc3a716cf7c73987483f63d`
+- Exact previous Sol-reviewed head/tree: `85f54ea818624d3047b20e80690eaa09e6d682d8` /
+  `e900498471d9b250f5556e874fdf9f0357e915f9`
+- Previous remediation functional SHA/tree: `92dfdcf3470f630333bebdac94f5101f8e4542e2` /
+  `d1911e46816825558d52eab76bbfe44d84c3dd4e`
+- R2 functional SHA/tree: `0b1eb29a5171dee549781c9ac1dcbeb0b9518bae` /
+  `30da99230a26bdc2577356fabbe7628245efdf2f`
+- Original APO-46 functional SHA/tree: `5aada3813741a22406b0ec4eecdd5b3fa7a37601` /
+  `6e2bf39b591cdb6f8081584d529eaf1737593a2c`
+- Feature branch: `feat/APO-46-isolated-worktrees-safe-evidence`
+- Draft PR #17: `OPEN / DRAFT / UNMERGED`; base `main`; R2 functional head pushed normally
+  ([GitHub PR #17](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/17))
 - APO-45: `TO DO / NOT AUTHORIZED`
 
-## Delivered scope
+## R2 remediation scope
 
-APO-44 adds a bounded, provider-independent routing decision authority:
+SOL-46-01 through SOL-46-04 remain functionally addressed. R2 added deterministic acceptance
+evidence without redesigning those production areas, and applied the minimal SOL-46-05 recovery
+fix:
 
-1. `RoutingTaskClassification` captures scope, risk, blast radius, validation cost, required role,
-   exact normalized capabilities, policy tags, capacity requirement, and downstream gate flags.
-2. `RoutingPolicySnapshot` is an explicit executable policy snapshot separate from descriptive
-   `AgentRolePolicyMetadata`, with ordered preferences, prohibitions, capacity requirements, and
-   verification requirements.
-3. `RoutingAgentSnapshot` copies trusted effective APO-38 registry truth, including project
-   overrides. No default catalog, caller-supplied identity, or competing registry is used.
-4. `RoutingCapacityEvidence` is exact agent-bound evidence with truthful Sufficient, Constrained,
-   Insufficient, Unknown, Stale, NotMapped, and NotApplicable states. Existing provider usage data
-   is not guessed into an agent mapping; no live provider call or refresh is performed.
-5. `RoutingDecisionEngine` is pure and deterministic. It evaluates enabled state, exact role and
-   capabilities, connection truth, availability, authentication, entitlement, and prohibited
-   policy before normalized capacity, explicit preference, and stable AgentId tie-breaking. It
-   recommends but never invokes or executes.
-6. Owner overrides are auditable and can change only soft ranking among already-eligible,
-   non-prohibited candidates. Rejected overrides have no silent fallback. Review, security, and
-   owner-approval gates remain recorded and unsatisfied by selection.
-7. `RoutingInputAssembler` binds the exact persisted planning-contract revision and current
-   project context identity/version/update time. It uses the existing handoff redaction service:
-   descriptive values may be redacted; authority, identity, and reference values are rejected if
-   secret-shaped.
-8. Immutable decisions use dedicated schema V1, create-once GUID/project-isolated persistence at
-   `projects/<ProjectId>/routing/decisions/<DecisionId>/decision.json`, deterministic input
-   fingerprints, lower-case SHA-256 content-integrity evidence, exact-ID reads, and observational
-   tamper/version handling. No migration, overwrite, repair, quarantine, deletion, backup, or
-   directory scan is performed.
+1. `Missing` approval evidence is the normal pre-approval state. A valid plan with no approval,
+   no receipt, and no workspace returns `NotPrepared`; an exact-looking workspace without approval
+   returns `ForeignWorkspace`; approval `IntegrityFailure` remains fail-closed.
+2. Valid approval plus an exact workspace without a receipt returns `PreparedWithoutReceipt`;
+   valid approval without a workspace returns `NotPrepared`; valid receipt, approval, and exact
+   workspace return `PreparedAndRecorded`. Finalizing an already prepared-without-receipt recovery
+   path performs no second Git mutation.
+3. Acceptance tests cover routing authority and stale/tampered routing, real plan/receipt/approval
+   JSON tamper matrices with repeated unchanged reads and no repair/quarantine/backup, create-once
+   persistence and approval-index crash windows, real two-worktree isolation and same-branch
+   conflict, Git-authoritative branch validation, local divergence, command allowlist/no-network
+   instrumentation, same/different repository concurrency, lock and child-process cancellation,
+   read-only planning, receipt finalization, and exact post-write source equality.
 
-## Validation contract and evidence
+## Validation evidence
 
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS; up to date.
 - `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 659/659 passed; 0 failed; 0 skipped.
-- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 310.
-- Focused routing tests: 42/42 passed (Connection 26; Infrastructure 16).
-- `git diff --check`: clean before metadata-only changes.
-- Changed-line credential-shaped review: no real credentials; only bounded sanitized fixture values.
-- GitHub CI: `NONE / NOT CLAIMED`.
-
-## SOL-44-01 / SOL-44-02 / SOL-44-03 remediation
-
-- SOL-44-01: every capacity state becomes `Stale` when `ValidUntil <= EvaluatedAt`, including
-  `Insufficient`; future capacity observations and future owner overrides are rejected as typed
-  `InvalidRequest` before routing or persistence.
-- SOL-44-02: `LowerPreference` is emitted only when an explicit preferred-agent list exists and
-  the selected candidate is outside that list; empty preference policies retain deterministic
-  AgentId selection without the reason.
-- SOL-44-03: real effective `AgentProjectOverride` service coverage proves disable and role
-  restrictions reach routing; explicit `NoEligibleCandidate` coverage and a twelve-case JSON
-  tamper matrix prove fail-closed repeated observational reads with unchanged bytes and no repair,
-  quarantine, deletion, rename, or backup.
-- A bounded connection-mode override regression proves a project-permitted invocation set cannot
-  silently fall back to a globally supported but project-disallowed mode. Contradictory
-  `NotApplicable` plus minimum-capacity policy input is rejected.
-
-No provider calls, model invocation, execution, worktree mutation, or routing fallback were added.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 790/790 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 441.
+- Focused `WorkspacePreparationTests`: 9/9 passed.
+- Focused `WorkspacePreparationRemediationTests`: 22/22 passed.
+- Focused `WorkspacePreparationAcceptanceTests`: 100/100 passed.
+- Combined focused APO-46 workspace tests: 131/131 passed.
+- `git diff --check`: clean before the functional commit and after R2 validation.
+- Changed-line credential-shaped review: no real credentials; intentional test placeholders and
+  security-related identifiers only.
+- Production Git review: shell-free argument-list execution, bounded output, cancellation scoped
+  to the spawned process tree, no unsafe cleanup, no hidden fetch/network operation, and only
+  `worktree add -b` as the product Git mutation.
+- GitHub CI: `NONE / NOT CLAIMED`; no status/check/workflow evidence was present.
 
 ## Governance and handoff boundary
 
-This is a remediation handoff, not acceptance. APO-44 remains `In Progress`; PR #16 remains
-`OPEN / DRAFT / UNMERGED`. GPT-5.6 Sol must perform exact-head acceptance. No Claude Opus or Claude
-Sonnet was invoked. Do not merge, mark the PR Ready, transition APO-44 to Done, or begin APO-45,
-APO-46, routing execution, model invocation, worktree automation, tracker synchronization,
-validation/approval engines, or Mission Control UI.
+APO-46 remains `In Progress` and awaits GPT-5.6 Sol final exact-head re-review. Do not merge, mark
+PR #17 Ready, transition APO-46 to Done, begin APO-45, invoke any model, add an execution
+lifecycle, synchronize trackers, implement validation/approval engines or Mission Control, or add
+automatic worktree cleanup. No Jira write was attempted by this executor; `JIRA HANDOFF = DEFERRED
+TO SOL / NON-BLOCKING`.
 
 `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
 
 `JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`).
 
-Runtime is explicitly not launched per Prompt 4/5R:
+`OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+
+Runtime was explicitly not launched per APO-46 Prompt 5/5R2:
 
 `APO PROCESS COUNT = 0`
 
@@ -98,7 +79,4 @@ Runtime is explicitly not launched per Prompt 4/5R:
 
 ## Next planner boundary
 
-APO-44 Prompt 4/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. Draft PR
-remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46, routing execution, model
-invocation, worktree automation, tracker synchronization, validation/approval engines, or Mission
-Control UI.
+> APO-46 Prompt 5/5R2 remediation complete and awaiting GPT-5.6 Sol final exact-head re-review. PR #17 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus yet. If Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup.

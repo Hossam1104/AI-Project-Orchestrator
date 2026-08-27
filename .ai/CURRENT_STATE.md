@@ -2727,6 +2727,114 @@ exact-head acceptance. Draft PR #15 remains `OPEN / DRAFT / UNMERGED`. Do not be
 APO-45, APO-46, model invocation, routing, execution runtime, tracker synchronization,
 validation/approval engines, or Mission Control UI.
 
+---
+
+## 34. APO-46 Prompt 5/5 — Isolated Worktrees and Safe Repository Workspace Evidence
+
+**Status:** Implementation complete; awaiting GPT-5.6 Sol exact-head acceptance. APO-46 remains
+`In Progress`. This section is the latest factual handoff; earlier history is preserved above.
+
+**Baseline and identity:**
+
+- Project: `AI PROJECT ORCHESTRATOR / APO`.
+- Starting `main` SHA: `a37af4d7fd77eaacdfc3a716cf7c73987483f63d`.
+- Starting `main` tree: `aa5dd49d566ca81745cbf0a191b8dc2e7b37c578`.
+- Feature branch: `feat/APO-46-isolated-worktrees-safe-evidence`.
+- APO-44 is `COMPLETE / MERGED / DONE` at the starting main SHA/tree; recorded validation was
+  659/659 with focused routing 42/42. APO-45 remains `TO DO`.
+- Jira start comment: not available; no Jira connector is configured in this session. No Jira
+  status or dependency link was changed.
+
+**Architecture delivered:**
+
+- Application contracts provide bounded repository/worktree evidence, context and exact planning
+  contract references, optional exact work-graph/routing references, immutable V1 plan/reference,
+  explicit exact-plan approval, preparation/verification statuses, immutable receipt/reference,
+  recovery inspection, and repository/lock abstractions.
+- Planning is observational with respect to Git and persists only a GUID-scoped immutable plan.
+  Managed workspace destinations are derived as `<application data>/workspaces/<ProjectId>/`/
+  `<WorkspaceId>/repo`; no caller destination path is accepted.
+- Infrastructure provides porcelain parsing, fixed `ProcessStartInfo`/`ArgumentList` Git calls,
+  bounded capture/waits, GUID-derived JSON plan/receipt persistence, reparse-point rejection,
+  and a cross-process repository-identity file lock.
+- Preparation revalidates source root/common directory, source HEAD/branch/cleanliness, branch and
+  worktree conflicts, managed path safety, exact base SHA, and approval binding before the one
+  permitted Git mutation. Receipt failure leaves the worktree intact; recovery can report
+  `PreparedWithoutReceipt` and finalize the receipt without recreating the worktree.
+- No APO-45 execution lifecycle, model invocation, tracker synchronization, validation/approval
+  engine, Mission Control UI, automatic cleanup, remote URL discovery, GitHub API call, or provider
+  behavior was added.
+
+**Central invariants:**
+
+`EXPLAIN BEFORE WRITE = PASS`
+
+`APPROVAL BINDS EXACT PLAN = PASS`
+
+`EXACT BASE SHA = PASS`
+
+`MANAGED WORKSPACE PATH = PASS`
+
+`REVALIDATE BEFORE MUTATION = PASS`
+
+`NO FETCH = PASS`
+
+`NO DESTRUCTIVE GIT = PASS`
+
+`ONLY APPROVED WORKTREE ADD MAY MUTATE GIT = PASS`
+
+`NO EXECUTION RUNTIME = PASS`
+
+**Repository safety and integrity:**
+
+- Default source policy requires a clean source at preparation time; dirty planning evidence is
+  retained and approval is blocked unless the explicit plan policy permits dirty source, in which
+  case the warning is retained. No stash, reset, clean, deletion, or rollback path exists.
+- Repository identity is the normalized Git common directory. Existing managed path components are
+  checked for reparse points, plan/receipt paths are project/GUID derived, and plan/receipt reads
+  are observational with lower-case SHA-256 content-integrity evidence over authority fields.
+- `JsonFileStore.CurrentSchemaVersion = 1` is unchanged. Dedicated plan and receipt schemas are V1;
+  immutable create-once writes reject conflicts and reads classify invalid, stale, unsupported, or
+  integrity-failed data without repair/quarantine/delete/backup.
+- Git command code uses no shell, no arbitrary command API, no remote discovery, bounded stdout/
+  stderr capture, cancellation propagation, and no forbidden operation. The only mutating command
+  emitted by the workspace adapter is exact-commit `worktree add -b`.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 668/668 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 319.
+- Focused APO-46 tests: 9/9 passed in `WorkspacePreparationTests`, covering parser behavior,
+  exact-repository planning/preparation, explain-before-write, approval mismatch/cancellation,
+  staleness and dirty policy, branch/path conflict, lock serialization, tamper detection, and
+  receipt-failure recovery.
+- `git diff --check`: clean before this metadata-only update. Changed-line credential-shaped
+  review found no real credentials or unbounded secret payload.
+- GitHub CI: `NONE / NOT CLAIMED`; Draft PR #17 reports no checks.
+
+**Git handoff:**
+
+- Functional commit: `5aada3813741a22406b0ec4eecdd5b3fa7a37601`.
+- Functional tree: `6e2bf39b591cdb6f8081584d529eaf1737593a2c`.
+- Draft PR #17: [OPEN / DRAFT / UNMERGED](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/17)
+  against `main`; the exact final feature head/tree are recorded in the executor completion
+  report for this handoff.
+- No rebase, force push, merge, or main-branch update was performed.
+
+**Deferred and runtime:**
+
+`OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
+
+`APO PROCESS COUNT = 0`
+
+`APPLICATION LEFT RUNNING = NO`
+
+**Next planner boundary:**
+
+> APO-46 Prompt 5/5 implementation complete and awaiting GPT-5.6 Sol exact-head acceptance. PR remains OPEN / DRAFT / UNMERGED. This completes the five-prompt implementation cycle; if Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup.
+
 ## 31. APO-43 SOL-43-01 / SOL-43-02 / SOL-43-03 Exact-Head Remediation (Prompt 3/5R)
 
 **Lifecycle:** The bounded remediation is functionally complete and awaits GPT-5.6 Sol exact-head
@@ -2868,6 +2976,38 @@ exact-head acceptance. Draft PR #16 remains `OPEN / DRAFT / UNMERGED`. Do not be
 routing execution, model invocation, worktree automation, tracker synchronization,
 validation/approval engines, or Mission Control UI.
 
+---
+
+## 35. APO-46 live handoff supersession
+
+This final tail entry supersedes the placement of the detailed APO-46 implementation section
+above and is the current live status.
+
+- APO-46 Prompt 5/5 implementation is complete locally and awaits GPT-5.6 Sol exact-head
+  acceptance. APO-46 remains `In Progress`; APO-44 is `COMPLETE / MERGED / DONE`; APO-45 is
+  `TO DO`.
+- Draft PR #17 is `OPEN / DRAFT / UNMERGED` against `main`:
+  https://github.com/Hossam1104/AI-Project-Orchestrator/pull/17
+- The exact final feature head/tree are recorded in the executor completion report for this
+  handoff.
+- Functional commit: `5aada3813741a22406b0ec4eecdd5b3fa7a37601`; functional tree:
+  `6e2bf39b591cdb6f8081584d529eaf1737593a2c`.
+- The feature branch is published. No CI result exists/no checks are reported on Draft PR #17, and
+  no Jira comment/status/dependency mutation was possible because no Jira connector is configured.
+- Local validation remains 668/668 passed (Domain 28, Connection 193, Provider 46, Desktop 82,
+  Infrastructure 319), with focused APO-46 tests 9/9 passed, zero build warnings/errors, clean
+  `git diff --check`, clean working tree, and `APO PROCESS COUNT = 0`.
+
+`OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
+
+`JsonFileStore.CurrentSchemaVersion = UNCHANGED`
+
+`APO PROCESS COUNT = 0`
+
+`APPLICATION LEFT RUNNING = NO`
+
+> APO-46 Prompt 5/5 implementation complete and awaiting GPT-5.6 Sol exact-head acceptance. PR remains OPEN / DRAFT / UNMERGED. This completes the five-prompt implementation cycle; if Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup.
+
 ## 33. APO-44 SOL-44-01 / SOL-44-02 / SOL-44-03 Exact-Head Remediation (Prompt 4/5R)
 
 **Lifecycle:** The bounded remediation is functionally complete and awaits GPT-5.6 Sol exact-head
@@ -2944,3 +3084,154 @@ tracker synchronization, validation/approval engine, or Mission Control UI was a
 exact-head re-review. PR #16 remains `OPEN / DRAFT / UNMERGED`. Do not begin APO-45, APO-46,
 routing execution, model invocation, worktree automation, tracker synchronization,
 validation/approval engines, or Mission Control UI.
+
+---
+
+## 36. APO-46 Prompt 5/5R - SOL-46-01..04 exact-head remediation handoff
+
+This is the latest factual handoff and supersedes earlier APO-46 tail metadata. APO-46 remains
+`In Progress` and awaits GPT-5.6 Sol exact-head re-review. PR #17 remains `OPEN / DRAFT / UNMERGED`
+against `main`. No Claude Opus, Claude Sonnet, or other model was invoked.
+
+**Exact identity and governance:**
+
+- Branch: `feat/APO-46-isolated-worktrees-safe-evidence`.
+- Authorized `origin/main`: `a37af4d7fd77eaacdfc3a716cf7c73987483f63d`.
+- Previous exact Sol-reviewed head/tree: `e7520d875bded50fbcaa0ede7ca976aa041b0c0b` /
+  `08e3e8cdf953638c6241246644ca29bf25f8fcf5`.
+- Original APO-46 functional SHA/tree: `5aada3813741a22406b0ec4eecdd5b3fa7a37601` /
+  `6e2bf39b591cdb6f8081584d529eaf1737593a2c`.
+- Remediation functional SHA/tree: `92dfdcf3470f630333bebdac94f5101f8e4542e2` /
+  `d1911e46816825558d52eab76bbfe44d84c3dd4e`.
+- Sol's restored Jira governance is recorded in reconciliation comments `12188`, `12189`, and
+  `12190`: APO-46 is `In Progress`, and the remediation remains subject to exact-head review.
+- No Jira write was attempted by this executor; Jira handoff is deferred to Sol and is
+  non-blocking for this repository handoff. The restored Jira state above is authoritative; older
+  statements that no Jira connector was available are historical, not current state.
+- PR #17 was verified with base `main`, head on this feature branch, `OPEN / DRAFT / UNMERGED`, and
+  no merge or Ready transition. No rebase, merge, or force push was used.
+
+**SOL-46-01 through SOL-46-04:**
+
+- Durable, project-isolated V1 approval evidence is create-once, exact-read, redaction-safe, and
+  written before the repository lock or sole Git mutation. Receipts carry exact approval references
+  and structured `APO` / `ExplicitActionRequired` / `AutomaticCleanupAllowed=false` evidence.
+- Supplied routing decisions are revalidated against the exact planning contract, context identity
+  and update time, selected candidate, recommendation identity, eligibility, and accepted outcome.
+- Receipt-to-plan association is centralized and exact; managed-root and descendant reparse points,
+  deterministic-path changes, and source fingerprint changes are fail-closed. Receipt-only recovery
+  remains non-destructive.
+- Git discovery is bounded and fail-closed for status, worktrees, and branches. Branch validity and
+  existence use fixed shell-free commands. Divergence is local point-in-time evidence only and never
+  fetches. No cleanup or unrelated Git mutation exists.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 684/684 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 335.
+- Focused APO-46 workspace tests: 25/25 passed.
+- `git diff --check`: clean before the functional commit and before metadata reconciliation.
+- Changed-line credential-shaped review found no real credentials; test values are placeholders only.
+- `GitHub CI = NONE / NOT CLAIMED`: PR checks reported none and workflow runs were absent.
+- `JsonFileStore.CurrentSchemaVersion = 1` remains unchanged. `OPUS-05-03..11 = DEFERRED /
+  NON-BLOCKING`; `OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+
+**Runtime and scope boundary:**
+
+Runtime was explicitly not launched by APO-46 Prompt 5/5R:
+
+`APO PROCESS COUNT = 0`
+
+`APPLICATION LEFT RUNNING = NO`
+
+No APO-45 work, model invocation, execution runtime, tracker synchronization, validation/approval
+engines, Mission Control UI, or autonomous cleanup was started.
+
+**Next planner boundary:**
+
+> APO-46 Prompt 5/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #17 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus yet. If Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup. Do not claim Sol acceptance.
+
+---
+
+## 37. APO-46 Prompt 5/5R2 - final Sol acceptance-evidence and recovery remediation handoff
+
+This is the current factual handoff and supersedes earlier APO-46 tail metadata. APO-46 remains
+`In Progress` and awaits GPT-5.6 Sol final exact-head re-review. PR #17 remains `OPEN / DRAFT /
+UNMERGED` against `main`. No Claude Opus, Claude Sonnet, or other model was invoked, and APO was
+not launched.
+
+**Exact identity and governance:**
+
+- Branch: `feat/APO-46-isolated-worktrees-safe-evidence`.
+- Authorized `origin/main`: `a37af4d7fd77eaacdfc3a716cf7c73987483f63d`.
+- Exact previous Sol-reviewed head/tree: `85f54ea818624d3047b20e80690eaa09e6d682d8` /
+  `e900498471d9b250f5556e874fdf9f0357e915f9`.
+- Previous remediation functional SHA/tree: `92dfdcf3470f630333bebdac94f5101f8e4542e2` /
+  `d1911e46816825558d52eab76bbfe44d84c3dd4e`.
+- R2 functional SHA/tree: `0b1eb29a5171dee549781c9ac1dcbeb0b9518bae` /
+  `30da99230a26bdc2577356fabbe7628245efdf2f`.
+- Sol Jira review comment `12191` is the authoritative second exact-head review requiring the
+  R2 evidence completion and SOL-46-05 recovery fix. No Jira write was attempted by this executor;
+  `JIRA HANDOFF = DEFERRED TO SOL / NON-BLOCKING`.
+- PR #17 remains `OPEN / DRAFT / UNMERGED`, base `main`; no rebase, merge, force push, or Ready
+  transition was performed. The PR description is reconciled for the original implementation,
+  first remediation, R2 remediation, findings, exact evidence, validation totals, CI truth, and
+  pending Opus gate.
+
+**SOL-46-04 acceptance evidence:**
+
+R2 adds deterministic tests for routing authority rejection and stale routing, full real persisted
+plan/receipt/approval tamper matrices with repeated byte-preserving reads and no repair/quarantine/
+backup, create-once and approval-index crash-window behavior, real two-worktree isolation and
+same-branch conflict, Git-authoritative branch validation, local divergence, no-network command
+allowlisting, same/different repository mutation serialization, lock and child-process cancellation,
+read-only planning, no-mutation receipt finalization, and exact source-state equality after a real
+worktree write. The test fixture alone removes its temporary roots; product cleanup is absent.
+
+**SOL-46-05 recovery fix:**
+
+`WorkspacePreparationService.InspectAsync` now treats only `Missing` approval evidence as the
+normal pre-approval path. Exact recovery behavior is: valid plan plus no approval/no workspace is
+`NotPrepared`; no approval with an exact-looking workspace is `ForeignWorkspace`; approval
+`IntegrityFailure` is fail-closed as `IntegrityFailure`; valid approval plus exact workspace and no
+receipt is `PreparedWithoutReceipt`; valid approval without a workspace is `NotPrepared`; valid
+receipt plus approval plus exact workspace is `PreparedAndRecorded`. Receipt finalization from
+`PreparedWithoutReceipt` is verified to perform no second Git mutation.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS; up to date.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 790/790 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 441.
+- Focused `WorkspacePreparationTests`: 9/9; `WorkspacePreparationRemediationTests`: 22/22;
+  `WorkspacePreparationAcceptanceTests`: 100/100; combined APO-46 focused total: 131/131.
+- `git diff --check`: clean before the functional commit and after R2 validation.
+- Changed-line credential-shaped review found no real credentials; only intentional sanitized test
+  placeholders and security-related identifiers.
+- `GitHub CI = NONE / NOT CLAIMED`: no status/check/workflow evidence was present.
+- `JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`).
+
+**Delivery and runtime boundary:**
+
+The single bounded functional commit was pushed normally as
+`0b1eb29a5171dee549781c9ac1dcbeb0b9518bae` with tree
+`30da99230a26bdc2577356fabbe7628245efdf2f`. This metadata update is the only remaining commit;
+no product or test files are to be changed afterward. No force push, rebase, or merge was used.
+
+`OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
+
+`OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+
+`APO PROCESS COUNT = 0`
+
+`APPLICATION LEFT RUNNING = NO`
+
+No APO-45 work, model invocation, execution runtime, tracker synchronization, validation/approval
+engines, Mission Control UI, or autonomous cleanup was started.
+
+**Next planner boundary:**
+
+> APO-46 Prompt 5/5R2 remediation complete and awaiting GPT-5.6 Sol final exact-head re-review. PR #17 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus yet. If Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup.

@@ -18,6 +18,8 @@ public sealed class ApplicationDataPaths
         SyncDirectory = Path.Combine(RootDirectory, "sync");
         LogsDirectory = Path.Combine(RootDirectory, "logs");
         ProjectsDirectory = Path.Combine(RootDirectory, "projects");
+        WorkspacesDirectory = Path.Combine(RootDirectory, "workspaces");
+        WorkspaceLocksDirectory = Path.Combine(RootDirectory, "locks", "workspaces");
     }
 
     public string RootDirectory { get; }
@@ -35,6 +37,11 @@ public sealed class ApplicationDataPaths
     /// intentionally preserved; this is an additive APO-27 layout extension.
     /// </summary>
     public string ProjectsDirectory { get; }
+
+    /// <summary>Managed isolated workspace roots. Callers supply GUIDs only.</summary>
+    public string WorkspacesDirectory { get; }
+
+    internal string WorkspaceLocksDirectory { get; }
 
     public string SettingsFile => Path.Combine(RootDirectory, "settings.json");
 
@@ -75,6 +82,8 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(SyncDirectory);
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(ProjectsDirectory);
+        Directory.CreateDirectory(WorkspacesDirectory);
+        Directory.CreateDirectory(WorkspaceLocksDirectory);
     }
 
     public Task EnsureDirectoriesAsync(CancellationToken cancellationToken = default)
@@ -233,6 +242,59 @@ public sealed class ApplicationDataPaths
 
     public string GetProjectActivityDirectory(Guid projectId) => GetProjectPaths(projectId).ActivityDirectory;
 
+    public string GetProjectWorkspacesDirectory(Guid projectId) =>
+        Path.Combine(GetProjectPaths(projectId).RootDirectory, "workspaces");
+
+    public string GetWorkspacePreparationPlanDirectory(Guid projectId, Guid planId)
+    {
+        ValidateGuid(planId, nameof(planId));
+        return Path.Combine(GetProjectWorkspacesDirectory(projectId), "plans", planId.ToString("D"));
+    }
+
+    public string GetWorkspacePreparationPlanFile(Guid projectId, Guid planId) =>
+        Path.Combine(GetWorkspacePreparationPlanDirectory(projectId, planId), "plan.json");
+
+    public string GetWorkspaceReceiptDirectory(Guid projectId, Guid workspaceId)
+    {
+        ValidateGuid(workspaceId, nameof(workspaceId));
+        return Path.Combine(GetProjectWorkspacesDirectory(projectId), workspaceId.ToString("D"));
+    }
+
+    public string GetWorkspaceReceiptFile(Guid projectId, Guid workspaceId) =>
+        Path.Combine(GetWorkspaceReceiptDirectory(projectId, workspaceId), "receipt.json");
+
+    public string GetWorkspaceApprovalEvidenceDirectory(Guid projectId, Guid workspaceId, Guid approvalId)
+    {
+        ValidateGuid(approvalId, nameof(approvalId));
+        return Path.Combine(GetWorkspaceReceiptDirectory(projectId, workspaceId), "approval-evidence", approvalId.ToString("D"));
+    }
+
+    public string GetWorkspaceApprovalEvidenceFile(Guid projectId, Guid workspaceId, Guid approvalId) =>
+        Path.Combine(GetWorkspaceApprovalEvidenceDirectory(projectId, workspaceId, approvalId), "approval.json");
+
+    public string GetWorkspaceApprovalEvidenceByPlanDirectory(Guid projectId, Guid workspaceId, Guid planId)
+    {
+        ValidateGuid(planId, nameof(planId));
+        return Path.Combine(GetWorkspaceReceiptDirectory(projectId, workspaceId), "approval-evidence-by-plan", planId.ToString("D"));
+    }
+
+    public string GetWorkspaceApprovalEvidenceByPlanFile(Guid projectId, Guid workspaceId, Guid planId) =>
+        Path.Combine(GetWorkspaceApprovalEvidenceByPlanDirectory(projectId, workspaceId, planId), "approval.json");
+
+    public string GetManagedWorkspaceRoot(Guid projectId, Guid workspaceId) =>
+        Path.Combine(WorkspacesDirectory, projectId.ToString("D"), workspaceId.ToString("D"));
+
+    public string GetManagedWorkspaceRepositoryPath(Guid projectId, Guid workspaceId) =>
+        Path.Combine(GetManagedWorkspaceRoot(projectId, workspaceId), "repo");
+
+    internal string GetWorkspaceLockFile(string repositoryIdentity) =>
+        Path.Combine(WorkspaceLocksDirectory, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(repositoryIdentity))).ToLowerInvariant() + ".lock");
+
+    private static void ValidateGuid(Guid value, string parameterName)
+    {
+        if (value == Guid.Empty) throw new ArgumentException("Identifier cannot be empty.", parameterName);
+    }
+
     public void EnsureProjectDirectories(Guid projectId)
     {
         var projectPaths = GetProjectPaths(projectId);
@@ -249,6 +311,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
         Directory.CreateDirectory(projectPaths.ActivityDirectory);
+        Directory.CreateDirectory(projectPaths.RootDirectory);
     }
 
     public Task EnsureProjectDirectoriesAsync(
