@@ -1,90 +1,98 @@
-# APO-42 - Structured Planner-to-Executor-to-Reviewer Handoff Packages
+# APO-43 - Canonical Context, Smart Continue & Recovery Checkpoints
 
 ## Active execution contract
 
-- Prompt: `2/5R` - SOL-42-01 redaction and authority-identity remediation
-- Jira: `APO-42` (issue id `10870`), parent `APO-10`, priority `High`
-- Planner / acceptance authority: GPT-5.6 Sol
-- Assigned executor: GPT-5.6 Luna xHigh
+- Prompt: `3/5R` - GPT-5.6 Sol authorized exact-head remediation; GPT-5.6 Luna xHigh executor
+- Jira: `APO-43` (issue id `10871`), parent `APO-3`, priority `High`
 - Jira status: `In Progress`
-- Jira implementation-start comment: `12137`
-- Feature branch: `feat/APO-42-structured-handoff-packages`
-- Authorized starting main SHA: `86f53c549c19ab698a8257b3f3c57ee8b5449ffa`
-- Authorized starting main tree: `4b05cd85c8f6434ba3750c444e0c66da671bd18a`
-- Original APO-42 functional commit: `93e759646c0098974eb089c72b50d8f3cecf24f1`
-- SOL-42-01 remediation starting handoff: `90497896222063bf796d7720458242c952d14f75`
-- SOL-42-01 functional remediation commit: `8cdd7d20d5e5e875d638312c2f3bbf44d9082d07`
-- Draft PR: `#14 OPEN / DRAFT / UNMERGED`, base `main`
+- Jira implementation-start comment: `12176`
+- Authorized starting main SHA: `fcbb3e82460f9ed689b446eef16b6c2904d643c6`
+- Authorized starting main tree: `f7920d9a06d3acd4443937b77f5eed45c6210740`
+- Feature branch: `feat/APO-43-smart-continue-recovery-checkpoints`
+- Original APO-43 functional commit: `ad466d52ff2a66af098337aa2fd4df3988e4a339`
+- Previous exact Sol-reviewed head: `3633b281a7509176f17d2f281185be82a18054f9`
+- Previous exact Sol-reviewed tree: `64d281e16c18ccdff1bdf052b0b8ff0a7d277a89`
+- Remediation functional commit: `b382374b210db12c2f74032dc213e3a46b255bcc`
+- Remediation functional tree: `13d22af49bfce00076190348076baef8289809a8`
+- Draft PR: `#15 OPEN / DRAFT / UNMERGED`, base `main`
 
 ## Delivered scope
 
-APO-42 is implemented and SOL-42-01 remediation is complete; the final metadata handoff awaits Sol
-exact-head acceptance. The implementation provides a
-provider-independent immutable structured handoff authority, an application creation service, and
-project-isolated create-once JSON persistence. It resolves the exact requested APO-40 planning
-contract revision, derives work-item/repository/scope authority from that contract, optionally
-validates an exact APO-41 graph/node binding, validates shallow same-project predecessor lineage,
-applies role-specific inclusion policy, redacts bounded descriptive text, rejects secret-shaped
-authority/identity/reference values before persistence, enforces a 128 KiB canonical
-payload budget, and calculates deterministic SHA-256 content-integrity evidence.
+APO-43 provides three composed, provider-independent authorities:
 
-Supported transitions are exactly:
+1. An immutable, create-once `RecoveryCheckpoint` with schema V1, GUID-derived project/checkpoint
+   storage, deterministic lower-case SHA-256 content-integrity evidence, bounded reference-only
+   metadata, lifecycle state, exact context/contract binding, optional exact WorkGraph/node and
+   HandoffPackage binding, shallow predecessor lineage, selected agent-role references, evidence,
+   gate snapshots, typed blockers, and a typed next safe action.
+2. A project-scoped two-slot `ContinuationHead` with atomic generations alternating A/B (`1 -> A`,
+   `2 -> B`, `3 -> A`), latest and last-known-safe references, observational reads, and corrupt
+   newest-generation fallback without repair or directory scanning.
+3. A read-only `SmartContinueResolver` that evaluates durable authority only and returns explicit
+   lifecycle, stale-evidence, context, integrity, version, and infrastructure outcomes. It never
+   executes the returned action, routes models, refreshes external evidence, or writes state.
 
-1. `PlannerToExecutor`
-2. `ExecutorToReviewer`
-3. `ReviewerToRemediation`
-4. `RemediationToReviewer`
-5. `ReviewerToAcceptance`
-6. `AcceptanceToPlanner`
+LastSafe is updated for `Ready`, `Waiting`, `Blocked`, and `ApprovalRequired`. `Interrupted`,
+`Failed`, and `Cancelled` preserve the previous safe reference; `Completed` is terminal. Mutable
+repository, tracker, routing, validation, and approval evidence is freshness-checked where present.
+Descriptive text uses the existing `IHandoffRedactionService`; authority/reference text is rejected
+if the same detector would transform it.
 
-The package carries typed work-item, exact contract, point-in-time context, planner-defined
-repository target, optional graph/node, predecessor, role-relevant scope, evidence/finding and
-changed-artifact references, bounded outcome/limitations/next action, redaction metadata, size
-metadata, and `ContentHash`. It contains no raw prompts, transcripts, chat, source, repository
-contents, diffs, full logs, provider-specific format, model selection, or execution behavior.
+No chat/transcript/prompt, repository content, credential, model invocation, provider call, routing,
+execution runtime, tracker synchronization, validation/approval engine, UI, automatic worktree, or
+APO-44+ scope is authorized by this task.
 
-Persistence uses `projects/<ProjectId>/handoffs/<PackageId>/package.json`, exact GUID-derived
-identity, `CreateNewAsync`, and `ReadPreservingAsync`. Malformed, unsupported, and tampered reads
-are observational and never quarantine, rewrite, repair, rename, move, delete, or create a
-backup. `JsonFileStore.CurrentSchemaVersion` remains unchanged at `1`.
+## Validation contract and evidence
 
-Redaction recognizes password assignments, API-key assignments, bearer/authorization values,
-common PAT/token prefixes, and connection-string passwords. Descriptive values retain only the
-stable marker, bounded count, and categories; authority, identity, and reference values are kept
-exactly when safe and otherwise fail closed as `RedactionRejected` without persistence. Original
-values and secret hashes are not retained. This is conservative defense-in-depth, not a universal
-secret-detection guarantee. Quoted password and API-key assignments containing spaces are covered.
-
-## Validation evidence
-
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS.
-- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 566/566 passed; 0 failed; 0 skipped.
-- Suite totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 243.
-- Focused remediation tests: HandoffRedactionTests 10/10; HandoffPackageServiceTests 26/26;
-  HandoffPackagePersistenceTests 17/17.
+- `dotnet restore AIUsageMonitor.sln`
+- `dotnet build AIUsageMonitor.sln --no-restore`
+- `dotnet test AIUsageMonitor.sln --no-restore`
+- Final totals: Domain 28; Connection 167; Provider 46; Desktop 82; Infrastructure 294;
+  Total 617/617; Failed 0; Skipped 0; warnings 0; errors 0.
+- Focused APO-43 recovery tests: 51/51 passed, covering SOL-43-01 blocker identity and
+  descriptive redaction, SOL-43-02 keyed-lock lifecycle and concurrent publication, and SOL-43-03
+  orphan/restart, checkpoint tamper, head tamper, and two-project isolation evidence.
 - `git diff --check`: clean.
-- Changed-line credential-shaped scan: only intentional redaction patterns/fixtures; no real
-  credentials detected.
 - GitHub CI: `NONE / NOT CLAIMED`.
 
-## Governance and boundary
+## SOL-43-01 / SOL-43-02 / SOL-43-03 remediation handoff
 
-APO-41 is fully merged/closed and Done at the authorized baseline SHA and tree above. SOL-42-01 is
-remediated and APO-42 is not accepted; it must remain In Progress until Sol reviews this exact
-final branch head. Do not
-merge PR #14, mark it Ready, transition APO-42 to Done, or begin APO-43, APO-44, APO-45, or any
-other downstream Story. Do not invoke Opus or Sonnet.
+The bounded Prompt 3/5R correction is complete in remediation functional commit
+`b382374b210db12c2f74032dc213e3a46b255bcc` (tree
+`13d22af49bfce00076190348076baef8289809a8`). SOL-43-01 now validates every `RecoveryBlocker.BlockerId`
+with the existing `IHandoffRedactionService.ValidateIdentityText(...)` recognizer and rejects
+secret-shaped identity before checkpoint/head persistence; descriptive blocker text remains
+redactable and safe blocker IDs remain exact. SOL-43-02 now coordinates keyed entry lookup,
+reference acquisition, gate use, cancellation, and identity-checked idle eviction under one
+lifecycle synchronization boundary. SOL-43-03 now has real persistence evidence for publication
+failure orphans, restart behavior, no directory-scan authority, the checkpoint tamper matrix,
+the head tamper matrix, and two-project restart isolation.
 
-No APO runtime launch is permitted for this work item:
+This is a remediation handoff, not acceptance. APO-43 remains `In Progress`; PR #15 remains
+`OPEN / DRAFT / UNMERGED`; the final metadata-only feature head is awaiting GPT-5.6 Sol exact-head
+re-review. No schema version changed.
+
+## Governance and handoff boundary
+
+APO-42 is `COMPLETE / MERGED / DONE` at main SHA
+`fcbb3e82460f9ed689b446eef16b6c2904d643c6`, tree
+`f7920d9a06d3acd4443937b77f5eed45c6210740`; PR #14 merged, SOL-42-01 closed, accepted validation
+566/566. APO-43 is implemented but not accepted or Done. Return the exact final feature head to
+GPT-5.6 Sol for acceptance. Do not merge PR #15, mark it Ready, transition APO-43 to Done, or
+begin APO-44, APO-45, APO-46, model invocation, routing, execution runtime, tracker
+synchronization, validation/approval engines, or Mission Control UI.
+
+`OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
+
+`JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`).
+
+Runtime is explicitly not launched:
 
 `APO PROCESS COUNT = 0`
 
 `APPLICATION LEFT RUNNING = NO`
 
-## Metadata handoff
+## Next planner boundary
 
-This file and `.ai/CURRENT_STATE.md` are the only files authorized for the post-functional
-metadata-only commit. The final branch head is the SHA of that metadata-only commit and is captured
-in the executor completion report and Jira handoff comment. The next action is GPT-5.6 Sol exact-head
-acceptance of SOL-42-01/APO-42.
+APO-43 Prompt 3/5 implementation complete and awaiting GPT-5.6 Sol exact-head acceptance. Draft PR
+#15 remains `OPEN / DRAFT / UNMERGED`.

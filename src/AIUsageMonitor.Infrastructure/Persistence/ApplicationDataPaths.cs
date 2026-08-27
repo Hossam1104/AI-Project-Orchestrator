@@ -118,6 +118,31 @@ public sealed class ApplicationDataPaths
     public string GetProjectHandoffsDirectory(Guid projectId) =>
         GetProjectPaths(projectId).HandoffsDirectory;
 
+    public string GetProjectContinuationDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).ContinuationDirectory;
+
+    public string GetProjectContinuationHeadSlotAFile(Guid projectId) =>
+        Path.Combine(GetProjectContinuationDirectory(projectId), "head-a.json");
+
+    public string GetProjectContinuationHeadSlotBFile(Guid projectId) =>
+        Path.Combine(GetProjectContinuationDirectory(projectId), "head-b.json");
+
+    public string GetProjectRecoveryCheckpointsDirectory(Guid projectId) =>
+        GetProjectPaths(projectId).RecoveryCheckpointsDirectory;
+
+    public string GetRecoveryCheckpointDirectory(Guid projectId, Guid checkpointId)
+    {
+        if (checkpointId == Guid.Empty)
+        {
+            throw new ArgumentException("Checkpoint id cannot be empty.", nameof(checkpointId));
+        }
+
+        return Path.Combine(GetProjectRecoveryCheckpointsDirectory(projectId), checkpointId.ToString("D"));
+    }
+
+    public string GetRecoveryCheckpointFile(Guid projectId, Guid checkpointId) =>
+        Path.Combine(GetRecoveryCheckpointDirectory(projectId, checkpointId), "checkpoint.json");
+
     public string GetHandoffPackageDirectory(Guid projectId, Guid packageId)
     {
         if (packageId == Guid.Empty)
@@ -201,6 +226,8 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.ContractsDirectory);
         Directory.CreateDirectory(projectPaths.WorkGraphsDirectory);
         Directory.CreateDirectory(projectPaths.HandoffsDirectory);
+        Directory.CreateDirectory(projectPaths.ContinuationDirectory);
+        Directory.CreateDirectory(projectPaths.RecoveryCheckpointsDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
@@ -238,6 +265,8 @@ public sealed class ProjectDataPaths
         ContractsDirectory = Path.Combine(rootDirectory, "contracts");
         WorkGraphsDirectory = Path.Combine(rootDirectory, "work-graphs");
         HandoffsDirectory = Path.Combine(rootDirectory, "handoffs");
+        ContinuationDirectory = Path.Combine(rootDirectory, "continuation");
+        RecoveryCheckpointsDirectory = Path.Combine(ContinuationDirectory, "checkpoints");
         RoutingPolicyFile = Path.Combine(rootDirectory, "routing-policy.json");
         AgentOverridesFile = Path.Combine(rootDirectory, "agent-overrides.json");
         ContextReferenceFile = Path.Combine(rootDirectory, "context-reference.json");
@@ -264,6 +293,12 @@ public sealed class ProjectDataPaths
 
     /// <summary>Immutable planner/executor/reviewer lifecycle packages for this project.</summary>
     public string HandoffsDirectory { get; }
+
+    /// <summary>Mutable two-slot continuation-head directory for this project.</summary>
+    public string ContinuationDirectory { get; }
+
+    /// <summary>Immutable recovery checkpoints referenced by the continuation head.</summary>
+    public string RecoveryCheckpointsDirectory { get; }
 
     public string RoutingPolicyFile { get; }
 
