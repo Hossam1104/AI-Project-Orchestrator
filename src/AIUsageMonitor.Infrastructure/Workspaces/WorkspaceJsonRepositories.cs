@@ -437,7 +437,10 @@ public sealed class JsonWorkspacePreparationApprovalEvidenceRepository : IWorksp
         var evidence = await GetAsync(projectId, workspaceId, approvalId, cancellationToken).ConfigureAwait(false);
         if (!evidence.IsValid || evidence.Evidence is null)
         {
-            return evidence;
+            return evidence.State == WorkspacePreparationApprovalEvidenceReadState.Missing
+                ? new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure,
+                    ErrorMessage: "Approval evidence plan index points to missing immutable approval evidence.")
+                : evidence;
         }
 
         return SamePlanReference(index.Record.PlanReference, evidence.Evidence.PlanReference, projectId) &&

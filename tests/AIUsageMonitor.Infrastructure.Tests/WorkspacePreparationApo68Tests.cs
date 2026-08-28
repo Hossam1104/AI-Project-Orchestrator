@@ -246,14 +246,141 @@ public sealed class WorkspacePreparationApo68Tests
         var canonicalBytes = await File.ReadAllTextAsync(canonicalPath);
         Directory.Delete(indexDirectory, recursive: true);
 
+        var indexedBeforeRecovery = await repository.GetForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
         var found = await repository.FindForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.Reference);
         var repaired = await repository.EnsurePlanIndexAsync(found.Evidence!);
         var repairedAgain = await repository.EnsurePlanIndexAsync(found.Evidence!);
 
+        Assert.Equal(WorkspacePreparationApprovalEvidenceReadState.Missing, indexedBeforeRecovery.State);
         Assert.True(found.IsValid);
         Assert.Equal(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Created, repaired.Status);
         Assert.Equal(WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists, repairedAgain.Status);
         Assert.Equal(canonicalBytes, await File.ReadAllTextAsync(canonicalPath));
+    }
+
+    [Fact]
+    public async Task PresentPlanIndexWithMissingCanonical_DoesNotFallbackToAlternateAuthority()
+    {
+        using var store = new TemporaryStore();
+        var plan = CreatePlan();
+        var repository = CreateApprovalRepository(store);
+        var original = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.Created, (await repository.CreateAsync(original)).Status);
+
+        var indexPath = store.Paths.GetWorkspaceApprovalEvidenceByPlanFile(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
+        var originalIndexBytes = await File.ReadAllTextAsync(indexPath);
+        var originalCanonicalPath = store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, original.ApprovalId);
+        File.Delete(originalCanonicalPath);
+
+        var alternate = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, (await repository.CreateAsync(alternate)).Status);
+        var alternatePath = store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, alternate.ApprovalId);
+        var alternateBytes = await File.ReadAllTextAsync(alternatePath);
+
+        var indexed = await repository.GetForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
+        var found = await repository.FindForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.Reference);
+
+        Assert.Equal(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, indexed.State);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, found.State);
+        Assert.False(found.IsValid);
+        Assert.Null(found.Evidence);
+        Assert.Equal(originalIndexBytes, await File.ReadAllTextAsync(indexPath));
+        Assert.Equal(alternateBytes, await File.ReadAllTextAsync(alternatePath));
+        Assert.False(File.Exists(originalCanonicalPath));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.bak", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task PresentPlanIndexWithMissingCanonical_FailsClosedWithoutAlternate()
+    {
+        using var store = new TemporaryStore();
+        var plan = CreatePlan();
+        var repository = CreateApprovalRepository(store);
+        var original = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.Created, (await repository.CreateAsync(original)).Status);
+
+        var indexPath = store.Paths.GetWorkspaceApprovalEvidenceByPlanFile(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
+        var originalIndexBytes = await File.ReadAllTextAsync(indexPath);
+        File.Delete(store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, original.ApprovalId));
+
+        var indexed = await repository.GetForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
+        var found = await repository.FindForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.Reference);
+
+        Assert.Equal(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, indexed.State);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, found.State);
+        Assert.Equal(originalIndexBytes, await File.ReadAllTextAsync(indexPath));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.bak", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task EnsurePlanIndexWithMissingIndexedCanonical_ReturnsConflictWithoutReplacingIndex()
+    {
+        using var store = new TemporaryStore();
+        var plan = CreatePlan();
+        var repository = CreateApprovalRepository(store);
+        var original = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.Created, (await repository.CreateAsync(original)).Status);
+
+        var indexPath = store.Paths.GetWorkspaceApprovalEvidenceByPlanFile(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
+        var originalIndexBytes = await File.ReadAllTextAsync(indexPath);
+        File.Delete(store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, original.ApprovalId));
+
+        var alternate = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, (await repository.CreateAsync(alternate)).Status);
+        var alternatePath = store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, alternate.ApprovalId);
+        var alternateBytes = await File.ReadAllTextAsync(alternatePath);
+
+        var result = await repository.EnsurePlanIndexAsync(alternate);
+
+        Assert.Equal(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict, result.Status);
+        Assert.Equal(originalIndexBytes, await File.ReadAllTextAsync(indexPath));
+        Assert.Equal(alternateBytes, await File.ReadAllTextAsync(alternatePath));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.bak", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.tmp", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task InspectWithPresentBrokenPlanIndex_FailsClosedWithoutReceiptOrGitMutation()
+    {
+        using var store = new TemporaryStore();
+        var plan = CreatePlan();
+        var plans = new JsonWorkspacePreparationPlanRepository(store.Paths, store.Files,
+            NullLogger<JsonWorkspacePreparationPlanRepository>.Instance);
+        var receipts = new JsonWorkspacePreparationReceiptRepository(store.Paths, store.Files,
+            NullLogger<JsonWorkspacePreparationReceiptRepository>.Instance);
+        var approvals = CreateApprovalRepository(store);
+        Assert.Equal(WorkspacePreparationPlanWriteStatus.Created, (await plans.CreateAsync(plan)).Status);
+
+        var original = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.Created, (await approvals.CreateAsync(original)).Status);
+        var indexPath = store.Paths.GetWorkspaceApprovalEvidenceByPlanFile(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
+        var originalIndexBytes = await File.ReadAllTextAsync(indexPath);
+        File.Delete(store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, original.ApprovalId));
+
+        var alternate = CreateEvidence(plan);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, (await approvals.CreateAsync(alternate)).Status);
+        var alternatePath = store.Paths.GetWorkspaceApprovalEvidenceFile(plan.ProjectId, plan.WorkspaceId, alternate.ApprovalId);
+        var alternateBytes = await File.ReadAllTextAsync(alternatePath);
+        var repository = new ServiceRepository(plan, ExactVerification(plan));
+        var service = new WorkspacePreparationService(plans, receipts, repository, new NoopLock(),
+            new PathProvider(plan.ProposedWorkspacePath), new HandoffRedactionService(), new FixedClock(Now),
+            approvalEvidence: approvals);
+
+        var result = await service.InspectAsync(plan.Reference);
+        var receipt = await receipts.GetAsync(plan.ProjectId, plan.WorkspaceId);
+
+        Assert.Equal(WorkspaceRecoveryState.IntegrityFailure, result.State);
+        Assert.NotEqual(WorkspaceRecoveryState.PreparedWithoutReceipt, result.State);
+        Assert.NotEqual(WorkspaceRecoveryState.PreparedAndRecorded, result.State);
+        Assert.Equal(0, repository.MutationCount);
+        Assert.Equal(WorkspacePreparationReceiptReadState.Missing, receipt.State);
+        Assert.False(File.Exists(store.Paths.GetWorkspaceReceiptFile(plan.ProjectId, plan.WorkspaceId)));
+        Assert.Equal(originalIndexBytes, await File.ReadAllTextAsync(indexPath));
+        Assert.Equal(alternateBytes, await File.ReadAllTextAsync(alternatePath));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.bak", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFiles(store.RootDirectory, "*.tmp", SearchOption.AllDirectories));
     }
 
     [Fact]
