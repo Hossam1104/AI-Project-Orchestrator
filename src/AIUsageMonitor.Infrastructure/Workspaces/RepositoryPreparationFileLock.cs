@@ -19,7 +19,8 @@ public sealed class RepositoryPreparationFileLock : IRepositoryPreparationLock
     public async Task<IAsyncDisposable> AcquireAsync(string repositoryIdentity, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(repositoryIdentity)) throw new ArgumentException("Repository identity is required.", nameof(repositoryIdentity));
-        var path = _paths.GetWorkspaceLockFile(Path.GetFullPath(repositoryIdentity));
+        var normalizedIdentity = WorkspaceRepositoryIdentity.Normalize(repositoryIdentity);
+        var path = _paths.GetWorkspaceLockFile(normalizedIdentity);
         await _paths.EnsureDirectoriesAsync(cancellationToken).ConfigureAwait(false);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_timeout);

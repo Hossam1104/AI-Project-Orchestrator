@@ -1,82 +1,165 @@
-# APO-46 - Isolated Worktrees and Safe Repository Workspace Evidence
+# AI PROJECT ORCHESTRATOR — APO-68 PROMPT 1/5R SOL EXACT-HEAD RE-REVIEW
 
-## Active execution contract
+## Fresh-context handoff
 
-- Prompt: `5/5R2` - GPT-5.6 Sol planner/acceptance authority; GPT-5.6 Luna xHigh executor
-- Jira: `APO-46` (`In Progress`); parent `APO-6`
-- Sol Jira governance/review comments: `12188`, `12189`, `12190`, and `12191`
-- Authorized starting `origin/main`: `a37af4d7fd77eaacdfc3a716cf7c73987483f63d`
-- Exact previous Sol-reviewed head/tree: `85f54ea818624d3047b20e80690eaa09e6d682d8` /
-  `e900498471d9b250f5556e874fdf9f0357e915f9`
-- Previous remediation functional SHA/tree: `92dfdcf3470f630333bebdac94f5101f8e4542e2` /
-  `d1911e46816825558d52eab76bbfe44d84c3dd4e`
-- R2 functional SHA/tree: `0b1eb29a5171dee549781c9ac1dcbeb0b9518bae` /
-  `30da99230a26bdc2577356fabbe7628245efdf2f`
-- Original APO-46 functional SHA/tree: `5aada3813741a22406b0ec4eecdd5b3fa7a37601` /
-  `6e2bf39b591cdb6f8081584d529eaf1737593a2c`
-- Feature branch: `feat/APO-46-isolated-worktrees-safe-evidence`
-- Draft PR #17: `OPEN / DRAFT / UNMERGED`; base `main`; R2 functional head pushed normally
-  ([GitHub PR #17](https://github.com/Hossam1104/AI-Project-Orchestrator/pull/17))
-- APO-45: `TO DO / NOT AUTHORIZED`
+This handoff records the bounded SOL-68-01 remediation delivered by GPT-5.6 Luna xHigh for
+AI Project Orchestrator (APO), Jira APO-68, on the existing feature branch. GPT-5.6 Sol must
+perform the next exact-head review. This remediation does not advance the five-prompt review
+counter. APO-45 remains `TO DO / NOT AUTHORIZED`.
 
-## R2 remediation scope
+No Claude Opus, Claude Sonnet, Terra, Gemini, or other model was invoked. No APO runtime was
+launched. No product execution runtime, provider, model invocation, tracker application, UI,
+cleanup, or schema migration work was started.
 
-SOL-46-01 through SOL-46-04 remain functionally addressed. R2 added deterministic acceptance
-evidence without redesigning those production areas, and applied the minimal SOL-46-05 recovery
-fix:
+## Exact identity and ancestry
 
-1. `Missing` approval evidence is the normal pre-approval state. A valid plan with no approval,
-   no receipt, and no workspace returns `NotPrepared`; an exact-looking workspace without approval
-   returns `ForeignWorkspace`; approval `IntegrityFailure` remains fail-closed.
-2. Valid approval plus an exact workspace without a receipt returns `PreparedWithoutReceipt`;
-   valid approval without a workspace returns `NotPrepared`; valid receipt, approval, and exact
-   workspace return `PreparedAndRecorded`. Finalizing an already prepared-without-receipt recovery
-   path performs no second Git mutation.
-3. Acceptance tests cover routing authority and stale/tampered routing, real plan/receipt/approval
-   JSON tamper matrices with repeated unchanged reads and no repair/quarantine/backup, create-once
-   persistence and approval-index crash windows, real two-worktree isolation and same-branch
-   conflict, Git-authoritative branch validation, local divergence, command allowlist/no-network
-   instrumentation, same/different repository concurrency, lock and child-process cancellation,
-   read-only planning, receipt finalization, and exact post-write source equality.
+- Repository: `Hossam1104/AI-Project-Orchestrator`
+- Local root: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
+- Jira: `APO-68`; Sol review comment: `12236`
+- Branch: `feat/APO-68-workspace-pre-runtime-hardening`
+- Draft PR: `#18`, base `main`, required state `OPEN / DRAFT / UNMERGED`
+- Authorized main SHA/tree: `9ebf935244bbb6a16aef0aeeefe55bcdf6c6896f` /
+  `83bf373165377df69ef6a304af5ad14f973d7348`
+- Prior exact Sol-reviewed head/tree: `91fb7685c4de9863915678d5793f642c66d0a6f5` /
+  `d78f6d93896eed865e32570c682b77a2eb35cc87`
+- Original APO-68 functional SHA/tree: `407b891175d58fa39374a31a7e4884553f115d87` /
+  `a0f30ef43150017c6c108d99b27942e781bb5c4c`
+- Remediation functional SHA/tree: `f685069ef12d3ab5caf4460d14642b82103deb1c` /
+  `9e68b3eba1373a895a7ac6dfa933d4506116ed24`
+- The remediation functional commit is directly descended from the prior reviewed head and
+  contains only the production authority fix and its tests.
+- The final feature head is the later metadata-only handoff commit containing only this file and
+  `.ai/CURRENT_STATE.md`; its exact SHA/tree are recorded in the final executor report and PR #18
+  after that commit.
 
-## Validation evidence
+## SOL-68-01 finding and exact fix
 
-- `dotnet restore AIUsageMonitor.sln`: SUCCESS; up to date.
-- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
-- `dotnet test AIUsageMonitor.sln --no-restore`: 790/790 passed; 0 failed; 0 skipped.
-- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 441.
+The blocking finding was that `JsonWorkspacePreparationApprovalEvidenceRepository.GetForPlanAsync`
+returned ordinary `Missing` when a valid deterministic plan-index record pointed to a canonical
+approval whose immutable evidence was missing. `FindForPlanAsync` interpreted that `Missing` as an
+absent index and searched canonical evidence, allowing an alternate approval to be adopted around
+a present broken authority selector.
+
+The production fix is minimal:
+
+- `GetForPlanAsync` continues to return the index read result unchanged when the index record is
+  absent, invalid, corrupt, unsupported, migration-required, or unavailable.
+- Once a deterministic index record has been successfully read and validated as present, a missing
+  indexed canonical approval is converted to `WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure`
+  with the deterministic message `Approval evidence plan index points to missing immutable approval evidence.`
+- Other indexed canonical failures (`Invalid`, `IntegrityFailure`, `MigrationRequired`,
+  `UnsupportedFutureVersion`, and `Unavailable`) continue to propagate fail closed.
+- `FindForPlanAsync` can enumerate bounded canonical evidence only when `GetForPlanAsync` reports
+  `Missing` for the index record itself. A present broken index cannot be searched around, repaired,
+  or replaced, and no latest/timestamp authority is selected.
+- `EnsurePlanIndexAsync` remains create-once. A valid missing-index case can create only the missing
+  index; a present index whose target is missing, corrupt, invalid, conflicting, or unreadable
+  returns a deterministic conflict/unavailable result without deleting or overwriting the index.
+- No persisted discriminator or schema field was added.
+
+## Required broken-index evidence
+
+The following real JSON repository tests were added to
+`WorkspacePreparationApo68Tests`:
+
+1. `PresentPlanIndexWithMissingCanonical_DoesNotFallbackToAlternateAuthority`
+   - creates canonical A and its deterministic index, preserves index bytes, deletes only A,
+     creates canonical B with the exact same plan reference without replacing the index, and calls
+     both indexed and observational lookup;
+   - both results are `IntegrityFailure`, never `Valid` or ordinary `Missing`;
+   - B is not selected; index bytes and B bytes are unchanged; no `.bak`/`.tmp` artifacts occur.
+2. `PresentPlanIndexWithMissingCanonical_FailsClosedWithoutAlternate`
+   - creates A and its index, deletes only A, and calls `GetForPlanAsync` and `FindForPlanAsync`;
+   - both results are `IntegrityFailure`, and the original index bytes remain unchanged.
+3. `EnsurePlanIndexWithMissingIndexedCanonical_ReturnsConflictWithoutReplacingIndex`
+   - leaves the index pointing to missing A, creates B as an immutable canonical record while
+     preserving the index, and calls `EnsurePlanIndexAsync(B)`;
+   - result is `Conflict`; the present index and B bytes are unchanged; no repair or alternate
+     authority is selected.
+4. `InspectWithPresentBrokenPlanIndex_FailsClosedWithoutReceiptOrGitMutation`
+   - uses a persisted valid plan, exact source repository registration, valid workspace-local
+     verification, no receipt, a present index pointing to missing A, and alternate B;
+   - `InspectAsync` returns `WorkspaceRecoveryState.IntegrityFailure`, never
+     `PreparedWithoutReceipt` or `PreparedAndRecorded`; Git mutation count is zero, no receipt is
+     written, the index is not repaired, and B is not adopted.
+
+The existing `ApprovalEvidenceRepository_MissingIndexFindsExactCanonicalAndRepairsIndexOnly` test
+was strengthened to assert `GetForPlanAsync` is genuinely `Missing` before fallback. It remains the
+legitimate crash-window regression: canonical approval exists, only the deterministic index is
+missing, exact recovery succeeds, and explicit retry creates only that index.
+
+## Preserved findings and scope
+
+- OPUS-46R-01 remains unchanged: independent read-only/worktree-mutation/drain bounds, sole
+  `worktree add -b` Git mutation, managed workspace-local verification, and fail-closed partial or
+  timeout behavior without cleanup or rollback.
+- OPUS-46R-03 remains unchanged: normalized repository identity is used for path comparison and
+  file-lock hashing, with actual equivalent-identity serialization coverage.
+- OPUS-46R-04 remains unchanged: inherited Git repository-redirection variables are removed while
+  PATH/unrelated environment values and deterministic prompt/lock/locale settings are preserved.
+- No forbidden Git command or network path was added. Only product `worktree add -b` may mutate Git.
+- No R-01/R-03/R-04 redesign, APO-45 work, source refactor, provider, runtime, UI, cleanup, or
+  speculative Jira item was added.
+
+## Validation at remediation functional head
+
+Functional validation was run at
+`f685069ef12d3ab5caf4460d14642b82103deb1c` / `9e68b3eba1373a895a7ac6dfa933d4506116ed24`:
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS; all projects up to date.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings; 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 806 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 457.
 - Focused `WorkspacePreparationTests`: 9/9 passed.
 - Focused `WorkspacePreparationRemediationTests`: 22/22 passed.
 - Focused `WorkspacePreparationAcceptanceTests`: 100/100 passed.
-- Combined focused APO-46 workspace tests: 131/131 passed.
-- `git diff --check`: clean before the functional commit and after R2 validation.
-- Changed-line credential-shaped review: no real credentials; intentional test placeholders and
-  security-related identifiers only.
-- Production Git review: shell-free argument-list execution, bounded output, cancellation scoped
-  to the spawned process tree, no unsafe cleanup, no hidden fetch/network operation, and only
-  `worktree add -b` as the product Git mutation.
-- GitHub CI: `NONE / NOT CLAIMED`; no status/check/workflow evidence was present.
+- Focused `SystemGitCommandRunnerTests`: 4/4 passed.
+- Focused `WorkspacePreparationApo68Tests`: 16/16 passed.
+- Combined focused workspace/APO-68 total: 151/151 passed.
+- `git diff --check`: clean before functional commit and after exact functional validation.
+- Changed-line credential-shaped review found no real credentials; only sanitized fixture values and
+  security-related identifiers are present.
+- No tracked generated, corruption, quarantine, `.bak`, or `.tmp` artifacts were found.
 
-## Governance and handoff boundary
+## Schema, CI, Jira, and runtime truth
 
-APO-46 remains `In Progress` and awaits GPT-5.6 Sol final exact-head re-review. Do not merge, mark
-PR #17 Ready, transition APO-46 to Done, begin APO-45, invoke any model, add an execution
-lifecycle, synchronize trackers, implement validation/approval engines or Mission Control, or add
-automatic worktree cleanup. No Jira write was attempted by this executor; `JIRA HANDOFF = DEFERRED
-TO SOL / NON-BLOCKING`.
+- `JsonFileStore.CurrentSchemaVersion = 1`.
+- Workspace preparation plan schema = V1; receipt schema = V1; approval evidence schema = V1.
+- `OPUS-05-03..11 = DEFERRED / NON-BLOCKING`; no schema migration was performed.
+- GitHub CI must be reported from the final feature head. If statuses and workflow runs remain zero,
+  report exactly `GitHub CI = NONE / NOT CLAIMED`; do not create CI.
+- APO-68 remains `IN PROGRESS`; do not transition it to Done. APO-45 remains `TO DO / NOT
+  AUTHORIZED`; do not change it.
+- At completion verify and report `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+- Do not launch APO under this remediation.
 
-`OPUS-05-03..11 = DEFERRED / NON-BLOCKING`
+## Sol exact-head re-review checklist
 
-`JsonFileStore.CurrentSchemaVersion = UNCHANGED` (remains `1`).
+Sol must independently verify at the final feature head:
 
-`OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS INCREMENTED`.
+1. exact ancestry from authorized main through the prior reviewed head, remediation functional
+   commit, and metadata-only handoff;
+2. the final commit changes only `TASK.md` and `.ai/CURRENT_STATE.md`;
+3. `GetForPlanAsync` no longer returns ordinary `Missing` when a present index targets missing
+   canonical evidence;
+4. `FindForPlanAsync` does not search around a present broken index;
+5. alternate canonical evidence cannot be adopted;
+6. `EnsurePlanIndexAsync` cannot replace or repair a present broken index;
+7. genuinely missing-index crash recovery still finds exact canonical evidence and repairs only the
+   missing index;
+8. service `InspectAsync` fails closed with zero Git mutation and no receipt/index write;
+9. R-01, R-03, and R-04 remain unchanged and green;
+10. all plan/receipt/approval schemas and `JsonFileStore.CurrentSchemaVersion` remain V1;
+11. CI truth is `NONE / NOT CLAIMED` unless independent evidence shows otherwise;
+12. APO application is stopped and APO-45 remains unauthorized.
 
-Runtime was explicitly not launched per APO-46 Prompt 5/5R2:
+## Delivery boundary
 
-`APO PROCESS COUNT = 0`
+PR #18 must remain `OPEN / DRAFT / UNMERGED` against `main`; do not mark Ready and do not merge.
+Do not invoke Claude Opus or Claude Sonnet. Do not begin APO-45. The next gate is GPT-5.6 Sol
+exact-head re-review of this remediation.
 
-`APPLICATION LEFT RUNNING = NO`
-
-## Next planner boundary
-
-> APO-46 Prompt 5/5R2 remediation complete and awaiting GPT-5.6 Sol final exact-head re-review. PR #17 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus yet. If Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup.
+> APO-68 Prompt 1/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #18
+> remains OPEN / DRAFT / UNMERGED. Do not begin APO-45. Do not invoke Claude Opus. If Sol accepts
+> the exact remediated head, Sol may authorize APO-68 merge finalization because this remains
+> Prompt 1/5 of the current cycle.

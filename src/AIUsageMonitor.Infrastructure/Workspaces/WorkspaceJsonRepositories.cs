@@ -364,28 +364,33 @@ public sealed class JsonWorkspacePreparationApprovalEvidenceRepository : IWorksp
         catch (OperationCanceledException) { throw; }
         catch (IOException) when (File.Exists(evidencePath) || File.Exists(planPath))
         {
-            // A process can stop after the canonical evidence file but before its exact plan
-            // index. Never overwrite either file; repair only the missing deterministic index
-            // when the already-persisted canonical evidence is the same authority.
             var existing = await GetAsync(evidence.ProjectId, evidence.WorkspaceId, evidence.ApprovalId, cancellationToken).ConfigureAwait(false);
-            if (existing.IsValid && existing.Evidence is not null && SameEvidenceAuthority(existing.Evidence, evidence) && !File.Exists(planPath))
-            {
-                try
-                {
-                    var planRecord = WorkspaceApprovalEvidenceRecord.FromApplication(existing.Evidence, PlanIndexRecordType);
-                    Directory.CreateDirectory(_paths.GetWorkspaceApprovalEvidenceByPlanDirectory(existing.Evidence.ProjectId, existing.Evidence.WorkspaceId, existing.Evidence.PlanReference.PlanId));
-                    await _files.CreateNewAsync(planPath, planRecord, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-                {
-                    _logger.LogWarning(exception, "Could not repair workspace approval evidence plan index");
-                    return new(WorkspacePreparationApprovalEvidenceWriteStatus.Unavailable, "Approval evidence plan index persistence is unavailable.");
-                }
-            }
-            else if (!existing.IsValid)
+            if (!existing.IsValid || existing.Evidence is null)
             {
                 return new(WorkspacePreparationApprovalEvidenceWriteStatus.Unavailable, "Existing approval evidence is not valid and cannot be replaced.");
+            }
+
+            if (!SameEvidenceAuthority(existing.Evidence, evidence))
+            {
+                return new(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, "Approval id is already bound to different evidence.");
+            }
+
+            var planDirectory = _paths.GetWorkspaceApprovalEvidenceByPlanDirectory(evidence.ProjectId, evidence.WorkspaceId, evidence.PlanReference.PlanId);
+            if (File.Exists(planDirectory))
+            {
+                return new(WorkspacePreparationApprovalEvidenceWriteStatus.Unavailable, "The approval evidence plan-index directory is not a directory.");
+            }
+
+            if (!File.Exists(planPath))
+            {
+                var repair = await EnsurePlanIndexAsync(existing.Evidence, cancellationToken).ConfigureAwait(false);
+                return repair.Status switch
+                {
+                    WorkspacePreparationApprovalEvidenceIndexWriteStatus.Created => new(WorkspacePreparationApprovalEvidenceWriteStatus.Created),
+                    WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists => new(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, "Immutable approval evidence already exists."),
+                    WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict => new(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, repair.ErrorMessage),
+                    _ => new(WorkspacePreparationApprovalEvidenceWriteStatus.Unavailable, repair.ErrorMessage ?? "Approval evidence plan index persistence is unavailable.")
+                };
             }
 
             return new(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, "Immutable approval evidence already exists.");
@@ -432,13 +437,166 @@ public sealed class JsonWorkspacePreparationApprovalEvidenceRepository : IWorksp
         var evidence = await GetAsync(projectId, workspaceId, approvalId, cancellationToken).ConfigureAwait(false);
         if (!evidence.IsValid || evidence.Evidence is null)
         {
-            return evidence;
+            return evidence.State == WorkspacePreparationApprovalEvidenceReadState.Missing
+                ? new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure,
+                    ErrorMessage: "Approval evidence plan index points to missing immutable approval evidence.")
+                : evidence;
         }
 
-        return evidence.Evidence.PlanReference.PlanId == planId &&
+        return SamePlanReference(index.Record.PlanReference, evidence.Evidence.PlanReference, projectId) &&
                string.Equals(evidence.Evidence.ContentHash, index.Record.ContentHash, StringComparison.OrdinalIgnoreCase)
             ? evidence
             : new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, ErrorMessage: "Approval evidence index does not match the immutable evidence.");
+    }
+
+    public async Task<WorkspacePreparationApprovalEvidenceReadResult> FindForPlanAsync(
+        Guid projectId,
+        Guid workspaceId,
+        WorkspacePreparationPlanReference planReference,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(planReference);
+        if (planReference.ProjectId != projectId)
+            return new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, ErrorMessage: "Approval plan reference belongs to another project.");
+
+        // An existing index is authoritative for the exact plan key. Do not search around a
+        // present, invalid, or conflicting index because doing so could select another authority.
+        var indexed = await GetForPlanAsync(projectId, workspaceId, planReference.PlanId, cancellationToken).ConfigureAwait(false);
+        if (indexed.State != WorkspacePreparationApprovalEvidenceReadState.Missing)
+        {
+            return indexed.IsValid && indexed.Evidence is not null &&
+                   SamePlanReference(indexed.Evidence.PlanReference, planReference)
+                ? indexed
+                : indexed.IsValid
+                    ? new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, ErrorMessage: "Approval evidence index does not bind the exact plan reference.")
+                    : indexed;
+        }
+
+        var evidenceRoot = Path.Combine(_paths.GetWorkspaceReceiptDirectory(projectId, workspaceId), "approval-evidence");
+        if (!Directory.Exists(evidenceRoot)) return new(WorkspacePreparationApprovalEvidenceReadState.Missing);
+
+        string[] candidateDirectories;
+        try
+        {
+            candidateDirectories = Directory.EnumerateDirectories(evidenceRoot)
+                .Take(WorkspacePreparationLimits.MaxApprovalEvidenceCandidates + 1)
+                .ToArray();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return new(WorkspacePreparationApprovalEvidenceReadState.Unavailable, ErrorMessage: "Approval evidence authority enumeration is unavailable.");
+        }
+
+        if (candidateDirectories.Length > WorkspacePreparationLimits.MaxApprovalEvidenceCandidates)
+        {
+            return new(WorkspacePreparationApprovalEvidenceReadState.Unavailable, ErrorMessage: "Approval evidence authority enumeration exceeded the supported bound.");
+        }
+
+        WorkspacePreparationApprovalEvidence? match = null;
+        foreach (var candidateDirectory in candidateDirectories)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var name = Path.GetFileName(candidateDirectory);
+            if (!Guid.TryParseExact(name, "D", out var approvalId))
+            {
+                return new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, ErrorMessage: "Approval evidence authority path is invalid.");
+            }
+
+            var candidate = await GetAsync(projectId, workspaceId, approvalId, cancellationToken).ConfigureAwait(false);
+            if (!candidate.IsValid || candidate.Evidence is null)
+            {
+                return candidate.State == WorkspacePreparationApprovalEvidenceReadState.Missing
+                    ? new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, ErrorMessage: "Approval evidence authority is incomplete.")
+                    : candidate;
+            }
+
+            if (!SamePlanReference(candidate.Evidence.PlanReference, planReference)) continue;
+            if (match is not null)
+            {
+                return new(WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure, ErrorMessage: "Multiple canonical approval authorities claim the exact plan.");
+            }
+
+            match = candidate.Evidence;
+        }
+
+        return match is null
+            ? new(WorkspacePreparationApprovalEvidenceReadState.Missing)
+            : new(WorkspacePreparationApprovalEvidenceReadState.Valid, match);
+    }
+
+    public async Task<WorkspacePreparationApprovalEvidenceIndexWriteResult> EnsurePlanIndexAsync(
+        WorkspacePreparationApprovalEvidence evidence,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(evidence);
+        var canonical = await GetAsync(evidence.ProjectId, evidence.WorkspaceId, evidence.ApprovalId, cancellationToken).ConfigureAwait(false);
+        if (!canonical.IsValid || canonical.Evidence is null)
+        {
+            return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict,
+                canonical.ErrorMessage ?? "Canonical approval evidence is unavailable or invalid.");
+        }
+
+        if (!SameEvidenceAuthority(canonical.Evidence, evidence))
+        {
+            return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict,
+                "Approval id is already bound to different evidence.");
+        }
+
+        var planDirectory = _paths.GetWorkspaceApprovalEvidenceByPlanDirectory(evidence.ProjectId, evidence.WorkspaceId, evidence.PlanReference.PlanId);
+        if (File.Exists(planDirectory))
+        {
+            return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Unavailable,
+                "The approval evidence plan-index directory is not a directory.");
+        }
+
+        var indexed = await GetForPlanAsync(evidence.ProjectId, evidence.WorkspaceId, evidence.PlanReference.PlanId, cancellationToken).ConfigureAwait(false);
+        if (indexed.IsValid && indexed.Evidence is not null)
+        {
+            return SameEvidenceAuthority(indexed.Evidence, canonical.Evidence) &&
+                   SamePlanReference(indexed.Evidence.PlanReference, evidence.PlanReference)
+                ? new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists)
+                : new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict, "The existing plan index points to conflicting approval authority.");
+        }
+
+        if (indexed.State != WorkspacePreparationApprovalEvidenceReadState.Missing)
+        {
+            return indexed.State == WorkspacePreparationApprovalEvidenceReadState.Unavailable
+                ? new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Unavailable,
+                    indexed.ErrorMessage ?? "The existing plan index is unavailable.")
+                : new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict,
+                    indexed.ErrorMessage ?? "The existing plan index cannot be read safely.");
+        }
+
+        var planPath = _paths.GetWorkspaceApprovalEvidenceByPlanFile(evidence.ProjectId, evidence.WorkspaceId, evidence.PlanReference.PlanId);
+        try
+        {
+            var planRecord = WorkspaceApprovalEvidenceRecord.FromApplication(canonical.Evidence, PlanIndexRecordType);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(planRecord, JsonFileStore.SerializerOptions);
+            if (bytes.Length > WorkspacePreparationLimits.MaxCanonicalPayloadBytes)
+            {
+                return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Unavailable, "Approval evidence plan index exceeds the bounded persistence limit.");
+            }
+
+            await _paths.EnsureProjectDirectoriesAsync(evidence.ProjectId, cancellationToken).ConfigureAwait(false);
+            Directory.CreateDirectory(_paths.GetWorkspaceApprovalEvidenceByPlanDirectory(evidence.ProjectId, evidence.WorkspaceId, evidence.PlanReference.PlanId));
+            await _files.CreateNewAsync(planPath, planRecord, cancellationToken).ConfigureAwait(false);
+            return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Created);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (IOException)
+        {
+            var raced = await GetForPlanAsync(evidence.ProjectId, evidence.WorkspaceId, evidence.PlanReference.PlanId, cancellationToken).ConfigureAwait(false);
+            if (raced.IsValid && raced.Evidence is not null && SameEvidenceAuthority(raced.Evidence, canonical.Evidence))
+                return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists);
+            return raced.State == WorkspacePreparationApprovalEvidenceReadState.Unavailable
+                ? new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Unavailable, "The plan index is unavailable.")
+                : new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict, "The plan index was created by conflicting authority.");
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or ArgumentException)
+        {
+            _logger.LogWarning(exception, "Could not persist workspace approval evidence plan index");
+            return new(WorkspacePreparationApprovalEvidenceIndexWriteStatus.Unavailable, "Approval evidence plan index persistence is unavailable.");
+        }
     }
 
     private async Task<WorkspacePreparationApprovalEvidenceReadResult> ReadAsync(
@@ -506,4 +664,22 @@ public sealed class JsonWorkspacePreparationApprovalEvidenceRepository : IWorksp
         string.Equals(left.PlanReference.ContentHash, right.PlanReference.ContentHash, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(left.ActorReference, right.ActorReference, StringComparison.Ordinal) && left.ApprovedAt == right.ApprovedAt &&
         string.Equals(left.SanitizedReason, right.SanitizedReason, StringComparison.Ordinal);
+
+    private static bool SamePlanReference(WorkspacePreparationPlanReference left, WorkspacePreparationPlanReference right) =>
+        left.ProjectId == right.ProjectId && left.PlanId == right.PlanId &&
+        left.SchemaVersion == right.SchemaVersion &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool SamePlanReference(ReferenceRecord? left, WorkspacePreparationPlanReference right, Guid projectId)
+    {
+        if (left is null) return false;
+        try
+        {
+            return SamePlanReference(left.ToPlan(projectId), right);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
 }

@@ -1,4 +1,5 @@
 using AIUsageMonitor.Application.Workspaces;
+using AIUsageMonitor.Infrastructure.Git;
 
 namespace AIUsageMonitor.Infrastructure.Workspaces;
 
@@ -6,7 +7,7 @@ namespace AIUsageMonitor.Infrastructure.Workspaces;
 /// Fixed-command Git adapter for APO-46. Discovery uses only bounded read-only commands. The
 /// worktree add method is the only method in this adapter that can mutate Git state.
 /// </summary>
-public sealed class GitWorkspaceRepository : IWorkspaceRepository, IWorkspaceBranchSafety
+public sealed class GitWorkspaceRepository : IWorkspaceRepository, IWorkspaceBranchSafety, IWorkspacePreparedWorkspaceVerifier
 {
     private readonly AIUsageMonitor.Infrastructure.Git.IGitCommandRunner _runner;
 
@@ -108,11 +109,110 @@ public sealed class GitWorkspaceRepository : IWorkspaceRepository, IWorkspaceBra
         if (!Succeeded(branchCheck)) return new(false, ErrorMessage: "Workspace branch is not a valid Git branch name.");
 
         // This is intentionally the sole mutating command emitted by APO-46.
-        var result = await RunAsync(["--git-dir", commonDirectory, "worktree", "add", "-b", workspaceBranch, managedWorkspacePath, exactBaseCommitSha], cancellationToken).ConfigureAwait(false);
+        var result = await RunAsync(["--git-dir", commonDirectory, "worktree", "add", "-b", workspaceBranch, managedWorkspacePath, exactBaseCommitSha], GitCommandExecutionProfile.WorktreeMutation, cancellationToken).ConfigureAwait(false);
         if (result.Cancelled) throw new OperationCanceledException(cancellationToken);
         return result.ExitCode == 0 && !result.TimedOut && !result.CouldNotStart && !result.OutputTruncated
             ? new(true)
-            : new(false, CommandFailed: true, ErrorMessage: "Git worktree creation failed.");
+            : new(false, CommandFailed: true, ErrorMessage: result.TimedOut ? "Git worktree creation timed out within the bounded mutation timeout." : "Git worktree creation failed.", TimedOut: result.TimedOut);
+    }
+
+    public async Task<WorkspacePreparedWorkspaceVerification> VerifyPreparedWorkspaceAsync(
+        string workspacePath,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(workspacePath))
+        {
+            return new(WorkspacePreparedWorkspaceVerificationStatus.Unavailable, workspacePath ?? string.Empty,
+                ErrorMessage: "Workspace path is required.");
+        }
+
+        string capturedPath;
+        try
+        {
+            capturedPath = WorkspaceRepositoryIdentity.Normalize(workspacePath);
+        }
+        catch (ArgumentException)
+        {
+            return new(WorkspacePreparedWorkspaceVerificationStatus.Unavailable, workspacePath,
+                ErrorMessage: "Workspace path could not be normalized safely.");
+        }
+
+        if (!Directory.Exists(capturedPath))
+        {
+            return new(WorkspacePreparedWorkspaceVerificationStatus.WorkspaceMissing, capturedPath,
+                ErrorMessage: "Managed workspace directory is missing.");
+        }
+
+        var inside = await RunAsync(["-C", capturedPath, "rev-parse", "--is-inside-work-tree"], cancellationToken).ConfigureAwait(false);
+        if (!Succeeded(inside))
+        {
+            return new(WorkspacePreparedWorkspaceVerificationStatus.NotGitWorktree, capturedPath,
+                ErrorMessage: "Git did not recognize the managed workspace as a working tree.");
+        }
+
+        if (!string.Equals(inside.StandardOutput.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return new(WorkspacePreparedWorkspaceVerificationStatus.NotGitWorktree, capturedPath,
+                ErrorMessage: "Managed workspace is not a Git working tree.");
+        }
+
+        var rootResult = await RunAsync(["-C", capturedPath, "rev-parse", "--show-toplevel"], cancellationToken).ConfigureAwait(false);
+        if (!Succeeded(rootResult)) return VerificationUnavailable(capturedPath, "Workspace repository root could not be verified.");
+        var root = NormalizeGitPath(rootResult.StandardOutput.Trim(), capturedPath);
+        if (root is null) return VerificationUnavailable(capturedPath, "Workspace repository root evidence was unavailable.");
+
+        var commonResult = await RunAsync(["-C", capturedPath, "rev-parse", "--git-common-dir"], cancellationToken).ConfigureAwait(false);
+        if (!Succeeded(commonResult)) return VerificationUnavailable(capturedPath, "Workspace Git common directory could not be verified.");
+        var common = NormalizeGitPath(commonResult.StandardOutput.Trim(), capturedPath);
+        if (common is null) return VerificationUnavailable(capturedPath, "Workspace Git common directory evidence was unavailable.");
+
+        var headResult = await RunAsync(["-C", capturedPath, "rev-parse", "--verify", "HEAD"], cancellationToken).ConfigureAwait(false);
+        if (!Succeeded(headResult)) return VerificationUnavailable(capturedPath, "Workspace HEAD could not be verified.");
+        var head = headResult.StandardOutput.Trim();
+        if (!WorkspacePreparationIntegrity.IsGitObjectId(head)) return VerificationUnavailable(capturedPath, "Workspace HEAD evidence was invalid.");
+
+        var branchResult = await RunAsync(["-C", capturedPath, "symbolic-ref", "--quiet", "--short", "HEAD"], cancellationToken).ConfigureAwait(false);
+        if (branchResult.Cancelled) throw new OperationCanceledException(cancellationToken);
+        var detached = branchResult.ExitCode == 1;
+        if (!detached && !Succeeded(branchResult)) return VerificationUnavailable(capturedPath, "Workspace branch evidence could not be verified.");
+        var branch = detached ? null : branchResult.StandardOutput.Trim();
+        if (!detached && (string.IsNullOrWhiteSpace(branch) || branchResult.OutputTruncated))
+            return VerificationUnavailable(capturedPath, "Workspace branch evidence was incomplete.");
+
+        var statusResult = await RunAsync(["-C", capturedPath, "status", "--porcelain=v1", "-z", "--untracked-files=all"], cancellationToken).ConfigureAwait(false);
+        if (!Succeeded(statusResult)) return VerificationUnavailable(capturedPath, "Workspace checkout status could not be verified.");
+        var changedFileCount = CountStatusEntries(statusResult.StandardOutput);
+        var fingerprint = WorkspacePreparationIntegrity.ComputeWorkingTreeStateFingerprint(statusResult.StandardOutput);
+        if (changedFileCount > WorkspacePreparationLimits.MaxChangedFiles)
+            return new(WorkspacePreparedWorkspaceVerificationStatus.EvidenceOverflow, capturedPath,
+                IsGitWorktree: true, RepositoryRoot: root, CommonDirectory: common, HeadCommitSha: head,
+                BranchName: branch, IsDetached: detached, ChangedFileCount: changedFileCount,
+                WorkingTreeStateFingerprint: fingerprint,
+                ErrorMessage: "Workspace changed-file evidence exceeded the supported bound.");
+
+        var worktreeResult = await RunAsync(["-C", capturedPath, "worktree", "list", "--porcelain"], cancellationToken).ConfigureAwait(false);
+        if (!Succeeded(worktreeResult)) return VerificationUnavailable(capturedPath, "Workspace worktree registration could not be verified.");
+        var worktrees = ParseWorktreeList(worktreeResult.StandardOutput, out var overflow);
+        if (worktreeResult.OutputTruncated || overflow)
+            return new(WorkspacePreparedWorkspaceVerificationStatus.EvidenceOverflow, capturedPath,
+                IsGitWorktree: true, RepositoryRoot: root, CommonDirectory: common, HeadCommitSha: head,
+                BranchName: branch, IsDetached: detached, IsClean: changedFileCount == 0,
+                ChangedFileCount: changedFileCount, WorkingTreeStateFingerprint: fingerprint,
+                ErrorMessage: "Workspace worktree evidence exceeded the supported bound.");
+
+        if (!worktrees.Any(value => WorkspaceRepositoryIdentity.AreEqual(value.Path, capturedPath)))
+        {
+            return new(WorkspacePreparedWorkspaceVerificationStatus.NotGitWorktree, capturedPath,
+                IsGitWorktree: false, RepositoryRoot: root, CommonDirectory: common, HeadCommitSha: head,
+                BranchName: branch, IsDetached: detached, IsClean: changedFileCount == 0,
+                ChangedFileCount: changedFileCount, WorkingTreeStateFingerprint: fingerprint,
+                ErrorMessage: "Git did not register the managed workspace as a linked worktree.");
+        }
+
+        return new(WorkspacePreparedWorkspaceVerificationStatus.Verified, capturedPath,
+            IsGitWorktree: true, RepositoryRoot: root, CommonDirectory: common, HeadCommitSha: head,
+            BranchName: branch, IsDetached: detached, IsClean: changedFileCount == 0,
+            ChangedFileCount: changedFileCount, WorkingTreeStateFingerprint: fingerprint);
     }
 
     internal static IReadOnlyList<WorkspaceWorktreeEvidence> ParseWorktreeList(string output) =>
@@ -173,11 +273,35 @@ public sealed class GitWorkspaceRepository : IWorkspaceRepository, IWorkspaceBra
             : new WorkspaceRepositoryDivergence(WorkspaceDivergenceState.Unavailable, reference);
     }
 
-    private async Task<AIUsageMonitor.Infrastructure.Git.GitCommandResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    private async Task<AIUsageMonitor.Infrastructure.Git.GitCommandResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken) =>
+        await RunAsync(arguments, GitCommandExecutionProfile.ReadOnly, cancellationToken).ConfigureAwait(false);
+
+    private async Task<AIUsageMonitor.Infrastructure.Git.GitCommandResult> RunAsync(
+        IReadOnlyList<string> arguments,
+        GitCommandExecutionProfile profile,
+        CancellationToken cancellationToken)
     {
-        var result = await _runner.RunAsync(arguments, cancellationToken).ConfigureAwait(false);
+        var result = await _runner.RunAsync(arguments, profile, cancellationToken).ConfigureAwait(false);
         if (result.Cancelled || cancellationToken.IsCancellationRequested) throw new OperationCanceledException(cancellationToken);
         return result;
+    }
+
+    private static WorkspacePreparedWorkspaceVerification VerificationUnavailable(string path, string message) =>
+        new(WorkspacePreparedWorkspaceVerificationStatus.Unavailable, path, ErrorMessage: message);
+
+    private static string? NormalizeGitPath(string value, string workingDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        try
+        {
+            return WorkspaceRepositoryIdentity.Normalize(Path.IsPathRooted(value)
+                ? value
+                : Path.Combine(workingDirectory, value));
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static WorkspaceRepositoryDiscovery Unavailable(string path) => new(WorkspaceRepositoryDiscoveryStatus.Unavailable, path, errorMessage: "Git repository evidence could not be read.");

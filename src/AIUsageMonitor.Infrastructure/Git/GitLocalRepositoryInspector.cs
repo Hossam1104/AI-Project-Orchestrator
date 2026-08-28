@@ -199,7 +199,7 @@ public sealed class GitLocalRepositoryInspector : ILocalRepositoryInspector
     private async Task<GitCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken) =>
-        await _runner.RunAsync(arguments, cancellationToken).ConfigureAwait(false);
+        await _runner.RunAsync(arguments, GitCommandExecutionProfile.ReadOnly, cancellationToken).ConfigureAwait(false);
 
     private static LocalRepositoryInspection? CommonFailure(
         GitCommandResult result,

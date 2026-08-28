@@ -13,6 +13,12 @@ internal sealed record GitCommandResult(
     bool CouldNotStart = false,
     bool OutputTruncated = false);
 
+internal enum GitCommandExecutionProfile
+{
+    ReadOnly,
+    WorktreeMutation
+}
+
 /// <summary>
 /// Infrastructure-internal process seam. It accepts an argument list so a registered local path
 /// can never be reinterpreted as shell syntax.
@@ -22,26 +28,54 @@ internal interface IGitCommandRunner
     Task<GitCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken = default);
+
+    Task<GitCommandResult> RunAsync(
+        IReadOnlyList<string> arguments,
+        GitCommandExecutionProfile profile,
+        CancellationToken cancellationToken = default) =>
+        RunAsync(arguments, cancellationToken);
 }
 
 internal sealed class SystemGitCommandRunner : IGitCommandRunner
 {
     internal const int MaxCapturedOutputCharacters = 64 * 1024;
-    private static readonly TimeSpan DefaultCommandTimeout = TimeSpan.FromSeconds(10);
-    private static readonly TimeSpan DefaultDrainTimeout = TimeSpan.FromSeconds(2);
+    internal static readonly TimeSpan DefaultReadOnlyCommandTimeout = TimeSpan.FromSeconds(10);
+    internal static readonly TimeSpan DefaultWorktreeMutationCommandTimeout = TimeSpan.FromSeconds(120);
+    internal static readonly TimeSpan DefaultDrainTimeout = TimeSpan.FromSeconds(2);
 
-    private readonly TimeSpan _commandTimeout;
+    private readonly TimeSpan _readOnlyCommandTimeout;
+    private readonly TimeSpan _worktreeMutationCommandTimeout;
     private readonly TimeSpan _drainTimeout;
     private readonly string _fileName;
 
     public SystemGitCommandRunner()
-        : this(DefaultCommandTimeout, DefaultDrainTimeout)
+        : this(DefaultReadOnlyCommandTimeout, DefaultWorktreeMutationCommandTimeout, DefaultDrainTimeout)
     {
     }
 
+    // Kept as a bounded compatibility seam for existing read-only runner tests. The new
+    // profile-aware constructor below is the production/test authority for both timeouts.
     internal SystemGitCommandRunner(TimeSpan commandTimeout, TimeSpan drainTimeout, string fileName = "git")
     {
-        _commandTimeout = commandTimeout;
+        ValidateTimeout(commandTimeout, nameof(commandTimeout));
+        ValidateTimeout(drainTimeout, nameof(drainTimeout));
+        _readOnlyCommandTimeout = commandTimeout;
+        _worktreeMutationCommandTimeout = DefaultWorktreeMutationCommandTimeout;
+        _drainTimeout = drainTimeout;
+        _fileName = fileName;
+    }
+
+    internal SystemGitCommandRunner(
+        TimeSpan readOnlyCommandTimeout,
+        TimeSpan worktreeMutationCommandTimeout,
+        TimeSpan drainTimeout,
+        string fileName = "git")
+    {
+        ValidateTimeout(readOnlyCommandTimeout, nameof(readOnlyCommandTimeout));
+        ValidateTimeout(worktreeMutationCommandTimeout, nameof(worktreeMutationCommandTimeout));
+        ValidateTimeout(drainTimeout, nameof(drainTimeout));
+        _readOnlyCommandTimeout = readOnlyCommandTimeout;
+        _worktreeMutationCommandTimeout = worktreeMutationCommandTimeout;
         _drainTimeout = drainTimeout;
         _fileName = fileName;
     }
@@ -49,8 +83,20 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
     public async Task<GitCommandResult> RunAsync(
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken = default)
+        => await RunAsync(arguments, GitCommandExecutionProfile.ReadOnly, cancellationToken).ConfigureAwait(false);
+
+    public async Task<GitCommandResult> RunAsync(
+        IReadOnlyList<string> arguments,
+        GitCommandExecutionProfile profile,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(arguments);
+        var commandTimeout = profile switch
+        {
+            GitCommandExecutionProfile.ReadOnly => _readOnlyCommandTimeout,
+            GitCommandExecutionProfile.WorktreeMutation => _worktreeMutationCommandTimeout,
+            _ => throw new ArgumentOutOfRangeException(nameof(profile))
+        };
 
         var startInfo = CreateStartInfo(arguments);
         startInfo.FileName = _fileName;
@@ -77,7 +123,7 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
         var standardOutputTask = ReadBoundedAsync(process.StandardOutput);
         var standardErrorTask = ReadBoundedAsync(process.StandardError);
         using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCancellation.CancelAfter(_commandTimeout);
+        timeoutCancellation.CancelAfter(commandTimeout);
 
         try
         {
@@ -147,13 +193,16 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
             startInfo.ArgumentList.Add(argument);
         }
 
-        startInfo.Environment["GIT_TERMINAL_PROMPT"] = "0";
-        startInfo.Environment["GIT_OPTIONAL_LOCKS"] = "0";
-        // Deterministic, English-language Git error text so Infrastructure can safely classify
-        // bounded failures (e.g. "not a git repository") without depending on the user's locale.
-        startInfo.Environment["LC_ALL"] = "C";
-        startInfo.Environment["LANG"] = "C";
+        GitProcessEnvironment.Sanitize(startInfo.Environment);
         return startInfo;
+    }
+
+    private static void ValidateTimeout(TimeSpan value, string parameterName)
+    {
+        if (value <= TimeSpan.Zero || value == Timeout.InfiniteTimeSpan)
+        {
+            throw new ArgumentOutOfRangeException(parameterName, "Timeouts must be positive and bounded.");
+        }
     }
 
     private static void KillProcessTree(Process process)
@@ -173,6 +222,40 @@ internal sealed class SystemGitCommandRunner : IGitCommandRunner
         {
             // A platform-specific inability to kill is still bounded by the drain wait below.
         }
+    }
+}
+
+internal static class GitProcessEnvironment
+{
+    private static readonly string[] RepositoryRedirectionVariables =
+    [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CEILING_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_NAMESPACE"
+    ];
+
+    internal static void Sanitize(IDictionary<string, string?> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        foreach (var key in environment.Keys
+                     .Where(key => RepositoryRedirectionVariables.Any(variable =>
+                         string.Equals(variable, key, StringComparison.OrdinalIgnoreCase)))
+                     .ToArray())
+        {
+            environment.Remove(key);
+        }
+
+        // Deterministic, English-language Git error text keeps Infrastructure classification
+        // independent of the user's locale. PATH and all unrelated parent-process values remain.
+        environment["GIT_TERMINAL_PROMPT"] = "0";
+        environment["GIT_OPTIONAL_LOCKS"] = "0";
+        environment["LC_ALL"] = "C";
+        environment["LANG"] = "C";
     }
 }
 
