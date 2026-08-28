@@ -3235,3 +3235,104 @@ engines, Mission Control UI, or autonomous cleanup was started.
 **Next planner boundary:**
 
 > APO-46 Prompt 5/5R2 remediation complete and awaiting GPT-5.6 Sol final exact-head re-review. PR #17 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus yet. If Sol acceptance passes, the next gate is Claude Opus 5 independent critical-checkpoint review before merge. Do not begin APO-45, model invocation, execution runtime, tracker synchronization, validation/approval engines, Mission Control UI, or autonomous cleanup.
+
+---
+
+## 38. APO-68 Prompt 1/5 - workspace pre-runtime hardening handoff
+
+This is the current factual handoff. It supersedes the earlier APO-46 tail metadata for the active
+work item while preserving all prior history above. APO-46 is COMPLETE / MERGED / DONE. APO-68 is
+implementation complete and awaiting GPT-5.6 Sol exact-head review. APO-45 remains TO DO / NOT
+AUTHORIZED. No Claude Opus, Claude Sonnet, or other model was invoked.
+
+**Exact identity and delivery:**
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`.
+- Local path: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`.
+- Starting `main`: `9ebf935244bbb6a16aef0aeeefe55bcdf6c6896f`;
+  starting tree: `83bf373165377df69ef6a304af5ad14f973d7348`.
+- Branch: `feat/APO-68-workspace-pre-runtime-hardening`.
+- Functional commit: `407b891175d58fa39374a31a7e4884553f115d87`;
+  functional tree: `a0f30ef43150017c6c108d99b27942e781bb5c4c`.
+- Draft PR #18 is OPEN / DRAFT / UNMERGED against `main`; it has not been marked Ready or merged.
+- The final metadata head/tree are the exact values produced by the metadata-only handoff commit
+  containing only `TASK.md` and this file; they are to be recorded in the final delivery evidence
+  immediately after that commit and reconciled into PR #18.
+
+**OPUS-46R-01:**
+
+`SystemGitCommandRunner` now has bounded independent read-only (10 seconds), worktree mutation
+(120 seconds), and output-drain (2 seconds) profiles. All discovery/inspection commands use the
+read-only profile; only `git worktree add -b` uses the mutation profile. A dedicated read-only
+`VerifyPreparedWorkspaceAsync` checks the managed workspace itself for existence, Git worktree
+identity, exact root/common directory, exact HEAD and branch, non-detached state, clean bounded
+status/fingerprint, and worktree registration. Normal Prepare, FinalizeReceipt, and Inspect require
+this evidence before success or prepared recovery classification. Timeout, cancellation, partial
+checkout, verification failure, or receipt-write failure has no rollback, cleanup, retry, reset,
+clean, checkout, switch, or removal path.
+
+**OPUS-46R-02:**
+
+The exact plan index remains authoritative when present. If and only if it is missing, recovery uses
+a bounded observational search within the exact project/workspace canonical approval-evidence scope
+and compares the full plan reference; it never selects a latest or timestamp winner. Exactly one
+matching canonical authority is accepted. Ambiguity, overflow, corrupt/unreadable authority,
+invalid scope entries, and cross-project/cross-workspace evidence fail closed. Explicit retry or
+receipt finalization uses create-once `EnsurePlanIndexAsync` and can write only the missing plan
+index; canonical evidence and existing/conflicting indexes are never overwritten. Service-level
+crash-window tests prove `PreparedWithoutReceipt`, index-only repair, unchanged authority, and zero
+second Git mutations.
+
+**OPUS-46R-03:**
+
+`WorkspaceRepositoryIdentity.Normalize` is shared by path comparison and lock acquisition. It
+canonicalizes absolute paths, separators, trailing separators while preserving roots, and Windows
+casing semantics; case-sensitive platforms retain case. The normalized identity is hashed into an
+APO application-data lock file outside repositories. Junction/reparse alias resolution remains a
+documented bounded limitation. Actual `RepositoryPreparationFileLock` tests prove equivalent
+identity serialization and different-repository independence.
+
+**OPUS-46R-04:**
+
+Child Git environments remove `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY`,
+`GIT_ALTERNATE_OBJECT_DIRECTORIES`, `GIT_CEILING_DIRECTORIES`, `GIT_COMMON_DIR`, and
+`GIT_NAMESPACE`. `GIT_TERMINAL_PROMPT=0`, `GIT_OPTIONAL_LOCKS=0`, `LC_ALL=C`, and `LANG=C` remain
+deterministic. PATH and unrelated variables are preserved; values are not logged or persisted.
+
+**Validation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS; up to date.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings, 0 errors.
+- `dotnet test AIUsageMonitor.sln --no-restore`: 802/802 passed; 0 failed; 0 skipped.
+- Suite totals: Domain 28; Connection 193; Provider 46; Desktop 82; Infrastructure 453.
+- Focused `WorkspacePreparationTests`: 9/9; `WorkspacePreparationRemediationTests`: 22/22;
+  `WorkspacePreparationAcceptanceTests`: 100/100; `SystemGitCommandRunnerTests`: 4/4;
+  `WorkspacePreparationApo68Tests`: 12/12. Combined focused APO-68/workspace total: 147/147.
+- Actual file-lock coverage: 2/2 (`FileLock_SerializesSameRepositoryAndAllowsDifferentRepository`;
+  `RepositoryPreparationFileLock_EquivalentWindowsIdentitiesSerialize`).
+- `git diff --check`: clean before functional commit and after validation.
+- Changed-line credential-shaped scan found no real credentials; only placeholder fixture values and
+  security-related variable names are present. No generated corruption artifacts or test repositories
+  are tracked.
+- `GitHub CI = NONE / NOT CLAIMED`; no status/check/workflow evidence was present.
+
+**Safety, schema, and runtime truth:**
+
+No fetch, pull, push, reset, clean, checkout, switch, merge, rebase, cherry-pick, commit, stash,
+worktree remove, or worktree prune product path was added. Only `worktree add -b` may mutate Git.
+No automatic cleanup, execution runtime, provider/model invocation, network operation, tracker
+synchronization, APO-45 work, or UI work was started. `JsonFileStore.CurrentSchemaVersion = 1`;
+workspace/approval/receipt schema versions remain unchanged. `OPUS-05-03..11 = DEFERRED /
+NON-BLOCKING`, and `OPUS-05-05 MUST BE CLOSED BEFORE JsonFileStore.CurrentSchemaVersion IS
+INCREMENTED`.
+
+`APO PROCESS COUNT = 0`
+
+`APPLICATION LEFT RUNNING = NO`
+
+**Jira:** `JIRA HANDOFF = DEFERRED TO SOL / NON-BLOCKING`. No Jira status transition or new issue
+was made; APO-68 remains In Progress and APO-45 remains unauthorized.
+
+**Next planner boundary:**
+
+> APO-68 Prompt 1/5 implementation complete and awaiting GPT-5.6 Sol exact-head review. PR #18 remains OPEN / DRAFT / UNMERGED. Do not begin APO-45. Do not invoke Claude Opus. If Sol accepts this exact head, Sol may authorize APO-68 merge finalization because this is Prompt 1/5 of the new cycle.
