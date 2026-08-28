@@ -3662,9 +3662,57 @@ source files under `src/`/`tests/` are part of this diff. No `dotnet restore`/`b
 because no source or project file changed. `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`;
 the WPF application was not launched.
 
+**Next planner boundary (superseded by §43 below):** the original next-planner-boundary note here
+described the then-open APO-45 / PR #19 re-review lane as a separate untouched boundary. APO-45 has
+since reached Done (see §43); this section's other factual statements about what changed at
+migration time remain historical record and are not rewritten.
+
+---
+
+## 43. Governance migration remediation and factual reconciliation (chore/ai-execution-governance-migration)
+
+This corrects the live/current boundary only; §41 and §42 above remain historical record of what
+was true when written and are not rewritten.
+
+- **APO-45** (parent APO-11) is **Done**. PR #19 was merged into `main` at
+  `6bab063e24d8f2e9b68b36ea00a5f6e1038f4597`. The §41 "Sol exact-head re-review" lane it describes
+  is closed; there is no active re-review lane for APO-45.
+- **APO-48** remains **To Do**. No product work has started on it, and no executor contract for it
+  exists anywhere in this repository.
+- The AI execution governance and tooling migration (this branch, PR #20) is under GPT-5.6 Sol
+  exact-head remediation review following a `CHANGES REQUIRED` finding. This remediation pass
+  corrected the routing tier model, final-acceptance wording, the Git delivery/merge contract, the
+  startup context-budget rule, and the application-runtime-left-running default in
+  `.ai/AI_MODEL_ROUTING.md`, `.ai/AI_EXECUTION_POLICY.md`, and `AGENTS.md`. PR #20 remains
+  `OPEN / DRAFT / UNMERGED`.
+- **Ponytail is now installed**, superseding §42's "not installed" record for both hosts:
+  - Claude Code: `ponytail@ponytail` version `4.9.0` is present in
+    `~/.claude/plugins/cache/ponytail/ponytail/4.9.0`, and
+    `~/.claude/plugins/installed_plugins.json` records a project-scoped install for this exact
+    repository path (`D:\AI Tools\Active Projects\AI-Project-Orchestrator`). `.claude/settings.json`
+    enables `ponytail@ponytail`. FULL mode was confirmed by owner-supplied/local session evidence
+    (`/ponytail:ponytail full` reporting FULL active).
+  - Codex: `ponytail@ponytail` version `4.9.0` is present in
+    `~/.codex/plugins/cache/ponytail/ponytail/4.9.0`. FULL mode was confirmed by owner-supplied/local
+    session evidence (`@ponytail full` reporting `PONYTAIL:FULL`).
+  - The marketplace refresh initially failed to resolve `github.com` (DNS/network resolution, not
+    an SSH-key/authentication problem); installation subsequently succeeded from
+    available/cached marketplace data. This is recorded as a non-blocking historical note only; no
+    networking "fix" was attempted as part of this remediation, and no claim of permanent future
+    plugin health or marketplace-refresh reliability is made.
+- Serena (`serena --version` reports `1.7.0`) and Context7 configuration in `.mcp.json` were
+  inspected and left unchanged — both remain valid; `.serena/project.yml` (C#, repository-root
+  workspace) and `.serena/.gitignore` were preserved without regeneration.
+- No APO product/runtime source was changed by this remediation pass. Schema versions are
+  unchanged: `JsonFileStore.CurrentSchemaVersion = 1`, `ExecutionRunAuthoritySchema.CurrentVersion =
+  1`. No Jira transition was performed for APO-45 or APO-48.
+- `TASK.md` was replaced with a short neutral non-executable planner boundary reflecting the facts
+  above; it no longer represents APO-45 as in progress or awaiting re-review.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO` at both the start and end of this
+  remediation pass; the WPF application was not launched.
+
 **Next planner boundary:**
 
-> AI governance/tooling migration complete and awaiting GPT-5.6 Sol exact-head review. Do not merge
-> the migration PR and do not begin APO-48 or any other product Story until Sol reviews the returned
-> evidence. The APO-45 PR #19 / Sol exact-head re-review lane recorded above in §41 is untouched and
-> remains its own separate boundary.
+> PR #20 governance remediation complete and awaiting GPT-5.6 Sol exact-head acceptance. Do not mark
+> Ready, merge PR #20, start APO-48, or execute another product Story until Sol reviews the exact
+> returned head.

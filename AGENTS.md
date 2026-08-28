@@ -91,18 +91,27 @@ different work item, combine unrelated Stories, or continue automatically.
 
 # 2. Mandatory Startup Read Order
 
-Before modifying repository files:
+Before modifying repository files, use targeted authoritative retrieval, not blind full-file
+rereading:
 
-1. Read `AGENTS.md` completely.
-2. Read `docs/BRD.md` completely.
-3. Read `.ai/CURRENT_STATE.md` completely.
-4. Read `docs/IMPLEMENTATION_PLAN.md`.
-5. Read the active root `TASK.md` completely.
-6. Read only the exact relevant section of `docs/SESSION_PROMPTS.md` when the work item references
+1. Always read completely: `AGENTS.md`, `.ai/AI_MODEL_ROUTING.md`, `.ai/AI_EXECUTION_POLICY.md`,
+   and the active root `TASK.md`.
+2. Always inspect: Git branch, status, remote state, and only the latest relevant boundary section
+   of `.ai/CURRENT_STATE.md` (search/find the relevant heading rather than rereading the whole
+   file).
+3. Read the `docs/BRD.md` and `docs/IMPLEMENTATION_PLAN.md` sections relevant to the assigned work
+   item; search for headings or semantic references before a whole-file read.
+4. Read the complete BRD only when architecture/requirements scope genuinely requires it, when
+   conflicting authority requires it, or when the assigned task genuinely spans the whole product.
+5. Read only the exact relevant section of `docs/SESSION_PROMPTS.md` when the work item references
    a prompt or review gate.
-7. Inspect `git status`, branch, remote, and only task-relevant source/configuration files.
+6. Inspect task-relevant source/configuration files. Do not reread an unchanged large file without
+   a specific reason.
+7. Prefer Serena for symbol/reference navigation over a full-file read or broad grep where
+   applicable; use Context7 only under the conditional rule in `.ai/AI_EXECUTION_POLICY.md` §6.
 
-Do not depend on previous chat context. The repository is the source of truth.
+Do not depend on previous chat context. The repository is the source of truth. This section governs
+retrieval scope only; it does not weaken the authority order in §3.
 
 ---
 
@@ -369,17 +378,21 @@ Every completed executor implementation or governance/remediation session must:
 3. validate the assigned scope and review the diff/secrets;
 4. update `.ai/CURRENT_STATE.md`;
 5. commit the completed work;
-6. push the session branch;
-7. integrate into `main` using repository policy;
-8. push `main` to `origin`;
-9. fetch and verify `origin/main` matches local `main`; and
-10. leave the working tree clean.
+6. push the session branch to `origin`;
+7. open or update a Draft pull request against `main`; and
+8. leave the working tree clean.
+
+The implementation executor **stops at this planner boundary and does not merge automatically**.
+GPT-5.6 Sol performs exact-head review of the pushed branch/PR. A merge into `main` may occur only
+under a separate, explicitly authorized prompt directing that specific bounded merge/finalization
+action after Sol acceptance; an ordinary implementation or remediation prompt never integrates into
+or pushes `main` itself.
 
 Never use force push, `git reset --hard`, or `git clean -fd` unless explicitly instructed for that
 specific action. Preserve unrelated owner changes. Protected-branch and human-approval rules take
 precedence; if direct integration is blocked, use the supported PR/merge workflow and document the
 restriction. A single post-merge metadata-only synchronization commit is permitted for current
-state/task metadata when required to record the already verified merge.
+state/task metadata when required to record an already Sol-authorized and completed merge.
 
 ---
 
@@ -450,28 +463,32 @@ continue. Accuracy, evidence, and explicit uncertainty outrank visual symmetry.
 
 ---
 
-# 16. Permanent Runtime-Left-Running Contract
+# 16. Application Runtime Contract
 
-Established by the APO-37 SOL-37-01..05 remediation (Prompt 4/5). This rule is permanent and
-applies to every future local prompt in this repository — implementation, remediation, review,
-merge, or planning — that has access to this local machine, regardless of which model or role is
-executing.
+Originally established by the APO-37 SOL-37-01..05 remediation (Prompt 4/5) as a leave-running
+default; superseded by the governance remediation recorded in `.ai/CURRENT_STATE.md` to a
+stop-by-default rule. This rule is permanent and applies to every future local prompt in this
+repository — implementation, remediation, review, merge, or planning — that has access to this
+local machine, regardless of which model or role is executing.
 
-After completing the assigned work for such a prompt:
+**Default rule:** after completing the assigned work for a prompt, the APO application must be
+**stopped** unless the owner's instruction for that specific prompt explicitly says to leave it
+running.
 
 1. Detect any already-running APO instance before touching processes; stop an existing instance
-   only if it actually blocks the required rebuild/publish, never otherwise.
-2. Publish and run the current build (self-contained `win-x64` single-file unless the assigned work
-   explicitly requires a different target).
-3. Verify the process is alive, the main window title and shell state are normal/non-degraded, and
-   the application is genuinely usable (not just process-alive).
-4. Do **not** stop the application after a short smoke check. Leave it running when the prompt
-   ends.
-5. Report the executable path, process ID, window title, normal-or-degraded state, and the literal
-   line `LEFT RUNNING = YES` in the completion report.
-6. Never create a duplicate/orphaned process: reuse or replace an existing instance rather than
-   stacking a second one.
-7. If the environment explicitly requires the application stopped, or startup is unsafe/impossible,
-   state the exact blocker truthfully instead of fabricating `LEFT RUNNING = YES`.
+   only if it actually blocks required work, never gratuitously.
+2. If the assigned work requires launching/publishing/running APO to validate the change, launch it
+   only for as long as needed to verify the process is alive, the main window/shell state is
+   normal/non-degraded, and the change is genuinely usable — not just process-alive.
+3. Stop the application before the prompt ends. Do not leave it running by default.
+4. Never create a duplicate/orphaned process: reuse or replace an existing instance rather than
+   stacking a second one, and never leave a child process behind.
+5. Report the literal lines `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO` in the
+   completion report.
+6. An explicit owner instruction for that specific prompt may override this default and request the
+   application be left running; in that case report the executable path, process ID, window title,
+   normal-or-degraded state, and the literal line `LEFT RUNNING = YES` instead.
+7. If startup is unsafe/impossible, or a required stop cannot be completed, state the exact blocker
+   truthfully instead of fabricating either runtime claim.
 
 ---

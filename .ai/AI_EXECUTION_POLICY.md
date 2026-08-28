@@ -57,8 +57,11 @@ Executors must report:
 - `git diff` and `git status` summaries;
 - remaining risk.
 
-Executor self-declaration is **not** final acceptance — Sol (or the assigned independent reviewer)
-must independently confirm.
+Executor self-declaration is **not** final acceptance. **GPT-5.6 Sol is always the final acceptance
+authority** for all routed work, regardless of which executor performed it. Opus may provide
+independent review, findings, and an approval recommendation; Terra may provide security,
+concurrency, data-integrity, or trust-boundary assurance; executors provide evidence. None of these
+roles replace Sol's final acceptance decision.
 
 ---
 

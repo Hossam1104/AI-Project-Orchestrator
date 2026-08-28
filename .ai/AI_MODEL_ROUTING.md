@@ -107,12 +107,32 @@ in either file. Never overwrite valid existing operational history.
 
 ## 6. Task Risk Tiers and Default Routing
 
-| Tier | Description | Default executor |
+| Tier | Description | Executor |
 |---|---|---|
-| 1 | Documentation, deterministic evidence formatting, mechanical/reconnaissance work | Haiku |
-| 2 | Ordinary bounded implementation (CRUD, DTOs, mappings, validators, routine WPF/UI, tests) | Sonnet Medium |
-| 3 | Difficult bounded implementation/debugging, larger bounded features, non-trivial regressions | Sonnet High |
-| 4 | Architecture-sensitive, cross-cutting, concurrency/persistence-critical, high blast radius | Luna xHigh (Luna Max exceptional) |
+| 0 | Sol planning only: architecture, decomposition, acceptance criteria, route selection, review, discussion, Jira reasoning, executor-prompt preparation after the `p` gate | GPT-5.6 Sol High, chat mode only — no repository execution |
+| 1 | Mechanical/reconnaissance: repository reconnaissance, file discovery, deterministic documentation, evidence formatting, diff/log triage, low-risk repetitive edits | Claude Haiku 4.5 High (fallback: Claude Sonnet 5 Medium) |
+| 2 | Normal bounded implementation: ordinary bugs, CRUD, DTOs, mappings, validators, routine API/UI/WPF work, routine tests, CI fixes, bounded refactors | Claude Sonnet 5 Medium |
+| 3 | Difficult/substantial bounded execution — dynamic, see below | Claude Sonnet 5 High or GPT-5.6 Luna xHigh, selected by Sol per work item |
+| 4 | High-risk authority/security/integrity execution: credentials, authorization, trust boundaries, tenant isolation, financial integrity, concurrency correctness, destructive operations, remote execution, execution authority, immutable authority/persistence, replay protection, dangerous workspace/Git mutation, data-loss risk, autonomous execution boundaries | GPT-5.6 Luna xHigh primary, with Terra Medium/High and/or Opus Medium/High assurance as risk requires |
+
+### Tier 3 dynamic routing rule
+
+Tier 3 has no fixed default model. Sol selects between Claude Sonnet 5 High and GPT-5.6 Luna xHigh
+for each Tier 3 work item based on: architecture sensitivity; cross-cutting scope; persistence/state
+complexity; concurrency sensitivity; integration complexity; regression blast radius; provider
+quota state (§4–§5); and expected model capability for the specific task.
+
+Sonnet High is favored for: difficult but bounded debugging; substantial bounded multi-file
+implementation; a larger isolated feature; a non-trivial regression with contained architecture
+impact.
+
+Luna xHigh is favored for: architecture-sensitive behavior; complex persistence/state; difficult
+multi-module integration; concurrency-sensitive changes; large regression blast radius;
+cross-cutting execution semantics.
+
+Neither model is the automatic default for Tier 3 solely because the tier applies; Sol's selection
+must be justified by the criteria above, not by habit. Luna Max remains an exceptional escalation
+beyond Tier 3/4, never a default.
 
 Independent review (Opus) and specialist assurance (Terra) are applied on top of the tier, not in
 place of it, per the criteria in §3.
