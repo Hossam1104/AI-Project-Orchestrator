@@ -3426,3 +3426,182 @@ reported in the final executor completion report and reconciled into PR #18.
 > remains OPEN / DRAFT / UNMERGED. Do not begin APO-45. Do not invoke Claude Opus. If Sol accepts
 > the exact remediated head, Sol may authorize APO-68 merge finalization because this remains
 > Prompt 1/5 of the current cycle.
+
+---
+
+## 40. APO-45 Prompt 2/5 — bounded cancellable execution implementation handoff
+
+APO-68 is COMPLETE / MERGED / DONE at the authorized APO-45 starting baseline. APO-45 is the
+authorized current work item and remains In Progress. GPT-5.6 Luna xHigh implemented the bounded
+single-step runtime on `feat/APO-45-bounded-cancellable-execution`; this handoff awaits GPT-5.6
+Sol exact-head review. No Opus, Sonnet, Terra, Gemini, other model, real provider, provider CLI,
+provider API, credential flow, or WPF application was invoked.
+
+**Exact identity and ancestry:**
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`.
+- Local root: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`.
+- Jira story: `APO-45`; parent Epic: `APO-11`; Sol authorization comment: `12242`.
+- Starting authorized `main`: `5b28ed9ccfa865870441f2eb39132269c57414d8`;
+  tree: `1bcfed8f23c6032c45c3e2bceceeae4e17e4626b`.
+- Branch: `feat/APO-45-bounded-cancellable-execution`.
+- Functional implementation SHA/tree: `127a003bd39cf6709abbed598d793340000142af` /
+  `60157df4b6b8f3bf5e5175bc3be8afb8043fcd0b`.
+- PR `#19` is `OPEN / DRAFT / UNMERGED`, base `main`, exact head branch
+  `feat/APO-45-bounded-cancellable-execution`, title
+  `feat: add bounded cancellable execution runtime APO-45`.
+- The final metadata-only handoff changes only `TASK.md` and this file; its exact resulting local
+  head/tree is reported in the executor completion report and PR #19.
+
+**Implementation evidence:**
+
+- Added `IBoundedExecutionService`/`BoundedExecutionService` for one exact adapter invocation with
+  full project, context, contract, graph/node, handoff, routing, agent, workspace, and recovery
+  checkpoint authority preflight.
+- Added schema-v1 immutable create-once `ExecutionRunAuthority` with exact references, stable
+  selected agent/provider/model/connection/adapter identity, budgets, workspace receipt hash, input
+  checkpoint reference, bounded canonical content hash, and no prompt/source/output/credential
+  fields.
+- Added provider-independent adapter descriptor/request/result/resolver. Resolver returns
+  Unsupported for zero, Resolved for exactly one, and ConfigurationConflict for multiple exact
+  matches. Production DI registers no concrete adapter, so real execution remains fail closed.
+- Added Infrastructure `BoundedProcessHost` with `UseShellExecute=false`, structured arguments,
+  explicit working directory, cancellation/timeout, kill-tree best effort, bounded output drains,
+  truncation flags, termination confirmation, and ordinary environment allowlisting with secret
+  filtering. No arbitrary shell surface or planning-command execution was added.
+- Added lifecycle persistence through existing `ExecutionRun` and `IRecoveryCheckpointService`:
+  Planned, pre/in-flight Waiting inspection checkpoint, Running, one terminal result, terminal
+  checkpoint, and RunValidation after success. Cancellation, timeout, adapter failure, budget
+  overrun, crash-window persistence failures, replay, and ProjectBusy are typed and non-retrying.
+
+**Validation at functional head and after metadata preparation:**
+
+- `dotnet restore AIUsageMonitor.sln`: SUCCESS; all projects up to date.
+- `dotnet build AIUsageMonitor.sln --no-restore`: SUCCESS; 0 warnings; 0 errors.
+- Full suite: `874/874` passed; 0 failed; 0 skipped. Totals: Domain 28; Connection 193;
+  Provider 46; Desktop 82; Infrastructure 525.
+- Focused execution/authority/adapter/process set: `68/68`.
+- Focused recovery-checkpoint compatibility set: `49/49`.
+- Focused workspace/APO-68 compatibility set: `151/151`.
+- Focused planning/routing set: `50/50`.
+- `GitHub CI = NONE / NOT CLAIMED`; no status, check run, or workflow run was reported for the
+  feature head.
+- `JsonFileStore.CurrentSchemaVersion = 1`; existing planning, handoff, workspace, approval, and
+  recovery schemas remain V1; `ExecutionRunAuthoritySchema.CurrentVersion = 1`.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`.
+
+**Limitations and boundary:**
+
+No verified production vendor adapter exists in the repository, so no real provider/model
+invocation occurred. APO-48 validation, APO-49 approval, review, acceptance, remote Git/Jira
+delivery, Mission Control, background workers, autonomous loops, automatic remediation, prompt or
+conversation collection, and new provider work remain out of scope. Jira was not transitioned and
+no downstream Jira story was changed. PR #19 must remain Draft and unmerged pending Sol review.
+
+**Next planner boundary:**
+
+> APO-45 Prompt 2/5 implementation complete and awaiting GPT-5.6 Sol exact-head review. PR remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-48, APO-49, remote delivery, Mission Control, or another runtime Story. If Sol finds blocking issues, remediate as Prompt 2/5R. If Sol accepts the exact head, Sol may authorize APO-45 merge finalization.
+
+---
+
+## 41. APO-45 Prompt 2/5R - SOL-45-01..04 bounded execution safety remediation
+
+This is the factual remediation handoff for APO-45 Prompt 2/5R under APO-11. Sol changes-required
+review authority is comment `12246`. The prior implementation handoff above remains historical;
+this entry records the remediation and awaits GPT-5.6 Sol exact-head re-review. APO-45 remains
+`In Progress`; PR #19 remains `OPEN / DRAFT / UNMERGED`. No Claude Opus, Claude Sonnet, Terra,
+Gemini, other model, real provider, provider CLI/API, credential flow, or WPF application was
+invoked.
+
+**Exact identity and ancestry:**
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`.
+- Local root: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`.
+- Branch: `feat/APO-45-bounded-cancellable-execution`.
+- Authorized main SHA/tree: `5b28ed9ccfa865870441f2eb39132269c57414d8` /
+  `1bcfed8f23c6032c45c3e2bceceeae4e17e4626b`.
+- Prior Sol-reviewed head/tree: `404e2f4cdbe73f7b59d72d2ccd03f9b7137ddfa7` /
+  `96a52af9b7ed43f194fcecb032bcaf610c0865ff`.
+- Remediation functional SHA/tree: `3b5d5aebb206f6a2360cd200c4c1e1a057b04e1c` /
+  `fc706269eb09c986fc578c733aefd4598b19cbd6`.
+- PR #19 title is `feat: add bounded cancellable execution runtime APO-45`; base is `main` and
+  head is this branch. It remains open, draft, and unmerged.
+- The next commit is metadata-only and changes only `TASK.md` and `.ai/CURRENT_STATE.md`; its
+  exact final head/tree are reported in the executor completion report and PR #19.
+
+**SOL-45-01 residual execution:**
+
+- Added typed `ExecutionAdapterOutcome.TerminationUnconfirmed` and
+  `BoundedExecutionStatus.ResidualExecutionActive`.
+- A cancellation/timeout that outlives the bounded adapter drain returns boundedly with
+  termination unconfirmed, preserves a project-scoped residual task guard beyond the ordinary
+  operation lock, maps to failed history and an Interrupted recovery checkpoint with
+  `ResolveBlocker`, and truthfully states possible workspace modification and required inspection.
+- The residual continuation only observes actual adapter task completion and clears the guard. It
+  never retries, launches work, mutates Git/Jira, or writes success. A later explicit request may
+  proceed only after the residual task has ended; no automatic continuation is introduced.
+- Deterministic tests cover timeout, caller cancellation, same-project second RunId blocking,
+  guard clearing only after explicit adapter completion, and fake TerminationUnconfirmed mapping.
+
+**SOL-45-02 routing snapshot drift:**
+
+- Before adapter resolution, the selected `RoutingAgentSnapshot` is compared with the current
+  effective agent for ProjectId, AgentId, display identity, provider, model identifier,
+  RegistryUpdatedAt, Enabled, RoleCapabilities, Capabilities, Limitations, ConnectionMode,
+  SupportedConnectionModes, Availability, AuthenticationState, and EntitlementState.
+- Collection comparisons are deterministic under the existing normalization rules. Any drift fails
+  closed as `AgentMismatch`; there is no reroute, transport switch, model switch, or routing update.
+- Regression coverage includes connection-mode, supported-mode, enabled, availability,
+  authentication, entitlement, executor-role removal, role-capability, capability, limitation,
+  and registry-timestamp drift. Each case proves adapter invocation count zero.
+
+**SOL-45-03 evidence integrity:**
+
+- Execution-run evidence now uses stable `RunId` identity, the authority-bound
+  `execution-run:<project>/<run>/<authority-hash>` reference, and the authority content hash.
+- Existing exact evidence is preserved, same-id conflicting evidence fails closed, and pre-run and
+  terminal checkpoints carry one evidence reference rather than generating duplicates.
+- Capacity is preflighted before authority persistence, history, or adapter invocation. Tests prove
+  63 input references produce exactly 64 in both checkpoints with one run evidence, 64 unrelated
+  references fail without durable run state, and conflicting stable evidence fails closed.
+
+**SOL-45-04 typed control and failure semantics:**
+
+- Already-cancelled and preflight-cancelled calls return typed `Cancelled` with invocation count
+  zero and no durable state.
+- Cancellation after durable authority and pre-run preparation uses bounded independent
+  finalization, preserves the authority, records conservative cancellation, and replays as
+  `AlreadyStarted` without invoking the adapter.
+- Synchronous adapter throws are caught at the method-call boundary, mapped to typed adapter
+  unavailability, sanitized, checkpointed as failed, and counted as one invocation. Actual
+  invocation-start truth is carried through all changed paths.
+
+**Validation at remediation functional head and before metadata handoff:**
+
+- Restore: SUCCESS; all projects up to date.
+- Build: SUCCESS; 0 warnings; 0 errors.
+- Full tests: `896/896` passed; 0 failed; 0 skipped. Suite totals: Domain 28; Connection 193;
+  Provider 46; Desktop 82; Infrastructure 547.
+- Focused totals: BoundedExecutionService 61/61; ExecutionAdapter 10/10; BoundedProcessHost
+  9/9; ExecutionRunAuthorityPersistence 10/10; RecoveryCheckpoint compatibility 49/49;
+  workspace/APO-68 compatibility 16/16; planning/routing compatibility 68/68; combined 223/223.
+- `git diff --check`: clean. Changed-line secret review found no credentials, tokens, raw provider
+  payloads, generated artifacts, or temporary test files.
+- `GitHub CI = NONE / NOT CLAIMED`; no CI was created or claimed.
+- `JsonFileStore.CurrentSchemaVersion = 1`; existing V1 schemas remain V1 and
+  `ExecutionRunAuthoritySchema.CurrentVersion = 1`.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`. No orphan adapter/process-host test
+  process remains.
+
+**Scope preserved:**
+
+The immutable run authority, create-once replay safety, exact project/context/contract/graph/node/
+handoff/routing/agent/workspace/checkpoint validation, APO-68 workspace verification, one-adapter
+call maximum, no automatic retry, no model/transport switching, bounded process host,
+TerminationFailure, zero production vendor adapters, RunValidation success boundary, and no
+acceptance claim remain unchanged. APO-48, APO-49, remote delivery, Mission Control, background
+workers, autonomous loops, provider work, and Jira transitions remain out of scope.
+
+**Next planner boundary:**
+
+> APO-45 Prompt 2/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #19 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-48, APO-49, remote delivery, Mission Control, or another runtime Story. If Sol accepts this exact remediated head, Sol may authorize APO-45 merge finalization.

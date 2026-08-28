@@ -80,6 +80,8 @@ public enum RecoveryCheckpointCreationStatus
     PredecessorInvalid,
     InvalidLineage,
     RedactionRejected,
+    EvidenceCapacityExceeded,
+    EvidenceConflict,
     CheckpointConflict,
     HeadConflict,
     HeadPublicationFailed,

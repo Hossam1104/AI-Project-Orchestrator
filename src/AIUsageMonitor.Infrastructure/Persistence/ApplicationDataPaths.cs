@@ -236,6 +236,19 @@ public sealed class ApplicationDataPaths
 
     public string GetProjectRunsDirectory(Guid projectId) => GetProjectPaths(projectId).RunsDirectory;
 
+    /// <summary>Immutable create-once authorities for one bounded execution run.</summary>
+    public string GetProjectExecutionRunAuthoritiesDirectory(Guid projectId) =>
+        Path.Combine(GetProjectRunsDirectory(projectId), "authorities");
+
+    public string GetExecutionRunAuthorityDirectory(Guid projectId, Guid runId)
+    {
+        ValidateGuid(runId, nameof(runId));
+        return Path.Combine(GetProjectExecutionRunAuthoritiesDirectory(projectId), runId.ToString("D"));
+    }
+
+    public string GetExecutionRunAuthorityFile(Guid projectId, Guid runId) =>
+        Path.Combine(GetExecutionRunAuthorityDirectory(projectId, runId), "authority.json");
+
     public string GetProjectEvidenceDirectory(Guid projectId) => GetProjectPaths(projectId).EvidenceDirectory;
 
     public string GetProjectReviewsDirectory(Guid projectId) => GetProjectPaths(projectId).ReviewsDirectory;
@@ -308,6 +321,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.RecoveryCheckpointsDirectory);
         Directory.CreateDirectory(projectPaths.RoutingDecisionsDirectory);
         Directory.CreateDirectory(projectPaths.RunsDirectory);
+        Directory.CreateDirectory(GetProjectExecutionRunAuthoritiesDirectory(projectId));
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
         Directory.CreateDirectory(projectPaths.ActivityDirectory);
