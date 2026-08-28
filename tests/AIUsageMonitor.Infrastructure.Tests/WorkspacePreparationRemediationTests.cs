@@ -495,13 +495,22 @@ public sealed class WorkspacePreparationRemediationTests
         public Task<WorkspacePreparationApprovalEvidenceReadResult> GetForPlanAsync(Guid projectId, Guid workspaceId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult<WorkspacePreparationApprovalEvidenceReadResult>(Evidence is not null && Evidence.ProjectId == projectId && Evidence.WorkspaceId == workspaceId && Evidence.PlanReference.PlanId == planId ? new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Valid, Evidence) : new WorkspacePreparationApprovalEvidenceReadResult(PlanReadState));
     }
 
-    private sealed class ScriptedRepository(WorkspacePreparationPlan plan) : IWorkspaceRepository
+    private sealed class ScriptedRepository(WorkspacePreparationPlan plan) : IWorkspaceRepository, IWorkspacePreparedWorkspaceVerifier
     {
         public WorkspaceRepositoryDiscovery Current { get; set; } = plan.Repository;
         public WorkspaceRepositoryDiscovery PostMutation { get; set; } = WithSource(plan.Repository, worktree: new WorkspaceWorktreeEvidence(plan.ProposedWorkspacePath, plan.BaseCommitSha, plan.WorkspaceBranch, false, false, false));
         public int MutationCount { get; private set; }
         public bool ApprovalWasPersistedBeforeMutation { get; private set; }
         public Task<WorkspaceRepositoryDiscovery> DiscoverAsync(string registeredPath, CancellationToken cancellationToken = default) => Task.FromResult(Current);
+        public Task<WorkspacePreparedWorkspaceVerification> VerifyPreparedWorkspaceAsync(string workspacePath, CancellationToken cancellationToken = default)
+        {
+            var worktree = Current.Worktrees.FirstOrDefault(value => WorkspacePreparationPlanningService.SamePath(value.Path, workspacePath));
+            return Task.FromResult(worktree is null
+                ? new WorkspacePreparedWorkspaceVerification(WorkspacePreparedWorkspaceVerificationStatus.WorkspaceMissing, workspacePath)
+                : new WorkspacePreparedWorkspaceVerification(WorkspacePreparedWorkspaceVerificationStatus.Verified, workspacePath, true, workspacePath,
+                    Current.CommonDirectory, worktree.HeadCommitSha, worktree.BranchName, worktree.IsDetached,
+                    Current.IsClean, Current.ChangedFileCount, Current.WorkingTreeStateFingerprint));
+        }
         public Task<WorkspaceRepositoryMutationResult> AddExactWorktreeAsync(string commonDirectory, string workspaceBranch, string managedWorkspacePath, string exactBaseCommitSha, CancellationToken cancellationToken = default)
         {
             MutationCount++;

@@ -397,7 +397,7 @@ public sealed class WorkspacePreparationAcceptanceTests : IDisposable
         File.Delete(indexDirectory);
         var retry = await repository.CreateAsync(evidence);
 
-        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.ApprovalEvidenceConflict, retry.Status);
+        Assert.Equal(WorkspacePreparationApprovalEvidenceWriteStatus.Created, retry.Status);
         Assert.Equal(originalEvidenceBytes, await File.ReadAllTextAsync(evidencePath));
         var indexed = await repository.GetForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.PlanId);
         Assert.True(indexed.IsValid);
@@ -1029,12 +1029,21 @@ public sealed class WorkspacePreparationAcceptanceTests : IDisposable
                 : new WorkspacePreparationApprovalEvidenceReadResult(WorkspacePreparationApprovalEvidenceReadState.Missing));
     }
 
-    private sealed class InstrumentedPreparationRepository(WorkspacePreparationPlan plan, MutationProbe? probe = null) : IWorkspaceRepository
+    private sealed class InstrumentedPreparationRepository(WorkspacePreparationPlan plan, MutationProbe? probe = null) : IWorkspaceRepository, IWorkspacePreparedWorkspaceVerifier
     {
         private bool _mutated;
         public int MutationCount { get; private set; }
         public Task<WorkspaceRepositoryDiscovery> DiscoverAsync(string registeredPath, CancellationToken cancellationToken = default) =>
             Task.FromResult(_mutated ? WithWorktree(plan.Repository, plan) : plan.Repository);
+        public Task<WorkspacePreparedWorkspaceVerification> VerifyPreparedWorkspaceAsync(string workspacePath, CancellationToken cancellationToken = default)
+        {
+            if (!_mutated)
+                return Task.FromResult(new WorkspacePreparedWorkspaceVerification(WorkspacePreparedWorkspaceVerificationStatus.WorkspaceMissing, workspacePath));
+
+            return Task.FromResult(new WorkspacePreparedWorkspaceVerification(WorkspacePreparedWorkspaceVerificationStatus.Verified, workspacePath, true, workspacePath,
+                plan.Repository.CommonDirectory, plan.BaseCommitSha, plan.WorkspaceBranch, false, true, 0,
+                WorkspacePreparationIntegrity.ComputeWorkingTreeStateFingerprint(string.Empty)));
+        }
         public async Task<WorkspaceRepositoryMutationResult> AddExactWorktreeAsync(string commonDirectory, string workspaceBranch, string managedWorkspacePath,
             string exactBaseCommitSha, CancellationToken cancellationToken = default)
         {
@@ -1051,10 +1060,12 @@ public sealed class WorkspacePreparationAcceptanceTests : IDisposable
                 source.LocalBranches, workingTreeStateFingerprint: source.WorkingTreeStateFingerprint, divergence: source.Divergence);
     }
 
-    private sealed class InstrumentedPlanningRepository(WorkspaceRepositoryDiscovery discovery) : IWorkspaceRepository, IWorkspaceBranchSafety
+    private sealed class InstrumentedPlanningRepository(WorkspaceRepositoryDiscovery discovery) : IWorkspaceRepository, IWorkspaceBranchSafety, IWorkspacePreparedWorkspaceVerifier
     {
         public int MutationCount { get; private set; }
         public Task<WorkspaceRepositoryDiscovery> DiscoverAsync(string registeredPath, CancellationToken cancellationToken = default) => Task.FromResult(discovery);
+        public Task<WorkspacePreparedWorkspaceVerification> VerifyPreparedWorkspaceAsync(string workspacePath, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new WorkspacePreparedWorkspaceVerification(WorkspacePreparedWorkspaceVerificationStatus.WorkspaceMissing, workspacePath));
         public Task<WorkspaceRepositoryMutationResult> AddExactWorktreeAsync(string commonDirectory, string workspaceBranch, string managedWorkspacePath,
             string exactBaseCommitSha, CancellationToken cancellationToken = default) { MutationCount++; return Task.FromResult(new WorkspaceRepositoryMutationResult(false)); }
         public Task<WorkspaceBranchValidationResult> ValidateBranchNameAsync(string commonDirectory, string branchName, CancellationToken cancellationToken = default) =>

@@ -34,6 +34,7 @@ public static class WorkspacePreparationLimits
     public const int MaxCorrelationLength = 200;
     public const int MaxWorktrees = 128;
     public const int MaxChangedFiles = 128;
+    public const int MaxApprovalEvidenceCandidates = 128;
     public const int MaxDivergenceReferenceLength = 512;
 }
 
@@ -178,6 +179,37 @@ public sealed record WorkspacePreparationApprovalEvidenceReadResult(
     string? ErrorMessage = null)
 {
     public bool IsValid => State == WorkspacePreparationApprovalEvidenceReadState.Valid && Evidence is not null;
+}
+
+public enum WorkspacePreparedWorkspaceVerificationStatus
+{
+    Verified,
+    WorkspaceMissing,
+    NotGitWorktree,
+    EvidenceOverflow,
+    Unavailable
+}
+
+/// <summary>
+/// Read-only evidence collected from inside a managed workspace. This is intentionally separate
+/// from source-repository discovery: a source worktree registration is not proof that checkout
+/// materialization completed successfully.
+/// </summary>
+public sealed record WorkspacePreparedWorkspaceVerification(
+    WorkspacePreparedWorkspaceVerificationStatus Status,
+    string WorkspacePath,
+    bool IsGitWorktree = false,
+    string? RepositoryRoot = null,
+    string? CommonDirectory = null,
+    string? HeadCommitSha = null,
+    string? BranchName = null,
+    bool IsDetached = false,
+    bool IsClean = false,
+    int ChangedFileCount = 0,
+    string? WorkingTreeStateFingerprint = null,
+    string? ErrorMessage = null)
+{
+    public bool Succeeded => Status == WorkspacePreparedWorkspaceVerificationStatus.Verified;
 }
 
 public sealed class WorkspacePreparationPlanReference
@@ -758,9 +790,46 @@ public interface IWorkspacePreparationApprovalEvidenceRepository
         Guid workspaceId,
         Guid planId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Recovery lookup that falls back to a bounded exact-reference search only when the
+    /// deterministic plan index is missing. It never chooses a latest approval.
+    /// </summary>
+    Task<WorkspacePreparationApprovalEvidenceReadResult> FindForPlanAsync(
+        Guid projectId,
+        Guid workspaceId,
+        WorkspacePreparationPlanReference planReference,
+        CancellationToken cancellationToken = default) =>
+        GetForPlanAsync(projectId, workspaceId, planReference.PlanId, cancellationToken);
+
+    Task<WorkspacePreparationApprovalEvidenceIndexWriteResult> EnsurePlanIndexAsync(
+        WorkspacePreparationApprovalEvidence evidence,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new WorkspacePreparationApprovalEvidenceIndexWriteResult(
+            WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists));
 }
 
-public sealed record WorkspaceRepositoryMutationResult(bool Succeeded, bool CommandFailed = false, string? ErrorMessage = null);
+public enum WorkspacePreparationApprovalEvidenceIndexWriteStatus
+{
+    Created,
+    AlreadyExists,
+    Conflict,
+    Unavailable
+}
+
+public sealed record WorkspacePreparationApprovalEvidenceIndexWriteResult(
+    WorkspacePreparationApprovalEvidenceIndexWriteStatus Status,
+    string? ErrorMessage = null)
+{
+    public bool Succeeded => Status is WorkspacePreparationApprovalEvidenceIndexWriteStatus.Created or
+        WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists;
+}
+
+public sealed record WorkspaceRepositoryMutationResult(
+    bool Succeeded,
+    bool CommandFailed = false,
+    string? ErrorMessage = null,
+    bool TimedOut = false);
 
 public interface IWorkspaceRepository
 {
@@ -772,6 +841,14 @@ public interface IWorkspaceRepository
         string workspaceBranch,
         string managedWorkspacePath,
         string exactBaseCommitSha,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Dedicated read-only verification of checkout state from the managed workspace.</summary>
+public interface IWorkspacePreparedWorkspaceVerifier
+{
+    Task<WorkspacePreparedWorkspaceVerification> VerifyPreparedWorkspaceAsync(
+        string workspacePath,
         CancellationToken cancellationToken = default);
 }
 
@@ -1229,7 +1306,7 @@ public sealed class WorkspacePreparationPlanningService : IWorkspacePreparationP
             SamePath(receipt.WorkspacePath, managedWorkspacePath) &&
             string.Equals(receipt.WorkspaceBranch, plan.WorkspaceBranch, StringComparison.Ordinal) &&
             string.Equals(receipt.BaseCommitSha, plan.BaseCommitSha, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(receipt.RepositoryIdentity, plan.Repository.CommonDirectory, StringComparison.OrdinalIgnoreCase) &&
+            SamePath(receipt.RepositoryIdentity, plan.Repository.CommonDirectory) &&
             receipt.CleanupOwner == WorkspaceCleanupOwner.APO &&
             receipt.CleanupPolicy == WorkspaceCleanupPolicy.ExplicitActionRequired &&
             !receipt.AutomaticCleanupAllowed &&
@@ -1261,11 +1338,44 @@ public sealed class WorkspacePreparationPlanningService : IWorkspacePreparationP
         return exact;
     }
 
-    internal static bool SamePath(string? left, string? right)
+    internal static bool SamePath(string? left, string? right) =>
+        left is not null && right is not null && WorkspaceRepositoryIdentity.AreEqual(left, right);
+}
+
+/// <summary>
+/// Canonical repository identity used by both authority comparisons and cross-process locking.
+/// The normalization deliberately follows the active path comparison model without resolving
+/// NTFS junctions or other reparse aliases.
+/// </summary>
+public static class WorkspaceRepositoryIdentity
+{
+    public static string Normalize(string value)
     {
-        if (left is null || right is null) return false;
-        static string Normalize(string value) => Path.GetFullPath(value.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return string.Equals(Normalize(left), Normalize(right), StringComparison.OrdinalIgnoreCase);
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        var separatorsNormalized = value.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        var fullPath = Path.GetFullPath(separatorsNormalized);
+        var root = Path.GetPathRoot(fullPath);
+        var minimumLength = root?.Length ?? 0;
+        var end = fullPath.Length;
+        while (end > minimumLength && (fullPath[end - 1] == Path.DirectorySeparatorChar || fullPath[end - 1] == Path.AltDirectorySeparatorChar))
+        {
+            end--;
+        }
+
+        var trimmed = fullPath[..end];
+        return OperatingSystem.IsWindows() ? trimmed.ToUpperInvariant() : trimmed;
+    }
+
+    public static bool AreEqual(string left, string right)
+    {
+        try
+        {
+            return string.Equals(Normalize(left), Normalize(right), StringComparison.Ordinal);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
     }
 }
 
@@ -1348,6 +1458,11 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
                 return new(WorkspacePreparationStatus.RepositoryUnavailable, ErrorMessage: current.ErrorMessage ?? "Repository evidence is unavailable.");
             if (!SourceStateMatchesPlan(plan, current, out var sourceError))
                 return new(WorkspacePreparationStatus.PlanStale, ErrorMessage: sourceError);
+
+            var localVerification = await VerifyPreparedWorkspaceAsync(plan, cancellationToken).ConfigureAwait(false);
+            if (!MatchesPreparedWorkspace(plan, localVerification, out var localVerificationError))
+                return new(WorkspacePreparationStatus.VerificationFailed, ErrorMessage: localVerificationError);
+
             if (receiptRead.Receipt is not null)
             {
                 var existingEvidence = await ReadApprovalEvidenceForReceiptAsync(plan, receiptRead.Receipt, cancellationToken).ConfigureAwait(false);
@@ -1358,9 +1473,7 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
                 return new(WorkspacePreparationStatus.AlreadyPrepared, receiptRead.Receipt);
             }
 
-            if (!MatchesPreparedWorkspace(plan, current, out var found))
-                return new(WorkspacePreparationStatus.VerificationFailed, ErrorMessage: "The existing worktree does not exactly match the plan.");
-            var newReceipt = CreateReceipt(plan, found!, evidenceResult.evidence!);
+            var newReceipt = CreateReceipt(plan, localVerification, evidenceResult.evidence!);
             var write = await _receipts.CreateAsync(newReceipt, cancellationToken).ConfigureAwait(false);
             return write.Succeeded
                 ? new(WorkspacePreparationStatus.Prepared, newReceipt)
@@ -1383,6 +1496,11 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
             return new(WorkspaceRecoveryState.Unavailable, ErrorMessage: current.ErrorMessage ?? "Repository evidence is unavailable.");
         if (!SourceStateMatchesPlan(plan, current, out var sourceError))
             return new(WorkspaceRecoveryState.Conflict, receiptRead.Receipt, ErrorMessage: sourceError);
+        var localVerification = await VerifyPreparedWorkspaceAsync(plan, cancellationToken).ConfigureAwait(false);
+        var localMatches = MatchesPreparedWorkspace(plan, localVerification, out var localVerificationError);
+        if (receiptRead.Receipt is not null && !localMatches)
+            return new(WorkspaceRecoveryState.Conflict, receiptRead.Receipt,
+                ErrorMessage: localVerificationError ?? "The recorded workspace failed workspace-local verification.");
         WorkspacePreparationApprovalEvidence? approvalEvidence = null;
         if (receiptRead.Receipt?.ApprovalReference is not null && _approvalEvidence is not null)
         {
@@ -1401,7 +1519,7 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
 
         if (_approvalEvidence is not null)
         {
-            var evidenceRead = await _approvalEvidence.GetForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.PlanId, cancellationToken).ConfigureAwait(false);
+            var evidenceRead = await _approvalEvidence.FindForPlanAsync(plan.ProjectId, plan.WorkspaceId, plan.Reference, cancellationToken).ConfigureAwait(false);
             if (evidenceRead.State == WorkspacePreparationApprovalEvidenceReadState.IntegrityFailure)
                 return new(WorkspaceRecoveryState.IntegrityFailure, ErrorMessage: evidenceRead.ErrorMessage ?? "Approval evidence integrity failed.");
             if (evidenceRead.State != WorkspacePreparationApprovalEvidenceReadState.Missing && !evidenceRead.IsValid)
@@ -1410,7 +1528,12 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
         }
 
         var matchesWithoutReceipt = MatchesPreparedWorkspace(plan, current, out _);
-        if (matchesWithoutReceipt && approvalEvidence is not null)
+        var localMatchesWithoutReceipt = localMatches;
+        if (matchesWithoutReceipt && !localMatchesWithoutReceipt)
+            return new(WorkspaceRecoveryState.Conflict, ErrorMessage: localVerificationError ?? "The registered workspace failed local verification.");
+        if (localMatchesWithoutReceipt && !matchesWithoutReceipt)
+            return new(WorkspaceRecoveryState.Conflict, ErrorMessage: "Workspace-local evidence is not corroborated by source worktree registration.");
+        if (matchesWithoutReceipt && localMatchesWithoutReceipt && approvalEvidence is not null)
             return new(WorkspaceRecoveryState.PreparedWithoutReceipt, NextSafeAction: "FinalizeReceipt");
         if (Directory.Exists(path) || File.Exists(path)) return new(WorkspaceRecoveryState.ForeignWorkspace, NextSafeAction: "Owner inspection required.");
         return new(WorkspaceRecoveryState.NotPrepared);
@@ -1452,6 +1575,9 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
 
             if (existingReceipt.Receipt is not null)
             {
+                var existingLocalVerification = await VerifyPreparedWorkspaceAsync(plan, cancellationToken).ConfigureAwait(false);
+                if (!MatchesPreparedWorkspace(plan, existingLocalVerification, out var existingLocalError))
+                    return new(WorkspacePreparationStatus.VerificationFailed, existingReceipt.Receipt, ErrorMessage: existingLocalError);
                 var existingEvidence = await ReadApprovalEvidenceForReceiptAsync(plan, existingReceipt.Receipt, cancellationToken).ConfigureAwait(false);
                 if (_approvalEvidence is not null && existingEvidence is null)
                     return new(WorkspacePreparationStatus.ReceiptConflict, existingReceipt.Receipt, ErrorMessage: "Receipt approval evidence is unavailable or invalid.");
@@ -1489,21 +1615,26 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
             cancellationToken.ThrowIfCancellationRequested();
             var mutation = await _repositories.AddExactWorktreeAsync(plan.Repository.CommonDirectory!, plan.WorkspaceBranch, managedPath, plan.BaseCommitSha, cancellationToken).ConfigureAwait(false);
             if (!mutation.Succeeded) return new(WorkspacePreparationStatus.GitCommandFailed, ErrorMessage: mutation.ErrorMessage ?? "Git worktree creation failed.");
-            // Verification is read-only. No rollback command exists by design if this or receipt write fails.
-            var verified = await _repositories.DiscoverAsync(plan.Repository.RepositoryRoot!, cancellationToken).ConfigureAwait(false);
-            if (!SourceStateMatchesPlan(plan, verified, out var verifiedSourceError))
-                return new(WorkspacePreparationStatus.VerificationFailed, ErrorMessage: $"Git succeeded but source evidence changed: {verifiedSourceError}");
-            if (!MatchesPreparedWorkspace(plan, verified, out var worktree))
-                return new(WorkspacePreparationStatus.VerificationFailed, ErrorMessage: "Git succeeded but the exact workspace evidence could not be verified.");
-            var receipt = CreateReceipt(plan, worktree!, evidence);
+            // Both source registration and workspace-local state are read-only evidence. No rollback
+            // command exists by design if either check or the receipt write fails.
+            var verifiedSource = await _repositories.DiscoverAsync(plan.Repository.RepositoryRoot!, cancellationToken).ConfigureAwait(false);
+            string? verifiedSourceError = null;
+            var verifiedSourceMatches = verifiedSource.Status == WorkspaceRepositoryDiscoveryStatus.Available &&
+                SourceStateMatchesPlan(plan, verifiedSource, out verifiedSourceError);
+            if (!verifiedSourceMatches)
+                return new(WorkspacePreparationStatus.VerificationFailed, ErrorMessage: $"Git succeeded but source evidence changed: {verifiedSourceError ?? "Complete source evidence was unavailable."}");
+            var verifiedWorkspace = await VerifyPreparedWorkspaceAsync(plan, cancellationToken).ConfigureAwait(false);
+            if (!MatchesPreparedWorkspace(plan, verifiedWorkspace, out var verifiedWorkspaceError))
+                return new(WorkspacePreparationStatus.VerificationFailed, ErrorMessage: $"Git succeeded but the managed workspace could not be verified: {verifiedWorkspaceError}");
+            var receipt = CreateReceipt(plan, verifiedWorkspace, evidence);
             var write = await _receipts.CreateAsync(receipt, cancellationToken).ConfigureAwait(false);
             return write.Succeeded ? new(WorkspacePreparationStatus.Prepared, receipt) : new(WorkspacePreparationStatus.ReceiptPersistenceFailed, ErrorMessage: write.ErrorMessage);
         }
     }
 
-    private WorkspacePreparationReceipt CreateReceipt(WorkspacePreparationPlan plan, WorkspaceWorktreeEvidence worktree, WorkspacePreparationApprovalEvidence evidence) =>
-        new(plan.ProjectId, plan.WorkspaceId, plan.CorrelationId, _clock.UtcNow, plan.Reference, worktree.Path, plan.WorkspaceBranch,
-            plan.BaseCommitSha, worktree.HeadCommitSha, plan.Repository.CommonDirectory!, "APO",
+    private WorkspacePreparationReceipt CreateReceipt(WorkspacePreparationPlan plan, WorkspacePreparedWorkspaceVerification workspace, WorkspacePreparationApprovalEvidence evidence) =>
+        new(plan.ProjectId, plan.WorkspaceId, plan.CorrelationId, _clock.UtcNow, plan.Reference, workspace.WorkspacePath, plan.WorkspaceBranch,
+            plan.BaseCommitSha, workspace.HeadCommitSha!, plan.Repository.CommonDirectory!, "APO",
             limitation: plan.Limitations.FirstOrDefault(), cleanupOwner: WorkspaceCleanupOwner.APO,
             cleanupPolicy: WorkspaceCleanupPolicy.ExplicitActionRequired, automaticCleanupAllowed: false,
             approvalReference: new WorkspacePreparationApprovalReference(evidence.ApprovalId,
@@ -1515,6 +1646,52 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
         return discovery.Status == WorkspaceRepositoryDiscoveryStatus.Available && !discovery.WorktreeEvidenceOverflow && !discovery.LocalBranchEvidenceOverflow &&
             worktree is not null && !worktree.IsDetached && string.Equals(worktree.BranchName, plan.WorkspaceBranch, StringComparison.Ordinal) &&
             string.Equals(worktree.HeadCommitSha, plan.BaseCommitSha, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<WorkspacePreparedWorkspaceVerification> VerifyPreparedWorkspaceAsync(
+        WorkspacePreparationPlan plan,
+        CancellationToken cancellationToken)
+    {
+        if (_repositories is not IWorkspacePreparedWorkspaceVerifier verifier)
+        {
+            return new(
+                WorkspacePreparedWorkspaceVerificationStatus.Unavailable,
+                plan.ProposedWorkspacePath,
+                ErrorMessage: "The repository adapter does not provide workspace-local verification.");
+        }
+
+        return await verifier.VerifyPreparedWorkspaceAsync(plan.ProposedWorkspacePath, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool MatchesPreparedWorkspace(
+        WorkspacePreparationPlan plan,
+        WorkspacePreparedWorkspaceVerification verification,
+        out string? errorMessage)
+    {
+        errorMessage = verification.ErrorMessage;
+        if (!verification.Succeeded)
+        {
+            errorMessage ??= "Workspace-local verification did not complete.";
+            return false;
+        }
+
+        var cleanFingerprint = WorkspacePreparationIntegrity.ComputeWorkingTreeStateFingerprint(string.Empty);
+        var exact = verification.IsGitWorktree &&
+            WorkspacePreparationPlanningService.SamePath(verification.WorkspacePath, plan.ProposedWorkspacePath) &&
+            WorkspacePreparationPlanningService.SamePath(verification.RepositoryRoot, plan.ProposedWorkspacePath) &&
+            WorkspacePreparationPlanningService.SamePath(verification.CommonDirectory, plan.Repository.CommonDirectory) &&
+            string.Equals(verification.HeadCommitSha, plan.BaseCommitSha, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(verification.BranchName, plan.WorkspaceBranch, StringComparison.Ordinal) &&
+            !verification.IsDetached &&
+            verification.IsClean &&
+            verification.ChangedFileCount == 0 &&
+            string.Equals(verification.WorkingTreeStateFingerprint, cleanFingerprint, StringComparison.OrdinalIgnoreCase);
+        if (!exact)
+        {
+            errorMessage ??= "Workspace-local root, repository, branch, HEAD, or clean-checkout evidence does not match the exact plan.";
+        }
+
+        return exact;
     }
 
     private static bool SourceStateMatchesPlan(WorkspacePreparationPlan plan, WorkspaceRepositoryDiscovery current, out string? errorMessage)
@@ -1583,9 +1760,10 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
         var existingRead = await _approvalEvidence.GetAsync(plan.ProjectId, plan.WorkspaceId, approval.ApprovalId, cancellationToken).ConfigureAwait(false);
         if (existingRead.IsValid)
         {
-            return SameApprovalEvidence(existingRead.Evidence!, evidence)
-                ? (existingRead.Evidence, null)
-                : (null, new(WorkspacePreparationStatus.ApprovalEvidenceConflict, ErrorMessage: "Approval id is already bound to different evidence."));
+            if (!SameApprovalEvidence(existingRead.Evidence!, evidence))
+                return (null, new(WorkspacePreparationStatus.ApprovalEvidenceConflict, ErrorMessage: "Approval id is already bound to different evidence."));
+
+            return await EnsureApprovalPlanIndexAsync(existingRead.Evidence!, cancellationToken).ConfigureAwait(false);
         }
         if (existingRead.State is not WorkspacePreparationApprovalEvidenceReadState.Missing)
         {
@@ -1598,8 +1776,27 @@ public sealed class WorkspacePreparationService : IWorkspacePreparationService, 
             return (null, new(WorkspacePreparationStatus.ApprovalEvidencePersistenceFailed, ErrorMessage: write.ErrorMessage ?? "Approval evidence could not be durably recorded."));
 
         var existing = await _approvalEvidence.GetAsync(plan.ProjectId, plan.WorkspaceId, approval.ApprovalId, cancellationToken).ConfigureAwait(false);
-        if (existing.IsValid && SameApprovalEvidence(existing.Evidence!, evidence)) return (existing.Evidence, null);
+        if (existing.IsValid && SameApprovalEvidence(existing.Evidence!, evidence))
+            return await EnsureApprovalPlanIndexAsync(existing.Evidence!, cancellationToken).ConfigureAwait(false);
         return (null, new(WorkspacePreparationStatus.ApprovalEvidenceConflict, ErrorMessage: write.ErrorMessage ?? "Approval id is already bound to different evidence."));
+    }
+
+    private async Task<(WorkspacePreparationApprovalEvidence? evidence, WorkspacePreparationResult? result)> EnsureApprovalPlanIndexAsync(
+        WorkspacePreparationApprovalEvidence evidence,
+        CancellationToken cancellationToken)
+    {
+        var index = await _approvalEvidence!.EnsurePlanIndexAsync(evidence, cancellationToken).ConfigureAwait(false);
+        return index.Status switch
+        {
+            WorkspacePreparationApprovalEvidenceIndexWriteStatus.Created or
+            WorkspacePreparationApprovalEvidenceIndexWriteStatus.AlreadyExists => (evidence, null),
+            WorkspacePreparationApprovalEvidenceIndexWriteStatus.Conflict => (null,
+                new(WorkspacePreparationStatus.ApprovalEvidenceConflict,
+                    ErrorMessage: index.ErrorMessage ?? "Approval evidence plan index conflicts with immutable authority.")),
+            _ => (null,
+                new(WorkspacePreparationStatus.ApprovalEvidencePersistenceFailed,
+                    ErrorMessage: index.ErrorMessage ?? "Approval evidence plan index could not be repaired."))
+        };
     }
 
     private static bool SameApprovalEvidence(WorkspacePreparationApprovalEvidence left, WorkspacePreparationApprovalEvidence right) =>
