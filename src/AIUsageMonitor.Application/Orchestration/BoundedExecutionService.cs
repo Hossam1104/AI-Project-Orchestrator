@@ -89,7 +89,10 @@ public enum BoundedExecutionStatus
     AdapterFailed,
     Cancelled,
     TimedOut,
+    ResidualExecutionActive,
     BudgetExceeded,
+    EvidenceCapacityExceeded,
+    EvidenceConflict,
     TerminalCheckpointFailed,
     AuditPersistenceFailed,
     ProjectBusy,
@@ -105,7 +108,7 @@ public sealed record BoundedExecutionResult(
     int AdapterInvocationCount = 0)
 {
     public bool Succeeded => Status == BoundedExecutionStatus.Succeeded;
-    public bool RecoveryRequired => Status == BoundedExecutionStatus.AlreadyStarted;
+    public bool RecoveryRequired => Status is BoundedExecutionStatus.AlreadyStarted or BoundedExecutionStatus.ResidualExecutionActive;
 }
 
 public interface IBoundedExecutionService
@@ -118,6 +121,24 @@ public interface IBoundedExecutionService
 public interface IExecutionBudgetTimeoutProvider
 {
     TimeSpan GetTimeout(ExecutionBudgetEnvelope budgets);
+}
+
+public interface IExecutionInvocationGate
+{
+    /// <summary>Runs immediately before the one permitted adapter method call.</summary>
+    void BeforeAdapterInvocation();
+}
+
+public interface IBoundedExecutionTiming
+{
+    TimeSpan FinalizationTimeout { get; }
+    TimeSpan AdapterCancellationDrainTimeout { get; }
+}
+
+public sealed class DefaultBoundedExecutionTiming : IBoundedExecutionTiming
+{
+    public TimeSpan FinalizationTimeout => TimeSpan.FromSeconds(5);
+    public TimeSpan AdapterCancellationDrainTimeout => TimeSpan.FromSeconds(2);
 }
 
 public static class BoundedExecutionLimits
@@ -143,8 +164,7 @@ public sealed class ExecutionBudgetTimeoutProvider : IExecutionBudgetTimeoutProv
 public sealed class BoundedExecutionService : IBoundedExecutionService
 {
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ProjectLocks = new();
-    private static readonly TimeSpan FinalizationTimeout = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan AdapterCancellationDrainTimeout = TimeSpan.FromSeconds(2);
+    private static readonly ConcurrentDictionary<Guid, ResidualExecution> ResidualExecutions = new();
 
     private readonly IProjectContextResolver _contexts;
     private readonly IPlanningExecutionContractRepository _contracts;
@@ -163,6 +183,8 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
     private readonly IHandoffRedactionService _redaction;
     private readonly IClock _clock;
     private readonly IExecutionBudgetTimeoutProvider _timeoutProvider;
+    private readonly IExecutionInvocationGate _invocationGate;
+    private readonly IBoundedExecutionTiming _timing;
 
     public BoundedExecutionService(
         IProjectContextResolver contexts,
@@ -181,7 +203,9 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         IProjectOrchestrationStore history,
         IHandoffRedactionService redaction,
         IClock clock,
-        IExecutionBudgetTimeoutProvider? timeoutProvider = null)
+        IExecutionBudgetTimeoutProvider? timeoutProvider = null,
+        IExecutionInvocationGate? invocationGate = null,
+        IBoundedExecutionTiming? timing = null)
     {
         _contexts = contexts ?? throw new ArgumentNullException(nameof(contexts));
         _contracts = contracts ?? throw new ArgumentNullException(nameof(contracts));
@@ -200,6 +224,9 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         _redaction = redaction ?? throw new ArgumentNullException(nameof(redaction));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _timeoutProvider = timeoutProvider ?? new ExecutionBudgetTimeoutProvider();
+        _invocationGate = invocationGate ?? NoOpExecutionInvocationGate.Instance;
+        _timing = timing ?? new DefaultBoundedExecutionTiming();
+        ValidateTiming(_timing);
     }
 
     public async Task<BoundedExecutionResult> ExecuteAsync(
@@ -216,7 +243,13 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             return new(BoundedExecutionStatus.InvalidRequest, ErrorMessage: requestError);
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return new(
+                BoundedExecutionStatus.Cancelled,
+                ErrorMessage: "Execution cancellation was requested before durable execution state was created.");
+        }
+
         var gate = ProjectLocks.GetOrAdd(request.ProjectId, static _ => new SemaphoreSlim(1, 1));
         if (!gate.Wait(0))
         {
@@ -225,7 +258,20 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
 
         try
         {
+            if (TryGetActiveResidual(request.ProjectId, out _))
+            {
+                return new(
+                    BoundedExecutionStatus.ProjectBusy,
+                    ErrorMessage: "A prior bounded execution is still active after cancellation or timeout.");
+            }
+
             return await ExecuteUnderProjectLockAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new(
+                BoundedExecutionStatus.Cancelled,
+                ErrorMessage: "Execution cancellation was requested before durable execution state was created.");
         }
         finally
         {
@@ -237,6 +283,15 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         BoundedExecutionRequest request,
         CancellationToken cancellationToken)
     {
+        ExecutionRunAuthority? authority = null;
+        PlanningExecutionContract? contract = null;
+        RecoveryCheckpoint? preRunCheckpoint = null;
+        ExecutionAdapterResult? adapterResult = null;
+        var invocationCount = 0;
+        var authorityPersisted = false;
+
+        try
+        {
         // The immutable authority is the anti-replay boundary. Inspect it before validating a
         // mutable continuation head so a replay remains recoverable even after the first attempt
         // has published a newer terminal checkpoint.
@@ -299,11 +354,12 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
                 : BoundedExecutionStatus.ContractInvalid, contractRead.ErrorMessage);
         }
 
-        var contract = contractRead.Contract;
-        if (contract.ProjectId != request.ProjectId ||
-            !SameContract(contract.Reference, request.PlanningContractReference) ||
-            contract.Context.ProjectContextId != context.ContextId ||
-            contract.Context.ProjectContextContractVersion != context.ContractVersion)
+        var resolvedContract = contractRead.Contract;
+        contract = resolvedContract;
+        if (resolvedContract.ProjectId != request.ProjectId ||
+            !SameContract(resolvedContract.Reference, request.PlanningContractReference) ||
+            resolvedContract.Context.ProjectContextId != context.ContextId ||
+            resolvedContract.Context.ProjectContextContractVersion != context.ContractVersion)
         {
             return Failure(BoundedExecutionStatus.ContractMismatch, "The exact planning contract does not bind to the current project context.");
         }
@@ -392,8 +448,10 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         }
 
         var selectedAgent = agentResolution.Agent;
-        if (selectedAssessment is null || !SameAgentIdentity(selectedAssessment.Candidate.Identity, routing.Recommendation!.SelectedAgentIdentity) ||
-            !SameAgentIdentity(selectedAssessment.Candidate.Identity, selectedAgent) ||
+        if (selectedAssessment is null ||
+            routing.Recommendation is null ||
+            !SameAgentIdentity(selectedAssessment.Candidate.Identity, routing.Recommendation.SelectedAgentIdentity) ||
+            !SameAgentSnapshot(selectedAssessment.Candidate, selectedAgent) ||
             selectedAgent.Id != selectedAgentId)
         {
             return Failure(BoundedExecutionStatus.AgentMismatch, "The effective selected agent does not match the recorded routing identity.");
@@ -534,7 +592,7 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             return Failure(BoundedExecutionStatus.CheckpointNotCurrent, "The current recovery checkpoint does not permit a bounded execution step.");
         }
 
-        if (!ExecutionBudgetEnvelope.TryCreate(contract.ExecutionBudgets, out var budgets, out var budgetError))
+        if (!ExecutionBudgetEnvelope.TryCreate(resolvedContract.ExecutionBudgets, out var budgets, out var budgetError))
         {
             return Failure(BoundedExecutionStatus.BudgetInvalid, budgetError);
         }
@@ -565,7 +623,6 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             return Failure(BoundedExecutionStatus.BudgetInvalid, "The ElapsedMinutes budget exceeds the supported runtime range.");
         }
 
-        ExecutionRunAuthority authority;
         try
         {
             authority = new ExecutionRunAuthority(
@@ -594,6 +651,14 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             return Failure(BoundedExecutionStatus.InvalidRequest, exception.Message);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var evidencePreflight = ValidateExecutionEvidenceCapacity(currentCheckpoint, authority);
+        if (evidencePreflight.Status is not null)
+        {
+            return new(evidencePreflight.Status.Value, ErrorMessage: evidencePreflight.ErrorMessage);
+        }
+
         var authorityWrite = await _authorities.CreateAsync(authority, cancellationToken).ConfigureAwait(false);
         if (!authorityWrite.Succeeded)
         {
@@ -613,13 +678,15 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             return Failure(BoundedExecutionStatus.PersistenceUnavailable, authorityWrite.ErrorMessage ?? "Run-authority persistence is unavailable.");
         }
 
-        var plannedWrite = await AppendRunAsync(authority, contract, ExecutionRunStatus.Planned, null, null, cancellationToken).ConfigureAwait(false);
+        authorityPersisted = true;
+
+        var plannedWrite = await AppendRunAsync(authority, resolvedContract, ExecutionRunStatus.Planned, null, null, cancellationToken).ConfigureAwait(false);
         if (!plannedWrite.Succeeded)
         {
             return new(BoundedExecutionStatus.RunningHistoryFailed, authority, ErrorMessage: plannedWrite.ErrorMessage, AdapterInvocationCount: 0);
         }
 
-        var preRunCheckpoint = await CreateExecutionCheckpointAsync(
+        var preRunCheckpointCreation = await CreateExecutionCheckpointAsync(
                 currentCheckpoint,
                 authority,
                 request,
@@ -628,72 +695,82 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
                 "Bounded execution is prepared; inspect this run authority before any replay.",
                 cancellationToken)
             .ConfigureAwait(false);
-        if (!preRunCheckpoint.Succeeded || preRunCheckpoint.Checkpoint is null)
+        if (!preRunCheckpointCreation.Succeeded || preRunCheckpointCreation.Checkpoint is null)
         {
-            return new(BoundedExecutionStatus.PreRunCheckpointFailed, authority, ErrorMessage: preRunCheckpoint.ErrorMessage, AdapterInvocationCount: 0);
+            return new(MapCheckpointCreationFailure(preRunCheckpointCreation.Status, BoundedExecutionStatus.PreRunCheckpointFailed), authority, ErrorMessage: preRunCheckpointCreation.ErrorMessage, AdapterInvocationCount: 0);
         }
+        preRunCheckpoint = preRunCheckpointCreation.Checkpoint;
 
-        var runningWrite = await AppendRunAsync(authority, contract, ExecutionRunStatus.Running, null, null, cancellationToken).ConfigureAwait(false);
+        var runningWrite = await AppendRunAsync(authority, resolvedContract, ExecutionRunStatus.Running, null, null, cancellationToken).ConfigureAwait(false);
         if (!runningWrite.Succeeded)
         {
             return new(
                 BoundedExecutionStatus.RunningHistoryFailed,
                 authority,
-                TerminalCheckpoint: preRunCheckpoint.Checkpoint,
+                TerminalCheckpoint: preRunCheckpoint,
                 ErrorMessage: runningWrite.ErrorMessage,
                 AdapterInvocationCount: 0);
         }
 
-        var adapterRequest = new ExecutionAdapterRequest(authority, selectedAgent, contract, handoff, receipt, cancellationToken);
-        var invocation = await InvokeAdapterOnceAsync(adapterResolution.Adapter, adapterRequest, budgets, cancellationToken).ConfigureAwait(false);
-        var adapterResult = ApplyReportedBudgetLimits(invocation.Result, budgets);
-        var terminalStatus = MapTerminalStatus(adapterResult.Outcome);
-        var terminalCheckpointStatus = MapCheckpointLifecycle(adapterResult.Outcome);
-        var terminalNextAction = adapterResult.Outcome == ExecutionAdapterOutcome.Succeeded
-            ? RecoveryNextSafeAction.RunValidation
-            : RecoveryNextSafeAction.ResolveBlocker;
-        var explanation = adapterResult.Outcome == ExecutionAdapterOutcome.Succeeded
-            ? "Bounded execution step completed; independent validation/evidence is required."
-            : "Bounded execution stopped; inspect recovery evidence before another execution attempt.";
+        _invocationGate.BeforeAdapterInvocation();
+        var invocation = cancellationToken.IsCancellationRequested
+            ? new AdapterInvocation(
+                new ExecutionAdapterResult(ExecutionAdapterOutcome.Cancelled, "Execution cancellation was requested before adapter invocation.", "caller-cancelled"),
+                0,
+                null)
+            : await InvokeAdapterOnceAsync(
+                adapterResolution.Adapter,
+                new ExecutionAdapterRequest(authority, selectedAgent, resolvedContract, handoff, receipt, cancellationToken),
+                budgets,
+                cancellationToken)
+                .ConfigureAwait(false);
+        invocationCount = invocation.InvocationCount;
+        if (invocation.ResidualTask is not null)
+        {
+            RegisterResidualExecution(request.ProjectId, invocation.ResidualTask);
+        }
 
-        using var finalizationCts = new CancellationTokenSource(FinalizationTimeout);
-        var terminalCheckpoint = await CreateExecutionCheckpointAsync(
-                preRunCheckpoint.Checkpoint,
+        adapterResult = ApplyReportedBudgetLimits(invocation.Result, budgets);
+        return await FinalizeExecutionAsync(
                 authority,
+                resolvedContract,
                 request,
-                terminalCheckpointStatus,
-                terminalNextAction,
-                explanation,
-                finalizationCts.Token,
-                adapterResult.Outcome == ExecutionAdapterOutcome.BudgetExceeded ? adapterResult.StopReason : null)
+                preRunCheckpoint!,
+                adapterResult,
+                invocationCount)
             .ConfigureAwait(false);
-        if (!terminalCheckpoint.Succeeded || terminalCheckpoint.Checkpoint is null)
-        {
-            return new(BoundedExecutionStatus.TerminalCheckpointFailed, authority, adapterResult, ErrorMessage: terminalCheckpoint.ErrorMessage, AdapterInvocationCount: 1);
         }
-
-        var terminalWrite = await AppendRunAsync(
-                authority,
-                contract,
-                terminalStatus,
-                adapterResult.Summary,
-                adapterResult.StopReason,
-                finalizationCts.Token)
-            .ConfigureAwait(false);
-        if (!terminalWrite.Succeeded)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return new(BoundedExecutionStatus.AuditPersistenceFailed, authority, adapterResult, terminalCheckpoint.Checkpoint, terminalWrite.ErrorMessage, 1);
+            if (!authorityPersisted || authority is null)
+            {
+                return new(
+                    BoundedExecutionStatus.Cancelled,
+                    ErrorMessage: "Execution cancellation was requested before durable execution state was created.");
+            }
+
+            if (contract is null || preRunCheckpoint is null)
+            {
+                return new(
+                    BoundedExecutionStatus.Cancelled,
+                    authority,
+                    ErrorMessage: "Execution cancellation was requested before a terminal checkpoint could be prepared.",
+                    AdapterInvocationCount: invocationCount);
+            }
+
+            adapterResult ??= new ExecutionAdapterResult(
+                ExecutionAdapterOutcome.Cancelled,
+                "Execution cancellation was requested before adapter invocation.",
+                "caller-cancelled");
+            return await FinalizeExecutionAsync(
+                    authority,
+                    contract,
+                    request,
+                    preRunCheckpoint,
+                    adapterResult,
+                    invocationCount)
+                .ConfigureAwait(false);
         }
-
-        var serviceStatus = adapterResult.Outcome switch
-        {
-            ExecutionAdapterOutcome.Succeeded => BoundedExecutionStatus.Succeeded,
-            ExecutionAdapterOutcome.Cancelled => BoundedExecutionStatus.Cancelled,
-            ExecutionAdapterOutcome.TimedOut => BoundedExecutionStatus.TimedOut,
-            ExecutionAdapterOutcome.BudgetExceeded => BoundedExecutionStatus.BudgetExceeded,
-            _ => BoundedExecutionStatus.AdapterFailed
-        };
-        return new(serviceStatus, authority, adapterResult, terminalCheckpoint.Checkpoint, AdapterInvocationCount: 1);
     }
 
     private async Task<AdapterInvocation> InvokeAdapterOnceAsync(
@@ -704,14 +781,21 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
     {
         if (callerCancellationToken.IsCancellationRequested)
         {
-            return new(new ExecutionAdapterResult(ExecutionAdapterOutcome.Cancelled, "Execution cancellation was requested before adapter invocation.", "caller-cancelled"), false);
+            return new(
+                new ExecutionAdapterResult(ExecutionAdapterOutcome.Cancelled, "Execution cancellation was requested before adapter invocation.", "caller-cancelled"),
+                0,
+                null);
         }
 
         var timeout = _timeoutProvider.GetTimeout(budgets);
         if (timeout <= TimeSpan.Zero || timeout > BoundedExecutionLimits.MaxExecutionTimeout)
         {
-            return new(new ExecutionAdapterResult(ExecutionAdapterOutcome.InvalidResult, "The elapsed execution budget is outside the supported runtime range.", "invalid-timeout"), false);
+            return new(
+                new ExecutionAdapterResult(ExecutionAdapterOutcome.InvalidResult, "The elapsed execution budget is outside the supported runtime range.", "invalid-timeout"),
+                0,
+                null);
         }
+
         using var timeoutCts = new CancellationTokenSource();
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(callerCancellationToken, timeoutCts.Token);
         var boundedRequest = new ExecutionAdapterRequest(
@@ -721,7 +805,30 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             request.Handoff,
             request.WorkspaceReceipt,
             linkedCts.Token);
-        var adapterTask = adapter.ExecuteAsync(boundedRequest, linkedCts.Token);
+        Task<ExecutionAdapterResult> adapterTask;
+        try
+        {
+            adapterTask = adapter.ExecuteAsync(boundedRequest, linkedCts.Token);
+            if (adapterTask is null)
+            {
+                return new(
+                    new ExecutionAdapterResult(ExecutionAdapterOutcome.InvalidResult, "The adapter returned no task.", "invalid-result", mayHaveModifiedWorkspace: true),
+                    1,
+                    null);
+            }
+        }
+        catch (Exception)
+        {
+            return new(
+                new ExecutionAdapterResult(
+                    ExecutionAdapterOutcome.AdapterUnavailable,
+                    "The adapter failed before returning a terminal result.",
+                    "adapter-exception",
+                    mayHaveModifiedWorkspace: true),
+                1,
+                null);
+        }
+
         var timeoutTask = Task.Delay(timeout);
         var callerSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cancellationRegistration = callerCancellationToken.Register(static state =>
@@ -732,7 +839,10 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             try
             {
                 var result = await adapterTask.ConfigureAwait(false);
-                return new(result ?? new ExecutionAdapterResult(ExecutionAdapterOutcome.InvalidResult, "Adapter returned no result.", "invalid-result"), false);
+                return new(
+                    result ?? new ExecutionAdapterResult(ExecutionAdapterOutcome.InvalidResult, "Adapter returned no result.", "invalid-result", mayHaveModifiedWorkspace: true),
+                    1,
+                    null);
             }
             catch (OperationCanceledException)
             {
@@ -742,17 +852,21 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
                         "The adapter cancelled before returning a terminal result.",
                         callerCancellationToken.IsCancellationRequested ? "caller-cancelled" : "elapsed-timeout",
                         mayHaveModifiedWorkspace: true),
-                    false);
+                    1,
+                    null);
             }
             catch (Exception)
             {
-                return new(new ExecutionAdapterResult(ExecutionAdapterOutcome.AdapterUnavailable, "The adapter failed before returning a terminal result.", "adapter-exception", mayHaveModifiedWorkspace: true), false);
+                return new(
+                    new ExecutionAdapterResult(ExecutionAdapterOutcome.AdapterUnavailable, "The adapter failed before returning a terminal result.", "adapter-exception", mayHaveModifiedWorkspace: true),
+                    1,
+                    null);
             }
         }
 
         var callerCancelled = completed == callerSignal.Task || callerCancellationToken.IsCancellationRequested;
         linkedCts.Cancel();
-        var drained = await Task.WhenAny(adapterTask, Task.Delay(AdapterCancellationDrainTimeout)).ConfigureAwait(false);
+        var drained = await Task.WhenAny(adapterTask, Task.Delay(_timing.AdapterCancellationDrainTimeout)).ConfigureAwait(false);
         if (drained == adapterTask)
         {
             try
@@ -763,23 +877,118 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
             {
                 // The cancellation/timeout classification remains authoritative.
             }
-        }
-        else
-        {
-            _ = adapterTask.ContinueWith(
-                task => _ = task.Exception,
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
+
+            return new(
+                new ExecutionAdapterResult(
+                    callerCancelled ? ExecutionAdapterOutcome.Cancelled : ExecutionAdapterOutcome.TimedOut,
+                    callerCancelled ? "Execution cancellation was requested." : "The ElapsedMinutes budget elapsed.",
+                    callerCancelled ? "caller-cancelled" : "elapsed-timeout",
+                    mayHaveModifiedWorkspace: true),
+                1,
+                null);
         }
 
         return new(
             new ExecutionAdapterResult(
-                callerCancelled ? ExecutionAdapterOutcome.Cancelled : ExecutionAdapterOutcome.TimedOut,
-                callerCancelled ? "Execution cancellation was requested." : "The ElapsedMinutes budget elapsed.",
-                callerCancelled ? "caller-cancelled" : "elapsed-timeout",
-                mayHaveModifiedWorkspace: !drained.Equals(adapterTask)),
-            true);
+                ExecutionAdapterOutcome.TerminationUnconfirmed,
+                callerCancelled
+                    ? "Execution cancellation was requested, but adapter termination was not confirmed within the bounded drain."
+                    : "The ElapsedMinutes budget elapsed, but adapter termination was not confirmed within the bounded drain.",
+                callerCancelled ? "caller-cancelled-termination-unconfirmed" : "elapsed-timeout-termination-unconfirmed",
+                mayHaveModifiedWorkspace: true),
+            1,
+            adapterTask);
+    }
+
+    private async Task<BoundedExecutionResult> FinalizeExecutionAsync(
+        ExecutionRunAuthority authority,
+        PlanningExecutionContract contract,
+        BoundedExecutionRequest request,
+        RecoveryCheckpoint sourceCheckpoint,
+        ExecutionAdapterResult adapterResult,
+        int invocationCount)
+    {
+        var terminalStatus = MapTerminalStatus(adapterResult.Outcome);
+        var terminalCheckpointState = MapCheckpointLifecycle(adapterResult.Outcome);
+        var nextSafeAction = adapterResult.Outcome == ExecutionAdapterOutcome.Succeeded
+            ? RecoveryNextSafeAction.RunValidation
+            : RecoveryNextSafeAction.ResolveBlocker;
+        var explanation = adapterResult.Outcome switch
+        {
+            ExecutionAdapterOutcome.Succeeded => "Bounded execution step completed; independent validation/evidence is required.",
+            ExecutionAdapterOutcome.Cancelled => "Bounded execution was cancelled before the adapter completed; inspect recovery evidence before another execution attempt.",
+            ExecutionAdapterOutcome.TimedOut => "Bounded execution timed out after adapter termination was confirmed; inspect recovery evidence before another execution attempt.",
+            ExecutionAdapterOutcome.TerminationUnconfirmed => "Adapter termination was not confirmed within the bounded cancellation drain; the workspace may still be changing and owner/recovery inspection is required.",
+            _ => "Bounded execution stopped; inspect recovery evidence before another execution attempt."
+        };
+
+        using var finalizationCts = new CancellationTokenSource(_timing.FinalizationTimeout);
+        try
+        {
+            var terminalCheckpoint = await CreateExecutionCheckpointAsync(
+                    sourceCheckpoint,
+                    authority,
+                    request,
+                    terminalCheckpointState,
+                    nextSafeAction,
+                    explanation,
+                    finalizationCts.Token,
+                    adapterResult.Outcome == ExecutionAdapterOutcome.BudgetExceeded ? adapterResult.StopReason : null)
+                .ConfigureAwait(false);
+            if (!terminalCheckpoint.Succeeded || terminalCheckpoint.Checkpoint is null)
+            {
+                return new(
+                    MapCheckpointCreationFailure(terminalCheckpoint.Status, BoundedExecutionStatus.TerminalCheckpointFailed),
+                    authority,
+                    adapterResult,
+                    ErrorMessage: terminalCheckpoint.ErrorMessage,
+                    AdapterInvocationCount: invocationCount);
+            }
+
+            var terminalWrite = await AppendRunAsync(
+                    authority,
+                    contract,
+                    terminalStatus,
+                    adapterResult.Summary,
+                    adapterResult.StopReason,
+                    finalizationCts.Token)
+                .ConfigureAwait(false);
+            if (!terminalWrite.Succeeded)
+            {
+                return new(
+                    BoundedExecutionStatus.AuditPersistenceFailed,
+                    authority,
+                    adapterResult,
+                    terminalCheckpoint.Checkpoint,
+                    terminalWrite.ErrorMessage,
+                    invocationCount);
+            }
+
+            return new(
+                MapServiceStatus(adapterResult.Outcome),
+                authority,
+                adapterResult,
+                terminalCheckpoint.Checkpoint,
+                AdapterInvocationCount: invocationCount);
+        }
+        catch (OperationCanceledException)
+        {
+            return new(
+                BoundedExecutionStatus.TerminalCheckpointFailed,
+                authority,
+                adapterResult,
+                ErrorMessage: "Bounded execution finalization exceeded its independent persistence deadline.",
+                AdapterInvocationCount: invocationCount);
+        }
+        catch (Exception)
+        {
+            return new(
+                BoundedExecutionStatus.TerminalCheckpointFailed,
+                authority,
+                adapterResult,
+                ErrorMessage: "Bounded execution finalization failed before its terminal state became durable.",
+                AdapterInvocationCount: invocationCount);
+        }
     }
 
     private async Task<RecoveryCheckpointCreationResult> CreateExecutionCheckpointAsync(
@@ -793,13 +1002,29 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         string? budgetBlocker = null)
     {
         var evidence = source.EvidenceReferences.ToList();
-        evidence.Add(new RecoveryEvidenceReference(
-            Guid.NewGuid(),
-            RecoveryEvidenceKind.Other,
-            $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}",
-            _clock.UtcNow,
-            RecoveryEvidenceFreshness.PointInTime,
-            contentHash: authority.ContentHash));
+        var executionEvidence = CreateExecutionEvidence(authority);
+        var existingEvidence = evidence.FirstOrDefault(value => value.EvidenceId == executionEvidence.EvidenceId);
+        if (existingEvidence is not null)
+        {
+            if (!SameEvidence(existingEvidence, executionEvidence))
+            {
+                return new(
+                    RecoveryCheckpointCreationStatus.EvidenceConflict,
+                    ErrorMessage: "The stable execution-run evidence identity conflicts with the checkpoint lineage.");
+            }
+        }
+        else
+        {
+            if (evidence.Count >= RecoveryCheckpointLimits.MaxEvidenceReferences)
+            {
+                return new(
+                    RecoveryCheckpointCreationStatus.EvidenceCapacityExceeded,
+                    ErrorMessage: "The recovery checkpoint cannot accommodate the required execution-run evidence reference.");
+            }
+
+            evidence.Add(executionEvidence);
+        }
+
         var roles = source.SelectedAgentRoleReferences.ToList();
         if (!roles.Any(value => value.AgentId == authority.AgentId && value.Role == AgentRole.Executor))
         {
@@ -837,6 +1062,49 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
                 cancellationToken)
             .ConfigureAwait(false);
     }
+
+    private static RecoveryEvidenceReference CreateExecutionEvidence(ExecutionRunAuthority authority) =>
+        new(
+            authority.RunId,
+            RecoveryEvidenceKind.Other,
+            $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}",
+            authority.CreatedAt,
+            RecoveryEvidenceFreshness.PointInTime,
+            contentHash: authority.ContentHash);
+
+    private static EvidencePreflightResult ValidateExecutionEvidenceCapacity(
+        RecoveryCheckpoint source,
+        ExecutionRunAuthority authority)
+    {
+        var expected = CreateExecutionEvidence(authority);
+        var existing = source.EvidenceReferences.FirstOrDefault(value => value.EvidenceId == expected.EvidenceId);
+        if (existing is not null && !SameEvidence(existing, expected))
+        {
+            return new(BoundedExecutionStatus.EvidenceConflict, "The stable execution-run evidence identity conflicts with the current checkpoint.");
+        }
+
+        return existing is null && source.EvidenceReferences.Count >= RecoveryCheckpointLimits.MaxEvidenceReferences
+            ? new(BoundedExecutionStatus.EvidenceCapacityExceeded, "The current recovery checkpoint has no capacity for the required execution-run evidence reference.")
+            : new(null, null);
+    }
+
+    private static bool SameEvidence(RecoveryEvidenceReference left, RecoveryEvidenceReference right) =>
+        left.EvidenceId == right.EvidenceId &&
+        left.Kind == right.Kind &&
+        string.Equals(left.Reference, right.Reference, StringComparison.Ordinal) &&
+        left.ObservedAt == right.ObservedAt &&
+        left.Freshness == right.Freshness &&
+        left.ValidUntil == right.ValidUntil &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static BoundedExecutionStatus MapCheckpointCreationFailure(
+        RecoveryCheckpointCreationStatus status,
+        BoundedExecutionStatus fallback) => status switch
+        {
+            RecoveryCheckpointCreationStatus.EvidenceCapacityExceeded => BoundedExecutionStatus.EvidenceCapacityExceeded,
+            RecoveryCheckpointCreationStatus.EvidenceConflict => BoundedExecutionStatus.EvidenceConflict,
+            _ => fallback
+        };
 
     private async Task<HistoryAppendResult> AppendRunAsync(
         ExecutionRunAuthority authority,
@@ -935,8 +1203,19 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         ExecutionAdapterOutcome.Succeeded => RecoveryCheckpointLifecycleState.Ready,
         ExecutionAdapterOutcome.Cancelled => RecoveryCheckpointLifecycleState.Cancelled,
         ExecutionAdapterOutcome.TimedOut => RecoveryCheckpointLifecycleState.Interrupted,
+        ExecutionAdapterOutcome.TerminationUnconfirmed => RecoveryCheckpointLifecycleState.Interrupted,
         ExecutionAdapterOutcome.BudgetExceeded => RecoveryCheckpointLifecycleState.Blocked,
         _ => RecoveryCheckpointLifecycleState.Failed
+    };
+
+    private static BoundedExecutionStatus MapServiceStatus(ExecutionAdapterOutcome outcome) => outcome switch
+    {
+        ExecutionAdapterOutcome.Succeeded => BoundedExecutionStatus.Succeeded,
+        ExecutionAdapterOutcome.Cancelled => BoundedExecutionStatus.Cancelled,
+        ExecutionAdapterOutcome.TimedOut => BoundedExecutionStatus.TimedOut,
+        ExecutionAdapterOutcome.TerminationUnconfirmed => BoundedExecutionStatus.ResidualExecutionActive,
+        ExecutionAdapterOutcome.BudgetExceeded => BoundedExecutionStatus.BudgetExceeded,
+        _ => BoundedExecutionStatus.AdapterFailed
     };
 
     private static BoundedExecutionStatus? ValidateAgentForBoundedExecution(
@@ -1041,7 +1320,112 @@ public sealed class BoundedExecutionService : IBoundedExecutionService
         string.Equals(identity.Provider, agent.Provider, StringComparison.Ordinal) &&
         string.Equals(identity.ModelIdentifier, agent.ModelIdentifier, StringComparison.Ordinal);
 
+    private static bool SameAgentSnapshot(RoutingAgentSnapshot snapshot, EffectiveAgentDefinition agent) =>
+        snapshot.ProjectId == agent.ProjectId &&
+        snapshot.AgentId == agent.Id &&
+        SameAgentIdentity(snapshot.Identity, agent) &&
+        snapshot.RegistryUpdatedAt == agent.GlobalDefinition.UpdatedAt &&
+        snapshot.Enabled == agent.Enabled &&
+        snapshot.RoleCapabilities.SequenceEqual(agent.RoleCapabilities.OrderBy(static value => value)) &&
+        snapshot.Capabilities.SequenceEqual(NormalizeRoutingTags(agent.Capabilities), StringComparer.Ordinal) &&
+        snapshot.Limitations.SequenceEqual(NormalizeLimitations(agent.Limitations), StringComparer.Ordinal) &&
+        snapshot.ConnectionMode == agent.ConnectionMode &&
+        snapshot.SupportedConnectionModes.SequenceEqual(agent.SupportedConnectionModes.OrderBy(static value => value)) &&
+        snapshot.Availability == agent.Availability &&
+        snapshot.AuthenticationState == agent.AuthenticationState &&
+        snapshot.EntitlementState == agent.EntitlementState;
+
+    private static IReadOnlyList<string> NormalizeRoutingTags(IReadOnlyList<string> values) =>
+        values
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Select(static value => value.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static value => value, StringComparer.Ordinal)
+            .ToArray();
+
+    private static IReadOnlyList<string> NormalizeLimitations(IReadOnlyList<string> values) =>
+        values
+            .Where(static value => !string.IsNullOrWhiteSpace(value))
+            .Select(static value => value.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(static value => value, StringComparer.Ordinal)
+            .ToArray();
+
+    private static void ValidateTiming(IBoundedExecutionTiming timing)
+    {
+        if (timing.FinalizationTimeout <= TimeSpan.Zero || timing.AdapterCancellationDrainTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timing), "Bounded execution timing values must be positive.");
+        }
+
+        var maximum = TimeSpan.FromMinutes(5);
+        if (timing.FinalizationTimeout > maximum || timing.AdapterCancellationDrainTimeout > maximum)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timing), "Bounded execution timing values cannot exceed five minutes.");
+        }
+    }
+
+    private static bool TryGetActiveResidual(Guid projectId, out ResidualExecution? residual)
+    {
+        if (!ResidualExecutions.TryGetValue(projectId, out residual))
+        {
+            return false;
+        }
+
+        if (!residual.AdapterTask.IsCompleted)
+        {
+            return true;
+        }
+
+        ObserveResidualTask(residual.AdapterTask);
+        RemoveResidual(projectId, residual);
+        residual = null;
+        return false;
+    }
+
+    private static void RegisterResidualExecution(Guid projectId, Task adapterTask)
+    {
+        var residual = new ResidualExecution(adapterTask);
+        if (!ResidualExecutions.TryAdd(projectId, residual))
+        {
+            ObserveResidualTask(adapterTask);
+            return;
+        }
+
+        _ = adapterTask.ContinueWith(
+            completedTask =>
+            {
+                ObserveResidualTask(completedTask);
+                RemoveResidual(projectId, residual);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private static void RemoveResidual(Guid projectId, ResidualExecution residual) =>
+        ((ICollection<KeyValuePair<Guid, ResidualExecution>>)ResidualExecutions)
+            .Remove(new KeyValuePair<Guid, ResidualExecution>(projectId, residual));
+
+    private static void ObserveResidualTask(Task task)
+    {
+        _ = task.Exception;
+    }
+
     private sealed record HistoryAppendResult(bool Succeeded, string? ErrorMessage = null);
 
-    private sealed record AdapterInvocation(ExecutionAdapterResult Result, bool CancellationOrTimeoutWon);
+    private sealed record AdapterInvocation(ExecutionAdapterResult Result, int InvocationCount, Task? ResidualTask);
+
+    private sealed record EvidencePreflightResult(BoundedExecutionStatus? Status, string? ErrorMessage);
+
+    private sealed record ResidualExecution(Task AdapterTask);
+
+    private sealed class NoOpExecutionInvocationGate : IExecutionInvocationGate
+    {
+        public static NoOpExecutionInvocationGate Instance { get; } = new();
+
+        public void BeforeAdapterInvocation()
+        {
+        }
+    }
 }

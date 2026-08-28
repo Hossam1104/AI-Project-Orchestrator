@@ -533,6 +533,263 @@ public sealed class BoundedExecutionServiceTests
     }
 
     [Fact]
+    public async Task NonCooperativeTimeout_ReturnsResidualOutcomeAndConservativeTerminalState()
+    {
+        using var harness = ExecutionHarness.Create(
+            hangAdapter: true,
+            ignoreCancellation: true,
+            timeoutProvider: new FixedTimeoutProvider(TimeSpan.FromMilliseconds(20)),
+            timing: new TestBoundedExecutionTiming(TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(20)));
+
+        try
+        {
+            var result = await harness.Service.ExecuteAsync(harness.Request).WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(BoundedExecutionStatus.ResidualExecutionActive, result.Status);
+            Assert.Equal(ExecutionAdapterOutcome.TerminationUnconfirmed, result.AdapterResult!.Outcome);
+            Assert.Equal(1, result.AdapterInvocationCount);
+            Assert.Equal(1, harness.Adapter.InvocationCount);
+            Assert.Equal(ExecutionRunStatus.Failed, harness.History.Runs[^1].Status);
+            Assert.DoesNotContain(harness.History.Runs, value => value.Status is ExecutionRunStatus.Completed or ExecutionRunStatus.Cancelled);
+            Assert.Equal(RecoveryCheckpointLifecycleState.Interrupted, result.TerminalCheckpoint!.LifecycleState);
+            Assert.Equal(RecoveryNextSafeAction.ResolveBlocker, result.TerminalCheckpoint.NextSafeAction);
+            Assert.Contains("termination was not confirmed", result.TerminalCheckpoint.Explanation, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            harness.Adapter.Release(new ExecutionAdapterResult(ExecutionAdapterOutcome.Failed, "test release", "test-release"));
+            await harness.Adapter.ActiveTask!.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+    }
+
+    [Fact]
+    public async Task NonCooperativeCallerCancellation_ReturnsResidualOutcomeAndDoesNotClaimCancelled()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var harness = ExecutionHarness.Create(
+            hangAdapter: true,
+            ignoreCancellation: true,
+            timing: new TestBoundedExecutionTiming(TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(20)));
+        var execution = harness.Service.ExecuteAsync(harness.Request, cancellation.Token);
+        await harness.Adapter.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        try
+        {
+            cancellation.Cancel();
+            var result = await execution.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(BoundedExecutionStatus.ResidualExecutionActive, result.Status);
+            Assert.Equal(ExecutionAdapterOutcome.TerminationUnconfirmed, result.AdapterResult!.Outcome);
+            Assert.Equal(1, result.AdapterInvocationCount);
+            Assert.Equal(ExecutionRunStatus.Failed, harness.History.Runs[^1].Status);
+            Assert.DoesNotContain(harness.History.Runs, value => value.Status is ExecutionRunStatus.Completed or ExecutionRunStatus.Cancelled);
+            Assert.Equal(RecoveryCheckpointLifecycleState.Interrupted, result.TerminalCheckpoint!.LifecycleState);
+        }
+        finally
+        {
+            harness.Adapter.Release(new ExecutionAdapterResult(ExecutionAdapterOutcome.Failed, "test release", "test-release"));
+            await harness.Adapter.ActiveTask!.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+    }
+
+    [Fact]
+    public async Task ResidualProjectGuard_BlocksSecondRunAndClearsOnlyAfterAdapterCompletion()
+    {
+        using var harness = ExecutionHarness.Create(
+            hangAdapter: true,
+            ignoreCancellation: true,
+            timeoutProvider: new FixedTimeoutProvider(TimeSpan.FromMilliseconds(20)),
+            timing: new TestBoundedExecutionTiming(TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(20)));
+        var secondRequest = NewRunRequest(harness.Request);
+
+        try
+        {
+            var first = await harness.Service.ExecuteAsync(harness.Request).WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Equal(BoundedExecutionStatus.ResidualExecutionActive, first.Status);
+
+            var blocked = await harness.Service.ExecuteAsync(secondRequest);
+            Assert.Equal(BoundedExecutionStatus.ProjectBusy, blocked.Status);
+            Assert.Equal(1, harness.Adapter.InvocationCount);
+
+            var activeAdapterTask = harness.Adapter.ActiveTask!;
+            harness.Adapter.Release(new ExecutionAdapterResult(ExecutionAdapterOutcome.Failed, "test release", "test-release"));
+            await activeAdapterTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+            var afterCompletion = await harness.Service.ExecuteAsync(secondRequest);
+            Assert.NotEqual(BoundedExecutionStatus.ProjectBusy, afterCompletion.Status);
+            Assert.Equal(1, harness.Adapter.InvocationCount);
+        }
+        finally
+        {
+            harness.Adapter.Release(new ExecutionAdapterResult(ExecutionAdapterOutcome.Failed, "test release", "test-release"));
+            if (harness.Adapter.ActiveTask is { } activeTask)
+            {
+                await activeTask.WaitAsync(TimeSpan.FromSeconds(2));
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TerminationUnconfirmedAdapterResult_UsesResidualTerminalMapping()
+    {
+        using var harness = ExecutionHarness.Create(
+            adapterResult: new ExecutionAdapterResult(
+                ExecutionAdapterOutcome.TerminationUnconfirmed,
+                "termination uncertain",
+                "termination-unconfirmed",
+                mayHaveModifiedWorkspace: true));
+
+        var result = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.ResidualExecutionActive, result.Status);
+        Assert.Equal(1, result.AdapterInvocationCount);
+        Assert.Equal(ExecutionRunStatus.Failed, harness.History.Runs[^1].Status);
+        Assert.Equal(RecoveryCheckpointLifecycleState.Interrupted, result.TerminalCheckpoint!.LifecycleState);
+        Assert.Equal(RecoveryNextSafeAction.ResolveBlocker, result.TerminalCheckpoint.NextSafeAction);
+    }
+
+    [Fact]
+    public async Task AlreadyCancelledToken_ReturnsTypedResultWithoutDurableStateOrInvocation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        using var harness = ExecutionHarness.Create();
+
+        var result = await harness.Service.ExecuteAsync(harness.Request, cancellation.Token);
+
+        Assert.Equal(BoundedExecutionStatus.Cancelled, result.Status);
+        Assert.Equal(0, result.AdapterInvocationCount);
+        Assert.Equal(0, harness.Authorities.Count);
+        Assert.Empty(harness.History.Runs);
+        Assert.Empty(harness.CheckpointService.Created);
+        Assert.Equal(0, harness.Adapter.InvocationCount);
+    }
+
+    [Fact]
+    public async Task CancellationDuringPreflight_ReturnsTypedResultWithoutDurableStateOrInvocation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var harness = ExecutionHarness.Create(onContextResolved: cancellation.Cancel);
+
+        var result = await harness.Service.ExecuteAsync(harness.Request, cancellation.Token);
+
+        Assert.Equal(BoundedExecutionStatus.Cancelled, result.Status);
+        Assert.Equal(0, result.AdapterInvocationCount);
+        Assert.Null(result.Authority);
+        Assert.Equal(0, harness.Authorities.Count);
+        Assert.Empty(harness.History.Runs);
+        Assert.Empty(harness.CheckpointService.Created);
+        Assert.Equal(0, harness.Adapter.InvocationCount);
+    }
+
+    [Fact]
+    public async Task CancellationImmediatelyBeforeAdapter_FinalizesTypedCancellationAndPreservesReplayAuthority()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var harness = ExecutionHarness.Create(invocationGate: new CancellingInvocationGate(cancellation));
+
+        var result = await harness.Service.ExecuteAsync(harness.Request, cancellation.Token);
+        var replay = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.Cancelled, result.Status);
+        Assert.Equal(0, result.AdapterInvocationCount);
+        Assert.NotNull(result.Authority);
+        Assert.Equal(BoundedExecutionStatus.AlreadyStarted, replay.Status);
+        Assert.Equal(0, harness.Adapter.InvocationCount);
+        Assert.DoesNotContain(harness.History.Runs, value => value.Status == ExecutionRunStatus.Completed);
+        Assert.Equal(ExecutionRunStatus.Cancelled, harness.History.Runs[^1].Status);
+        Assert.Equal(RecoveryCheckpointLifecycleState.Cancelled, result.TerminalCheckpoint!.LifecycleState);
+        Assert.Equal(RecoveryNextSafeAction.ResolveBlocker, result.TerminalCheckpoint.NextSafeAction);
+    }
+
+    [Fact]
+    public async Task SynchronousAdapterThrow_IsTypedTerminalFailureWithOneInvocation()
+    {
+        using var harness = ExecutionHarness.Create(throwSynchronously: true);
+
+        var result = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.AdapterFailed, result.Status);
+        Assert.Equal(ExecutionAdapterOutcome.AdapterUnavailable, result.AdapterResult!.Outcome);
+        Assert.Equal(1, result.AdapterInvocationCount);
+        Assert.Equal(1, harness.Adapter.InvocationCount);
+        Assert.Equal(ExecutionRunStatus.Failed, harness.History.Runs[^1].Status);
+        Assert.Equal(RecoveryCheckpointLifecycleState.Failed, result.TerminalCheckpoint!.LifecycleState);
+        Assert.DoesNotContain("sensitive", result.AdapterResult.Summary ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(AgentSnapshotDrift.ConnectionMode)]
+    [InlineData(AgentSnapshotDrift.SupportedConnectionModes)]
+    [InlineData(AgentSnapshotDrift.Enabled)]
+    [InlineData(AgentSnapshotDrift.Availability)]
+    [InlineData(AgentSnapshotDrift.Authentication)]
+    [InlineData(AgentSnapshotDrift.Entitlement)]
+    [InlineData(AgentSnapshotDrift.ExecutorRoleRemoved)]
+    [InlineData(AgentSnapshotDrift.RoleCapabilities)]
+    [InlineData(AgentSnapshotDrift.Capabilities)]
+    [InlineData(AgentSnapshotDrift.Limitations)]
+    [InlineData(AgentSnapshotDrift.RegistryUpdatedAt)]
+    public async Task RoutingSnapshotDrift_FailsClosedBeforeAdapter(AgentSnapshotDrift drift)
+    {
+        using var harness = ExecutionHarness.Create(agentSnapshotDrift: drift);
+
+        var result = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.AgentMismatch, result.Status);
+        Assert.Equal(0, result.AdapterInvocationCount);
+        Assert.Equal(0, harness.Adapter.InvocationCount);
+        Assert.Empty(harness.Authorities.Values);
+        Assert.Empty(harness.History.Runs);
+    }
+
+    [Fact]
+    public async Task SixtyThreeInputEvidenceReferences_StayAtSixtyFourAcrossCheckpointLineage()
+    {
+        using var harness = ExecutionHarness.Create(initialEvidenceCount: 63);
+
+        var result = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.Succeeded, result.Status);
+        Assert.Equal(1, result.AdapterInvocationCount);
+        Assert.Equal(64, harness.CheckpointService.Created[0].EvidenceReferences.Count);
+        Assert.Equal(64, result.TerminalCheckpoint!.EvidenceReferences.Count);
+        Assert.Equal(1, harness.CheckpointService.Created[0].EvidenceReferences.Count(value => value.EvidenceId == harness.Request.RunId));
+        Assert.Equal(1, result.TerminalCheckpoint.EvidenceReferences.Count(value => value.EvidenceId == harness.Request.RunId));
+        Assert.Equal(RecoveryNextSafeAction.RunValidation, result.TerminalCheckpoint.NextSafeAction);
+    }
+
+    [Fact]
+    public async Task SixtyFourUnrelatedEvidenceReferences_FailBeforeAuthorityAndAdapter()
+    {
+        using var harness = ExecutionHarness.Create(initialEvidenceCount: 64);
+
+        var result = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.EvidenceCapacityExceeded, result.Status);
+        Assert.Equal(0, result.AdapterInvocationCount);
+        Assert.Equal(0, harness.Adapter.InvocationCount);
+        Assert.Equal(0, harness.Authorities.Count);
+        Assert.Empty(harness.History.Runs);
+        Assert.Empty(harness.CheckpointService.Created);
+    }
+
+    [Fact]
+    public async Task ConflictingStableRunEvidence_FailsClosedBeforeAuthorityAndAdapter()
+    {
+        using var harness = ExecutionHarness.Create(conflictingRunEvidence: true);
+
+        var result = await harness.Service.ExecuteAsync(harness.Request);
+
+        Assert.Equal(BoundedExecutionStatus.EvidenceConflict, result.Status);
+        Assert.Equal(0, result.AdapterInvocationCount);
+        Assert.Equal(0, harness.Adapter.InvocationCount);
+        Assert.Equal(0, harness.Authorities.Count);
+        Assert.Empty(harness.History.Runs);
+        Assert.Empty(harness.CheckpointService.Created);
+    }
+
+    [Fact]
     public async Task ConcurrentProjectExecution_FailsFastAsProjectBusy()
     {
         using var harness = ExecutionHarness.Create(hangAdapter: true);
@@ -557,6 +814,32 @@ public sealed class BoundedExecutionServiceTests
         Assert.Equal(BoundedExecutionStatus.ProjectBusy, second.Status);
         Assert.Equal(BoundedExecutionStatus.Cancelled, first.Status);
         Assert.Equal(1, harness.Adapter.InvocationCount);
+    }
+
+    private static BoundedExecutionRequest NewRunRequest(BoundedExecutionRequest request) => new(
+        request.ProjectId,
+        Guid.NewGuid(),
+        request.PlanningContractReference,
+        request.WorkGraphReference,
+        request.WorkGraphNodeId,
+        request.HandoffPackageReference,
+        request.RoutingDecisionReference,
+        request.WorkspacePreparationPlanReference,
+        request.CurrentRecoveryCheckpointReference);
+
+    public enum AgentSnapshotDrift
+    {
+        ConnectionMode,
+        SupportedConnectionModes,
+        Enabled,
+        Availability,
+        Authentication,
+        Entitlement,
+        ExecutorRoleRemoved,
+        RoleCapabilities,
+        Capabilities,
+        Limitations,
+        RegistryUpdatedAt
     }
 
     private sealed class ExecutionHarness : IDisposable
@@ -585,7 +868,10 @@ public sealed class BoundedExecutionServiceTests
             FakeCheckpointService checkpointService,
             FakeRunAuthorityRepository authorities,
             FakeHistory history,
-            IExecutionBudgetTimeoutProvider timeoutProvider)
+            IExecutionBudgetTimeoutProvider timeoutProvider,
+            IExecutionInvocationGate? invocationGate,
+            IBoundedExecutionTiming? timing,
+            Action? onContextResolved)
         {
             Project = project;
             Context = context;
@@ -602,9 +888,10 @@ public sealed class BoundedExecutionServiceTests
             Adapter = adapter;
             WorkspaceInspection = workspaceInspection;
             CheckpointService = checkpointService;
+            Authorities = authorities;
             History = history;
             Service = new BoundedExecutionService(
-                new FakeContextResolver(project, resolvedContext),
+                new FakeContextResolver(project, resolvedContext, onContextResolved),
                 new FakeContractRepository(contract),
                 new FakeGraphRepository(graph),
                 new FakeHandoffRepository(handoff),
@@ -620,7 +907,9 @@ public sealed class BoundedExecutionServiceTests
                 history,
                 new HandoffRedactionService(),
                 new FixedClock(Now),
-                timeoutProvider);
+                timeoutProvider,
+                invocationGate,
+                timing);
         }
 
         public Project Project { get; }
@@ -637,6 +926,7 @@ public sealed class BoundedExecutionServiceTests
         public EffectiveAgentDefinition Agent { get; }
         public FakeExecutionAdapter Adapter { get; }
         public FakeCheckpointService CheckpointService { get; }
+        public FakeRunAuthorityRepository Authorities { get; }
         public FakeHistory History { get; }
         public BoundedExecutionService Service { get; }
 
@@ -661,7 +951,16 @@ public sealed class BoundedExecutionServiceTests
             bool agentEnabled = true,
             AgentAvailability? agentAvailability = null,
             AgentAuthenticationState authenticationState = AgentAuthenticationState.NotRequired,
-            AgentEntitlementState entitlementState = AgentEntitlementState.VerifiedAvailable)
+            AgentEntitlementState entitlementState = AgentEntitlementState.VerifiedAvailable,
+            bool ignoreCancellation = false,
+            bool throwSynchronously = false,
+            AgentSnapshotDrift? agentSnapshotDrift = null,
+            int initialEvidenceCount = 0,
+            bool conflictingRunEvidence = false,
+            Guid? requestedRunId = null,
+            IExecutionInvocationGate? invocationGate = null,
+            IBoundedExecutionTiming? timing = null,
+            Action? onContextResolved = null)
         {
             var projectId = Guid.NewGuid();
             var contextId = Guid.NewGuid();
@@ -717,8 +1016,9 @@ public sealed class BoundedExecutionServiceTests
                 authenticationState: authenticationState,
                 entitlementState: entitlementState,
                 modelIdentifier: "TestModel");
-            var agent = new EffectiveAgentDefinition(projectId, definition, null);
-            var routing = CreateRouting(projectId, contract, contextId, agent);
+            var routedAgent = new EffectiveAgentDefinition(projectId, definition, null);
+            var currentAgent = new EffectiveAgentDefinition(projectId, CreateDriftedDefinition(definition, agentSnapshotDrift), null);
+            var routing = CreateRouting(projectId, contract, contextId, routedAgent);
             var handoff = CreateHandoff(projectId, contract, context, graph, node, budgets);
             var baseSha = new string('a', 40);
             var workspacePath = $@"C:\APO-managed\{projectId:D}\{workspaceId:D}";
@@ -760,6 +1060,21 @@ public sealed class BoundedExecutionServiceTests
                 baseSha,
                 @"C:\APO-test",
                 "APO-test-owner");
+            var runId = requestedRunId ?? Guid.NewGuid();
+            var evidence = Enumerable.Range(0, initialEvidenceCount)
+                .Select(index => new RecoveryEvidenceReference(Guid.NewGuid(), RecoveryEvidenceKind.Other, $"fixture:{index}", Now, RecoveryEvidenceFreshness.PointInTime))
+                .ToList();
+            if (conflictingRunEvidence)
+            {
+                evidence.Add(new RecoveryEvidenceReference(
+                    runId,
+                    RecoveryEvidenceKind.Other,
+                    "execution-run:conflicting",
+                    Now,
+                    RecoveryEvidenceFreshness.PointInTime,
+                    contentHash: new string('f', 64)));
+            }
+
             var currentCheckpoint = new RecoveryCheckpoint(
                 projectId,
                 Guid.NewGuid(),
@@ -772,6 +1087,7 @@ public sealed class BoundedExecutionServiceTests
                 node.NodeId,
                 handoff.Reference,
                 selectedAgentRoleReferences: [new RecoveryAgentRoleReference(checkpointExecutorId ?? agentId, AgentRole.Executor, routing.Reference.ToString())],
+                evidenceReferences: evidence,
                 gateSnapshots: checkpointState == RecoveryCheckpointLifecycleState.Ready ? [] : checkpointState == RecoveryCheckpointLifecycleState.ApprovalRequired ? [new RecoveryGateSnapshot(RecoveryGateKind.Approval, RecoveryGateState.Pending)] : [],
                 blockers: checkpointHasBlocker ? [new RecoveryBlocker("test-blocker", RecoveryBlockerKind.Other, "test blocker", ownerActionRequired: true)] : [],
                 nextSafeAction: RecoveryNextSafeAction.ContinueFromCheckpoint,
@@ -785,15 +1101,17 @@ public sealed class BoundedExecutionServiceTests
             var adapter = new FakeExecutionAdapter(
                 new ExecutionAdapterDescriptor("test-adapter", [connectionMode], [PlanningBudgetKind.ToolInvocations, PlanningBudgetKind.ModelTurns]),
                 hangAdapter,
-                adapterResult);
+                adapterResult,
+                ignoreCancellation,
+                throwSynchronously);
             var adapters = noAdapter
                 ? Array.Empty<IExecutionAdapter>()
                 : multipleAdapters
-                    ? new IExecutionAdapter[] { adapter, new FakeExecutionAdapter(adapter.Descriptor, false, null) }
+                    ? new IExecutionAdapter[] { adapter, new FakeExecutionAdapter(adapter.Descriptor, false, null, false, false) }
                     : new IExecutionAdapter[] { adapter };
             var request = new BoundedExecutionRequest(
                 projectId,
-                Guid.NewGuid(),
+                runId,
                 contract.Reference,
                 graph.Reference,
                 node.NodeId,
@@ -814,7 +1132,7 @@ public sealed class BoundedExecutionServiceTests
                 resolvedContext,
                 currentCheckpoint,
                 request,
-                new FakeAgentRegistry(agent),
+                new FakeAgentRegistry(currentAgent),
                 adapter,
                 workspaceInspection,
                 new ExecutionAdapterResolver(adapters),
@@ -823,13 +1141,65 @@ public sealed class BoundedExecutionServiceTests
                 checkpointService,
                 authorities,
                 history,
-                timeoutProvider ?? new FixedTimeoutProvider(TimeSpan.FromSeconds(5)));
+                timeoutProvider ?? new FixedTimeoutProvider(TimeSpan.FromSeconds(5)),
+                invocationGate,
+                timing,
+                onContextResolved);
             return harness;
         }
 
         public FakeWorkspaceInspection WorkspaceInspection { get; }
 
         public void Dispose() { }
+
+        private static AgentDefinition CreateDriftedDefinition(AgentDefinition source, AgentSnapshotDrift? drift)
+        {
+            if (drift is null)
+            {
+                return source;
+            }
+
+            var connectionMode = drift == AgentSnapshotDrift.ConnectionMode ? AgentConnectionMode.Api : source.ConnectionMode;
+            var supportedConnectionModes = drift == AgentSnapshotDrift.ConnectionMode
+                ? new[] { connectionMode }
+                : drift == AgentSnapshotDrift.SupportedConnectionModes
+                ? new[] { source.ConnectionMode, AgentConnectionMode.Api }.Distinct().ToArray()
+                : source.SupportedConnectionModes;
+            var enabled = drift == AgentSnapshotDrift.Enabled ? !source.Enabled : source.Enabled;
+            var availability = drift == AgentSnapshotDrift.Availability ? AgentAvailability.Unavailable : source.Availability;
+            var authentication = drift == AgentSnapshotDrift.Authentication ? AgentAuthenticationState.Authenticated : source.AuthenticationState;
+            var entitlement = drift == AgentSnapshotDrift.Entitlement ? AgentEntitlementState.VerifiedUnavailable : source.EntitlementState;
+            var roles = drift switch
+            {
+                AgentSnapshotDrift.ExecutorRoleRemoved => [AgentRole.Planner],
+                AgentSnapshotDrift.RoleCapabilities => new[] { AgentRole.Executor, AgentRole.Reviewer },
+                _ => source.RoleCapabilities
+            };
+            var capabilities = drift == AgentSnapshotDrift.Capabilities ? ["changed-capability"] : source.Capabilities;
+            var limitations = drift == AgentSnapshotDrift.Limitations ? ["changed-limitation"] : source.Limitations;
+            var updatedAt = drift == AgentSnapshotDrift.RegistryUpdatedAt ? source.UpdatedAt.AddMinutes(1) : source.UpdatedAt;
+
+            return new AgentDefinition(
+                source.Id,
+                source.Name,
+                source.Role,
+                connectionMode,
+                availability,
+                enabled,
+                source.CreatedAt,
+                updatedAt,
+                source.Provider,
+                capabilities,
+                limitations,
+                source.CostAndQuotaMetadata,
+                roles,
+                supportedConnectionModes,
+                authentication,
+                entitlement,
+                source.ModelIdentifier,
+                source.RolePolicyMetadata,
+                source.LastConnectionResult);
+        }
 
         private static PlanningExecutionContract CreateContract(Guid projectId, Guid contextId, Guid agentId, IReadOnlyList<PlanningExecutionBudget>? budgets) => new(
             projectId,
@@ -952,12 +1322,29 @@ public sealed class BoundedExecutionServiceTests
         public TimeSpan GetTimeout(ExecutionBudgetEnvelope budgets) => timeout;
     }
 
-    private sealed class FakeContextResolver(Project project, ProjectContextReference context) : IProjectContextResolver
+    private sealed class TestBoundedExecutionTiming(TimeSpan finalizationTimeout, TimeSpan adapterCancellationDrainTimeout) : IBoundedExecutionTiming
     {
-        public Task<ProjectContextResolution> ResolveAsync(Guid projectId, CancellationToken cancellationToken = default) =>
-            Task.FromResult(projectId == project.Id
-                ? new ProjectContextResolution(ProjectContextResolutionState.Ready, new ProjectContextView(project, context, []))
-                : new ProjectContextResolution(ProjectContextResolutionState.ProjectNotFound));
+        public TimeSpan FinalizationTimeout { get; } = finalizationTimeout;
+        public TimeSpan AdapterCancellationDrainTimeout { get; } = adapterCancellationDrainTimeout;
+    }
+
+    private sealed class CancellingInvocationGate(CancellationTokenSource cancellation) : IExecutionInvocationGate
+    {
+        public void BeforeAdapterInvocation() => cancellation.Cancel();
+    }
+
+    private sealed class FakeContextResolver(Project project, ProjectContextReference context, Action? onResolved) : IProjectContextResolver
+    {
+        public Task<ProjectContextResolution> ResolveAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            if (projectId != project.Id)
+            {
+                return Task.FromResult(new ProjectContextResolution(ProjectContextResolutionState.ProjectNotFound));
+            }
+
+            onResolved?.Invoke();
+            return Task.FromResult(new ProjectContextResolution(ProjectContextResolutionState.Ready, new ProjectContextView(project, context, [])));
+        }
     }
 
     private sealed class FakeContractRepository(PlanningExecutionContract contract) : IPlanningExecutionContractRepository
@@ -1064,6 +1451,9 @@ public sealed class BoundedExecutionServiceTests
     private sealed class FakeRunAuthorityRepository(bool failCreate) : IExecutionRunAuthorityRepository
     {
         private readonly Dictionary<(Guid ProjectId, Guid RunId), ExecutionRunAuthority> _values = new();
+        public IReadOnlyDictionary<(Guid ProjectId, Guid RunId), ExecutionRunAuthority> Values => _values;
+        public int Count => _values.Count;
+
         public Task<ExecutionRunAuthorityRepositoryWriteResult> CreateAsync(ExecutionRunAuthority authority, CancellationToken cancellationToken = default) =>
             Task.FromResult(failCreate
                 ? new ExecutionRunAuthorityRepositoryWriteResult(ExecutionRunAuthorityRepositoryWriteStatus.Unavailable, "forced authority failure")
@@ -1097,7 +1487,9 @@ public sealed class BoundedExecutionServiceTests
     private sealed class FakeExecutionAdapter(
         ExecutionAdapterDescriptor descriptor,
         bool hang,
-        ExecutionAdapterResult? result) : IExecutionAdapter
+        ExecutionAdapterResult? result,
+        bool ignoreCancellation,
+        bool throwSynchronously) : IExecutionAdapter
     {
         private TaskCompletionSource<ExecutionAdapterResult>? _release;
         public ExecutionAdapterDescriptor Descriptor { get; } = descriptor;
@@ -1105,23 +1497,33 @@ public sealed class BoundedExecutionServiceTests
         public ExecutionAdapterRequest? LastRequest { get; private set; }
         public TaskCompletionSource<bool> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool CancellationObserved { get; private set; }
+        public Task<ExecutionAdapterResult>? ActiveTask => _release?.Task;
 
         public Task<ExecutionAdapterResult> ExecuteAsync(ExecutionAdapterRequest request, CancellationToken cancellationToken = default)
         {
             InvocationCount++;
             LastRequest = request;
             Started.TrySetResult(true);
+            if (throwSynchronously)
+            {
+                throw new InvalidOperationException("sensitive adapter failure details");
+            }
+
             if (!hang)
             {
                 return Task.FromResult(result ?? new ExecutionAdapterResult(ExecutionAdapterOutcome.Succeeded, "completed"));
             }
 
             _release = new TaskCompletionSource<ExecutionAdapterResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-            cancellationToken.Register(() =>
+            if (!ignoreCancellation)
             {
-                CancellationObserved = true;
-                _release.TrySetResult(new ExecutionAdapterResult(ExecutionAdapterOutcome.Cancelled, "cancelled", "test-cancel"));
-            });
+                cancellationToken.Register(() =>
+                {
+                    CancellationObserved = true;
+                    _release.TrySetResult(new ExecutionAdapterResult(ExecutionAdapterOutcome.Cancelled, "cancelled", "test-cancel"));
+                });
+            }
+
             return _release.Task;
         }
 

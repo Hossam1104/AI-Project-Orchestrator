@@ -11,6 +11,11 @@ public enum ExecutionAdapterOutcome
     Failed,
     Cancelled,
     TimedOut,
+    /// <summary>
+    /// Cancellation or timeout won, but the adapter task did not terminate within the bounded
+    /// cancellation drain. The workspace may still be changing and the project remains guarded.
+    /// </summary>
+    TerminationUnconfirmed,
     BudgetExceeded,
     Unsupported,
     AuthenticationRequired,
