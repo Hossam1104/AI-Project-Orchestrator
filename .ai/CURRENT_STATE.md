@@ -3746,3 +3746,31 @@ omitted the final explicit cost/cheapest-capable tie-break.
 
 > SOL-GOV-01R remediation complete and PR #20 remains Draft/unmerged awaiting GPT-5.6 Sol exact-head
 > acceptance. Do not merge PR #20 or begin APO-48 until Sol reviews the exact returned head.
+
+---
+
+## 45. AI execution governance and tooling migration merge finalization (chore/ai-execution-governance-migration)
+
+This is the latest factual handoff. Historical sections above remain unchanged.
+
+- GPT-5.6 Sol accepted the exact PR #20 head `7ed498ddf30c7076ba130acc16552e16dbce09ed`, with
+  accepted tree `faa72267075ee821897a9ff916496973e236d1f8`; all SOL-GOV findings are closed.
+- PR #20 was marked Ready for Review and squash-merged successfully into `main` at
+  `8c5cd1d4b4b5e2aef680ebfe23a65998758dc95f`. Its parent is the accepted base
+  `6bab063e24d8f2e9b68b36ea00a5f6e1038f4597`, and its tree equals the accepted tree.
+- The governance migration is active on `main`: active executor providers remain OpenAI/Codex and
+  Anthropic/Claude only; canonical Tier 0-4 routing, dynamic Tier 3, and the priority
+  correctness -> security/assurance -> capability/risk -> provider quota -> cheapest capable are
+  active. Sol remains the sole final acceptance authority, and the lowercase standalone `p` gate
+  remains active.
+- Ponytail FULL remains recorded for Claude and Codex. Serena and Context7 configuration remains
+  present. APO-45 is Done; APO-48 remains To Do, with no APO-48 product execution started.
+- `GitHub CI = NONE / NOT CLAIMED` for the accepted PR head. No product tests were run during merge
+  finalization. An already-running legacy APO/AI Usage Monitor process was stopped before
+  completion: `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+
+**Next planner boundary:**
+
+> AI execution governance/tooling migration is accepted and merged. APO-48 remains To Do and no
+> product Story is authorized until GPT-5.6 Sol plans the next work item and the owner sends a
+> fresh standalone lowercase `p`.
