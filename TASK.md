@@ -9,6 +9,9 @@ and dead-code cleanup is delivered on a Draft PR and awaits GPT-5.6 Sol exact-he
 - **APO-48:** To Do and not started; no APO-48 implementation is authorized here.
 - **Scope boundary:** No additional product Story, provider, runtime, merge, or downstream delivery
   action is authorized by this file.
+- **Next execution gate:** GPT-5.6 Sol must accept this boundary, select one approved work item,
+  replace this file with its complete contract, and the owner must send a fresh standalone lowercase
+  `p` per `.ai/AI_EXECUTION_POLICY.md` §1.
 
 This file is a neutral, non-executable planner boundary until Sol replaces it with one complete,
 self-contained contract for the next approved Jira work item. Current factual evidence is maintained
