@@ -153,21 +153,22 @@ The approved default strategy is quality/risk first and quota/cost second:
 
 | Priority | Model | Default role |
 |---|---|---|
-| 1 | GPT-5.6 Sol | Planner / Architect / Acceptance Authority |
-| 2 | Claude Haiku 4.5 | Deterministic low-risk reconnaissance and mechanical work |
-| 3 | Claude Sonnet 5 Medium | Primary routine bounded implementation executor |
-| 4 | Claude Sonnet 5 High | Difficult bounded debugging and larger bounded implementation |
-| 5 | GPT-5.6 Luna xHigh | Architecture-sensitive, cross-cutting, or high-blast-radius execution |
-| 6 | GPT-5.6 Luna Max | Exceptional implementation escalation only |
-| 7 | Claude Opus 5 | Independent reviewer |
-| 8 | GPT-5.6 Terra Medium/High | Specialist security, concurrency, and data-integrity assurance |
+| 1 | GPT-5.6 Sol High | Planner / Architect / Model Router / Quota Governor / Acceptance Authority / Executor Prompt Authority (chat only) |
+| 2 | GPT-5.6 Luna xHigh | Primary bounded implementation executor |
+| 3 | Claude Sonnet 5 Medium | Fallback / special-need bounded implementation when explicitly selected by Sol |
+| 4 | Claude Sonnet 5 High | Fallback / special-need difficult bounded implementation when explicitly selected by Sol |
+| 5 | GPT-5.6 Luna Max | Exceptional implementation escalation only |
+| 6 | Claude Opus 5 | Independent critical reviewer |
+| 7 | GPT-5.6 Terra Medium/High | Specialist security, concurrency, and data-integrity assurance |
+| 8 | Claude Haiku 4.5 | Disabled from active routing |
 
 Sol owns requirement interpretation, architecture, task classification, execution contracts,
-routing policy, acceptance criteria, and final acceptance. Haiku handles deterministic low-risk
-work; Sonnet Medium is routine bounded implementation; Sonnet High handles difficult bounded work;
-Luna is reserved for architecture-sensitive execution; Opus remains independent; and Terra is
-risk-triggered. Active execution providers are OpenAI/Codex and Anthropic/Claude only. No external
-provider is an active orchestration executor unless this policy is explicitly changed.
+routing policy, acceptance criteria, executor prompt authority, and final acceptance. Luna xHigh is
+the normal primary executor. Sonnet remains an active fallback/special-need option only when Sol
+explicitly selects it; Haiku is disabled from active routing; Opus remains an independent critical
+reviewer; and Terra is risk-triggered. Active execution providers are OpenAI/Codex and
+Anthropic/Claude only. No external provider is an active orchestration executor unless this policy
+is explicitly changed.
 
 Model names, capabilities, availability, routing policy, and project overrides must be represented
 as data/configuration rather than scattered hard-coded workflow conditions.

@@ -3,9 +3,11 @@
 **Product:** AI Project Orchestrator (APO)
 **BRD:** `docs/BRD.md`
 **Plan:** `docs/IMPLEMENTATION_PLAN.md`
-**Planner:** GPT-5.6 Sol
-**Routine executors:** Claude Haiku 4.5 / Claude Sonnet 5 Medium / Claude Sonnet 5 High
-**Complex executors:** GPT-5.6 Luna xHigh / Luna Max
+**Planner / Router / Acceptance / Prompt Authority:** GPT-5.6 Sol (chat mode only)
+**Primary executor:** GPT-5.6 Luna xHigh
+**Fallback / special-need executors:** Claude Sonnet 5 Medium / Claude Sonnet 5 High, only when explicitly selected by Sol
+**Disabled from active routing:** Claude Haiku 4.5
+**Exceptional escalation:** GPT-5.6 Luna Max
 **Independent reviewer:** Claude Opus 5
 **Specialist assurance:** GPT-5.6 Terra Medium/High
 
@@ -72,10 +74,9 @@ Jira / Git synchronization
 ```
 
 Sol prepares a complete self-contained `TASK.md` for each approved next work item. Preparing a
-task never authorizes its execution. Haiku handles deterministic low-risk reconnaissance and
-mechanical work; Sonnet Medium is the normal routine executor; Sonnet High handles difficult bounded
-work; Luna is reserved for architecture-sensitive execution; and no future implementation prompts
-are pre-generated here.
+task never authorizes its execution. Luna xHigh is the normal primary executor; Sonnet is used only
+when Sol explicitly selects it for fallback, quota balancing, task fit, or another special need;
+Haiku is disabled from active routing; and no future implementation prompts are pre-generated here.
 
 ---
 

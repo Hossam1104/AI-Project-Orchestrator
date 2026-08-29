@@ -7,10 +7,11 @@
 **Jira Project:** `APO`
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Default Branch:** `main`
-**Planner / Architect / Acceptance Authority:** GPT-5.6 Sol (chat mode only)
-**Primary Routine Executor:** Claude Sonnet 5 Medium
-**Routine Executors:** Claude Haiku 4.5 (deterministic recon/mechanical) / Claude Sonnet 5 Medium / Claude Sonnet 5 High
-**High-Risk/Complex Executor:** Dynamically selected by Sol between Claude Sonnet 5 High and GPT-5.6 Luna xHigh based on complexity, architecture sensitivity, and blast radius; neither is a hard-coded universal default. GPT-5.6 Luna xHigh is normal for high-risk execution, with Luna Max reserved for exceptional escalation.
+**Planner / Architect / Acceptance / Prompt Authority:** GPT-5.6 Sol (chat mode only)
+**Primary Executor:** GPT-5.6 Luna xHigh for bounded work unless Sol explicitly routes elsewhere
+**Fallback / Special-Need Executors:** Claude Sonnet 5 Medium / Claude Sonnet 5 High, only when explicitly selected by Sol
+**Disabled from Active Routing:** Claude Haiku 4.5
+**Exceptional Escalation:** GPT-5.6 Luna Max
 **Independent Reviewer:** Claude Opus 5
 **Specialist Assurance:** GPT-5.6 Terra Medium/High
 

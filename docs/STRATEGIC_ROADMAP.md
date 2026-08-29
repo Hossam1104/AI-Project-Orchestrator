@@ -85,14 +85,14 @@ remains planned.
 
 | Model | Default role |
 |---|---|
-| GPT-5.6 Sol | Planner, architect, Jira decomposition owner, and acceptance authority |
-| Claude Haiku 4.5 | Deterministic low-risk reconnaissance and mechanical work |
-| Claude Sonnet 5 Medium | Primary routine bounded implementation executor |
-| Claude Sonnet 5 High | Difficult bounded debugging and larger bounded implementation |
-| GPT-5.6 Luna xHigh | Architecture-sensitive, cross-cutting, or high-blast-radius execution |
+| GPT-5.6 Sol High | Planner, architect, router, quota governor, Jira decomposition, acceptance and prompt authority (chat only) |
+| GPT-5.6 Luna xHigh | Primary bounded implementation executor |
+| Claude Sonnet 5 Medium | Fallback / special-need bounded implementation when explicitly selected by Sol |
+| Claude Sonnet 5 High | Fallback / special-need difficult bounded implementation when explicitly selected by Sol |
 | GPT-5.6 Luna Max | Exceptional implementation escalation only |
 | Claude Opus 5 | Independent reviewer at configured cadence and critical checkpoints |
 | GPT-5.6 Terra Medium/High | Optional risk-triggered security, concurrency, and data-integrity assurance |
+| Claude Haiku 4.5 | Disabled from active routing |
 
 One assigned Jira work item is the maximum active scope for an executor. A roadmap Story is not
 implementation authorization, and completing one Story never automatically starts the next.

@@ -166,20 +166,20 @@ remain bounded future work.
 
 | Model | Default role |
 | --- | --- |
-| **GPT-5.6 Sol** | Planner, architect, and acceptance authority |
-| **Claude Haiku 4.5** | Deterministic low-risk reconnaissance and mechanical work |
-| **Claude Sonnet 5 Medium** | Primary routine bounded implementation executor |
-| **Claude Sonnet 5 High** | Difficult bounded debugging and larger bounded implementation |
-| **GPT-5.6 Luna xHigh** | Architecture-sensitive, cross-cutting, or high-blast-radius execution |
+| **GPT-5.6 Sol High** | Planner, architect, router, quota governor, acceptance and prompt authority (chat only) |
+| **GPT-5.6 Luna xHigh** | Primary bounded implementation executor |
+| **Claude Sonnet 5 Medium** | Fallback / special-need bounded implementation when explicitly selected by Sol |
+| **Claude Sonnet 5 High** | Fallback / special-need difficult bounded implementation when explicitly selected by Sol |
 | **GPT-5.6 Luna Max** | Exceptional implementation escalation only |
-| **Claude Opus 5** | Periodic independent reviewer at critical checkpoints |
+| **Claude Opus 5** | Independent critical reviewer at meaningful checkpoints |
 | **GPT-5.6 Terra Medium/High** | Specialist security, concurrency, and data-integrity assurance |
+| **Claude Haiku 4.5** | Disabled from active routing |
 
 OpenAI/Codex and Anthropic/Claude are the active execution providers. GPT-5.6 Sol remains the
-planner, architect, quota governor, and acceptance authority in chat mode. Haiku handles
-deterministic reconnaissance; Sonnet Medium is the routine executor; Sonnet High handles difficult
-bounded work; Luna is reserved for architecture-sensitive execution; Opus remains independent; and
-Terra is risk-triggered. The canonical policy is maintained in
+planner, architect, router, quota governor, acceptance authority, and prompt authority in chat mode.
+Luna xHigh is the normal primary executor. Sonnet is an explicit fallback/special-need option;
+Haiku is disabled from active routing; Opus remains independent; and Terra is risk-triggered. The
+canonical policy is maintained in
 [AI model routing](.ai/AI_MODEL_ROUTING.md) and [AI execution policy](.ai/AI_EXECUTION_POLICY.md).
 
 ## Security and privacy
