@@ -3923,3 +3923,81 @@ remain unchanged.
 > SOL-69-05 and SOL-69-06 remediation is complete on Draft PR #21 and awaits GPT-5.6 Sol exact-head
 > acceptance. Do not merge PR #21, mark APO-69 Done, start APO-48, or execute another product Story
 > until Sol reviews the exact returned head.
+
+---
+
+## 49. APO-47 Prompt 3/5 — tracker-agnostic work-item and dependency synchronization handoff
+
+This is the current factual handoff for APO-47 and supersedes the prior APO-69 planner boundary
+for the next Sol review. It records the bounded implementation and does not claim Sol acceptance,
+APO-47 completion, Jira Done status, merge, or any downstream Story authorization.
+
+- APO-69 was the accepted/merged starting rebaseline. The verified authorized starting baseline is
+  `main` and `origin/main` at SHA `346bb8faa13db551af06a24154e0da6eaebb60cb`, tree
+  `394355fbddf4eb70a6731401922763cf3fb3cab1`. No baseline drift was detected.
+- APO-47 Prompt 3/5 was authorized by Sol Jira comment `12268`. Route: GPT-5.6 Luna xHigh,
+  OpenAI/Codex, Tier 3 difficult/substantial bounded execution, quota state `UNKNOWN`.
+- Work was performed on `feat/APO-47-tracker-agnostic-work-item-sync`.
+- The functional commit is `a043234fa1fb640d5b857dc6ff4c64c97a46f4f8`, tree
+  `98937c63560b099fb9f9df8e97b73112db83e143`. It was validated and pushed before this
+  metadata-only handoff.
+- The final metadata-only head/tree are the exact values returned by the external Git/PR handoff
+  and completion report; a commit cannot self-embed its own resulting SHA/tree. Its parent must be
+  the functional commit above, and it changes only `TASK.md` and this file.
+- Provider-independent tracker contracts were added under `AIUsageMonitor.Application.Trackers`.
+  Existing Project tracker fields are reused. Jira is the first bounded production adapter using
+  official Jira Cloud REST v3 issue, JQL search, transition, comment, and issue-link surfaces.
+  Azure DevOps is represented by the shared identity/configuration/resolution boundary only; no
+  live Azure transport or invented Azure endpoint was added.
+- Jira reads normalize bounded issue identity, project, issue type, summary, status, updated time,
+  parent hierarchy, inward/outward links, conservative dependency relationships, comments, and
+  safe remote references. Evidence includes capture time and truthful Available, Partial, Stale,
+  auth, permission, not-found, rate-limit, unavailable, invalid, unsupported, and cancelled states.
+- Synchronization planning is deterministic, bounded, Jira-authoritative, and non-autonomous.
+  Stale/partial evidence blocks executable mutation plans; unsupported changes are not converted to
+  generic field patches. ProjectId and exact target isolation are enforced.
+- Mutations require exact immutable execution-level authority binding project, provider, tracker,
+  target/link, kind, expected state fingerprint, actor, correlation identity, issue/expiry times,
+  and content identity where applicable. `APO-49 HUMAN APPROVAL IMPLEMENTED = NO`.
+  Pre-mutation reads validate freshness and expected state. Comment addition, validated status
+  transition, and dependency-link creation are bounded; unlinking remains deferred.
+- `AUTOMATIC STATE-CHANGING RETRY COUNT = 0`. Ambiguous transport outcomes, audit persistence
+  failure after a possible remote change, and failed post-mutation verification return explicit
+  reconciliation-required/indeterminate truth. Successful mutation requires an independent
+  post-read verification.
+- Tracker mutation audit evidence is project-isolated JSONL with authority, actor, correlation,
+  target, expected-state, HTTP outcome, verification, final outcome, and possible-remote-change
+  fields. Comment content is represented by bounded length and hash; secrets, raw Jira JSON,
+  credentials, headers, cookies, and full comment bodies are not persisted.
+- `JsonFileStore.CurrentSchemaVersion = 1` remains unchanged. New tracker audit semantic schema
+  starts at version `1`. Existing projects without tracker configuration remain compatible.
+
+**Validation at the frozen functional commit:**
+
+- `dotnet restore AIUsageMonitor.sln`: passed.
+- `dotnet build AIUsageMonitor.sln --no-restore`: passed with 0 warnings and 0 errors.
+- Full `dotnet test AIUsageMonitor.sln --no-restore`: Domain 28, Connection 208, Provider 60,
+  Desktop 83, Infrastructure 550; total 929 passed, 0 failed, 0 skipped. This is greater than
+  the inherited 896 test baseline.
+- Focused tracker contract/resolution/planning/authority tests: 15; Jira HTTP adapter tests: 14;
+  tracker audit persistence tests: 3; production composition tests: 10 existing facts, including
+  the tracker boundary registration assertion.
+- `git diff --check` passed. Changed-line review found no real credentials, raw Jira payload
+  persistence, browser scraping, arbitrary Jira patch surface, or automatic mutation retry.
+- No live owner Jira mutation and no credential-dependent automated test was used.
+
+- PR #22 is against `main` and must remain `OPEN / DRAFT / UNMERGED`.
+- `GitHub CI = NONE / NOT CLAIMED` if no statuses/check runs exist for the exact final head.
+- APO-47 remains `In Progress`; APO-62 and APO-48 remain `To Do`. No Jira transition was performed.
+- The APO application was not launched. Required runtime truth is `APO PROCESS COUNT = 0` and
+  `APPLICATION LEFT RUNNING = NO`.
+- Out of scope: APO-48 QA gates, APO-49 human approval, APO-62 SCM evidence, APO-63 SCM writes,
+  autonomous/background synchronization, browser automation, bulk edits, arbitrary field patches,
+  Mission Control, and other product Stories. No Claude Opus review is due in Prompt 3/5.
+
+**Next planner boundary:**
+
+> APO-47 Prompt 3/5 implementation complete and awaiting GPT-5.6 Sol exact-head review. PR remains
+> OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-62, APO-48, APO-49, APO-63,
+> Mission Control, or another product Story. If Sol finds blocking issues, remediate as Prompt
+> 3/5R. If Sol accepts the exact head, Sol may authorize APO-47 controlled merge finalization.
