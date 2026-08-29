@@ -1,7 +1,7 @@
 # AI Project Orchestrator - Implementation Plan
 
-**Version:** 1.2
-**Date:** 25 August 2026
+**Version:** 1.3
+**Date:** 29 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Primary Requirements:** `docs/BRD.md`
 **Jira Project:** `APO`
@@ -9,10 +9,10 @@
 **Default Branch:** `main`
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
 **Primary Executor:** GPT-5.6 Luna xHigh
-**Exceptional Alternative Executor:** Claude Sonnet 5
+**Routine Executors:** Claude Haiku 4.5 / Claude Sonnet 5 Medium / Claude Sonnet 5 High
+**Complex Executor:** GPT-5.6 Luna xHigh / Luna Max
 **Independent Reviewer:** Claude Opus 5
-**Optional Security Specialist:** GPT-5.6 Terra HIGH
-**Auxiliary Executor:** Gemini 3.7
+**Specialist Assurance:** GPT-5.6 Terra Medium/High
 
 ---
 
@@ -118,8 +118,11 @@ Known historical implementation and initial interpretation:
 | Provider-independent quota concepts | APO-4 capacity domain | Reuse With Extension |
 | Provider-only feasibility sequence | APO-4 discovery | Superseded; replan |
 
-The current source is a reusable foundation, not a fully compliant APO product. Source-code mapping
-and refactoring have not started under APO-18.
+The current source is a reusable, partially delivered APO foundation rather than a finished product.
+APO-38 through APO-46 and APO-68 have delivered the documented control-plane, routing, workspace,
+bounded-execution, and workspace-preparation slices. Source naming and LocalAppData migration
+remain separately planner-controlled; remaining end-to-end provider execution, evidence, approval,
+and command-center capabilities remain in the Jira roadmap.
 
 ---
 
@@ -136,9 +139,10 @@ Providers/integrations -> Application/Domain contracts
 ```
 
 The current source already contains a WPF desktop foundation, provider-independent Domain and
-Application contracts, JSON/JSONL Infrastructure stores, resilience behavior, focused tests, target
-configuration, and publish profiles. Existing `AIUsageMonitor` project/namespace names and the
-minimal shell are retained until a future approved mapping/refactor item.
+Application contracts, JSON/JSONL Infrastructure stores, resilience behavior, control-plane
+services, routing, isolated workspace preparation, bounded cancellable execution, focused tests,
+target configuration, and publish profiles. Existing `AIUsageMonitor` project/namespace names and
+the minimal shell are retained until a future approved mapping/refactor item.
 
 The historical EF/LocalDB and WinUI/Windows App SDK implementations are preserved in Git history
 and current-state evidence only. They are not active APO runtime dependencies and must not be
@@ -154,21 +158,22 @@ Story/Task and its Sol-authored `TASK.md` contract.
 ### Phase A - Governance and accepted foundation
 
 APO-18 through APO-37 establish the governed WPF/.NET/JSON/JSONL foundation, capacity surfaces,
-project workspace, and the first local read-only Git evidence slice. APO-37 is merged at
-`0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`; its accepted P3 hardening is retained in APO-59 to
-APO-61. APO-33 remains the existing CI/release Story and is not duplicated.
+project workspace, and the first local read-only Git evidence slice. APO-38 through APO-46 and
+APO-68 extend that foundation with the control plane, routing, isolated workspace, bounded
+execution, and workspace-preparation safeguards. APO-33 remains the existing CI/release Story and
+is not duplicated.
 
 ### Phase B - Inputs and control-plane contracts (P0)
 
-Start with APO-38 (agent/model registry truth), then APO-39 (progressive onboarding and canonical
-context resolution). Define versioned planning contracts (APO-40), dependency-aware work graphs
-(APO-41), compact role handoffs (APO-42), and durable recovery checkpoints (APO-43). These slices
-must remain provider-independent, project-isolated, and free of chat-history or secret persistence.
+APO-38 (agent/model registry truth), APO-39 (progressive onboarding and canonical context
+resolution), APO-40 (versioned planning contracts), APO-41 (dependency-aware work graphs), APO-42
+(compact role handoffs), and APO-43 (durable recovery checkpoints) are delivered. These slices
+remain provider-independent, project-isolated, and free of chat-history or secret persistence.
 
 ### Phase C - Quality-first decision, bounded execution, and evidence inputs (P0)
 
-Implement explainable routing (APO-44), then safe isolated workspaces (APO-46), and only then
-bounded cancellable execution (APO-45). Tracker awareness (APO-47) is an independent
+APO-44 delivered explainable routing; APO-46 delivered safe isolated workspaces; and APO-45
+delivered bounded cancellable execution. Tracker awareness (APO-47) is an independent
 Jira-first/Azure-optional input, not a model-CLI side effect. Add provider-independent, read-only
 remote SCM/CI evidence (APO-62) after the local/work-item evidence inputs are defined. APO-62 is
 distinct from APO-37 local Git verification and APO-33 repository-owned CI. The ordering is
@@ -275,28 +280,27 @@ A Story/Task is complete only when:
 - `.ai/CURRENT_STATE.md` is updated;
 - Jira status/evidence is synchronized by the authorized workflow;
 - the branch is committed and pushed;
-- the work is integrated into `main` under repository policy;
-- `origin/main` is fetched and verified;
+- one Draft PR is opened or updated against `main`;
+- the exact branch head and unchanged `origin/main` base are recorded;
+- merge is left to a separate, explicitly authorized finalization action;
 - the tree is clean; and
 - limitations, blockers, and the next planner boundary are explicit.
 
-For documentation-only APO-18, validation is document consistency, stale-reference review,
-source-scope confirmation, and baseline restore/build/test checks requested by the Story. No source
-code is changed or claimed as APO-refactored.
+For documentation or repository-hygiene work, validation is document consistency, stale-reference
+review, source-scope confirmation, and proportionate restore/build/test checks requested by the
+Story. A Draft PR is not Sol acceptance or a merge.
 
 ---
 
 ## 9. Current Planning Boundary
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
-move. APO-27 delivered and merged the project and orchestration storage foundation on `main` at
-squash merge SHA `d0efaf01b07b31effa7a432c225e7c913a86258a` via PR #5. APO-35 (Projects workspace)
-and APO-36 (AiCapacityViewModel DI startup fix) are Sol-accepted, verified across 225/225 tests,
-and merged into `main` at squash merge SHA `beab8072551a84aad60df7744135c74c75e51acb` via PR #6.
-APO-35 and APO-36 are marked Done in Jira while parent Epics APO-5 and APO-4 remain In Progress.
-APO-37 is now Done after PR #7 squash merge at `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`; APO-6
-remains In Progress. The next action is GPT-5.6 Sol acceptance of this strategic rebaseline and
-selection of one bounded Story, with APO-38 the recommended first implementation boundary.
+move. APO-27, APO-35, APO-36, and APO-37 are historical accepted deliveries. APO-38 through
+APO-46 and APO-68 are now implemented and marked Done in Jira. The current `main` baseline is
+`49153b147ac7fd8ea327b094dd4910091102ca3a` with tree `c2337d271fa3c3f26d4f8e7ba3857b62cb0b9f36`.
+APO-48 remains To Do and is not started. APO-69 is the current repository-wide documentation,
+architecture-audit, and hygiene handoff; its Draft PR is awaiting GPT-5.6 Sol exact-head review.
+No executor may start another Story from this document or `TASK.md` until Sol authorizes it.
 
 ## 10. APO-35 Delivery Boundary
 
@@ -553,8 +557,8 @@ release prerequisite and may be sequenced by Sol when the release risk warrants 
 
 ## 18. Strategic Acceptance Boundary
 
-This document is a roadmap and architecture rebaseline, not implementation authorization. The next
-Sol gate must verify the BRD/plan/Jira consistency, inspect the accepted APO-37 merge baseline, and
-choose one bounded Story. The recommended next choice is APO-38 because the registry/connectivity
-truth is a prerequisite for routing, handoffs, and execution; no executor should begin APO-38 until
-Sol replaces TASK.md with its self-contained implementation contract.
+This document is a roadmap and architecture rebaseline, not implementation authorization. The
+current Sol gate is the exact-head review of the APO-69 Draft PR, including the BRD/plan/Jira
+consistency, architecture audit, deletion proof, and validation evidence. After acceptance, Sol may
+replace `TASK.md` with one self-contained contract for a selected remaining Story; no executor may
+start APO-48 or any other Story from roadmap presence alone.

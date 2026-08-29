@@ -1,18 +1,14 @@
 # TASK.md - Current Planner Boundary
 
-No product Story is currently authorized for execution.
+The APO-69 repository-wide rebaseline, documentation/tracking reconciliation, architecture audit,
+and dead-code cleanup is delivered on a Draft PR and awaits GPT-5.6 Sol exact-head review.
 
-- **APO-45** (Implement Bounded Cancellable Execution with Checkpoints, under APO-11) is
-  **ACCEPTED / MERGED / DONE**. PR #19 merged into `main` at
-  `6bab063e24d8f2e9b68b36ea00a5f6e1038f4597`.
-- The AI execution governance and tooling migration
-  (`chore/ai-execution-governance-migration`, PR #20) was accepted by GPT-5.6 Sol and squash-merged
-  into `main` at `8c5cd1d4b4b5e2aef680ebfe23a65998758dc95f`. Canonical AI routing and execution
-  governance is active on `main`; it touches only AI development/execution governance and tooling,
-  not APO product source.
-- **APO-48** remains **To Do**. It has not been started and no executor contract for it exists in
-  this file.
+- **Current main baseline:** `49153b147ac7fd8ea327b094dd4910091102ca3a`
+- **Current cleanup item:** APO-69 under APO-1
+- **APO-48:** To Do and not started; no APO-48 implementation is authorized here.
+- **Scope boundary:** No additional product Story, provider, runtime, merge, or downstream delivery
+  action is authorized by this file.
 
-Next product execution requires GPT-5.6 Sol planning and a fresh standalone lowercase `p` per
-`.ai/AI_EXECUTION_POLICY.md` §1. This file is not an executable work-item contract until Sol
-replaces it with one.
+This file is a neutral, non-executable planner boundary until Sol replaces it with one complete,
+self-contained contract for the next approved Jira work item. Current factual evidence is maintained
+in `.ai/CURRENT_STATE.md`; the permanent prompt library is `docs/SESSION_PROMPTS.md`.

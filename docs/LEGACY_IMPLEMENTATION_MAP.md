@@ -1,18 +1,22 @@
 # Legacy Implementation Inventory and APO Reuse Classification
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Status:** COMPLETE / DURABLE EVIDENCE ARTIFACT
 **Date:** 21 August 2026
 **Jira Story:** APO-19 — Inventory and classify legacy implementation for APO reuse
 **Parent Epic:** APO-1 — APO Product Rebrand & Governance Rebaseline
 **Planner / Acceptance Authority:** GPT-5.6 Sol
-**Assigned Executor:** Gemini 3.7 (Auxiliary cost/quota-balancing executor)
+**Assigned Executor:** Historical APO-19 record; current executor policy is canonical in `.ai/AI_MODEL_ROUTING.md`
 **Authoritative BRD:** `docs/BRD.md` (v1.1)
 **Operating Contract:** `AGENTS.md`
 
 > Historical baseline note: this durable APO-19 evidence artifact records the repository and local
 > root as they existed before APO-20. The old URL/path values below are intentionally retained as
 > audit evidence and are not active repository or local-root references.
+>
+> This document remains a historical APO-19 inventory, not the current implementation status. The
+> current architecture, Jira state, and validation truth are maintained in `README.md`,
+> `docs/IMPLEMENTATION_PLAN.md`, `.ai/CURRENT_STATE.md`, and `TASK.md`.
 
 ---
 
@@ -52,7 +56,7 @@ Every evaluated capability is categorized into exactly one of the five approved 
 2. **Reuse With Extension**: The implementation represents a sound, verified technical foundation that satisfies core requirements but requires additional models, contracts, or capabilities to support full APO orchestration workflows.
 3. **Refactor**: The implementation contains valuable logic or architecture, but its structure, boundaries, naming, or UX requires controlled refactoring to align with APO standards.
 4. **Superseded**: The implementation was completed and valid under earlier architecture decisions but has been deliberately replaced (e.g., EF Core/LocalDB replaced by JSON/JSONL, WinUI replaced by WPF). Retained in Git history for traceability; prohibited in active runtime.
-5. **Remove**: Active code or configuration that is dead, unsafe, incompatible, or contrary to the BRD. (None identified in current working tree).
+5. **Remove**: Active code or configuration that is dead, unsafe, incompatible, or contrary to the BRD. Three unused APO-19 placeholder contracts were removed in APO-69; no active runtime dependency was removed.
 
 ---
 
@@ -60,20 +64,20 @@ Every evaluated capability is categorized into exactly one of the five approved 
 
 | Area | Current Evidence | APO Epic | BRD Requirements | Classification | Validation | Gap / Future Work |
 |---|---|---|---|---|---|---|
-| **Solution & Target Framework** | `AIUsageMonitor.sln`, `Directory.Build.props`, 8 projects targeting .NET 10 | APO-2 / APO-17 | §1, §12, §13 | **Reuse With Extension** | Build passes (0w/0e) | Solution/project technical naming retains `AIUsageMonitor`; add CI workflows |
+| **Solution & Target Framework** | `AIUsageMonitor.sln`, `Directory.Build.props`, 10 projects targeting .NET 10 | APO-2 / APO-17 | §1, §12, §13 | **Reuse With Extension** | Current build passes (0w/0e) | Solution/project technical naming retains `AIUsageMonitor`; add CI workflows |
 | **Dynamic Quota Domain** | `QuotaWindow.cs`, `QuotaDefinition.cs`, `QuotaType.cs`, `QuotaUnit.cs` | APO-4 | FR-CAP-002, FR-CAP-003, FR-CAP-004, FR-CAP-005 | **Reuse As-Is** | 28 Domain tests pass | Integrate into routing cost/capacity scoring engine (APO-9) |
 | **Subscription Domain** | `Subscription.cs`, `BillingCadence.cs` | APO-4 | FR-CAP-001, §8.3, §10 | **Reuse As-Is** | Domain tests pass | Connect to provider collection adapters (APO-4) |
 | **Provider Identity & Connections** | `Provider.cs`, `ProviderAccount.cs`, `ProviderConnection.cs`, `ProviderCode.cs` | APO-4 / APO-8 | FR-AGENT-001, FR-AGENT-003, FR-CAP-006, §10 | **Reuse With Extension** | ProviderConnection tests pass | Extend for Agent/Model capabilities, execution mechanisms, CLI/API routes (APO-8) |
 | **Alerts & Sync Domain** | `AlertRule.cs`, `AlertEvent.cs`, `SyncEvent.cs` | APO-4 / APO-16 | FR-AUD-001, FR-NOTIFY-001, §11 | **Reuse With Extension** | AlertRule tests pass | Extend for orchestration run alerts, gate approvals, validation events (APO-16) |
 | **Usage Snapshot Domain** | `UsageSnapshot.cs` | APO-4 | FR-CAP-003, FR-CAP-008, §11 | **Reuse As-Is** | Domain & Infra tests pass | Consumed by capacity history and burn rate analytics |
-| **Application Capacity Contracts** | `IAiUsageProvider.cs`, `IRefreshOrchestrator.cs`, `IUsageSnapshotRepository.cs`, `ProviderRefreshResult.cs` | APO-4 | FR-CAP-006, FR-CAP-007, FR-CAP-008 | **Reuse With Extension** | 7 Provider tests pass | Implement multi-provider concurrency & background refresh loop |
+| **Application Capacity Contracts** | `IAiUsageProvider.cs`, `IUsageSnapshotRepository.cs`, `ProviderRefreshResult.cs` | APO-4 | FR-CAP-006, FR-CAP-007, FR-CAP-008 | **Reuse With Extension** | Current Provider tests pass | Implement multi-provider concurrency & background refresh loop; unused APO-19 placeholders were removed in APO-69 |
 | **Security & Time Contracts** | `ISecureCredentialStore.cs`, `IClock.cs`, `SystemClock.cs`, `ISettingsService.cs` | APO-2 / APO-3 | FR-SET-001, §12.1, §12.2 | **Reuse With Extension** | Used across Infra tests | Implement Windows Credential Manager adapter; typed settings |
 | **Storage Layout & Resilience** | `ApplicationDataPaths.cs`, `StorageStartup.cs` | APO-3 | §8, §12.1, §13 | **Refactor** | 3 StorageStartup tests pass | Refactor paths for APO projects/runs/evidence; rename root dir under planner approval |
 | **JSON Document Persistence** | `JsonFileStore.cs`, `VersionedJsonCollectionStore.cs`, `FileRecords.cs` | APO-3 | §8, §12.1, §12.2 | **Reuse With Extension** | Document tests pass | Add stores for `projects.json`, `agents.json`, `routing-policy.json` |
 | **JSONL Monthly Event Persistence** | `JsonlEventStore.cs`, unterminated tail handling, stream queries | APO-3 / APO-16 | FR-AUD-001, FR-AUD-002, §8, §12.1 | **Reuse With Extension** | JSONL tests pass | Add partitions for audit logs, execution run traces, review findings |
 | **JSON/JSONL Repositories** | 9 repository implementations in `Infrastructure/Persistence/Repositories` | APO-3 / APO-4 | §8, §12.1 | **Reuse As-Is** | 15 Infra tests pass | Complete for capacity monitoring; template for future APO repos |
 | **WPF Desktop Shell** | `App.xaml.cs`, `MainWindow.xaml`, DI host composition, Serilog | APO-2 / APO-15 | FR-UI-001, FR-UI-002, §5, §13 | **Refactor** | Published shell runs | Smoke UI only; refactor into full MVVM Command Center with HUD/Tray |
-| **Provider Implementations** | `AIUsageMonitor.Providers` project with `AssemblyMarker.cs` | APO-4 / APO-8 | §10, FR-CAP-001..009, FR-AGENT-001..005 | **Refactor** | Assembly loads | All 5 provider adapters (Codex, Claude, Kimi, Copilot, Antigravity) are new work |
+| **Provider Implementations** | `AIUsageMonitor.Providers` project with provider adapter surfaces and `AssemblyMarker.cs` | APO-4 / APO-8 | §10, FR-CAP-001..009, FR-AGENT-001..005 | **Reuse With Extension** | Assembly and focused provider tests pass | Complete consumer/runtime integration at the documented capability boundaries |
 | **Publish Profiles & Targets** | `win-x64.pubxml`, `win-x86.pubxml`, `win-arm64.pubxml`, `app.manifest` | APO-17 | §13, §14 | **Reuse With Extension** | Publish profiles verified | Add CI packaging workflows and clean-machine matrix validation |
 | **EF Core 10 / SQL LocalDB** | Historical Session 03 (commits `41db8b4`, `774e268`) | Historical | §1, §7, §12 | **Superseded** | Replaced in Session 03R | Historical evidence only; prohibited in active runtime |
 | **WinUI / Windows App SDK** | Historical Session 01/02 desktop foundation | Historical | §1, §7, §12 | **Superseded** | Replaced in Session 03R | Historical evidence only; WPF is active platform |
@@ -84,7 +88,7 @@ Every evaluated capability is categorized into exactly one of the five approved 
 ## 5. Windows Platform and Solution Foundation
 
 ### 5.1 Current Architecture & Evidence
-- **Solution File**: `AIUsageMonitor.sln` containing 8 projects (5 `src`, 3 `tests`).
+- **Solution File**: `AIUsageMonitor.sln` containing 10 projects (5 `src`, 5 `tests`).
 - **Global Properties**: `Directory.Build.props` enforces C# `latest`, `<Nullable>enable</Nullable>`, `<ImplicitUsings>enable</ImplicitUsings>`, `<Deterministic>true</Deterministic>`, `<Features>strict</Features>`.
 - **Target Framework**: `net10.0` for Domain, Application, Infrastructure, Providers, and Tests; `net10.0-windows10.0.17763.0` with `TargetPlatformMinVersion=10.0.17763.0` for Desktop.
 - **Application Manifest**: `app.manifest` configures Windows 10/11 compatibility GUIDs, `PerMonitorV2` DPI awareness, `longPathAware`, and `asInvoker` security level.
@@ -125,12 +129,17 @@ The `AIUsageMonitor.Domain` project contains strict, self-validating entity mode
 
 ### 6.2 Current Application Contracts
 The `AIUsageMonitor.Application` project defines provider-independent interfaces:
-- `IAiUsageProvider`, `IProviderRegistry`, `IProviderDiscoveryService`, `IRefreshOrchestrator`.
+- `IAiUsageProvider`, `IProviderRegistry`, `IProviderDiscoveryService`.
 - `ProviderRefreshResult`, `ProviderRefreshOutcome` (`Success`, `Stale`, `AuthenticationRequired`, `Unsupported`, `RateLimited`, `ProviderError`, `NetworkError`).
-- `IUsageSnapshotRepository`, `IUsageAggregationService`, `UsageSnapshotChangeDetector`.
+- `IUsageSnapshotRepository`, `UsageSnapshotChangeDetector`.
 - `ISubscriptionService`, `IQuotaDefinitionRepository`, `IProviderConnectionRepository`, `IProviderRepository`.
-- `IAlertEvaluator`, `IAlertRuleRepository`, `IAlertEventRepository`, `ISyncEventRepository`.
+- `IAlertRuleRepository`, `IAlertEventRepository`, `ISyncEventRepository`.
 - `ISecureCredentialStore`, `ISettingsService`, `IClock`, `SystemClock`.
+
+The unused APO-19 placeholder contracts `IRefreshOrchestrator`, `IUsageAggregationService`, and
+`IAlertEvaluator` had no implementations or runtime references and were removed in APO-69. This
+cleanup does not remove any active behavior; future refresh, aggregation, and alert-evaluation
+behavior remains scoped to its approved roadmap Stories.
 
 ### 6.3 Reuse Classification
 - **Domain Quotas, Subscriptions, Usage Snapshots**: **Reuse As-Is**.
@@ -232,7 +241,7 @@ Located in `src/AIUsageMonitor.Desktop/Properties/PublishProfiles/`:
 
 ## 11. Tests and Quality Verification
 
-### 11.1 Current Test Inventory (50 Tests Passing)
+### 11.1 Historical APO-19 Test Inventory (50 Tests Passing at That Snapshot)
 
 1. **`AIUsageMonitor.Domain.Tests` (28 Tests)**:
    - `QuotaWindowTests` (16 tests): Factory validation, percentage normalization, sum-to-100 enforcement, contradiction rejection, clamp behavior, non-negative limits, null-handling.

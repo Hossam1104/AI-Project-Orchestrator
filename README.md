@@ -86,29 +86,33 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | Project and orchestration storage foundation (APO-27 merged); stores and contracts for projects, agents, routing policies, runs, and review/audit records |
 | :white_check_mark: Implemented / validated | Projects workspace (APO-35 merged); project registry list/detail/editor, search/filter, Active/Paused/Blocked/Archived lifecycle state, and truthful local persistence states; APO-36 fixed DI startup regression |
 | :white_check_mark: Implemented / validated | APO-37 read-only local Git repository verification with bounded status evidence, cancellation/project isolation, sanitized remotes, and explicit unavailable states |
-| :white_check_mark: Implemented / validated | Focused xUnit foundation suite; APO-37 (with SOL-37-01..05 remediation) validation is 70 Desktop tests, 172 Infrastructure tests, and 326 full-suite tests, all passing |
+| :white_check_mark: Implemented / validated | APO-38..43 control-plane contracts and services: agent/model truth, progressive onboarding, versioned contracts, dependency-aware work graphs, structured handoffs, and durable Smart Continue/recovery state |
+| :white_check_mark: Implemented / validated | APO-44..46 bounded execution foundation: explainable quality-first routing, isolated workspaces, and bounded cancellable execution with project/authority/recovery safeguards |
+| :white_check_mark: Implemented / validated | APO-68 workspace-preparation hardening: fail-closed approval-index recovery, mutation timeout safety, repository lock identity, and inherited Git-environment hardening |
+| :white_check_mark: Implemented / validated | Full xUnit solution suite: 896 passed, 0 failed, 0 skipped; build completed with 0 warnings and 0 errors on the current baseline |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
 | :construction: Planned / bounded future | Local Git evidence is partially implemented through APO-37; provider-independent GitHub/Azure Repos remote evidence (APO-62), Jira/Azure DevOps awareness, and controlled delivery (APO-63) remain unimplemented |
-| :construction: Planned | Agent/model registry, quality-first routing, planner contracts, bounded execution, evidence gates, review/remediation, and human approval services |
+| :construction: Planned | Independent validation evidence (APO-48), human approval policy (APO-49), tracker awareness (APO-47), remote SCM/CI evidence (APO-62), controlled delivery (APO-63), and Mission Control (APO-50) |
 | :compass: Strategic roadmap | Mission Control, Smart Continue, recovery, dependency-aware work, isolated workspaces, decision ledger, project health, skills, bounded automation, and optional remote approval design |
 
-Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries, the
-autonomous runtime, routing, tracker automation, remote SCM evidence, controlled remote delivery,
-the review/acceptance engines, and the full APO-15 dashboard. The strategic control-plane
-capabilities are planned and decomposed in Jira APO-38 through APO-63; they are not shipped by this
-repository state. APO-37
+Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries,
+end-to-end autonomous provider execution, tracker automation, remote SCM evidence, controlled
+remote delivery, independent validation/review/acceptance engines, and the full APO-15 dashboard.
+The durable control-plane contracts and bounded execution safeguards in APO-38 through APO-46 and
+APO-68 are implemented; the remaining capability boundaries are planned in Jira APO-47 through
+APO-63. APO-37
 verifies a selected registered local path only when the owner clicks Verify repository; it does not
 inspect file contents, use credentials, contact a remote service, or perform Git writes. APO does
 not fabricate provider numbers or claim CI status before the relevant Story is delivered.
 
 ## Smart Continue and integration boundaries
 
-The planned Smart Continue experience lets an owner say `Continue project`. APO would then resolve
-the project's durable canonical checkpoint—current work, contract version, dependency state,
-selected roles, repository/tracker evidence, validation, review, approval, blockers, and next safe
-action—rather than treating old chat history as fresh evidence. It is not implemented in the
-current repository state and must require fresh Git, tracker, approval, and validation evidence
-when the checkpoint is stale or incomplete.
+The Smart Continue contract and durable recovery state are implemented by APO-43, but the owner-facing
+command-center experience is not complete. The implemented boundary resolves project/run context,
+work, contract version, dependency state, selected roles, repository/tracker evidence, validation,
+review, approval, blockers, and next safe action from project-isolated state rather than treating old
+chat history as current evidence. It must require fresh Git, tracker, approval, and validation
+evidence when a checkpoint is stale or incomplete.
 
 The roadmap keeps source-control responsibilities distinct:
 
@@ -156,25 +160,26 @@ migration require their own planner-approved work.
 
 APO follows a quality- and risk-first operating policy. Capacity can inform routing, but it never
 overrides capability, risk, or the required review gate. These are project roles and target policy;
-automated model routing is not implemented yet.
+the routing service is implemented, while provider execution and end-to-end autonomous orchestration
+remain bounded future work.
 
 | Model | Default role |
 | --- | --- |
 | **GPT-5.6 Sol** | Planner, architect, and acceptance authority |
-| **GPT-5.6 Luna xHigh** | Substantial implementation and cross-cutting fixes |
-| **Claude Sonnet 5** | Exceptional alternative when Luna genuinely needs a difficult independent path |
+| **Claude Haiku 4.5** | Deterministic low-risk reconnaissance and mechanical work |
+| **Claude Sonnet 5 Medium** | Primary routine bounded implementation executor |
+| **Claude Sonnet 5 High** | Difficult bounded debugging and larger bounded implementation |
+| **GPT-5.6 Luna xHigh** | Architecture-sensitive, cross-cutting, or high-blast-radius execution |
+| **GPT-5.6 Luna Max** | Exceptional implementation escalation only |
 | **Claude Opus 5** | Periodic independent reviewer at critical checkpoints |
-| **GPT-5.6 Terra HIGH** | Optional specialist security review when risk warrants it |
-| **Gemini 3.7** | Bounded, repetitive, validation, documentation, or quota-balancing work |
+| **GPT-5.6 Terra Medium/High** | Specialist security, concurrency, and data-integrity assurance |
 
-GPT-5.6 Luna xHigh is the primary executor for substantial, bounded, cross-cutting, remediation,
-documentation, Git, Jira, and validation work. Execution prompts must be detailed, precise,
-bounded, and verification-oriented. Claude Sonnet 5 is exceptional rather than the routine bounded
-executor: use it only when Luna genuinely fails on a difficult problem, when an unusually difficult
-issue benefits materially from Sonnet, or when Sol explicitly requests an independent alternative.
-Claude Opus 5 is used approximately every 5 meaningful implementation prompts and at genuinely
-critical checkpoints only, not after every Story. GPT-5.6 Sol remains the Planner, Architect, and
-Acceptance Authority. Gemini 3.7 remains auxiliary for suitable bounded or quota-balancing work.
+OpenAI/Codex and Anthropic/Claude are the active execution providers. GPT-5.6 Sol remains the
+planner, architect, quota governor, and acceptance authority in chat mode. Haiku handles
+deterministic reconnaissance; Sonnet Medium is the routine executor; Sonnet High handles difficult
+bounded work; Luna is reserved for architecture-sensitive execution; Opus remains independent; and
+Terra is risk-triggered. The canonical policy is maintained in
+[AI model routing](.ai/AI_MODEL_ROUTING.md) and [AI execution policy](.ai/AI_EXECUTION_POLICY.md).
 
 ## Security and privacy
 
@@ -225,7 +230,9 @@ AI-Project-Orchestrator/
 |   `-- AIUsageMonitor.Providers/
 |-- tests/
 |   |-- AIUsageMonitor.Domain.Tests/
+|   |-- AIUsageMonitor.Connection.Tests/
 |   |-- AIUsageMonitor.Provider.Tests/
+|   |-- AIUsageMonitor.Desktop.Tests/
 |   `-- AIUsageMonitor.Infrastructure.Tests/
 |-- .ai/CURRENT_STATE.md
 |-- AGENTS.md
@@ -271,9 +278,9 @@ be treated as evidence only after the command completes successfully on the curr
 The roadmap follows the approved APO Epics and the strategic P0/P1/P2/P3 backlog in Jira. These
 are planned capability boundaries, not shipped runtime claims:
 
-1. **P0 control plane — APO-38..43:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, and Smart Continue/recovery.
-2. **P0 bounded execution — APO-44..47:** quality-first routing, bounded execution, isolated workspaces, and tracker evidence.
-3. **P0 source-control/tracker/evidence — APO-62, APO-48, APO-49, APO-63:** read-only remote SCM/CI evidence, independent QA evidence, human approval policy, and controlled remote delivery.
+1. **Delivered P0 control plane — APO-38..46 and APO-68:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, durable recovery, quality-first routing, bounded execution, isolated workspaces, and workspace-preparation hardening.
+2. **P0 tracker/evidence inputs — APO-47 and APO-62:** Jira/Azure Boards awareness plus read-only remote SCM/CI evidence.
+3. **P0 evidence, approval, and delivery — APO-48, APO-49, APO-63:** independent QA evidence, human approval policy, and controlled remote delivery.
 4. **P0 Mission Control — APO-50:** one evidence-backed command-center read model and surface.
 5. **P1 acceleration — APO-51..56:** Review Inbox, composable workflows, project health, decision ledger, runtime evidence, and context budgets.
 6. **P2 controlled expansion — APO-57..58:** bounded background housekeeping and optional remote approval security design.
@@ -293,10 +300,12 @@ APO work is evidence-led and branch-scoped. A contributor or executor should:
 2. work only within the assigned Jira Story and preserve unrelated owner changes;
 3. validate the relevant build, tests, security, compatibility, and documentation surfaces;
 4. update `.ai/CURRENT_STATE.md` with factual evidence and limitations; and
-5. stop at the planner boundary so GPT-5.6 Sol can accept, reject, or issue the next contract.
+5. commit and push the branch, open or update one Draft PR, and stop at the planner boundary so
+   GPT-5.6 Sol can accept, reject, or issue the next contract.
 
 The owner remains the authority for protected-branch merges, high-risk actions, and material
-architecture or requirement changes. `TASK.md` is an executable contract, not a historical log.
+architecture or requirement changes. A Draft PR is not a merge or acceptance. `TASK.md` is the
+current planner boundary/execution contract when Sol has populated it; it is not a historical log.
 
 ## Product identity mapping
 

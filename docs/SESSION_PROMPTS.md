@@ -4,11 +4,13 @@
 **BRD:** `docs/BRD.md`
 **Plan:** `docs/IMPLEMENTATION_PLAN.md`
 **Planner:** GPT-5.6 Sol
-**Primary executor:** GPT-5.6 Luna xHigh
-**Exceptional alternative executor:** Claude Sonnet 5
+**Routine executors:** Claude Haiku 4.5 / Claude Sonnet 5 Medium / Claude Sonnet 5 High
+**Complex executors:** GPT-5.6 Luna xHigh / Luna Max
 **Independent reviewer:** Claude Opus 5
-**Optional security specialist:** GPT-5.6 Terra HIGH
-**Auxiliary executor:** Gemini 3.7
+**Specialist assurance:** GPT-5.6 Terra Medium/High
+
+Active execution providers are OpenAI/Codex and Anthropic/Claude only. The canonical model and
+execution policy is maintained in `.ai/AI_MODEL_ROUTING.md` and `.ai/AI_EXECUTION_POLICY.md`.
 
 This file is the permanent prompt-library and historical traceability document. The repository,
 BRD, Jira scope, and current state are authoritative over old chat context.
@@ -70,10 +72,10 @@ Jira / Git synchronization
 ```
 
 Sol prepares a complete self-contained `TASK.md` for each approved next work item. Preparing a
-task never authorizes its execution. Luna xHigh is the normal executor for substantial, bounded,
-cross-cutting, remediation, documentation, Jira/Git, and validation work. Sonnet is exceptional
-and is used only when Luna genuinely needs an alternative or Sol explicitly requests one. No
-future implementation prompts are pre-generated here.
+task never authorizes its execution. Haiku handles deterministic low-risk reconnaissance and
+mechanical work; Sonnet Medium is the normal routine executor; Sonnet High handles difficult bounded
+work; Luna is reserved for architecture-sensitive execution; and no future implementation prompts
+are pre-generated here.
 
 ---
 
@@ -167,13 +169,9 @@ policy, and stop. Do not execute another Story.
 
 ---
 
-# CURRENT APO CHECKPOINT
+# HISTORICAL APO CHECKPOINT (SUPERSEDED)
 
-APO-37 is merged and Done at main SHA `0c76c691bd1bfb51b0d7a2799b8e5770a0c1cd9d`. The strategic
-rebaseline created bounded roadmap Stories APO-38 through APO-63 under the existing APO-1 through
-APO-17 Epics and recorded their dependency order in the BRD and implementation plan. APO-43
-explicitly owns Smart Continue and recovery checkpoints; APO-62 owns read-only remote SCM/CI
-evidence, and APO-63 owns controlled remote delivery. The root
-`TASK.md` is now the Sol planning/acceptance handoff; it does not authorize any new Story. GPT-5.6
-Sol must accept the rebaseline, select exactly one bounded next Story, and issue its complete
-execution contract before any executor begins.
+The former APO-37 checkpoint and its planned APO-38 start are retained for historical traceability
+only. APO-38 through APO-46 and APO-68 are now delivered; APO-69 is the current repository-wide
+rebaseline and cleanup handoff. Read `.ai/CURRENT_STATE.md` and `TASK.md` for the live exact-head
+boundary. No prompt in this permanent library authorizes APO-48 or any other new Story.

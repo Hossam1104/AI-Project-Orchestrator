@@ -90,9 +90,10 @@ numbered provider Session 04 sequence is legacy/superseded and must not be execu
 ## Delivery and Validation
 
 Executor work must use a named branch, validate the assigned scope, update current state, commit,
-push the branch, integrate and push `main` under repository policy, fetch and verify `origin/main`,
-and leave the tree clean. Never force-push, hard-reset, or destructively clean. Preserve owner
-changes and document any protected-branch limitation.
+push the branch, open or update one Draft PR against `main`, verify the exact branch/base state,
+and leave the tree clean. Do not merge or push `main` unless a separate explicit finalization prompt
+authorizes that action. Never force-push, hard-reset, or destructively clean. Preserve owner changes
+and document any protected-branch limitation.
 
 Documentation-only governance work must not claim source build/test validation it did not perform.
 For implementation work, run appropriate restore/build/tests and review warnings, diff, secrets,
