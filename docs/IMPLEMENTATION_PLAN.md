@@ -7,12 +7,16 @@
 **Jira Project:** `APO`
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Default Branch:** `main`
-**Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
-**Primary Executor:** GPT-5.6 Luna xHigh
-**Routine Executors:** Claude Haiku 4.5 / Claude Sonnet 5 Medium / Claude Sonnet 5 High
-**Complex Executor:** GPT-5.6 Luna xHigh / Luna Max
+**Planner / Architect / Acceptance Authority:** GPT-5.6 Sol (chat mode only)
+**Primary Routine Executor:** Claude Sonnet 5 Medium
+**Routine Executors:** Claude Haiku 4.5 (deterministic recon/mechanical) / Claude Sonnet 5 Medium / Claude Sonnet 5 High
+**High-Risk/Complex Executor:** Dynamically selected by Sol between Claude Sonnet 5 High and GPT-5.6 Luna xHigh based on complexity, architecture sensitivity, and blast radius; neither is a hard-coded universal default. GPT-5.6 Luna xHigh is normal for high-risk execution, with Luna Max reserved for exceptional escalation.
 **Independent Reviewer:** Claude Opus 5
 **Specialist Assurance:** GPT-5.6 Terra Medium/High
+
+Canonical routing, quota, and execution-policy detail lives in `.ai/AI_MODEL_ROUTING.md` and
+`.ai/AI_EXECUTION_POLICY.md`; this header summarizes only the roles relevant to this plan and does
+not override those canonical files.
 
 ---
 
@@ -437,7 +441,7 @@ introduced.
 | P0 | Independent QA gates, human gates, controlled delivery, and Mission Control | APO-48, APO-49, APO-63, APO-50 |
 | P1 | Review Inbox, skills, health, decision ledger, runtime evidence, and context budgets | APO-51 through APO-56 |
 | P2 | Bounded background automation/housekeeping and optional remote approval design | APO-57, APO-58 |
-| P3 | Accepted APO-37 hardening debt | APO-59, APO-60, APO-61 |
+| P3 | APO-37 hardening debt (findings accepted into backlog; Jira: To Do) | APO-59, APO-60, APO-61 |
 
 Existing work reused rather than recreated includes APO-27 project/orchestration storage, APO-35/36
 the Projects workspace and normal composition, APO-37 local Git evidence, and APO-33 CI/release

@@ -285,7 +285,7 @@ shipped runtime claims:
 4. **P0 Mission Control — APO-50:** one evidence-backed command-center read model and surface.
 5. **P1 acceleration — APO-51..56:** Review Inbox, composable workflows, project health, decision ledger, runtime evidence, and context budgets.
 6. **P2 controlled expansion — APO-57..58:** bounded background housekeeping and optional remote approval security design.
-7. **P3 accepted hardening — APO-59..61:** APO-37 evidence bounds, verification UX truthfulness, and explicit real-Git availability semantics.
+7. **P3 remaining/planned hardening — APO-59..61 (Jira: To Do):** APO-37 evidence bounds, verification UX truthfulness, and explicit real-Git availability semantics.
 
 APO-33 remains the existing CI/release Story under APO-17. Existing APO-27, APO-35, APO-36, and
 APO-37 work is implemented evidence, not a claim that the full orchestration runtime exists.

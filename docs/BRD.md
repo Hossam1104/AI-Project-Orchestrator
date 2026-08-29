@@ -725,7 +725,7 @@ TASK.md contract. No competitor-named Epic is created.
 | Runtime evidence and context-budget management | P1 | APO-55 under APO-12; APO-56 under APO-10 |
 | Bounded background automation and housekeeping | P2 | APO-57 under APO-11 |
 | Optional remote/mobile approval design | P2 | APO-58 under APO-14 |
-| APO-37 accepted hardening debt | P3 | APO-59, APO-60, APO-61 under APO-6 |
+| APO-37 hardening debt (findings accepted into backlog; Jira: To Do) | P3 | APO-59, APO-60, APO-61 under APO-6 |
 
 APO-33 remains the existing CI/release Story under APO-17 and is reused rather than duplicated.
 APO-37 is merged and Done; its accepted P3 findings are retained in APO-59 through APO-61. Rejected

@@ -155,7 +155,7 @@ history, runtime evidence, and context budgets/compression.
 
 Bounded background automation/housekeeping and an optional remote/mobile approval security design.
 
-### P3 accepted hardening — APO-59..61
+### P3 remaining/planned hardening — APO-59..61 (Jira: To Do)
 
 APO-37 local evidence/output bounds, verification deadline/path truthfulness, and real-Git
 availability evidence semantics.
@@ -299,7 +299,7 @@ APO-51..56
         v
 APO-57..58
         v
-APO-59..61 accepted hardening
+APO-59..61 remaining/planned hardening (Jira: To Do)
 ```
 
 Read-only remote evidence must precede controlled remote writes because APO cannot safely mutate a
