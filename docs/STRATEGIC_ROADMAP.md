@@ -34,7 +34,7 @@ Sol plans and produces versioned execution contract
     ↓
 Quality-first / quota-aware routing selects executor
     ↓
-Luna xHigh normally performs the bounded implementation
+Sol routes the bounded implementation to the appropriate executor under the canonical routing policy
     ↓
 APO maintains project-isolated repository/worktree evidence
     ↓

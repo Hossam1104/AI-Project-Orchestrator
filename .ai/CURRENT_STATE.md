@@ -3894,3 +3894,32 @@ through SOL-69-04. This section records their remediation.
 > APO-69 SOL-69-01 through SOL-69-04 remediation is complete on Draft PR #21 and awaiting GPT-5.6 Sol
 > exact-head acceptance. Do not merge PR #21, mark APO-69 Done, start APO-48, or execute another
 > product Story until Sol reviews the exact returned head.
+
+## 48. APO-69 SOL-69-05 and SOL-69-06 final two-finding reconciliation (refactor/APO-69-project-rebaseline-cleanup)
+
+This is the latest factual handoff for the final two APO-69 findings. Historical sections above
+remain unchanged.
+
+- Sol reviewed exact prior head `f5a74b2164b2e947af4c24dbdc02781ce36a1976` with prior tree
+  `bbd61095c6daad99007d4d8f8ffae995d401353c`. SOL-69-01 through SOL-69-04 were accepted as
+  closed; Sol returned SOL-69-05 and SOL-69-06.
+- **SOL-69-05:** the active Strategic Roadmap routing step was made model-neutral:
+  `Sol routes the bounded implementation to the appropriate executor under the canonical routing policy`.
+  No adjacent active duplicate was found, and canonical routing files were not modified.
+- **SOL-69-06:** PR #21's description was synchronized after push to the exact final head and tree
+  reported by the Git/PR handoff; the stale prior values are no longer labeled as final. PR #21
+  remains Open / Draft / unmerged against `main`.
+- No product/source/test/schema behavior changed. Previous APO-69 validation remains historical
+  cleanup evidence: 896/896 passed; the full suite was not rerun for this documentation-only
+  remediation. `GitHub CI = NONE / NOT CLAIMED`.
+- APO-69 remains In Progress, APO-48 remains To Do, and no Jira mutation or APO-48 work occurred.
+  The deferred Luna-first / Haiku-retirement governance migration was not implemented in PR #21.
+- The final exact commit/tree must be taken from the Git/PR handoff because a commit cannot
+  self-embed its own resulting SHA.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`. The application was not launched.
+
+**Next planner boundary:**
+
+> SOL-69-05 and SOL-69-06 remediation is complete on Draft PR #21 and awaits GPT-5.6 Sol exact-head
+> acceptance. Do not merge PR #21, mark APO-69 Done, start APO-48, or execute another product Story
+> until Sol reviews the exact returned head.
