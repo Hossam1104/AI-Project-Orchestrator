@@ -4,8 +4,17 @@
 
 This roadmap is the concise bridge between the approved BRD, the implementation plan, Jira
 Stories, and the owner experience APO is being built to provide. It records the strategic
-direction and sequencing after APO-37; it is not a runtime feature claim and does not authorize a
-new Story. Each implementation boundary still requires a Sol-authored `TASK.md` contract.
+direction and sequencing after the accepted APO foundation; it is not a runtime feature claim and
+does not authorize a new Story. Each implementation boundary still requires a Sol-authored
+`TASK.md` contract.
+
+## Current status (29 August 2026)
+
+APO-38 through APO-46 and APO-68 are implemented and marked Done in Jira. APO-47 through APO-63
+remain the bounded strategic backlog, with APO-48 still To Do and not started. APO-69 is the active
+repository-wide rebaseline and cleanup handoff on a Draft PR awaiting GPT-5.6 Sol exact-head review.
+The live branch, commit, tree, validation, and planner boundary are maintained in
+`.ai/CURRENT_STATE.md` and `TASK.md`.
 
 ## 2. Product experience we are building
 
@@ -25,7 +34,7 @@ Sol plans and produces versioned execution contract
     ↓
 Quality-first / quota-aware routing selects executor
     ↓
-Luna xHigh normally performs the bounded implementation
+Sol routes the bounded implementation to the appropriate executor under the canonical routing policy
     ↓
 APO maintains project-isolated repository/worktree evidence
     ↓
@@ -50,9 +59,10 @@ Final independent evidence verification
 Decision/audit history + next safe checkpoint
 ```
 
-The orchestration runtime, Smart Continue, remote SCM evidence, controlled delivery, and
-consolidated Mission Control experience remain planned capabilities in the current repository
-state.
+The end-to-end orchestration runtime, provider execution, remote SCM evidence, controlled delivery,
+and consolidated Mission Control experience remain planned capabilities. APO-43 has delivered the
+durable Smart Continue/recovery contract and state boundary; its complete owner-facing experience
+remains planned.
 
 ## 3. Architectural principles
 
@@ -76,11 +86,13 @@ state.
 | Model | Default role |
 |---|---|
 | GPT-5.6 Sol | Planner, architect, Jira decomposition owner, and acceptance authority |
-| GPT-5.6 Luna xHigh | Primary bounded implementation, remediation, repository, documentation, Jira, and validation executor |
-| Claude Sonnet 5 | Exceptional difficult alternative only when Luna genuinely needs one or Sol explicitly requests it |
+| Claude Haiku 4.5 | Deterministic low-risk reconnaissance and mechanical work |
+| Claude Sonnet 5 Medium | Primary routine bounded implementation executor |
+| Claude Sonnet 5 High | Difficult bounded debugging and larger bounded implementation |
+| GPT-5.6 Luna xHigh | Architecture-sensitive, cross-cutting, or high-blast-radius execution |
+| GPT-5.6 Luna Max | Exceptional implementation escalation only |
 | Claude Opus 5 | Independent reviewer at configured cadence and critical checkpoints |
-| GPT-5.6 Terra HIGH | Optional risk-triggered security specialist |
-| Gemini 3.7 | Auxiliary executor for suitable bounded, repetitive, validation, documentation, or quota-balancing work |
+| GPT-5.6 Terra Medium/High | Optional risk-triggered security, concurrency, and data-integrity assurance |
 
 One assigned Jira work item is the maximum active scope for an executor. A roadmap Story is not
 implementation authorization, and completing one Story never automatically starts the next.
@@ -89,14 +101,17 @@ implementation authorization, and completing one Story never automatically start
 
 The accepted foundation includes the WPF/.NET/JSON/JSONL desktop architecture, secure credential
 reference boundaries, provider-independent capacity contracts, project/orchestration storage,
-Projects workspace, normal DI composition, and APO-37 read-only local Git repository verification.
-APO-37 provides bounded local branch/HEAD/status/remote evidence for a selected configured path;
-it does not call a remote SCM service, read repository file contents, or perform Git writes.
+Projects workspace, agent/model registry, progressive onboarding, versioned contracts, dependency
+graphs, structured handoffs, durable recovery state, explainable routing, isolated workspace
+preparation, bounded cancellable execution, workspace-preparation hardening, and APO-37 read-only
+local Git repository verification. APO-37 provides bounded local branch/HEAD/status/remote evidence
+for a selected configured path; it does not call a remote SCM service, read repository file contents,
+or perform Git writes.
 
 APO-33 remains the existing repository-owned GitHub Actions CI/release Story. Local validation in
-this roadmap session is not a GitHub CI result. The strategic orchestration runtime, provider/model
-registry runtime, routing, execution, tracker automation, remote SCM evidence, controlled delivery,
-review engine, and Mission Control are not shipped by this documentation checkpoint.
+this roadmap session is not a GitHub CI result. Provider execution, tracker automation, remote SCM
+evidence, controlled delivery, independent review/acceptance engines, and Mission Control are not
+shipped by this documentation checkpoint.
 
 ## 6. Strategic Jira roadmap
 
@@ -140,7 +155,7 @@ history, runtime evidence, and context budgets/compression.
 
 Bounded background automation/housekeeping and an optional remote/mobile approval security design.
 
-### P3 accepted hardening — APO-59..61
+### P3 remaining/planned hardening — APO-59..61 (Jira: To Do)
 
 APO-37 local evidence/output bounds, verification deadline/path truthfulness, and real-Git
 availability evidence semantics.
@@ -234,11 +249,12 @@ explicit human gates. No remote write may silently bypass the evidence or approv
 
 ## 11. Jira hygiene / roadmap identity
 
-The approved APO-1 through APO-17 Epic structure is reused. The active strategic product backlog is
-APO-38 through APO-63. APO-64 through APO-67 are Done, VOID, `no-project-work`, and
-`connector-correction` artifacts retained only as transparent Jira connector history; they have
-zero product scope and are excluded from roadmap totals, dependencies, sequencing, BRD claims,
-and Mission Control scope. No APO-68 or replacement Story is created by this roadmap continuation.
+The approved APO-1 through APO-17 Epic structure is reused. The remaining strategic product backlog
+is APO-47 through APO-63; APO-38 through APO-46 are delivered. APO-64 through APO-67 are Done, VOID,
+`no-project-work`, and `connector-correction` artifacts retained only as transparent Jira connector
+history; they have zero product scope and are excluded from roadmap totals, dependencies, sequencing,
+BRD claims, and Mission Control scope. APO-68 is delivered workspace-preparation hardening. APO-69
+is the current repository rebaseline/cleanup Story and is not a product-runtime Story.
 
 ## 12. Near-term ordering
 
@@ -246,7 +262,7 @@ The following compact map is retained as a historical visual only; it is not the
 authoritative implementation sequence. Use the canonical DAG above and the explicit sequence below.
 
 ```text
-APO-37 accepted local foundation
+Accepted APO-38..46 and APO-68 foundation
         ↓
 APO-38 → APO-39 → APO-40 → APO-41 → APO-42 → APO-43
         ↓                                  ↘
@@ -264,28 +280,10 @@ APO-44 → APO-46 → APO-45                 recovery context
                               APO-51..56 → APO-57..58
 ```
 
-Authoritative planner sequence:
+Authoritative planner sequence for the remaining backlog:
 
 ```text
-APO-37 accepted local foundation
-        v
-APO-38
-        v
-APO-39
-        v
-APO-40
-        v
-APO-41
-        v
-APO-42
-        v
-APO-43
-        v
-APO-44
-        v
-APO-46 - isolated workspace safety
-        v
-APO-45 - bounded autonomous execution
+Accepted APO-38..46 and APO-68 foundation
         v
 APO-47 + APO-62 evidence integrations
         v
@@ -300,19 +298,21 @@ APO-50 Mission Control
 APO-51..56
         v
 APO-57..58
+        v
+APO-59..61 remaining/planned hardening (Jira: To Do)
 ```
 
 Read-only remote evidence must precede controlled remote writes because APO cannot safely mutate a
 remote target without independently knowing the current repository, ref, review/check, validation,
-permission, mergeability, and approval state. APO-38 is the recommended next Story because
-capability and connection truth are prerequisites for later routing, handoffs, and execution, but
-it is not automatically authorized. This is planner sequencing, not a claim that every adjacent pair
-is a Jira hard dependency.
+permission, mergeability, and approval state. The next Story is not selected by this roadmap;
+GPT-5.6 Sol must issue a fresh contract after accepting the APO-69 handoff. This is planner
+sequencing, not a claim that every adjacent pair is a Jira hard dependency.
 
 ## 13. Current planner boundary
 
-Prompt 1/5 final Jira DAG repair is complete. Draft PR #8 remains OPEN / DRAFT / UNMERGED against
-the accepted APO-37 main baseline while GPT-5.6 Sol reviews the repaired 18-link Jira DAG, the
-BRD/plan/roadmap synchronization, APO-43 Smart Continue ownership, APO-62, APO-63, and the void
-APO-64..67 exclusion. No Prompt 2/5 Story is authorized until Sol accepts this boundary and
-replaces `TASK.md` with exactly one self-contained implementation contract.
+The APO-69 repository-wide rebaseline and cleanup is delivered on a Draft PR against the current
+`main` baseline and awaits GPT-5.6 Sol exact-head review. The review package covers BRD/plan/roadmap
+synchronization, current implementation truth, Jira inventory, architecture/dead-code evidence,
+safe deletion proof, validation, and the absence of Azure DevOps APO tracking. No APO-48 or other
+new Story is authorized until Sol accepts this boundary and replaces `TASK.md` with exactly one
+self-contained implementation contract.

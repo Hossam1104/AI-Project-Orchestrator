@@ -3,9 +3,9 @@ using AIUsageMonitor.Domain.Alerts;
 namespace AIUsageMonitor.Application.Alerts;
 
 /// <summary>
-/// Persistence for triggered alert history (BRD §30 AlertEvents). Used by
-/// <see cref="IAlertEvaluator"/> callers to avoid re-raising an event every refresh cycle for
-/// a state that hasn't changed (BRD §27).
+/// Persistence for triggered alert history (BRD §30 AlertEvents). Alert evaluation and
+/// deduplication callers must avoid re-raising an event every refresh cycle for a state that
+/// has not changed (BRD §27).
 /// </summary>
 public interface IAlertEventRepository
 {

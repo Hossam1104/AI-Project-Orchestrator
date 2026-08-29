@@ -3774,3 +3774,152 @@ This is the latest factual handoff. Historical sections above remain unchanged.
 > AI execution governance/tooling migration is accepted and merged. APO-48 remains To Do and no
 > product Story is authorized until GPT-5.6 Sol plans the next work item and the owner sends a
 > fresh standalone lowercase `p`.
+
+---
+
+## 46. APO-69 repository-wide rebaseline, documentation reconciliation, and hygiene cleanup
+
+This is the current factual handoff for the APO-69 Draft PR. Historical sections above remain
+unchanged.
+
+- The verified starting baseline was `main` and `origin/main` at
+  `49153b147ac7fd8ea327b094dd4910091102ca3a`, with starting tree
+  `c2337d271fa3c3f26d4f8e7ba3857b62cb0b9f36`. Work was performed on
+  `refactor/APO-69-project-rebaseline-cleanup`.
+- APO-69 was created under APO-1 as the single evidence-backed cleanup/rebaseline Story. Jira now
+  contains 69 APO issues: 17 Epics, 47 Stories, 1 Bug, and 4 Tasks. APO-48 remains To Do and was
+  not started or transitioned.
+- The Draft PR is #21, against `main`, and remains OPEN / DRAFT / UNMERGED. The implementation
+  commit is `41c721bb7ebddb859d1850fa95e79e6cf1f17cf6` with tree
+  `ebcd5265446f8759b0dab32f74b12943309c7786` before this metadata handoff commit.
+- README, BRD, implementation plan, strategic roadmap, session prompt library, Claude instructions,
+  legacy inventory, and TASK.md were reconciled with the current delivered foundation. Current
+  active roles are OpenAI/Codex and Anthropic/Claude only; Gemini is not an active executor.
+- Serena symbol/reference analysis found no active implementations or references for the three
+  APO-19 placeholder contracts. The following files were removed without changing active runtime
+  behavior: `IRefreshOrchestrator.cs`, `IUsageAggregationService.cs`, and `IAlertEvaluator.cs`.
+  The active alert repository comment was adjusted to remove the stale symbol link. The historical
+  ledger records the deletion and the remaining future behavior boundary.
+- Architecture remains WPF/.NET 10/MVVM with clean dependency direction, JSON/JSONL persistence,
+  secure opaque credential references, provider-independent contracts, and self-contained Windows
+  publishing. No database/ORM, namespace migration, LocalAppData migration, provider transport,
+  remote write, or APO-48 behavior was introduced.
+- `dotnet restore AIUsageMonitor.sln` passed; `dotnet build AIUsageMonitor.sln --no-restore` passed
+  with 0 warnings and 0 errors; `dotnet test AIUsageMonitor.sln --no-build --no-restore` passed
+  896/896 with 0 failures and 0 skips. The existing `win-x64` self-contained single-file publish
+  profile passed and produced `AIUsageMonitor.Desktop.exe`.
+- `GitHub CI = NONE / NOT CLAIMED`. Azure DevOps tracking is `NOT APPLICABLE`: the configured
+  `https://dev.azure.com/DBSMENA` organization exposes no APO project/backlog, and no APO Azure
+  project or remote was configured. No GitHub or Azure status was fabricated.
+- The APO application was not launched for this documentation/cleanup boundary. The required stop
+  state is literal: `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+
+**Next planner boundary (superseded by §47 below):** the original next-planner-boundary note here
+described the then-current PR #21 head as awaiting first Sol review. Sol has since reviewed that
+head and returned four findings, remediated in §47; this section's other factual statements about
+what changed during the original cleanup pass remain historical record and are not rewritten.
+
+---
+
+## 47. APO-69 SOL-69-01 through SOL-69-04 exact-head reconciliation (refactor/APO-69-project-rebaseline-cleanup)
+
+This corrects the live/current boundary only; §46 above remains historical record of the original
+cleanup pass and is not rewritten. GPT-5.6 Sol reviewed PR #21 at head
+`c201f38867f30c076dcc35b3e61af357667c28a2` (tree `dbb83b4cd3f43fe228968e3aee1958a9e1234558`), base
+`origin/main` `49153b147ac7fd8ea327b094dd4910091102ca3a`, and returned four findings: SOL-69-01
+through SOL-69-04. This section records their remediation.
+
+- **SOL-69-01 (Serena memory project inventory):** `.serena/memories/core.md` incorrectly described
+  a "Five-project solution" and omitted the Provider test project from the test split. Corrected to
+  state the actual 10-project solution: 5 production projects (`AIUsageMonitor.Domain`,
+  `.Application`, `.Infrastructure`, `.Providers`, `.Desktop`) and 5 test projects (`Domain.Tests`,
+  `Provider.Tests`, `Infrastructure.Tests`, `Desktop.Tests`, `Connection.Tests`), verified against the
+  actual `.csproj` files under `src/` and `tests/`. The other Serena memories
+  (`conventions.md`, `tech_stack.md`, `memory_maintenance.md`, `suggested_commands.md`,
+  `task_completion.md`) were inspected and contain no direct contradiction of this correction; they
+  were left unchanged.
+- **SOL-69-02 (implementation-plan routing contradiction):** `docs/IMPLEMENTATION_PLAN.md`'s header
+  still declared `Primary Executor: GPT-5.6 Luna xHigh`, resurrecting the obsolete "Luna is universal
+  primary executor" rule superseded by the governance migration (§41-§45 above). Corrected the header
+  to name Claude Sonnet 5 Medium as the primary routine executor, describe Tier 3 as a dynamic
+  Sol-driven choice between Claude Sonnet 5 High and GPT-5.6 Luna xHigh (neither hard-coded as
+  universal default), and added an explicit pointer to the canonical `.ai/AI_MODEL_ROUTING.md` and
+  `.ai/AI_EXECUTION_POLICY.md` rather than duplicating routing detail. No other stale routing
+  statements (Gemini as active executor, "Sonnet exceptional only", etc.) were found in this file.
+- **SOL-69-03 (APO-59/60/61 status reconciliation):** live Jira was queried via
+  `searchJiraIssuesUsingJql` (`key in (APO-59, APO-60, APO-61, APO-69, APO-48)`) and confirmed
+  APO-59, APO-60, and APO-61 are all `To Do` (APO-69 `In Progress`, APO-48 `To Do`), contradicting
+  `docs/STRATEGIC_ROADMAP.md`'s "APO-59..61 accepted hardening" / "P3 accepted hardening" wording,
+  which read as a false completion claim. Corrected to "P3 remaining/planned hardening — APO-59..61
+  (Jira: To Do)" in both locations in `docs/STRATEGIC_ROADMAP.md`. The same ambiguous "accepted
+  hardening" phrasing was also found and reconciled in `README.md` and `docs/BRD.md`
+  (clarified as "findings accepted into backlog; Jira: To Do") and `docs/IMPLEMENTATION_PLAN.md`
+  (same clarification). `.ai/CURRENT_STATE.md`'s own existing phrasing ("retain the accepted APO-37
+  P3 hardening backlog") was inspected and found already truthful — it describes findings accepted
+  into backlog, not story completion — and was left unchanged. No Jira status was transitioned.
+- **SOL-69-04 (CURRENT_STATE exact-head truthfulness):** this section (§47) is the correction. The
+  prior latest section (§46) recorded only the pre-review implementation commit
+  (`41c721bb7ebddb859d1850fa95e79e6cf1f17cf6`, tree `ebcd5265446f8759b0dab32f74b12943309c7786`) as
+  "before this metadata handoff commit" without ever stating the metadata handoff commit's own
+  resulting hash, and was never updated after that handoff commit became the Sol-reviewed head
+  (`c201f38867f30c076dcc35b3e61af357667c28a2`, tree `dbb83b4cd3f43fe228968e3aee1958a9e1234558`) — the
+  prior reviewed head for this remediation pass. A commit cannot state its own resulting hash inside
+  its own content (the hash is a function of the content), so per the same pattern already used in
+  §45 for PR #20 acceptance, the exact new final remediation head and tree produced by this
+  SOL-69-01..04 remediation commit are authoritative in the Git Delivery Contract / completion report
+  returned to Sol for this task, not hardcoded here. Treat the PR #21 head reported there — not the
+  `c201f388...`/`41c721bb...` hashes above — as current.
+- Files changed by this remediation: `.serena/memories/core.md`, `docs/IMPLEMENTATION_PLAN.md`,
+  `docs/STRATEGIC_ROADMAP.md`, `README.md`, `docs/BRD.md`, `.ai/CURRENT_STATE.md`. No `src/` or
+  `tests/` file changed; no schema version changed (`JsonFileStore.CurrentSchemaVersion = 1`,
+  `ExecutionRunAuthoritySchema.CurrentVersion = 1` unchanged); no product feature, no APO-48 work, no
+  naming/LocalAppData migration, and no additional speculative dead-code deletion beyond the three
+  contracts already accepted as deleted in the original §46 cleanup pass (which remain deleted).
+- PR #21 remains `OPEN / DRAFT / UNMERGED` against `main`. APO-69 remains `In Progress`; APO-48
+  remains `To Do`; SOL-69-01 through SOL-69-04 are remediated but await Sol exact-head acceptance. No
+  product Story is authorized. `GitHub CI = NONE / NOT CLAIMED` — verified no workflow/status checks
+  exist for this head.
+- Validation performed: `git status`, `git diff --check`, full diff inspection from
+  `c201f38867f30c076dcc35b3e61af357667c28a2`, confirmed only the six files above changed, verified
+  project count (5 production + 5 test) against actual `.csproj` files, secret/token/credential scan
+  of the diff (none found), confirmed no source/test/runtime/project/build file changed. A full
+  896/896 test run was not re-executed because no source, test, project, or build configuration file
+  changed in this remediation; the existing 896/896 result recorded in §46 remains the historical
+  APO-69 cleanup validation evidence and is not re-presented as a new run.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO` at both the start and end of this
+  remediation pass; the WPF application was not launched.
+
+**Next planner boundary:**
+
+> APO-69 SOL-69-01 through SOL-69-04 remediation is complete on Draft PR #21 and awaiting GPT-5.6 Sol
+> exact-head acceptance. Do not merge PR #21, mark APO-69 Done, start APO-48, or execute another
+> product Story until Sol reviews the exact returned head.
+
+## 48. APO-69 SOL-69-05 and SOL-69-06 final two-finding reconciliation (refactor/APO-69-project-rebaseline-cleanup)
+
+This is the latest factual handoff for the final two APO-69 findings. Historical sections above
+remain unchanged.
+
+- Sol reviewed exact prior head `f5a74b2164b2e947af4c24dbdc02781ce36a1976` with prior tree
+  `bbd61095c6daad99007d4d8f8ffae995d401353c`. SOL-69-01 through SOL-69-04 were accepted as
+  closed; Sol returned SOL-69-05 and SOL-69-06.
+- **SOL-69-05:** the active Strategic Roadmap routing step was made model-neutral:
+  `Sol routes the bounded implementation to the appropriate executor under the canonical routing policy`.
+  No adjacent active duplicate was found, and canonical routing files were not modified.
+- **SOL-69-06:** PR #21's description was synchronized after push to the exact final head and tree
+  reported by the Git/PR handoff; the stale prior values are no longer labeled as final. PR #21
+  remains Open / Draft / unmerged against `main`.
+- No product/source/test/schema behavior changed. Previous APO-69 validation remains historical
+  cleanup evidence: 896/896 passed; the full suite was not rerun for this documentation-only
+  remediation. `GitHub CI = NONE / NOT CLAIMED`.
+- APO-69 remains In Progress, APO-48 remains To Do, and no Jira mutation or APO-48 work occurred.
+  The deferred Luna-first / Haiku-retirement governance migration was not implemented in PR #21.
+- The final exact commit/tree must be taken from the Git/PR handoff because a commit cannot
+  self-embed its own resulting SHA.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`. The application was not launched.
+
+**Next planner boundary:**
+
+> SOL-69-05 and SOL-69-06 remediation is complete on Draft PR #21 and awaits GPT-5.6 Sol exact-head
+> acceptance. Do not merge PR #21, mark APO-69 Done, start APO-48, or execute another product Story
+> until Sol reviews the exact returned head.

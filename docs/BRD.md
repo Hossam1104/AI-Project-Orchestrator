@@ -154,20 +154,20 @@ The approved default strategy is quality/risk first and quota/cost second:
 | Priority | Model | Default role |
 |---|---|---|
 | 1 | GPT-5.6 Sol | Planner / Architect / Acceptance Authority |
-| 2 | GPT-5.6 Luna xHigh | Primary implementation, remediation, and repository/documentation executor |
-| 3 | Claude Sonnet 5 | Exceptional fallback executor when Luna genuinely needs an alternative |
-| 4 | Claude Opus 5 | Independent reviewer |
-| 5 | GPT-5.6 Terra HIGH | Optional specialist security audit; not default reviewer |
-| Auxiliary | Gemini 3.7 | Cost/quota load-balancing executor for suitable bounded work |
+| 2 | Claude Haiku 4.5 | Deterministic low-risk reconnaissance and mechanical work |
+| 3 | Claude Sonnet 5 Medium | Primary routine bounded implementation executor |
+| 4 | Claude Sonnet 5 High | Difficult bounded debugging and larger bounded implementation |
+| 5 | GPT-5.6 Luna xHigh | Architecture-sensitive, cross-cutting, or high-blast-radius execution |
+| 6 | GPT-5.6 Luna Max | Exceptional implementation escalation only |
+| 7 | Claude Opus 5 | Independent reviewer |
+| 8 | GPT-5.6 Terra Medium/High | Specialist security, concurrency, and data-integrity assurance |
 
 Sol owns requirement interpretation, architecture, task classification, execution contracts,
-routing policy, acceptance criteria, and final acceptance. Luna xHigh is the default executor for
-substantial, bounded, cross-cutting, remediation, documentation, Git, Jira, and validation work.
-Sonnet is exceptional: use it only when Luna genuinely fails on a difficult problem, when an
-unusually difficult issue materially benefits from Sonnet, or when Sol explicitly requests an
-independent alternative. Opus remains independent from the implementation executor by default.
-Terra is risk-triggered and optional. Gemini is auxiliary and must be used only when capability and
-risk permit.
+routing policy, acceptance criteria, and final acceptance. Haiku handles deterministic low-risk
+work; Sonnet Medium is routine bounded implementation; Sonnet High handles difficult bounded work;
+Luna is reserved for architecture-sensitive execution; Opus remains independent; and Terra is
+risk-triggered. Active execution providers are OpenAI/Codex and Anthropic/Claude only. No external
+provider is an active orchestration executor unless this policy is explicitly changed.
 
 Model names, capabilities, availability, routing policy, and project overrides must be represented
 as data/configuration rather than scattered hard-coded workflow conditions.
@@ -725,7 +725,7 @@ TASK.md contract. No competitor-named Epic is created.
 | Runtime evidence and context-budget management | P1 | APO-55 under APO-12; APO-56 under APO-10 |
 | Bounded background automation and housekeeping | P2 | APO-57 under APO-11 |
 | Optional remote/mobile approval design | P2 | APO-58 under APO-14 |
-| APO-37 accepted hardening debt | P3 | APO-59, APO-60, APO-61 under APO-6 |
+| APO-37 hardening debt (findings accepted into backlog; Jira: To Do) | P3 | APO-59, APO-60, APO-61 under APO-6 |
 
 APO-33 remains the existing CI/release Story under APO-17 and is reused rather than duplicated.
 APO-37 is merged and Done; its accepted P3 findings are retained in APO-59 through APO-61. Rejected
@@ -805,7 +805,7 @@ The following are baseline decisions unless explicitly changed by the owner/plan
 3. Existing code and history are preserved and classified before refactoring.
 4. AI usage/capacity monitoring remains a first-class capability.
 5. Project orchestration is a primary capability.
-6. The six-role operating model in Section 5 is the default.
+6. The model portfolio and operating policy in Section 5 are the default.
 7. Model routing is quality/risk first and quota-aware second.
 8. High-risk actions remain behind explicit human approval gates.
 9. The portable WPF/.NET/JSON/JSONL architecture is the active foundation.
@@ -813,9 +813,11 @@ The following are baseline decisions unless explicitly changed by the owner/plan
 11. Supported APIs/CLIs/SDKs/integrations are preferred over fragile browser automation.
 12. Consumer subscription access and API/CLI entitlement are separate facts.
 
-APO-18 ends at governance consolidation. Source-code APO mapping/refactoring, detailed Story/Task
-decomposition, and implementation of APO-2 or any later Epic begin only after GPT-5.6 Sol reviews
-this baseline and prepares the next approved work item and execution contract.
+APO-18 established governance consolidation. Source-code mapping/refactoring and detailed
+Story/Task decomposition remain planner-controlled; completed Stories are evidenced in
+`.ai/CURRENT_STATE.md` and `docs/IMPLEMENTATION_PLAN.md`, while roadmap presence is not completion.
+Each new implementation boundary still requires GPT-5.6 Sol review and a self-contained execution
+contract.
 
 # 19. Glossary
 
@@ -837,6 +839,7 @@ acceptance, and stop conditions.
 
 This BRD is the consolidated APO product and technical baseline. Detailed architecture mapping,
 Jira Story/Task decomposition and execution sequencing remain planner-controlled. The approved
-strategic backlog is now recorded in APO-38 through APO-63, with the dependency order and next
-planning boundary maintained in docs/IMPLEMENTATION_PLAN.md and TASK.md. Roadmap presence is not
-implementation completion.
+strategic backlog is recorded in APO-38 through APO-63; current implementation and validation
+truth is maintained in `.ai/CURRENT_STATE.md` and `docs/IMPLEMENTATION_PLAN.md`, with the current
+planner boundary in `TASK.md`. APO-69 records the repository-wide rebaseline and cleanup handoff.
+Roadmap presence is not implementation completion.
