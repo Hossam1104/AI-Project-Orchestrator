@@ -248,22 +248,8 @@ public sealed class JiraWorkItemTrackerAdapterTests
     [Fact]
     public async Task DependencyLinkMutation_UsesExplicitIssueLinkAndVerificationRead()
     {
-        var calls = new List<HttpRequestMessage>();
-        var handler = new DelegateHttpMessageHandler(async (request, _) =>
-        {
-            calls.Add(request);
-            if (request.Method == HttpMethod.Get)
-            {
-                return DelegateHttpMessageHandler.JsonResponse(IssueJson(links: calls.Count >= 3 ? [BlocksLink()] : []));
-            }
-
-            Assert.Equal("/rest/api/3/issueLink", request.RequestUri!.AbsolutePath);
-            var payload = await request.Content!.ReadAsStringAsync();
-            Assert.Contains("outwardIssue", payload, StringComparison.Ordinal);
-            Assert.Contains("\"name\":\"Blocks\"", payload, StringComparison.Ordinal);
-            Assert.DoesNotContain("\"name\":\"blocks\"", payload, StringComparison.Ordinal);
-            return DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.Created);
-        });
+        var fake = new JiraIssueLinkRoundTripFake("APO-47");
+        var handler = new DelegateHttpMessageHandler(fake.HandleAsync);
         var audit = new MemoryAuditRepository();
         var adapter = CreateAdapter(handler, out _, audit);
         var current = Snapshot();
@@ -273,6 +259,7 @@ public sealed class JiraWorkItemTrackerAdapterTests
             related,
             "Blocks",
             TrackerLinkDirection.Outward,
+            remoteTypeId: "10000",
             relationship: "blocks");
 
         var result = await adapter.MutateAsync(Configuration(), new TrackerMutationRequest(
@@ -283,33 +270,31 @@ public sealed class JiraWorkItemTrackerAdapterTests
             Authority(current, target, TrackerMutationKind.AddDependencyLink, contentIdentity: null)));
 
         Assert.Equal(TrackerMutationOutcome.Succeeded, result.Outcome);
-        Assert.Equal(3, calls.Count);
+        Assert.Equal(1, fake.PostCount);
+        Assert.Equal("APO-47", fake.PostedInwardIssueKey);
+        Assert.Equal("APO-48", fake.PostedOutwardIssueKey);
+        Assert.Equal("10000", fake.PostedTypeId);
+        Assert.Null(fake.PostedTypeName);
+        Assert.Equal(2, fake.ReadIssuePaths.Count);
+        Assert.All(fake.ReadIssuePaths, path => Assert.EndsWith("/APO-47", path, StringComparison.Ordinal));
+
+        var verified = await adapter.ReadAsync(Configuration(), WorkItem());
+        var link = Assert.Single(Assert.IsType<TrackerWorkItemSnapshot>(verified.Value).Links);
+        Assert.Equal("APO-47", link.Source.KeyOrId);
+        Assert.Equal("APO-48", link.Target.KeyOrId);
+        Assert.Equal(TrackerLinkDirection.Outward, link.Direction);
+        Assert.Equal("blocks", link.Relationship);
+        Assert.Equal("10000", link.RemoteTypeId);
+        Assert.Equal("Blocks", link.RemoteTypeName);
+        Assert.Equal(3, fake.ReadIssuePaths.Count);
         Assert.Single(audit.Receipts);
     }
 
     [Fact]
     public async Task InwardDependencyLinkThroughSynchronizationService_UsesCurrentIssueForReadPostAndVerification()
     {
-        var requests = new List<HttpRequestMessage>();
-        var linkPosted = false;
-        var handler = new DelegateHttpMessageHandler(async (request, _) =>
-        {
-            requests.Add(request);
-            if (request.Method == HttpMethod.Get)
-            {
-                Assert.EndsWith("/APO-47", request.RequestUri!.AbsolutePath, StringComparison.Ordinal);
-                return DelegateHttpMessageHandler.JsonResponse(IssueJson(links: linkPosted ? [InwardBlocksLink()] : []));
-            }
-
-            Assert.Equal(HttpMethod.Post, request.Method);
-            Assert.Equal("/rest/api/3/issueLink", request.RequestUri!.AbsolutePath);
-            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
-            Assert.Equal("APO-48", document.RootElement.GetProperty("outwardIssue").GetProperty("key").GetString());
-            Assert.Equal("APO-47", document.RootElement.GetProperty("inwardIssue").GetProperty("key").GetString());
-            Assert.Equal("10000", document.RootElement.GetProperty("type").GetProperty("id").GetString());
-            linkPosted = true;
-            return DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.Created);
-        });
+        var fake = new JiraIssueLinkRoundTripFake("APO-47");
+        var handler = new DelegateHttpMessageHandler(fake.HandleAsync);
         var audit = new MemoryAuditRepository();
         var adapter = CreateAdapter(handler, out _, audit);
         var evidence = await adapter.ReadAsync(Configuration(), WorkItem());
@@ -341,9 +326,36 @@ public sealed class JiraWorkItemTrackerAdapterTests
             Authority(current, operation.Target, TrackerMutationKind.AddDependencyLink, contentIdentity: null));
 
         Assert.Equal(TrackerMutationOutcome.Succeeded, result.Outcome);
-        Assert.Equal(1, requests.Count(request => request.Method == HttpMethod.Post));
-        Assert.Equal(3, requests.Count(request => request.Method == HttpMethod.Get));
+        Assert.Equal(1, fake.PostCount);
+        Assert.Equal("APO-48", fake.PostedInwardIssueKey);
+        Assert.Equal("APO-47", fake.PostedOutwardIssueKey);
+        Assert.Equal("10000", fake.PostedTypeId);
+        Assert.Null(fake.PostedTypeName);
+        Assert.Equal(3, fake.ReadIssuePaths.Count);
+        Assert.All(fake.ReadIssuePaths, path => Assert.EndsWith("/APO-47", path, StringComparison.Ordinal));
+
+        var verified = await adapter.ReadAsync(Configuration(), WorkItem());
+        var link = Assert.Single(Assert.IsType<TrackerWorkItemSnapshot>(verified.Value).Links);
+        Assert.Equal("APO-48", link.Source.KeyOrId);
+        Assert.Equal("APO-47", link.Target.KeyOrId);
+        Assert.Equal(TrackerLinkDirection.Inward, link.Direction);
+        Assert.Equal("is blocked by", link.Relationship);
+        Assert.Equal("10000", link.RemoteTypeId);
+        Assert.Equal("Blocks", link.RemoteTypeName);
+        Assert.Equal(4, fake.ReadIssuePaths.Count);
         Assert.Single(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task DependencyLinkDirections_UseOppositeJiraEndpointAssignments()
+    {
+        var outward = await ExecuteDependencyLinkMutationAsync(TrackerLinkDirection.Outward);
+        var inward = await ExecuteDependencyLinkMutationAsync(TrackerLinkDirection.Inward);
+
+        Assert.Equal("APO-47", outward.PostedInwardIssueKey);
+        Assert.Equal("APO-48", outward.PostedOutwardIssueKey);
+        Assert.Equal(outward.PostedInwardIssueKey, inward.PostedOutwardIssueKey);
+        Assert.Equal(outward.PostedOutwardIssueKey, inward.PostedInwardIssueKey);
     }
 
     [Fact]
@@ -855,18 +867,37 @@ public sealed class JiraWorkItemTrackerAdapterTests
             Now.AddMinutes(5),
             contentIdentity);
 
+    private async Task<JiraIssueLinkRoundTripFake> ExecuteDependencyLinkMutationAsync(TrackerLinkDirection direction)
+    {
+        var fake = new JiraIssueLinkRoundTripFake("APO-47");
+        var adapter = CreateAdapter(new DelegateHttpMessageHandler(fake.HandleAsync), out _);
+        var current = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10002");
+        var target = new TrackerMutationTarget(
+            current.Identity,
+            related,
+            "Blocks",
+            direction,
+            remoteTypeId: "10000",
+            relationship: direction == TrackerLinkDirection.Outward ? "blocks" : "is blocked by");
+
+        var result = await adapter.MutateAsync(Configuration(), new TrackerMutationRequest(
+            ProjectId,
+            Configuration().Identity,
+            TrackerMutationKind.AddDependencyLink,
+            target,
+            Authority(current, target, TrackerMutationKind.AddDependencyLink, contentIdentity: null)));
+
+        Assert.Equal(TrackerMutationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(1, fake.PostCount);
+        return fake;
+    }
+
     private static object BlocksLink() => new
     {
         id = "200",
         type = new { id = "10000", name = "Blocks", inward = "is blocked by", outward = "blocks" },
         outwardIssue = new { id = "10002", key = "APO-48", fields = new { project = new { key = "APO" } } }
-    };
-
-    private static object InwardBlocksLink() => new
-    {
-        id = "200",
-        type = new { id = "10000", name = "Blocks", inward = "is blocked by", outward = "blocks" },
-        inwardIssue = new { id = "10002", key = "APO-48", fields = new { project = new { key = "APO" } } }
     };
 
     private static object CustomDependsLink() => new
@@ -908,6 +939,77 @@ public sealed class JiraWorkItemTrackerAdapterTests
                 comment = new { comments = comments ?? [], total = comments?.Length ?? 0 }
             }
         });
+
+    private sealed class JiraIssueLinkRoundTripFake(string currentIssueKey)
+    {
+        private string CurrentIssueKey { get; } = currentIssueKey;
+
+        public int PostCount { get; private set; }
+        public string? PostedInwardIssueKey { get; private set; }
+        public string? PostedOutwardIssueKey { get; private set; }
+        public string? PostedTypeId { get; private set; }
+        public string? PostedTypeName { get; private set; }
+        public List<string> ReadIssuePaths { get; } = [];
+
+        public async Task<HttpResponseMessage> HandleAsync(HttpRequestMessage request, CancellationToken _)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                ReadIssuePaths.Add(request.RequestUri!.AbsolutePath);
+                Assert.EndsWith($"/{CurrentIssueKey}", request.RequestUri.AbsolutePath, StringComparison.Ordinal);
+                object[] links = PostedInwardIssueKey is null ? [] : [LinkFromPostedEndpoints()];
+                return DelegateHttpMessageHandler.JsonResponse(IssueJson(links: links));
+            }
+
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/rest/api/3/issueLink", request.RequestUri!.AbsolutePath);
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            var root = document.RootElement;
+            PostedInwardIssueKey = root.GetProperty("inwardIssue").GetProperty("key").GetString();
+            PostedOutwardIssueKey = root.GetProperty("outwardIssue").GetProperty("key").GetString();
+            var type = root.GetProperty("type");
+            PostedTypeId = type.TryGetProperty("id", out var id) ? id.GetString() : null;
+            PostedTypeName = type.TryGetProperty("name", out var name) ? name.GetString() : null;
+            PostCount++;
+            return DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.Created);
+        }
+
+        private object LinkFromPostedEndpoints()
+        {
+            var type = new
+            {
+                id = PostedTypeId,
+                name = PostedTypeName ?? "Blocks",
+                inward = "is blocked by",
+                outward = "blocks"
+            };
+
+            if (string.Equals(PostedInwardIssueKey, CurrentIssueKey, StringComparison.OrdinalIgnoreCase))
+            {
+                return new
+                {
+                    id = "200",
+                    type,
+                    outwardIssue = LinkedIssue(PostedOutwardIssueKey!)
+                };
+            }
+
+            Assert.Equal(PostedOutwardIssueKey, CurrentIssueKey, StringComparer.OrdinalIgnoreCase);
+            return new
+            {
+                id = "200",
+                type,
+                inwardIssue = LinkedIssue(PostedInwardIssueKey!)
+            };
+        }
+
+        private static object LinkedIssue(string key) => new
+        {
+            id = "10002",
+            key,
+            fields = new { project = new { key = "APO" } }
+        };
+    }
 
     private sealed class MemoryAuditRepository : ITrackerMutationAuditRepository
     {

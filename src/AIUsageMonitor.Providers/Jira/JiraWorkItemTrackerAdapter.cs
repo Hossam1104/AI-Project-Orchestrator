@@ -387,19 +387,13 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         object linkType = request.Target.RemoteTypeId is { } remoteTypeId
             ? new { id = remoteTypeId }
             : new { name = request.Target.RemoteTypeName };
-        var linkPayload = request.Target.LinkDirection == TrackerLinkDirection.Outward
-            ? new
-            {
-                outwardIssue = new { key = request.Target.WorkItem.KeyOrId },
-                inwardIssue = new { key = request.Target.RelatedWorkItem!.KeyOrId },
-                type = linkType
-            }
-            : new
-            {
-                outwardIssue = new { key = request.Target.RelatedWorkItem!.KeyOrId },
-                inwardIssue = new { key = request.Target.WorkItem.KeyOrId },
-                type = linkType
-            };
+        var endpoints = ResolveJiraLinkEndpoints(request.Target);
+        var linkPayload = new
+        {
+            inwardIssue = new { key = endpoints.InwardIssue },
+            outwardIssue = new { key = endpoints.OutwardIssue },
+            type = linkType
+        };
         return await SendMutationAsync(
             request,
             attemptedAt,
@@ -411,6 +405,11 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             remoteReference: request.Target.CanonicalIdentity,
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
+
+    private static (string InwardIssue, string OutwardIssue) ResolveJiraLinkEndpoints(TrackerMutationTarget target) =>
+        target.LinkDirection == TrackerLinkDirection.Outward
+            ? (target.WorkItem.KeyOrId, target.RelatedWorkItem!.KeyOrId)
+            : (target.RelatedWorkItem!.KeyOrId, target.WorkItem.KeyOrId);
 
     private async Task<TrackerMutationResult> SendMutationAsync<TPayload>(
         TrackerMutationRequest request,
