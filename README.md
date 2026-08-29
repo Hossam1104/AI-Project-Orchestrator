@@ -89,18 +89,19 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | APO-38..43 control-plane contracts and services: agent/model truth, progressive onboarding, versioned contracts, dependency-aware work graphs, structured handoffs, and durable Smart Continue/recovery state |
 | :white_check_mark: Implemented / validated | APO-44..46 bounded execution foundation: explainable quality-first routing, isolated workspaces, and bounded cancellable execution with project/authority/recovery safeguards |
 | :white_check_mark: Implemented / validated | APO-68 workspace-preparation hardening: fail-closed approval-index recovery, mutation timeout safety, repository lock identity, and inherited Git-environment hardening |
-| :white_check_mark: Implemented / validated | Full xUnit solution suite: 896 passed, 0 failed, 0 skipped; build completed with 0 warnings and 0 errors on the current baseline |
+| :white_check_mark: Implemented / validated | APO-47 tracker-agnostic Jira work-item and dependency synchronization with bounded reads, explicit mutation authority, post-verification, and audit evidence |
+| :white_check_mark: Implemented / validated | Full xUnit solution suite: 949 passed, 0 failed, 0 skipped; current merge checkout builds with 0 warnings and 0 errors |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
-| :construction: Planned / bounded future | Local Git evidence is partially implemented through APO-37; provider-independent GitHub/Azure Repos remote evidence (APO-62), Jira/Azure DevOps awareness, and controlled delivery (APO-63) remain unimplemented |
-| :construction: Planned | Independent validation evidence (APO-48), human approval policy (APO-49), tracker awareness (APO-47), remote SCM/CI evidence (APO-62), controlled delivery (APO-63), and Mission Control (APO-50) |
+| :construction: Planned / bounded future | Local Git evidence is partially implemented through APO-37; provider-independent GitHub/Azure Repos remote evidence (APO-62) and controlled delivery (APO-63) remain unimplemented |
+| :construction: Planned | Independent validation evidence (APO-48), human approval policy (APO-49), remote SCM/CI evidence (APO-62), controlled delivery (APO-63), and Mission Control (APO-50) |
 | :compass: Strategic roadmap | Mission Control, Smart Continue, recovery, dependency-aware work, isolated workspaces, decision ledger, project health, skills, bounded automation, and optional remote approval design |
 
 Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries,
 end-to-end autonomous provider execution, tracker automation, remote SCM evidence, controlled
 remote delivery, independent validation/review/acceptance engines, and the full APO-15 dashboard.
-The durable control-plane contracts and bounded execution safeguards in APO-38 through APO-46 and
-APO-68 are implemented; the remaining capability boundaries are planned in Jira APO-47 through
-APO-63. APO-37
+The durable control-plane contracts, bounded execution safeguards, and bounded Jira tracker slice in
+APO-38 through APO-47 and APO-68 are implemented; the remaining capability boundaries are planned in
+Jira APO-48 through APO-63. APO-37
 verifies a selected registered local path only when the owner clicks Verify repository; it does not
 inspect file contents, use credentials, contact a remote service, or perform Git writes. APO does
 not fabricate provider numbers or claim CI status before the relevant Story is delivered.
@@ -280,7 +281,7 @@ slices are identified explicitly; the remaining entries are planned capability b
 shipped runtime claims:
 
 1. **Delivered P0 control plane — APO-38..46 and APO-68:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, durable recovery, quality-first routing, bounded execution, isolated workspaces, and workspace-preparation hardening.
-2. **P0 tracker/evidence inputs — APO-47 and APO-62:** Jira/Azure Boards awareness plus read-only remote SCM/CI evidence.
+2. **P0 tracker/evidence inputs — APO-47 delivered; APO-62 remaining:** Jira/Azure Boards awareness is delivered through APO-47; read-only remote SCM/CI evidence remains.
 3. **P0 evidence, approval, and delivery — APO-48, APO-49, APO-63:** independent QA evidence, human approval policy, and controlled remote delivery.
 4. **P0 Mission Control — APO-50:** one evidence-backed command-center read model and surface.
 5. **P1 acceleration — APO-51..56:** Review Inbox, composable workflows, project health, decision ledger, runtime evidence, and context budgets.

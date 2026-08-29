@@ -8,13 +8,13 @@ direction and sequencing after the accepted APO foundation; it is not a runtime 
 does not authorize a new Story. Each implementation boundary still requires a Sol-authored
 `TASK.md` contract.
 
-## Current status (29 August 2026)
+## Current status (30 August 2026)
 
-APO-38 through APO-46 and APO-68 are implemented and marked Done in Jira. APO-47 through APO-63
-remain the bounded strategic backlog, with APO-48 still To Do and not started. APO-69 is the active
-repository-wide rebaseline and cleanup handoff on a Draft PR awaiting GPT-5.6 Sol exact-head review.
-The live branch, commit, tree, validation, and planner boundary are maintained in
-`.ai/CURRENT_STATE.md` and `TASK.md`.
+APO-38 through APO-47 and APO-68 are implemented and marked Done in Jira. APO-69 is also Done.
+APO-48 through APO-63 remain the bounded strategic backlog; APO-62, APO-48, APO-49, APO-50, and
+APO-63 are To Do and not started. PR #22 is merged into `main` at `d3a88e3`; the live branch,
+commit, tree, validation, and planner boundary are maintained in `.ai/CURRENT_STATE.md` and
+`TASK.md`.
 
 ## 2. Product experience we are building
 
@@ -132,7 +132,7 @@ Epics. APO-33 remains a complementary existing CI/release Story.
 - APO-44 — Quality-first, quota-aware routing.
 - APO-45 — Bounded execution.
 - APO-46 — Isolated worktrees/workspaces.
-- APO-47 — Jira/Azure Boards tracker integration.
+- APO-47 — Jira/Azure Boards tracker integration (delivered; Jira Done).
 
 ### P0 source-control/tracker/evidence — APO-62, APO-48, APO-49, APO-63
 
@@ -196,9 +196,11 @@ write.
 
 ### Tracker awareness — APO-47
 
-Jira and Azure Boards are provider-independent work-item inputs where configured. Tracker identity,
-keys, status, and evidence links remain auditable and project-isolated. A model or tracker CLI is
-not itself proof of repository or CI state.
+Jira and Azure Boards are provider-independent work-item inputs where configured. APO-47 delivers a
+bounded Jira-first implementation with auditable, project-isolated identity, keys, status, links,
+safe reads, bounded mutations, post-verification, and audit evidence. Azure transport remains
+unimplemented and truthful as unsupported/not configured. A model or tracker CLI is not itself proof
+of repository or CI state.
 
 ### Remote SCM / CI evidence — APO-62
 
@@ -250,7 +252,7 @@ explicit human gates. No remote write may silently bypass the evidence or approv
 ## 11. Jira hygiene / roadmap identity
 
 The approved APO-1 through APO-17 Epic structure is reused. The remaining strategic product backlog
-is APO-47 through APO-63; APO-38 through APO-46 are delivered. APO-64 through APO-67 are Done, VOID,
+is APO-48 through APO-63; APO-38 through APO-47 are delivered. APO-64 through APO-67 are Done, VOID,
 `no-project-work`, and `connector-correction` artifacts retained only as transparent Jira connector
 history; they have zero product scope and are excluded from roadmap totals, dependencies, sequencing,
 BRD claims, and Mission Control scope. APO-68 is delivered workspace-preparation hardening. APO-69
@@ -262,12 +264,12 @@ The following compact map is retained as a historical visual only; it is not the
 authoritative implementation sequence. Use the canonical DAG above and the explicit sequence below.
 
 ```text
-Accepted APO-38..46 and APO-68 foundation
+Accepted APO-38..47 and APO-68 foundation
         ↓
 APO-38 → APO-39 → APO-40 → APO-41 → APO-42 → APO-43
         ↓                                  ↘
 APO-44 → APO-46 → APO-45                 recovery context
-                                  APO-47 + APO-62 evidence integrations
+                                  APO-62 read-only remote SCM/CI evidence
                                          ↓
                               APO-48 QA/evidence gates
                                          ↓
@@ -283,9 +285,9 @@ APO-44 → APO-46 → APO-45                 recovery context
 Authoritative planner sequence for the remaining backlog:
 
 ```text
-Accepted APO-38..46 and APO-68 foundation
+Accepted APO-38..47 and APO-68 foundation
         v
-APO-47 + APO-62 evidence integrations
+APO-62 read-only remote SCM/CI evidence
         v
 APO-48 QA/evidence gates
         v
@@ -305,14 +307,12 @@ APO-59..61 remaining/planned hardening (Jira: To Do)
 Read-only remote evidence must precede controlled remote writes because APO cannot safely mutate a
 remote target without independently knowing the current repository, ref, review/check, validation,
 permission, mergeability, and approval state. The next Story is not selected by this roadmap;
-GPT-5.6 Sol must issue a fresh contract after accepting the APO-69 handoff. This is planner
-sequencing, not a claim that every adjacent pair is a Jira hard dependency.
+GPT-5.6 Sol must issue a fresh contract after reviewing this post-merge reconciliation. This is
+planner sequencing, not a claim that every adjacent pair is a Jira hard dependency.
 
 ## 13. Current planner boundary
 
-The APO-69 repository-wide rebaseline and cleanup is delivered on a Draft PR against the current
-`main` baseline and awaits GPT-5.6 Sol exact-head review. The review package covers BRD/plan/roadmap
-synchronization, current implementation truth, Jira inventory, architecture/dead-code evidence,
-safe deletion proof, validation, and the absence of Azure DevOps APO tracking. No APO-48 or other
-new Story is authorized until Sol accepts this boundary and replaces `TASK.md` with exactly one
-self-contained implementation contract.
+APO-69 is complete and APO-47 is merged, Sol-accepted, post-merge verified, and Jira Done. The
+current planner boundary is the post-merge state reconciliation in `.ai/CURRENT_STATE.md` and
+`TASK.md`; no APO-62, APO-48, or other new Story is authorized until Sol selects it and provides
+exactly one fresh self-contained implementation contract.

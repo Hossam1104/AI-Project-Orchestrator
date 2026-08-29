@@ -172,6 +172,6 @@ policy, and stop. Do not execute another Story.
 # HISTORICAL APO CHECKPOINT (SUPERSEDED)
 
 The former APO-37 checkpoint and its planned APO-38 start are retained for historical traceability
-only. APO-38 through APO-46 and APO-68 are now delivered; APO-69 is the current repository-wide
-rebaseline and cleanup handoff. Read `.ai/CURRENT_STATE.md` and `TASK.md` for the live exact-head
-boundary. No prompt in this permanent library authorizes APO-48 or any other new Story.
+only. APO-38 through APO-47 and APO-68 are now delivered; APO-69 is complete. Read
+`.ai/CURRENT_STATE.md` and `TASK.md` for the live post-merge reconciliation boundary. No prompt in
+this permanent library authorizes APO-62, APO-48, or any other new Story.
