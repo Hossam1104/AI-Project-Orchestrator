@@ -4,6 +4,7 @@ The APO-69 repository-wide rebaseline, documentation/tracking reconciliation, ar
 and dead-code cleanup is delivered on a Draft PR and awaits GPT-5.6 Sol exact-head review.
 
 - **Current main baseline:** `49153b147ac7fd8ea327b094dd4910091102ca3a`
+- **Draft PR:** #21, `refactor/APO-69-project-rebaseline-cleanup` against `main`
 - **Current cleanup item:** APO-69 under APO-1
 - **APO-48:** To Do and not started; no APO-48 implementation is authorized here.
 - **Scope boundary:** No additional product Story, provider, runtime, merge, or downstream delivery

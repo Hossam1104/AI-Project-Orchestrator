@@ -3774,3 +3774,49 @@ This is the latest factual handoff. Historical sections above remain unchanged.
 > AI execution governance/tooling migration is accepted and merged. APO-48 remains To Do and no
 > product Story is authorized until GPT-5.6 Sol plans the next work item and the owner sends a
 > fresh standalone lowercase `p`.
+
+---
+
+## 46. APO-69 repository-wide rebaseline, documentation reconciliation, and hygiene cleanup
+
+This is the current factual handoff for the APO-69 Draft PR. Historical sections above remain
+unchanged.
+
+- The verified starting baseline was `main` and `origin/main` at
+  `49153b147ac7fd8ea327b094dd4910091102ca3a`, with starting tree
+  `c2337d271fa3c3f26d4f8e7ba3857b62cb0b9f36`. Work was performed on
+  `refactor/APO-69-project-rebaseline-cleanup`.
+- APO-69 was created under APO-1 as the single evidence-backed cleanup/rebaseline Story. Jira now
+  contains 69 APO issues: 17 Epics, 47 Stories, 1 Bug, and 4 Tasks. APO-48 remains To Do and was
+  not started or transitioned.
+- The Draft PR is #21, against `main`, and remains OPEN / DRAFT / UNMERGED. The implementation
+  commit is `41c721bb7ebddb859d1850fa95e79e6cf1f17cf6` with tree
+  `ebcd5265446f8759b0dab32f74b12943309c7786` before this metadata handoff commit.
+- README, BRD, implementation plan, strategic roadmap, session prompt library, Claude instructions,
+  legacy inventory, and TASK.md were reconciled with the current delivered foundation. Current
+  active roles are OpenAI/Codex and Anthropic/Claude only; Gemini is not an active executor.
+- Serena symbol/reference analysis found no active implementations or references for the three
+  APO-19 placeholder contracts. The following files were removed without changing active runtime
+  behavior: `IRefreshOrchestrator.cs`, `IUsageAggregationService.cs`, and `IAlertEvaluator.cs`.
+  The active alert repository comment was adjusted to remove the stale symbol link. The historical
+  ledger records the deletion and the remaining future behavior boundary.
+- Architecture remains WPF/.NET 10/MVVM with clean dependency direction, JSON/JSONL persistence,
+  secure opaque credential references, provider-independent contracts, and self-contained Windows
+  publishing. No database/ORM, namespace migration, LocalAppData migration, provider transport,
+  remote write, or APO-48 behavior was introduced.
+- `dotnet restore AIUsageMonitor.sln` passed; `dotnet build AIUsageMonitor.sln --no-restore` passed
+  with 0 warnings and 0 errors; `dotnet test AIUsageMonitor.sln --no-build --no-restore` passed
+  896/896 with 0 failures and 0 skips. The existing `win-x64` self-contained single-file publish
+  profile passed and produced `AIUsageMonitor.Desktop.exe`.
+- `GitHub CI = NONE / NOT CLAIMED`. Azure DevOps tracking is `NOT APPLICABLE`: the configured
+  `https://dev.azure.com/DBSMENA` organization exposes no APO project/backlog, and no APO Azure
+  project or remote was configured. No GitHub or Azure status was fabricated.
+- The APO application was not launched for this documentation/cleanup boundary. The required stop
+  state is literal: `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+
+**Next planner boundary:**
+
+> Repository-wide APO rebaseline, documentation/tracking reconciliation, dead-code cleanup, and
+> architecture simplification are complete on the Draft PR and awaiting GPT-5.6 Sol exact-head
+> acceptance. Do not merge the PR, start APO-48, or execute another product Story until Sol reviews
+> the exact returned head.
