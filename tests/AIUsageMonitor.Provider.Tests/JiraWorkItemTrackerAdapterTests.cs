@@ -288,6 +288,228 @@ public sealed class JiraWorkItemTrackerAdapterTests
     }
 
     [Fact]
+    public async Task InwardDependencyLinkThroughSynchronizationService_UsesCurrentIssueForReadPostAndVerification()
+    {
+        var requests = new List<HttpRequestMessage>();
+        var linkPosted = false;
+        var handler = new DelegateHttpMessageHandler(async (request, _) =>
+        {
+            requests.Add(request);
+            if (request.Method == HttpMethod.Get)
+            {
+                Assert.EndsWith("/APO-47", request.RequestUri!.AbsolutePath, StringComparison.Ordinal);
+                return DelegateHttpMessageHandler.JsonResponse(IssueJson(links: linkPosted ? [InwardBlocksLink()] : []));
+            }
+
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/rest/api/3/issueLink", request.RequestUri!.AbsolutePath);
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
+            Assert.Equal("APO-48", document.RootElement.GetProperty("outwardIssue").GetProperty("key").GetString());
+            Assert.Equal("APO-47", document.RootElement.GetProperty("inwardIssue").GetProperty("key").GetString());
+            Assert.Equal("10000", document.RootElement.GetProperty("type").GetProperty("id").GetString());
+            linkPosted = true;
+            return DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.Created);
+        });
+        var audit = new MemoryAuditRepository();
+        var adapter = CreateAdapter(handler, out _, audit);
+        var evidence = await adapter.ReadAsync(Configuration(), WorkItem());
+        var current = Assert.IsType<TrackerWorkItemSnapshot>(evidence.Value);
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10002");
+        var desiredLink = new TrackerDependencyLink(
+            related,
+            current.Identity,
+            "is blocked by",
+            TrackerLinkDirection.Inward,
+            isDependency: true,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
+        var service = new TrackerSynchronizationService(
+            new TestProjectRepository(ConfiguredProject()),
+            new WorkItemTrackerAdapterResolver([adapter]));
+
+        var plan = service.CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            evidence,
+            new TrackerSynchronizationDesiredState(linksToAdd: [desiredLink])));
+
+        var operation = Assert.Single(plan.Operations);
+        Assert.Equal(current.Identity.CanonicalIdentity, operation.Target.WorkItem.CanonicalIdentity);
+        Assert.Equal(related.CanonicalIdentity, operation.Target.RelatedWorkItem!.CanonicalIdentity);
+        var result = await service.ExecuteAsync(
+            plan,
+            operation,
+            Authority(current, operation.Target, TrackerMutationKind.AddDependencyLink, contentIdentity: null));
+
+        Assert.Equal(TrackerMutationOutcome.Succeeded, result.Outcome);
+        Assert.Equal(1, requests.Count(request => request.Method == HttpMethod.Post));
+        Assert.Equal(3, requests.Count(request => request.Method == HttpMethod.Get));
+        Assert.Single(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task CommentCredentialCancellationBeforePost_IsTypedAndNonMutating()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var credentials = new CancellingCredentialStore(cancellation);
+        var handler = DelegateHttpMessageHandler.Json(IssueJson());
+        var audit = new MemoryAuditRepository();
+        var adapter = CreateAdapter(handler, credentials, audit);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(current.Identity);
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.AddComment,
+                target,
+                Authority(current, target, TrackerMutationKind.AddComment, TrackerCommentMetadata.ComputeBodyHash("trace")),
+                commentBody: "trace"),
+            cancellation.Token);
+
+        Assert.Equal(TrackerMutationOutcome.Cancelled, result.Outcome);
+        Assert.False(result.MayHaveModifiedRemote);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Empty(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task DependencyLinkCredentialCancellationBeforePost_IsTypedAndNonMutating()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var credentials = new CancellingCredentialStore(cancellation);
+        var handler = DelegateHttpMessageHandler.Json(IssueJson());
+        var audit = new MemoryAuditRepository();
+        var adapter = CreateAdapter(handler, credentials, audit);
+        var current = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10002");
+        var target = new TrackerMutationTarget(
+            current.Identity,
+            related,
+            "Blocks",
+            TrackerLinkDirection.Outward,
+            remoteTypeId: "10000",
+            relationship: "blocks");
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.AddDependencyLink,
+                target,
+                Authority(current, target, TrackerMutationKind.AddDependencyLink, contentIdentity: null)),
+            cancellation.Token);
+
+        Assert.Equal(TrackerMutationOutcome.Cancelled, result.Outcome);
+        Assert.False(result.MayHaveModifiedRemote);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Empty(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task TransitionCredentialCancellationBeforeDiscoveryGet_IsTypedAndNonMutating()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var credentials = new CancellingCredentialStore(cancellation);
+        var handler = DelegateHttpMessageHandler.Json(IssueJson());
+        var audit = new MemoryAuditRepository(rejectCancelledTokens: true);
+        var adapter = CreateAdapter(handler, credentials, audit);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(current.Identity);
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.TransitionStatus,
+                target,
+                Authority(current, target, TrackerMutationKind.TransitionStatus, contentIdentity: "31"),
+                statusId: "31"),
+            cancellation.Token);
+
+        Assert.Equal(TrackerMutationOutcome.Cancelled, result.Outcome);
+        Assert.False(result.MayHaveModifiedRemote);
+        Assert.Equal(1, handler.RequestCount);
+        Assert.Empty(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task TransitionGetCancellationBeforePost_IsTypedAndNonMutating()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var transitionGets = 0;
+        var posts = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Get && request.RequestUri!.AbsolutePath.EndsWith("/transitions", StringComparison.Ordinal))
+            {
+                transitionGets++;
+                cancellation.Cancel();
+                return Task.FromException<HttpResponseMessage>(new OperationCanceledException(cancellation.Token));
+            }
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(IssueJson()));
+            }
+
+            posts++;
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.NoContent));
+        });
+        var audit = new MemoryAuditRepository(rejectCancelledTokens: true);
+        var adapter = CreateAdapter(handler, out _, audit);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(current.Identity);
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.TransitionStatus,
+                target,
+                Authority(current, target, TrackerMutationKind.TransitionStatus, contentIdentity: "31"),
+                statusId: "31"),
+            cancellation.Token);
+
+        Assert.Equal(TrackerMutationOutcome.Cancelled, result.Outcome);
+        Assert.False(result.MayHaveModifiedRemote);
+        Assert.Equal(1, transitionGets);
+        Assert.Equal(0, posts);
+        Assert.Empty(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task SelfDependencyLink_IsRejectedBeforeRemoteCall()
+    {
+        var handler = DelegateHttpMessageHandler.Json(IssueJson());
+        var adapter = CreateAdapter(handler, out _);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(
+            current.Identity,
+            current.Identity,
+            "Blocks",
+            TrackerLinkDirection.Outward,
+            remoteTypeId: "10000",
+            relationship: "blocks");
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.AddDependencyLink,
+                target,
+                Authority(current, target, TrackerMutationKind.AddDependencyLink, contentIdentity: null)));
+
+        Assert.Equal(TrackerMutationOutcome.InvalidAuthority, result.Outcome);
+        Assert.Equal(0, handler.RequestCount);
+    }
+
+    [Fact]
     public async Task CustomLinkTypeIdentitySurvivesReadAndMutation()
     {
         var calls = 0;
@@ -565,31 +787,39 @@ public sealed class JiraWorkItemTrackerAdapterTests
     {
         credentials = new TestCredentialStore();
         credentials.Add("Jira:APO", "Bearer TEST-TOKEN");
-        return new JiraWorkItemTrackerAdapter(
+        return CreateAdapter(handler, credentials, audit);
+    }
+
+    private static JiraWorkItemTrackerAdapter CreateAdapter(
+        HttpMessageHandler handler,
+        ISecureCredentialStore credentials,
+        ITrackerMutationAuditRepository? audit = null) =>
+        new(
             new TestClock { UtcNow = Now },
             new TestHttpClientFactory(handler),
             credentials,
             audit ?? new MemoryAuditRepository());
-    }
+
+    private static Project ConfiguredProject() => new(
+        ProjectId,
+        "APO",
+        @"D:\APO",
+        null,
+        ProjectStatus.Active,
+        Now,
+        Now,
+        trackerType: "Jira",
+        trackerId: "APO",
+        trackerMetadata: new Dictionary<string, string?>
+        {
+            [TrackerMetadataKeys.BaseUri] = "https://jira.example/",
+            [TrackerMetadataKeys.ProjectKey] = "APO",
+            [TrackerMetadataKeys.AuthReference] = "Jira:APO"
+        });
 
     private static TrackerConfiguration Configuration()
     {
-        var project = new Project(
-            ProjectId,
-            "APO",
-            @"D:\APO",
-            null,
-            ProjectStatus.Active,
-            Now,
-            Now,
-            trackerType: "Jira",
-            trackerId: "APO",
-            trackerMetadata: new Dictionary<string, string?>
-            {
-                [TrackerMetadataKeys.BaseUri] = "https://jira.example/",
-                [TrackerMetadataKeys.ProjectKey] = "APO",
-                [TrackerMetadataKeys.AuthReference] = "Jira:APO"
-            });
+        var project = ConfiguredProject();
         Assert.True(TrackerConfiguration.TryCreate(project, out var configuration, out _, out var error), error);
         return configuration!;
     }
@@ -630,6 +860,13 @@ public sealed class JiraWorkItemTrackerAdapterTests
         id = "200",
         type = new { id = "10000", name = "Blocks", inward = "is blocked by", outward = "blocks" },
         outwardIssue = new { id = "10002", key = "APO-48", fields = new { project = new { key = "APO" } } }
+    };
+
+    private static object InwardBlocksLink() => new
+    {
+        id = "200",
+        type = new { id = "10000", name = "Blocks", inward = "is blocked by", outward = "blocks" },
+        inwardIssue = new { id = "10002", key = "APO-48", fields = new { project = new { key = "APO" } } }
     };
 
     private static object CustomDependsLink() => new
@@ -690,6 +927,38 @@ public sealed class JiraWorkItemTrackerAdapterTests
             Receipts.Add(receipt);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class CancellingCredentialStore(CancellationTokenSource cancellation) : ISecureCredentialStore
+    {
+        public int RetrieveCount { get; private set; }
+
+        public Task StoreAsync(string credentialReference, string secret, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<string?> RetrieveAsync(string credentialReference, CancellationToken cancellationToken = default)
+        {
+            RetrieveCount++;
+            if (RetrieveCount == 2)
+            {
+                cancellation.Cancel();
+                return Task.FromException<string?>(new OperationCanceledException(cancellationToken));
+            }
+
+            return Task.FromResult<string?>("Bearer TEST-TOKEN");
+        }
+
+        public Task RemoveAsync(string credentialReference, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class TestProjectRepository(Project project) : IProjectRepository
+    {
+        public Task<IReadOnlyList<Project>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Project>>([project]);
+
+        public Task<Project?> GetByIdAsync(Guid projectId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Project?>(project.Id == projectId ? project : null);
+
+        public Task UpsertAsync(Project project, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class ThrowingAuditRepository : ITrackerMutationAuditRepository

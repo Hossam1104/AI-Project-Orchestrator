@@ -163,13 +163,25 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
                 continue;
             }
 
+            var related = link.Direction switch
+            {
+                TrackerLinkDirection.Outward when SameIdentity(link.Source, current.Identity) => link.Target,
+                TrackerLinkDirection.Inward when SameIdentity(link.Target, current.Identity) => link.Source,
+                _ => null
+            };
+            if (related is null || SameIdentity(current.Identity, related))
+            {
+                conflicts.Add("A desired dependency link must be an oriented non-self relationship involving the current work item.");
+                continue;
+            }
+
             if (current.Links.All(existing => !SameRelationship(existing, link)))
             {
                 operations.Add(new(
                     TrackerMutationKind.AddDependencyLink,
                     new TrackerMutationTarget(
-                        link.Source,
-                        link.Target,
+                        current.Identity,
+                        related,
                         link.RemoteTypeName,
                         link.Direction,
                         link.RemoteTypeId,
@@ -199,6 +211,12 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
             unsupported,
             blockers);
     }
+
+    private static bool SameIdentity(TrackerWorkItemIdentity left, TrackerWorkItemIdentity right) =>
+        left.Provider == right.Provider &&
+        string.Equals(left.ProjectId, right.ProjectId, StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(left.KeyOrId, right.KeyOrId, StringComparison.OrdinalIgnoreCase) ||
+         left.RemoteId is not null && string.Equals(left.RemoteId, right.RemoteId, StringComparison.OrdinalIgnoreCase));
 
     private static bool SameRelationship(TrackerDependencyLink left, TrackerDependencyLink right) =>
         left.Direction == right.Direction &&

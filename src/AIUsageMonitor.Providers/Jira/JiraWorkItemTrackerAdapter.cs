@@ -283,6 +283,12 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             return new(TrackerMutationOutcome.InvalidAuthority, "An explicit related work item and exact remote link type identity are required.");
         }
 
+        if (request.Kind == TrackerMutationKind.AddDependencyLink &&
+            IdentityMatches(request.Target.WorkItem, request.Target.RelatedWorkItem!))
+        {
+            return new(TrackerMutationOutcome.InvalidAuthority, "Self dependency links are not supported.");
+        }
+
         if (request.Target.WorkItem.Provider != Provider ||
             !string.Equals(request.Target.WorkItem.ProjectId, configuration.Identity.ProjectId, StringComparison.OrdinalIgnoreCase) ||
             (request.Target.RelatedWorkItem is not null &&
@@ -1114,6 +1120,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
     {
         TrackerEvidenceState.PermissionDenied => TrackerMutationOutcome.PermissionDenied,
         TrackerEvidenceState.Unsupported => TrackerMutationOutcome.Unsupported,
+        TrackerEvidenceState.Cancelled => TrackerMutationOutcome.Cancelled,
         _ => TrackerMutationOutcome.AuthenticationRequired
     };
 

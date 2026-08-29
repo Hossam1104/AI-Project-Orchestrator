@@ -773,7 +773,9 @@ public sealed class TrackerMutationTarget
         LinkDirection = linkDirection;
     }
 
+    /// <summary>The current synchronization work item whose state fingerprint authorizes the mutation.</summary>
     public TrackerWorkItemIdentity WorkItem { get; }
+    /// <summary>The peer endpoint of the relationship relative to <see cref="WorkItem"/>.</summary>
     public TrackerWorkItemIdentity? RelatedWorkItem { get; }
     /// <summary>Compatibility alias for the exact remote type name.</summary>
     public string? LinkType { get; }

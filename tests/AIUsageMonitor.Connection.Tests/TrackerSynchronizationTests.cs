@@ -146,6 +146,135 @@ public sealed class TrackerSynchronizationTests
     }
 
     [Fact]
+    public void InwardDesiredLink_ReanchorsMutationTargetToCurrentItem()
+    {
+        var snapshot = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10876");
+        var link = new TrackerDependencyLink(
+            related,
+            snapshot.Identity,
+            "is blocked by",
+            TrackerLinkDirection.Inward,
+            isDependency: true,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
+
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(snapshot),
+            new TrackerSynchronizationDesiredState(linksToAdd: [link])));
+
+        var operation = Assert.Single(plan.Operations);
+        Assert.Equal(snapshot.Identity.CanonicalIdentity, operation.Target.WorkItem.CanonicalIdentity);
+        Assert.Equal(related.CanonicalIdentity, operation.Target.RelatedWorkItem!.CanonicalIdentity);
+        Assert.Equal(TrackerLinkDirection.Inward, operation.Target.LinkDirection);
+        Assert.True(plan.IsExecutable);
+    }
+
+    [Fact]
+    public void UnrelatedDesiredLink_IsRejectedWithoutAnOperation()
+    {
+        var snapshot = Snapshot();
+        var source = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10876");
+        var target = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-49", "10877");
+        var link = new TrackerDependencyLink(
+            source,
+            target,
+            "blocks",
+            TrackerLinkDirection.Outward,
+            isDependency: true,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
+
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(snapshot),
+            new TrackerSynchronizationDesiredState(linksToAdd: [link])));
+
+        Assert.False(plan.IsExecutable);
+        Assert.Empty(plan.Operations);
+        Assert.Contains(plan.Conflicts, value => value.Contains("involving the current", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void InwardDuplicateLink_IsNotPlannedAgain()
+    {
+        var baseSnapshot = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10876");
+        var link = new TrackerDependencyLink(
+            related,
+            baseSnapshot.Identity,
+            "is blocked by",
+            TrackerLinkDirection.Inward,
+            isDependency: true,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
+        var snapshot = Snapshot([link]);
+
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(snapshot),
+            new TrackerSynchronizationDesiredState(linksToAdd: [link])));
+
+        Assert.False(plan.IsExecutable);
+        Assert.Empty(plan.Operations);
+        Assert.Empty(plan.Conflicts);
+    }
+
+    [Fact]
+    public void InwardDifferentRemoteType_IsASeparateRelationship()
+    {
+        var baseSnapshot = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10876");
+        var existing = new TrackerDependencyLink(
+            related,
+            baseSnapshot.Identity,
+            "is blocked by",
+            TrackerLinkDirection.Inward,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
+        var desired = new TrackerDependencyLink(
+            related,
+            baseSnapshot.Identity,
+            "is blocked by",
+            TrackerLinkDirection.Inward,
+            remoteTypeId: "10001",
+            remoteTypeName: "Depends");
+
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(Snapshot([existing])),
+            new TrackerSynchronizationDesiredState(linksToAdd: [desired])));
+
+        var operation = Assert.Single(plan.Operations);
+        Assert.Equal("10001", operation.Target.RemoteTypeId);
+        Assert.Equal("Depends", operation.Target.RemoteTypeName);
+    }
+
+    [Fact]
+    public void SelfDependencyLink_IsRejectedWithoutAnOperation()
+    {
+        var snapshot = Snapshot();
+        var link = new TrackerDependencyLink(
+            snapshot.Identity,
+            snapshot.Identity,
+            "blocks",
+            TrackerLinkDirection.Outward,
+            isDependency: true,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
+
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(snapshot),
+            new TrackerSynchronizationDesiredState(linksToAdd: [link])));
+
+        Assert.False(plan.IsExecutable);
+        Assert.Empty(plan.Operations);
+        Assert.Contains(plan.Conflicts, value => value.Contains("self", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void EvidenceFromAnotherLocalProjectCannotCreatePlan()
     {
         var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
