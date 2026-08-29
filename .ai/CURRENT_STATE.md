@@ -12,6 +12,7 @@
 - Reconciliation branch: `docs/APO-2026-08-30-state-reconciliation`
 - Active product Story: none; APO-47 is the latest completed Story
 - Active product PR: none; PR #22 is merged/closed
+- Active reconciliation PR: #23, base `main`, `OPEN / DRAFT / UNMERGED`
 - APO-47: Sol accepted, merged, post-merge verified, Jira `Done`
 - APO-69: Jira `Done`; repository rebaseline and cleanup complete
 - Remaining critical path: APO-62, APO-48, APO-49, APO-63, then APO-50
@@ -4224,6 +4225,8 @@ remote, Jira, active documentation, and bounded validation without changing prod
   canonical checkout.
 - PR #22 is `MERGED / CLOSED`; its accepted feature head was
   `704573d3d978f2c5aa37e7891a2babb0b21116da`. No product PR is open.
+- Draft reconciliation PR #23 is open against `main`; it is the only active PR and remains
+  unmerged for Sol review.
 - APO-47 is `COMPLETE / SOL ACCEPTED / POST-MERGE VERIFIED / JIRA DONE`.
 - APO-69 is `COMPLETE / JIRA DONE`.
 
@@ -4288,8 +4291,8 @@ no active product Story, remaining P0 path, and current 949-test validation.
 
 ### Exact handoff boundary
 
-This reconciliation branch contains documentation/state updates only. It must be delivered through
-one Draft PR for Sol review. Sol must select and authorize exactly one remaining Jira Story and replace
+This reconciliation branch contains documentation/state updates only. Draft PR #23 is open against
+`main` for Sol review and remains unmerged. Sol must select and authorize exactly one remaining Jira Story and replace
 `TASK.md` with a fresh self-contained execution contract before the next implementation begins. No
 executor may start APO-62, APO-48, APO-49, APO-63, APO-50, APO-59, APO-60, or APO-61 from roadmap
 presence alone.

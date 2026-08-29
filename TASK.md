@@ -15,6 +15,7 @@ It records state and documentation only; it is not product implementation author
 - Reconciliation branch: `docs/APO-2026-08-30-state-reconciliation`
 - Active product work item: none; APO-47 is the latest completed Story
 - Active product PR: none; PR #22 is merged/closed
+- Active reconciliation PR: #23, base `main`, `OPEN / DRAFT / UNMERGED`
 
 ## Current project state
 
