@@ -1,169 +1,165 @@
-# AI PROJECT ORCHESTRATOR — APO-47 PROMPT 3/5 SOL EXACT-HEAD REVIEW
+# AI PROJECT ORCHESTRATOR — APO-47 PROMPT 3/5R SOL EXACT-HEAD RE-REVIEW
 
-This is the fresh-context review contract for GPT-5.6 Sol. It replaces the stale APO-69 planner
-boundary. It is a review handoff only; it does not authorize merge, Jira completion, another model,
-or another product Story.
+This is the fresh-context GPT-5.6 Sol exact-head review handoff for the bounded remediation of
+APO-47. It does not claim Sol acceptance, Jira completion, merge, or downstream authorization.
+It does not advance the five-prompt counter. No other model review is due.
 
-## Identity and exact Git boundary
+## Project identity and boundary
 
 - Repository: `Hossam1104/AI-Project-Orchestrator`
+- GitHub: `https://github.com/Hossam1104/AI-Project-Orchestrator`
 - Local root: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
-- Jira work item: `APO-47 — Implement Tracker-Agnostic Work Item and Dependency Synchronization`
+- Jira: `APO-47` — Implement Tracker-Agnostic Work Item and Dependency Synchronization
 - Parent Epic: `APO-7`
-- Sol authorization comment: `12268`
-- Prompt: `3/5`
-- Assigned model: `GPT-5.6 Luna xHigh`
-- Provider pool: `OpenAI / Codex`
-- Risk tier: `Tier 3 — difficult/substantial bounded execution`
-- Quota state: `UNKNOWN` (no invented percentage)
-- Authorized starting `main` SHA: `346bb8faa13db551af06a24154e0da6eaebb60cb`
-- Authorized starting `main` tree: `394355fbddf4eb70a6731401922763cf3fb3cab1`
-- Feature branch: `feat/APO-47-tracker-agnostic-work-item-sync`
-- Functional SHA: `a043234fa1fb640d5b857dc6ff4c64c97a46f4f8`
-- Functional tree: `98937c63560b099fb9f9df8e97b73112db83e143`
-- Final feature SHA/tree: the exact metadata-only handoff commit values are authoritative in
-  the external Git/PR handoff and completion report. A commit cannot self-embed its own SHA.
-- PR: #22, base `main`, must remain `OPEN / DRAFT / UNMERGED`.
+- Branch: `feat/APO-47-tracker-agnostic-work-item-sync`
+- Existing PR: `#22`, base `main`, required state `OPEN / DRAFT / UNMERGED`
+- Sol implementation authorization: comment `12268`
+- Sol CHANGES REQUIRED review: comment `12269`
+- Assigned route: GPT-5.6 Luna xHigh / OpenAI-Codex / Tier 3
 
-## Delivered architecture
+## Exact Git baseline and remediation commits
 
-Application-owned provider-independent tracker contracts are in
-`AIUsageMonitor.Application.Trackers`. They cover provider/project identity, work-item identity
-and snapshots, status, parent hierarchy, dependency links, bounded comments, evidence states,
-bounded reads, synchronization planning, exact mutation authority, mutation results/receipts,
-and adapter resolution.
+- Authorized `main`: SHA `346bb8faa13db551af06a24154e0da6eaebb60cb`; tree
+  `394355fbddf4eb70a6731401922763cf3fb3cab1`
+- Prior reviewed APO-47 functional commit: SHA
+  `a043234fa1fb640d5b857dc6ff4c64c97a46f4f8`; tree
+  `98937c63560b099fb9f9df8e97b73112db83e143`
+- Prior reviewed metadata head: SHA `4ee961d6cf9cc299b9c54051ac7274fdd8ab3b08`; tree
+  `8aae794560ab6ff36b39f103be19f4f138fdd315`
+- Remediation functional commit: SHA
+  `f834696dccc59e3ae9b2b48c8ed235103090599a`; tree
+  `eb79ae7e0fd350e1e6f28ab7f69cb47912d7f435`
+- Functional commit parent: `4ee961d6cf9cc299b9c54051ac7274fdd8ab3b08`
+- Final metadata-only SHA/tree: the exact values are reported by the external Git/PR/Jira
+  handoff and completion report because a commit cannot self-embed its own SHA/tree. Its parent
+  is the functional remediation commit and its only changed files are `TASK.md` and
+  `.ai/CURRENT_STATE.md`.
 
-Existing `Project.TrackerType`, `Project.TrackerId`, and `Project.TrackerMetadata` are reused.
-Documented metadata keys are `baseUri`, `projectKey`, `authRef`, and `freshnessSeconds`.
-Secrets are never project metadata. Exact provider resolution returns `NotConfigured`,
-`Unsupported`, `Resolved`, or `ConfigurationConflict`; it never guesses or cross-falls back.
+## SOL review findings and closures
 
-Jira is the first production adapter. It uses the official Jira Cloud REST v3 surfaces:
+### SOL-47-01 — local APO project provenance
 
-- `GET /rest/api/3/issue/{issueIdOrKey}` for bounded exact issue reads;
-- `POST /rest/api/3/search/jql` for bounded discovery and pagination;
-- `GET /rest/api/3/issue/{issueIdOrKey}/transitions` and
-  `POST /rest/api/3/issue/{issueIdOrKey}/transitions` for validated status transitions;
-- `POST /rest/api/3/issue/{issueIdOrKey}/comment` with minimal plain-text ADF; and
-- `POST /rest/api/3/issueLink` for explicitly requested dependency-link creation.
+`TrackerReadResult<T>` now requires and stores immutable local `Guid ProjectId`. Jira success,
+partial, stale, auth, permission, rate-limit, not-found, unavailable, invalid, and cancellation
+results all carry the configured local project ID. Planning rejects evidence from another local
+project before producing operations. Execution rechecks plan, authority, loaded project, and
+resolved configuration project IDs before adapter invocation. Same-Jira A/B evidence and
+cross-project authority tests prove zero mutation/HTTP calls.
 
-Reads normalize core identity, project, issue type, summary, status, updated time, parent,
-inward/outward links, conservative known dependency semantics, bounded comments, and safe
-remote references. Search, pages, response bodies, strings, comments, links, diagnostics, and
-plan operations are bounded. Jira response bodies are never persisted or logged raw.
+### SOL-47-02 — post-mutation cancellation and audit finalization
 
-Azure DevOps exists as a provider-independent identity/configuration boundary and is resolved
-exactly. No live Azure transport, browser scraping, invented endpoint, or Azure project is part
-of APO-47; an unavailable Azure adapter is reported truthfully as unsupported/not configured.
+After possible remote transmission, audit finalization uses an independent bounded five-second
+`TrackerMutationAuditFinalizationTimeout`, never the caller token. Caller cancellation after an
+accepted POST returns `ReconciliationRequired` with `MayHaveModifiedRemote = true`; the fake
+observed exactly one POST and exactly one durable audit receipt with a usable non-cancelled audit
+token. Audit failure remains reconciliation-required and never retries the remote mutation.
 
-## Synchronization and mutation safety
+### SOL-47-03 — response-size and response-stream ambiguity
 
-The planner is deterministic and non-autonomous. It compares fresh current evidence with one
-bounded desired state and produces no-op/required-operation/conflict/unsupported/blocker results.
-Jira-owned current work-item state is authoritative. Stale, partial, unavailable, or conflicting
-evidence cannot produce an executable overwrite plan. No arbitrary Jira field patch surface exists.
+Oversized or failed GET response processing remains `InvalidResponse` with no mutation implication.
+Oversized or body-stream-failed POST response processing is indeterminate:
+`ReconciliationRequired`, `MayHaveModifiedRemote = true`, bounded audit attempt, and no retry.
 
-Every mutation requires an immutable execution-level `TrackerMutationAuthority` binding the
-authority, ProjectId, exact tracker identity, exact target/link, mutation kind, expected state
-fingerprint, actor, correlation/run identity, issue time, expiry, and content identity where
-applicable. Authority is checked before any remote call and cannot widen at runtime. Project and
-target isolation are enforced.
+### SOL-47-04 — Jira issue-link type identity
 
-`APO-49 HUMAN APPROVAL IMPLEMENTED = NO`.
+Provider-independent dependency links preserve exact remote type ID/name separately from directional
+relationship and edge direction. Jira parses `type.id`, `type.name`, `type.inward`, and
+`type.outward`; mutation targets and authority canonical identity bind the exact type identity;
+issueLink payloads use exact type ID or exact type name, never a directional label. Verification
+checks endpoints, direction, and exact type identity. Standard `Blocks`, custom `Depends`, same-label
+different-type, and authority-substitution tests are covered.
 
-Immediately before mutation, Jira state is freshly re-read and compared with the authority.
-Only bounded comment addition, validated status transition, and dependency-link addition are
-implemented. No state-changing tracker request is automatically retried:
+## Preserved architecture and non-scope
 
-`AUTOMATIC STATE-CHANGING RETRY COUNT = 0`
+Application-owned provider-independent tracker contracts, exact adapter resolution, bounded Jira
+Cloud REST v3 reads/search/transitions/comments/issue links, bounded evidence, stale/partial
+semantics, Jira-authoritative deterministic planning, explicit mutation authority, fresh
+pre-mutation read, independent post-mutation verification, secure credential references,
+project-isolated JSONL audit, disabled redirects, and schema V1 remain intact.
 
-Timeout/transport ambiguity after a request may have been sent, audit persistence failure after
-remote success, or failed post-mutation verification returns reconciliation-required/indeterminate
-truth. A successful mutation is independently re-read and verified before synchronized success is
-reported. Dependency-link removal remains unsupported/deferred because it expands destructive scope.
+Azure DevOps remains representable and exactly resolvable at the provider boundary only; no live
+Azure transport or invented endpoint was added. There is no arbitrary Jira field patch, browser
+scraping, autonomous/background synchronization, polling daemon, bulk edit, or live-owner mutation
+test. `APO-49 HUMAN APPROVAL IMPLEMENTED = NO`.
 
-## Evidence, credentials, and persistence
+`AUTOMATIC STATE-CHANGING RETRY COUNT = 0`.
 
-Evidence states include `Available`, `NotConfigured`, `AuthenticationRequired`, `PermissionDenied`,
-`NotFound`, `Unsupported`, `Unavailable`, `RateLimited`, `Partial`, `Stale`, `InvalidResponse`,
-and `Cancelled`. Every read carries capture time, source/provider, project, target, and limitations.
-Last-known evidence remains explicitly stale and never replaces a current auth/permission/failure
-state. Auxiliary failures preserve verified core data as partial evidence.
+## Focused validation
 
-Jira credentials are resolved only at request time through `ISecureCredentialStore` using an
-opaque reference. No token, password, cookie, bearer/basic header, raw response, or comment body
-is written to Project, JSON/JSONL, logs, exceptions, tests, or audit evidence. Comment audit data
-uses body hash and bounded length only. Tracker mutation audit records use the existing project-
-isolated JSONL pattern under the tracker audit area, with semantic schema version `1`.
+All named concern filters passed. Counts overlap where one test proves multiple boundaries.
 
-`JsonFileStore.CurrentSchemaVersion = 1` remains unchanged, and projects without tracker
-configuration remain backward-compatible.
+- Project provenance/isolation: `4/4`.
+- `TrackerReadResult` provenance and failure/stale-read coverage: `7/7`.
+- Synchronization planning: `7/7`.
+- Mutation authority and zero-call isolation: `6/6`.
+- Jira reads: `7/7`.
+- Jira mutations: `12/12`.
+- Cancellation after send: `1/1`.
+- Oversized/failed response semantics: `3/3`.
+- Issue-link parsing, identity, mutation, verification, and substitution: `5/5`.
+- Tracker synchronization suite: `18/18`.
+- Jira adapter suite: `19/19`.
+- Tracker mutation audit persistence: `3/3`.
+- Production composition: `10/10`.
+- Project persistence, secure credential storage, JSON/JSONL, tracker resolution, and the full
+  Connection/Provider/Infrastructure suites were included in the complete solution validation.
 
-## Validation evidence
+## Full validation at the functional remediation commit
 
-Validation was run at the frozen functional commit before the metadata handoff:
-
-- Restore: passed.
-- Build: passed with 0 warnings and 0 errors.
-- Full tests: Domain `28`, Connection `208`, Provider `60`, Desktop `83`, Infrastructure `550`;
-  total `929` passed, `0` failed, `0` skipped. The final discovered count is greater than the
-  inherited `896` baseline.
-- Focused tracker contract/resolution/planning/authority tests: `15`.
-- Focused Jira HTTP adapter tests: `14`.
-- Focused tracker audit persistence tests: `3`.
-- Production composition boundary tests: `10` total in the existing composition class, including
-  the tracker boundary registration assertion.
-- `git diff --check`: passed; changed-line secret and unsafe-surface review: no real secrets,
-  raw Jira persistence, browser scraping, arbitrary patch API, or mutation retry.
-- No live-owner Jira mutation test or credential-dependent test was used.
+- `dotnet restore AIUsageMonitor.sln`: passed.
+- `dotnet build AIUsageMonitor.sln --no-restore`: passed, `0` warnings, `0` errors.
+- `dotnet test AIUsageMonitor.sln --no-restore --no-build`: passed.
+- Domain: `28`; Connection: `211`; Provider: `65`; Desktop: `83`; Infrastructure: `550`.
+- Total: `937`; failed: `0`; skipped: `0`. This is greater than the required `929`.
+- `git diff --check`: passed. Changed-line review found no credential exposure, raw Jira JSON or
+  full comment persistence, browser scraping, fuzzy type guessing, arbitrary patch surface,
+  unbounded response handling, caller-token reuse after mutation, or automatic mutation retry.
+- No live Jira mutation or owner production credential was used.
 
 ## Sol exact-head checklist
 
-Review the exact final feature head for:
+Sol should inspect the exact final head for:
 
-1. provider independence;
-2. Jira vs Azure exact resolution;
-3. ProjectId isolation;
-4. bounded search/pagination;
-5. Jira endpoint correctness;
-6. credential handling;
-7. remote response bounds;
-8. stale/partial semantics;
-9. deterministic synchronization planning;
-10. Jira-authoritative conflict behavior;
-11. explicit mutation authority;
-12. authority is not human approval;
-13. fresh pre-mutation validation;
-14. zero automatic mutation retries;
-15. ambiguous-outcome handling;
-16. post-mutation verification;
-17. audit evidence;
-18. comment-content secret minimization;
-19. no arbitrary field patch;
-20. no browser scraping;
-21. no live-owner mutation tests;
-22. Azure boundary truthfulness;
-23. schema V1;
-24. full test count greater than 896;
-25. CI truth;
-26. application stopped; and
-27. PR Draft/unmerged.
+1. local APO ProjectId on evidence;
+2. same-Jira A/B isolation;
+3. planning provenance enforcement;
+4. execution ProjectId enforcement;
+5. failure/stale evidence provenance;
+6. caller cancellation after POST;
+7. independent bounded audit finalization;
+8. no remote retry;
+9. oversized GET semantics;
+10. oversized POST indeterminate semantics;
+11. `MayHaveModifiedRemote` truth;
+12. durable audit attempt after ambiguous mutation;
+13. Jira remote issue-link type ID/name;
+14. directional relationship separation;
+15. mutation target type identity binding;
+16. authority type identity binding;
+17. exact Jira issueLink payload;
+18. exact post-verification;
+19. custom link type test;
+20. no fuzzy guessing;
+21. provider independence;
+22. Azure boundary unchanged;
+23. no arbitrary field patch;
+24. no human approval claim;
+25. no live owner mutations;
+26. schema V1;
+27. test total greater than 929;
+28. CI truth;
+29. PR Draft/unmerged;
+30. application stopped.
 
-## Handoff truth and limitations
+## Current truth and planner boundary
 
-- GitHub CI: `GitHub CI = NONE / NOT CLAIMED` if no checks/statuses exist for the exact head.
-- APO-47 remains `In Progress`; it must not be transitioned to Done by this handoff.
-- APO-62 remains `To Do`; APO-48 remains `To Do`.
-- The APO WPF application was not launched. Required final runtime truth is:
-  `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
-- Azure DevOps live transport is not implemented.
-- Dependency-link removal is not implemented.
-- APO-49 human approval, APO-48 QA gates, APO-62 SCM evidence, APO-63 remote SCM writes,
-  background synchronization, polling, autonomous loops, bulk edits, arbitrary field updates,
-  Mission Control, and other product Stories are out of scope.
+- GitHub CI is `GitHub CI = NONE / NOT CLAIMED` if no statuses, check runs, or workflow runs exist
+  for the exact final head.
+- Jira remains `APO-47 = In Progress`; no Jira transition was performed. `APO-62` and `APO-48`
+  remain `To Do`.
+- The WPF application was not launched. Required runtime truth is `APO PROCESS COUNT = 0` and
+  `APPLICATION LEFT RUNNING = NO`.
+- No Claude Opus review is due in Prompt 3/5R. If Sol finds another blocker, the next remediation
+  remains within Prompt 3/5R and does not advance the five-prompt counter.
 
-## Required decision boundary
-
-GPT-5.6 Sol must independently review the exact final head. Do not invoke Claude Opus during this
-Prompt 3/5 handoff. If Sol finds blocking issues, remediation remains Prompt `3/5R`. If Sol accepts
-the exact head, Sol may authorize controlled merge finalization.
+> APO-47 Prompt 3/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #22 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-62, APO-48, APO-49, APO-63, Mission Control, or another product Story. If Sol accepts this exact remediated head, Sol may authorize APO-47 controlled merge finalization. If Sol finds another blocker, remediation remains within Prompt 3/5R and does not advance the five-prompt counter.
