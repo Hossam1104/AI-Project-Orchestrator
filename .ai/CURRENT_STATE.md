@@ -4066,3 +4066,60 @@ APO-47 Done status, merge, or downstream authorization.
 **Next planner boundary:**
 
 > APO-47 Prompt 3/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #22 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-62, APO-48, APO-49, APO-63, Mission Control, or another product Story. If Sol accepts this exact remediated head, Sol may authorize APO-47 controlled merge finalization. If Sol finds another blocker, remediation remains within Prompt 3/5R and does not advance the five-prompt counter.
+
+---
+
+## 51. APO-47 Prompt 3/5R2 SOL-47-05..06 dependency direction and cancellation remediation
+
+This is the current factual handoff for the final two SOL-47 findings. Historical sections above
+remain unchanged. This section does not claim GPT-5.6 Sol acceptance, APO-47 Done status, merge,
+or downstream Story authorization.
+
+- The exact reviewed R2 baseline was branch
+  `feat/APO-47-tracker-agnostic-work-item-sync` at SHA
+  `0c3c7a6ce5e6b860f927dc8ad4d4b22087da487a`, tree
+  `c559ed9126ebd99132afa071ce3ac820f628301d`. Origin, PR #22, and the worktree were verified
+  against this head before mutation; the worktree was clean and no APO process was running.
+- Sol's exact review blocker was Jira comment `12273`. No Jira transition was performed; APO-47
+  remains `In Progress`.
+- SOL-47-05 closure: planner targets are normalized so `WorkItem` is always the current item and
+  `RelatedWorkItem` is always the peer. Outward and inward relationships now use the correct
+  orientation for duplicate detection, authority identity, fresh reads, Jira payloads, and
+  post-verification. Unrelated and self links fail closed without an operation or HTTP mutation.
+- SOL-47-06 closure: cancellation from second credential lookup and transition GET/discovery maps
+  to typed `Cancelled` before send, with `MayHaveModifiedRemote = false` and zero state-changing
+  POSTs. Post-send cancellation behavior remains reconciliation-required with possible remote
+  change, independent bounded audit finalization, and no retry.
+- R2 functional commit: `f6caacb8c1faeaacdab4efaed8fc2368c10c988b`, tree
+  `7ae5db5c18cc5bb6272ce09015328c3b6e3d2aba`, directly descended from the reviewed R2 baseline.
+  It was pushed before this metadata-only update. Changed functional areas are the tracker
+  contracts/planner/Jira adapter and their focused connection/provider tests only.
+
+**R2 validation at the functional commit:**
+
+- `dotnet restore AIUsageMonitor.sln`: passed.
+- `dotnet build AIUsageMonitor.sln --no-restore`: passed with `0` warnings and `0` errors.
+- Full `dotnet test AIUsageMonitor.sln --no-restore`: Domain `28`, Connection `216`, Provider
+  `71`, Desktop `83`, Infrastructure `550`; total `948` passed, `0` failed, `0` skipped.
+- Focused tracker synchronization suite: `23/23`; Jira adapter suite: `25/25`. The R2-specific
+  planner/relationship, inward end-to-end, duplicate/type identity, and four pre-send cancellation
+  cases all passed; existing post-send cancellation/audit and response-size regressions remained
+  green.
+- `git diff --check` passed. Changed-line review found no credential exposure, raw Jira response
+  persistence, full comment persistence, browser scraping, arbitrary field patch, fuzzy link-type
+  guessing, unbounded response handling, caller-token reuse after mutation, or automatic mutation
+  retry. No live Jira mutation or production credential was used.
+- `JsonFileStore.CurrentSchemaVersion = 1` and tracker audit semantic schema version `1` remain
+  unchanged. `APO-49 HUMAN APPROVAL IMPLEMENTED = NO` and
+  `AUTOMATIC STATE-CHANGING RETRY COUNT = 0` remain true.
+- The WPF application was not launched. Runtime truth at handoff is
+  `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+- Exact functional final-head CI check returned no statuses, check runs, or workflow runs:
+  `GitHub CI = NONE / NOT CLAIMED`. PR #22 remains `OPEN / DRAFT / UNMERGED` against `main`.
+- The metadata-only child commit changes only `TASK.md` and `.ai/CURRENT_STATE.md`. Its exact
+  resulting SHA/tree are reported externally after commit because a commit cannot self-embed its
+  own SHA/tree.
+
+**Next planner boundary:**
+
+> APO-47 Prompt 3/5R2 SOL-47-05..06 remediation is complete and awaits GPT-5.6 Sol exact-head acceptance. Do not merge PR #22, mark APO-47 Done, invoke Claude Opus, begin APO-62, APO-48, APO-49, APO-63, Mission Control, or execute another product Story. If Sol finds another blocker, remain within Prompt 3/5R2. If Sol accepts the exact final head, Sol may authorize APO-47 controlled merge finalization.

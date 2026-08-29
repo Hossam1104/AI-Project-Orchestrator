@@ -1,7 +1,7 @@
-# AI PROJECT ORCHESTRATOR — APO-47 PROMPT 3/5R SOL EXACT-HEAD RE-REVIEW
+# AI PROJECT ORCHESTRATOR — APO-47 PROMPT 3/5R2 SOL-47-05..06 EXACT-HEAD RE-REVIEW
 
-This is the fresh-context GPT-5.6 Sol exact-head review handoff for the bounded remediation of
-APO-47. It does not claim Sol acceptance, Jira completion, merge, or downstream authorization.
+This is the fresh-context GPT-5.6 Sol exact-head review handoff for the bounded SOL-47-05..06
+remediation of APO-47. It does not claim Sol acceptance, Jira completion, merge, or downstream authorization.
 It does not advance the five-prompt counter. No other model review is due.
 
 ## Project identity and boundary
@@ -14,7 +14,7 @@ It does not advance the five-prompt counter. No other model review is due.
 - Branch: `feat/APO-47-tracker-agnostic-work-item-sync`
 - Existing PR: `#22`, base `main`, required state `OPEN / DRAFT / UNMERGED`
 - Sol implementation authorization: comment `12268`
-- Sol CHANGES REQUIRED review: comment `12269`
+- Sol CHANGES REQUIRED review: comment `12273`
 - Assigned route: GPT-5.6 Luna xHigh / OpenAI-Codex / Tier 3
 
 ## Exact Git baseline and remediation commits
@@ -30,6 +30,12 @@ It does not advance the five-prompt counter. No other model review is due.
   `f834696dccc59e3ae9b2b48c8ed235103090599a`; tree
   `eb79ae7e0fd350e1e6f28ab7f69cb47912d7f435`
 - Functional commit parent: `4ee961d6cf9cc299b9c54051ac7274fdd8ab3b08`
+- R2 exact reviewed baseline: SHA `0c3c7a6ce5e6b860f927dc8ad4d4b22087da487a`; tree
+  `c559ed9126ebd99132afa071ce3ac820f628301d`. This was the exact branch/PR head before R2
+  mutation and was verified against origin before any edit.
+- R2 functional remediation commit: SHA `f6caacb8c1faeaacdab4efaed8fc2368c10c988b`; tree
+  `7ae5db5c18cc5bb6272ce09015328c3b6e3d2aba`. It is directly descended from the R2 reviewed
+  baseline, passed functional validation, and was pushed before this metadata-only update.
 - Final metadata-only SHA/tree: the exact values are reported by the external Git/PR/Jira
   handoff and completion report because a commit cannot self-embed its own SHA/tree. Its parent
   is the functional remediation commit and its only changed files are `TASK.md` and
@@ -84,33 +90,56 @@ test. `APO-49 HUMAN APPROVAL IMPLEMENTED = NO`.
 
 `AUTOMATIC STATE-CHANGING RETRY COUNT = 0`.
 
-## Focused validation
+## SOL-47-05 — dependency direction and mutation-target anchoring
+
+The planner now normalizes every desired relationship relative to the current synchronization
+item. `TrackerMutationTarget.WorkItem` is always the current item whose fingerprint authorized the
+operation; `RelatedWorkItem` is its peer. Outward means current-to-peer and inward means peer-to-current.
+Unrelated, malformed, and self-dependency links fail closed without an operation or HTTP mutation.
+Jira inward payloads use `outwardIssue = RelatedWorkItem` and `inwardIssue = WorkItem`; fresh reads,
+duplicate detection, canonical authority identity, and post-verification use the same normalized
+orientation and exact remote type ID/name.
+
+## SOL-47-06 — cancellation outcome mapping before possible mutation
+
+Credential lookup and transition discovery/GET cancellation now maps to typed
+`TrackerMutationOutcome.Cancelled`, with `MayHaveModifiedRemote = false` and zero state-changing
+POSTs before send. Existing post-send cancellation remains reconciliation-required with
+`MayHaveModifiedRemote = true`, bounded independent audit finalization, and no retry.
+
+R2 tests cover comment credential cancellation, dependency-link credential cancellation, transition
+credential cancellation, transition GET cancellation, inward end-to-end synchronization, unrelated
+and self links, duplicate suppression, and distinct remote link types.
+
+## R2 focused validation
 
 All named concern filters passed. Counts overlap where one test proves multiple boundaries.
 
-- Project provenance/isolation: `4/4`.
-- `TrackerReadResult` provenance and failure/stale-read coverage: `7/7`.
-- Synchronization planning: `7/7`.
-- Mutation authority and zero-call isolation: `6/6`.
-- Jira reads: `7/7`.
-- Jira mutations: `12/12`.
-- Cancellation after send: `1/1`.
-- Oversized/failed response semantics: `3/3`.
-- Issue-link parsing, identity, mutation, verification, and substitution: `5/5`.
-- Tracker synchronization suite: `18/18`.
-- Jira adapter suite: `19/19`.
-- Tracker mutation audit persistence: `3/3`.
-- Production composition: `10/10`.
+- R2 inward/outward planner and fail-closed relationship cases: `5/5`.
+- R2 inward end-to-end synchronization through the service and fake Jira handler: `1/1`.
+- R2 duplicate suppression and exact different-remote-type identity: `2/2`.
+- R2 pre-send cancellation cases for comment, link, transition credential, and transition GET:
+  `4/4`.
+- Existing post-send cancellation and audit-finalization regressions: `2/2`.
+- Existing project provenance/isolation: `4/4`.
+- Existing `TrackerReadResult` provenance and failure/stale-read coverage: `7/7`.
+- Existing mutation authority and zero-call isolation: `6/6`.
+- Existing Jira reads: `7/7`.
+- Existing oversized/failed response semantics: `3/3`.
+- Existing tracker mutation audit persistence: `3/3`.
+- Existing production composition: `10/10`.
+- Tracker synchronization suite: `23/23`.
+- Jira adapter suite: `25/25`.
 - Project persistence, secure credential storage, JSON/JSONL, tracker resolution, and the full
   Connection/Provider/Infrastructure suites were included in the complete solution validation.
 
-## Full validation at the functional remediation commit
+## Full validation at the R2 functional remediation commit
 
 - `dotnet restore AIUsageMonitor.sln`: passed.
 - `dotnet build AIUsageMonitor.sln --no-restore`: passed, `0` warnings, `0` errors.
-- `dotnet test AIUsageMonitor.sln --no-restore --no-build`: passed.
-- Domain: `28`; Connection: `211`; Provider: `65`; Desktop: `83`; Infrastructure: `550`.
-- Total: `937`; failed: `0`; skipped: `0`. This is greater than the required `929`.
+- `dotnet test AIUsageMonitor.sln --no-restore`: passed.
+- Domain: `28`; Connection: `216`; Provider: `71`; Desktop: `83`; Infrastructure: `550`.
+- Total: `948`; failed: `0`; skipped: `0`. This is greater than the required `929`.
 - `git diff --check`: passed. Changed-line review found no credential exposure, raw Jira JSON or
   full comment persistence, browser scraping, fuzzy type guessing, arbitrary patch surface,
   unbounded response handling, caller-token reuse after mutation, or automatic mutation retry.
@@ -120,41 +149,39 @@ All named concern filters passed. Counts overlap where one test proves multiple 
 
 Sol should inspect the exact final head for:
 
-1. local APO ProjectId on evidence;
-2. same-Jira A/B isolation;
-3. planning provenance enforcement;
-4. execution ProjectId enforcement;
-5. failure/stale evidence provenance;
-6. caller cancellation after POST;
-7. independent bounded audit finalization;
-8. no remote retry;
-9. oversized GET semantics;
-10. oversized POST indeterminate semantics;
-11. `MayHaveModifiedRemote` truth;
-12. durable audit attempt after ambiguous mutation;
-13. Jira remote issue-link type ID/name;
-14. directional relationship separation;
-15. mutation target type identity binding;
-16. authority type identity binding;
-17. exact Jira issueLink payload;
-18. exact post-verification;
-19. custom link type test;
-20. no fuzzy guessing;
+1. `TrackerMutationTarget.WorkItem` always being the current synchronization item;
+2. outward current-to-peer normalization;
+3. inward peer-to-current normalization;
+4. unrelated desired-link fail-closed behavior;
+5. self-dependency fail-closed behavior;
+6. inward duplicate suppression;
+7. distinct remote type identity;
+8. exact Jira inward issueLink payload;
+9. fresh read anchored to `WorkItem`;
+10. exact post-verification orientation;
+11. authority canonical identity including direction and type;
+12. pre-send comment cancellation mapping;
+13. pre-send dependency-link cancellation mapping;
+14. pre-send transition credential cancellation mapping;
+15. pre-send transition GET cancellation mapping;
+16. `MayHaveModifiedRemote = false` before send;
+17. zero state-changing POSTs before send cancellation;
+18. caller cancellation after POST;
+19. independent bounded audit finalization;
+20. no remote retry;
 21. provider independence;
 22. Azure boundary unchanged;
-23. no arbitrary field patch;
-24. no human approval claim;
-25. no live owner mutations;
-26. schema V1;
-27. test total greater than 929;
-28. CI truth;
-29. PR Draft/unmerged;
-30. application stopped.
+23. no arbitrary field patch or live owner mutation;
+24. schema V1 and test total greater than 929;
+25. CI truth, PR Draft/unmerged, and application stopped.
 
 ## Current truth and planner boundary
 
 - GitHub CI is `GitHub CI = NONE / NOT CLAIMED` if no statuses, check runs, or workflow runs exist
-  for the exact final head.
+  for the exact final head. The R2 functional head had no statuses or workflow runs.
+- The final metadata-only commit is the child of R2 functional commit `f6caacb8c1faeaacdab4efaed8fc2368c10c988b`;
+  its exact SHA/tree are reported by the external Git/PR/Jira handoff because a commit cannot
+  self-embed its resulting SHA/tree. It changes only `TASK.md` and `.ai/CURRENT_STATE.md`.
 - Jira remains `APO-47 = In Progress`; no Jira transition was performed. `APO-62` and `APO-48`
   remain `To Do`.
 - The WPF application was not launched. Required runtime truth is `APO PROCESS COUNT = 0` and
@@ -162,4 +189,4 @@ Sol should inspect the exact final head for:
 - No Claude Opus review is due in Prompt 3/5R. If Sol finds another blocker, the next remediation
   remains within Prompt 3/5R and does not advance the five-prompt counter.
 
-> APO-47 Prompt 3/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #22 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-62, APO-48, APO-49, APO-63, Mission Control, or another product Story. If Sol accepts this exact remediated head, Sol may authorize APO-47 controlled merge finalization. If Sol finds another blocker, remediation remains within Prompt 3/5R and does not advance the five-prompt counter.
+> APO-47 Prompt 3/5R2 SOL-47-05..06 remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #22 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-62, APO-48, APO-49, APO-63, Mission Control, or another product Story. If Sol accepts this exact remediated head, Sol may authorize APO-47 controlled merge finalization. If Sol finds another blocker, remediation remains within Prompt 3/5R2 and does not advance the five-prompt counter.
