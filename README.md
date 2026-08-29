@@ -275,8 +275,9 @@ be treated as evidence only after the command completes successfully on the curr
 
 ## Roadmap
 
-The roadmap follows the approved APO Epics and the strategic P0/P1/P2/P3 backlog in Jira. These
-are planned capability boundaries, not shipped runtime claims:
+The roadmap follows the approved APO Epics and the strategic P0/P1/P2/P3 backlog in Jira. Delivered
+slices are identified explicitly; the remaining entries are planned capability boundaries, not
+shipped runtime claims:
 
 1. **Delivered P0 control plane — APO-38..46 and APO-68:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, durable recovery, quality-first routing, bounded execution, isolated workspaces, and workspace-preparation hardening.
 2. **P0 tracker/evidence inputs — APO-47 and APO-62:** Jira/Azure Boards awareness plus read-only remote SCM/CI evidence.

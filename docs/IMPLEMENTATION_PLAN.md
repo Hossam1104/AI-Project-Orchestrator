@@ -302,6 +302,9 @@ APO-48 remains To Do and is not started. APO-69 is the current repository-wide d
 architecture-audit, and hygiene handoff; its Draft PR is awaiting GPT-5.6 Sol exact-head review.
 No executor may start another Story from this document or `TASK.md` until Sol authorizes it.
 
+Sections 10-17 below are retained historical delivery records and planning snapshots. They do not
+override this current boundary or the latest evidence in `.ai/CURRENT_STATE.md`.
+
 ## 10. APO-35 Delivery Boundary
 
 APO-35 implements the first usable Projects workspace over the accepted APO-27 project registry
