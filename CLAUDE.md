@@ -9,14 +9,28 @@ contract without duplicating volatile project status.
 
 ## Roles
 
-- **GPT-5.6 Sol:** planner, architect, Jira decomposition owner, and acceptance authority.
-- **GPT-5.6 Luna xHigh:** primary implementation, remediation, repository, Jira, documentation, and validation executor.
-- **Claude Sonnet 5:** exceptional alternative only when Luna genuinely needs a difficult independent path or Sol explicitly requests one.
-- **Claude Opus 5:** independent reviewer; not the default implementation executor.
-- **GPT-5.6 Terra HIGH:** optional specialist security audit, not the default reviewer.
-- **Gemini 3.7:** auxiliary executor for suitable bounded or quota-balancing work.
+Canonical model portfolio, routing, quota, and execution-policy detail live in
+`.ai/AI_MODEL_ROUTING.md` and `.ai/AI_EXECUTION_POLICY.md`. This section summarizes only the
+Claude-relevant slice; do not duplicate the canonical files here.
 
-Quality and risk come before quota preservation.
+- **GPT-5.6 Sol:** planner, architect, model router, quota governor, Jira decomposition owner, and
+  acceptance authority (chat mode only).
+- **Claude Haiku 4.5:** deterministic low-risk reconnaissance, file discovery, diff/log triage,
+  documentation, evidence formatting, and repetitive mechanical changes. No architecture authority.
+- **Claude Sonnet 5 Medium:** primary routine bounded implementation executor — ordinary bugs,
+  CRUD, DTOs, mappings, validators, API wiring, routine WPF/UI, tests, routine CI fixes, bounded
+  refactors.
+- **Claude Sonnet 5 High:** difficult bounded debugging, larger bounded features, substantial
+  multi-file implementation, non-trivial regressions. Not used when Medium is enough.
+- **Claude Opus 5:** independent reviewer; not the default implementation executor. Used at
+  meaningful checkpoints, not routinely.
+- **GPT-5.6 Luna xHigh:** reserved for architecture-sensitive, cross-cutting, or high-blast-radius
+  execution; not the routine executor.
+- **GPT-5.6 Terra Medium/High:** specialist security/concurrency/data-integrity assurance, not the
+  default reviewer.
+
+Active execution providers are OpenAI/Codex and Anthropic/Claude only. Quality and risk come before
+quota preservation.
 
 ## Mandatory Startup
 

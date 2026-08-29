@@ -3605,3 +3605,144 @@ workers, autonomous loops, provider work, and Jira transitions remain out of sco
 **Next planner boundary:**
 
 > APO-45 Prompt 2/5R remediation complete and awaiting GPT-5.6 Sol exact-head re-review. PR #19 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-48, APO-49, remote delivery, Mission Control, or another runtime Story. If Sol accepts this exact remediated head, Sol may authorize APO-45 merge finalization.
+
+---
+
+## 42. AI execution governance and tooling migration (chore/ai-execution-governance-migration)
+
+This is a factual record of a cross-project AI development/execution governance and coding-tool
+migration, authorized separately from and orthogonal to product work. It does not touch APO product
+source, runtime, or the APO-45/APO-48 lane. Starting baseline: `main` at
+`6bab063e24d8f2e9b68b36ea00a5f6e1038f4597` (tree `1f4d95febdf37318d2e92dadd069d78a069d8241`), which
+matched the pre-migration expected baseline exactly.
+
+**What changed:**
+
+- Added `.ai/AI_MODEL_ROUTING.md` (canonical model portfolio, provider quota pools/states, shared
+  cross-project quota location, task risk tiers, default routing, provider balancing, APO-specific
+  risk appendix) and `.ai/AI_EXECUTION_POLICY.md` (canonical universal lowercase `p` prompt gate,
+  bounded implementation discipline, acceptance evidence, root-cause debugging method, context
+  budget, and Ponytail/Serena/Context7 tool policy). Both are referenced, not duplicated, from
+  `AGENTS.md` and `CLAUDE.md`.
+- Reconciled `AGENTS.md` §1 and `CLAUDE.md` "Roles" to the new portfolio: active execution providers
+  are OpenAI/Codex and Anthropic/Claude only (Gemini/Z.ai/GLM/OpenCode/Kimi removed as orchestration
+  executors); Claude Sonnet 5 Medium becomes the routine implementation executor, Sonnet High is for
+  difficult bounded work, Haiku 4.5 handles reconnaissance/mechanical work, Opus remains independent
+  reviewer, Luna xHigh/Max and Terra remain OpenAI-pool specialists. This is a governance-routing
+  change only; it does not alter APO's own product-domain monitoring of Codex/Claude/Kimi/Copilot/
+  Antigravity (AGENTS.md §6), which is separate product functionality.
+- Added project-scoped `.mcp.json` at the repository root wiring Serena
+  (`serena start-mcp-server --context claude-code --project-from-cwd`) and Context7
+  (`npx -y @upstash/context7-mcp`, no committed API key) as local stdio MCP servers for Claude Code.
+  `--project-from-cwd` keeps Serena's project identity correct per checkout/worktree. Codex already
+  had both configured in `~/.codex/config.toml` (`mcp_servers.serena`, `mcp_servers.context7`) from
+  prior cross-project setup; that healthy configuration was left untouched (idempotent).
+- Confirmed the shared cross-project quota directory `%USERPROFILE%\.ai-orchestration\` already
+  exists (created by a prior sibling-project migration run) with `quota-state.json` (both provider
+  pools currently `UNKNOWN`) and `execution-ledger.jsonl`. Neither file was recreated or overwritten;
+  one new non-secret ledger line was appended recording this project's migration. No credentials,
+  tokens, prompts, or source code were written to that directory.
+- Ponytail was **not** installed by this migration for either host: no `claude` or `codex` CLI
+  binary is reachable on this machine's PATH from a non-interactive shell (only internal app-server
+  executables exist under `~/.codex/plugins/.plugin-appserver/`, which are not a documented public
+  CLI entry point), so the official two-step marketplace-add/install flow could not be run
+  non-interactively for either host. This is recorded as a manual action (see report) rather than
+  attempted via an unverified path.
+- `TASK.md` was left unmodified — it remains the APO-45 Prompt 2/5R Sol exact-head re-review
+  handoff and was not replaced with APO-48 or any other product work, per the explicit migration
+  boundary.
+
+**Explicitly not changed:** no APO product/runtime source, no schema version
+(`JsonFileStore.CurrentSchemaVersion` and `ExecutionRunAuthoritySchema.CurrentVersion` remain `1`),
+no APO-48 work, no Jira transitions, `docs/BRD.md` and `docs/IMPLEMENTATION_PLAN.md` untouched.
+
+**Validation performed:** `git status`/`git diff --check` on the governance changes; secret review
+of `.mcp.json` and the shared quota-directory files (none found); confirmed no top-level product
+source files under `src/`/`tests/` are part of this diff. No `dotnet restore`/`build`/`test` was run
+because no source or project file changed. `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`;
+the WPF application was not launched.
+
+**Next planner boundary (superseded by §43 below):** the original next-planner-boundary note here
+described the then-open APO-45 / PR #19 re-review lane as a separate untouched boundary. APO-45 has
+since reached Done (see §43); this section's other factual statements about what changed at
+migration time remain historical record and are not rewritten.
+
+---
+
+## 43. Governance migration remediation and factual reconciliation (chore/ai-execution-governance-migration)
+
+This corrects the live/current boundary only; §41 and §42 above remain historical record of what
+was true when written and are not rewritten.
+
+- **APO-45** (parent APO-11) is **Done**. PR #19 was merged into `main` at
+  `6bab063e24d8f2e9b68b36ea00a5f6e1038f4597`. The §41 "Sol exact-head re-review" lane it describes
+  is closed; there is no active re-review lane for APO-45.
+- **APO-48** remains **To Do**. No product work has started on it, and no executor contract for it
+  exists anywhere in this repository.
+- The AI execution governance and tooling migration (this branch, PR #20) is under GPT-5.6 Sol
+  exact-head remediation review following a `CHANGES REQUIRED` finding. This remediation pass
+  corrected the routing tier model, final-acceptance wording, the Git delivery/merge contract, the
+  startup context-budget rule, and the application-runtime-left-running default in
+  `.ai/AI_MODEL_ROUTING.md`, `.ai/AI_EXECUTION_POLICY.md`, and `AGENTS.md`. PR #20 remains
+  `OPEN / DRAFT / UNMERGED`.
+- **Ponytail is now installed**, superseding §42's "not installed" record for both hosts:
+  - Claude Code: `ponytail@ponytail` version `4.9.0` is present in
+    `~/.claude/plugins/cache/ponytail/ponytail/4.9.0`, and
+    `~/.claude/plugins/installed_plugins.json` records a project-scoped install for this exact
+    repository path (`D:\AI Tools\Active Projects\AI-Project-Orchestrator`). `.claude/settings.json`
+    enables `ponytail@ponytail`. FULL mode was confirmed by owner-supplied/local session evidence
+    (`/ponytail:ponytail full` reporting FULL active).
+  - Codex: `ponytail@ponytail` version `4.9.0` is present in
+    `~/.codex/plugins/cache/ponytail/ponytail/4.9.0`. FULL mode was confirmed by owner-supplied/local
+    session evidence (`@ponytail full` reporting `PONYTAIL:FULL`).
+  - The marketplace refresh initially failed to resolve `github.com` (DNS/network resolution, not
+    an SSH-key/authentication problem); installation subsequently succeeded from
+    available/cached marketplace data. This is recorded as a non-blocking historical note only; no
+    networking "fix" was attempted as part of this remediation, and no claim of permanent future
+    plugin health or marketplace-refresh reliability is made.
+- Serena (`serena --version` reports `1.7.0`) and Context7 configuration in `.mcp.json` were
+  inspected and left unchanged — both remain valid; `.serena/project.yml` (C#, repository-root
+  workspace) and `.serena/.gitignore` were preserved without regeneration.
+- No APO product/runtime source was changed by this remediation pass. Schema versions are
+  unchanged: `JsonFileStore.CurrentSchemaVersion = 1`, `ExecutionRunAuthoritySchema.CurrentVersion =
+  1`. No Jira transition was performed for APO-45 or APO-48.
+- `TASK.md` was replaced with a short neutral non-executable planner boundary reflecting the facts
+  above; it no longer represents APO-45 as in progress or awaiting re-review.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO` at both the start and end of this
+  remediation pass; the WPF application was not launched.
+
+**Next planner boundary:**
+
+> PR #20 governance remediation complete and awaiting GPT-5.6 Sol exact-head acceptance. Do not mark
+> Ready, merge PR #20, start APO-48, or execute another product Story until Sol reviews the exact
+> returned head.
+
+---
+
+## 44. SOL-GOV-01R cost/cheapest-capable tie-break remediation (chore/ai-execution-governance-migration)
+
+This corrects the live/current boundary only; §41–§43 above remain historical record and are not
+rewritten. GPT-5.6 Sol reviewed exact head `2ecb0ba38bb700a96272c62a7f1d98822ddcf7af` (tree
+`09c7ab6d8ed141e37f091bc62b9ef500b336f652`) and closed `SOL-GOV-02` through `SOL-GOV-06` and the
+Ponytail blocker, leaving one open finding, `SOL-GOV-01R`: the canonical provider-balancing text
+omitted the final explicit cost/cheapest-capable tie-break.
+
+- `.ai/AI_MODEL_ROUTING.md` §6 "Provider balancing rule" was renamed "Routing priority order and
+  provider balancing rule" and now states the canonical routing priority order explicitly —
+  correctness, security/required assurance, required capability/risk tier, provider quota health,
+  cost/cheapest-capable model — and adds a bounded cheapest-capable tie-break: it applies only after
+  correctness, security, capability/risk tier, and quota health are already satisfied among a safe,
+  sufficiently capable candidate set, and it can never reduce required capability, risk tier, or
+  reasoning/effort, and can never justify a weaker, lower-tier, or non-Anthropic/OpenAI provider.
+  The existing Tier 0–4 structure, Tier 3 dynamic Sonnet-High/Luna-xHigh selection, and the closed
+  §2 active-provider restriction were not modified.
+- No `src/` or `tests/` change. Schema versions unchanged: `JsonFileStore.CurrentSchemaVersion = 1`,
+  `ExecutionRunAuthoritySchema.CurrentVersion = 1`. No Jira transition for APO-45 or APO-48; APO-45
+  remains Done, APO-48 remains To Do. `TASK.md` was not replaced with an APO-48 executor prompt.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO` at both the start and end of this
+  remediation; the WPF application was not launched.
+
+**Next planner boundary:**
+
+> SOL-GOV-01R remediation complete and PR #20 remains Draft/unmerged awaiting GPT-5.6 Sol exact-head
+> acceptance. Do not merge PR #20 or begin APO-48 until Sol reviews the exact returned head.
