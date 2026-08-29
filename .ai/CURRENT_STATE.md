@@ -4123,3 +4123,61 @@ or downstream Story authorization.
 **Next planner boundary:**
 
 > APO-47 Prompt 3/5R2 SOL-47-05..06 remediation is complete and awaits GPT-5.6 Sol exact-head acceptance. Do not merge PR #22, mark APO-47 Done, invoke Claude Opus, begin APO-62, APO-48, APO-49, APO-63, Mission Control, or execute another product Story. If Sol finds another blocker, remain within Prompt 3/5R2. If Sol accepts the exact final head, Sol may authorize APO-47 controlled merge finalization.
++
+
+---
+
+## 52. APO-47 Prompt 3/5R3 Jira dependency-link orientation remediation
+
+This is the factual handoff for the final SOL-47-05 remediation. It does not claim GPT-5.6 Sol
+acceptance, APO-47 Done status, merge, or downstream authorization. It remains inside Prompt 3/5 and
+does not advance the five-prompt counter.
+
+- Startup baseline was verified before mutation: repository
+  `Hossam1104/AI-Project-Orchestrator`, branch
+  `feat/APO-47-tracker-agnostic-work-item-sync`, authorized `origin/main`
+  `346bb8faa13db551af06a24154e0da6eaebb60cb` / tree
+  `394355fbddf4eb70a6731401922763cf3fb3cab1`, and prior exact feature head
+  `50c44969499304e1fa4f38fdded1b304a9bb300e` / tree
+  `3df57d9844deb3032a7a4bbde58725bcf7ada739`.
+- PR #22 remained open, Draft, and unmerged. Jira comment `12276` was confirmed on APO-47, which
+  remains `In Progress`. No Jira transition or live Jira mutation was performed.
+- The remaining blocker was Jira issue-link endpoint orientation. The production fix is one
+  provider-local `ResolveJiraLinkEndpoints` helper in
+  `JiraWorkItemTrackerAdapter.cs`; Application contracts and the current-item mutation-target
+  invariant were not changed.
+- Internal Outward now serializes `inwardIssue = WorkItem` and
+  `outwardIssue = RelatedWorkItem`. Internal Inward now serializes
+  `inwardIssue = RelatedWorkItem` and `outwardIssue = WorkItem`.
+- The deterministic provider test fake captures submitted endpoints and exact type ID/name, then
+  generates the current issue's later `issuelinks` response from the captured POST. It is used by
+  both outward and inward round-trip tests; no unrelated manually selected inward fixture remains.
+- R3 functional commit: `03e42be546daaf284020430a115a0d578671ec78`, tree
+  `3ad306b0efecb460b5a98f4e385b415eda091c32`, direct child of the prior exact head.
+- Functional files changed: `src/AIUsageMonitor.Providers/Jira/JiraWorkItemTrackerAdapter.cs` and
+  `tests/AIUsageMonitor.Provider.Tests/JiraWorkItemTrackerAdapterTests.cs`.
+- Focused validation passed: `JiraWorkItemTrackerAdapterTests` `26/26`;
+  `TrackerSynchronizationTests` `23/23`. Outward and inward serialization, both round trips,
+  opposite endpoint assignment, exact type identity, current-item fresh reads, duplicate behavior,
+  unrelated/self rejection, cancellation, audit, and project provenance regressions are covered.
+- Functional validation passed: restore; build with `0` warnings and `0` errors; full solution
+  `949/949` with Domain `28`, Connection `216`, Provider `72`, Desktop `83`,
+  Infrastructure `550`, `0` failed, `0` skipped. `git diff --check` passed.
+- `JsonFileStore.CurrentSchemaVersion = 1` and
+  `TrackerMutationReceipt.CurrentSchemaVersion = 1` remain unchanged.
+  `AUTOMATIC STATE-CHANGING RETRY COUNT = 0` and
+  `APO-49 HUMAN APPROVAL IMPLEMENTED = NO` remain true.
+- No raw response persistence, credential leakage, live Jira mutation, Azure DevOps transport,
+  product refactoring, or downstream Story work was added.
+- GitHub CI remains `NONE / NOT CLAIMED` when no statuses, check runs, or workflow runs exist for
+  the exact reviewed head.
+- The WPF application was not launched. Runtime truth is
+  `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+- A metadata-only child commit follows this functional commit and changes only `TASK.md` and
+  `.ai/CURRENT_STATE.md`. Its exact SHA/tree are reported externally after commit because a
+  commit cannot self-embed its own resulting SHA/tree.
+- Awaiting GPT-5.6 Sol exact-head re-review. No Claude Opus review is due.
+
+**Next planner boundary:**
+
+> APO-47 Prompt 3/5R3 Jira dependency-link orientation remediation is complete and awaiting GPT-5.6 Sol exact-head review. PR #22 remains OPEN / DRAFT / UNMERGED. Do not invoke Claude Opus. Do not begin APO-62, APO-48, APO-49, APO-63, Mission Control, or another product Story. If Sol accepts this exact R3 head, Sol may authorize controlled APO-47 merge finalization. Any remaining issue stays inside the Prompt 3/5R family and does not advance the five-prompt counter.
