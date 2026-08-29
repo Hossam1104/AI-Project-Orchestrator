@@ -4296,3 +4296,31 @@ This reconciliation branch contains documentation/state updates only. Draft PR #
 `TASK.md` with a fresh self-contained execution contract before the next implementation begins. No
 executor may start APO-62, APO-48, APO-49, APO-63, APO-50, APO-59, APO-60, or APO-61 from roadmap
 presence alone.
+
+## 54. PR #23 governance reconciliation remediation (30 August 2026)
+
+GPT-5.6 Sol identified one merge-blocking contradiction in Draft PR #23: the canonical active
+routing policy still described Haiku as an active Tier 1 executor, Sonnet Medium as the primary
+routine executor, and Luna xHigh as reserved/non-routine, contrary to the current owner-approved
+governance.
+
+The bounded remediation updated the current governance summaries in `.ai/AI_MODEL_ROUTING.md`,
+`AGENTS.md`, `CLAUDE.md`, `docs/BRD.md`, `README.md`, `docs/IMPLEMENTATION_PLAN.md`,
+`docs/SESSION_PROMPTS.md`, and `docs/STRATEGIC_ROADMAP.md`. The explicitly historical/legacy
+routing records remain unchanged.
+
+The governance remediation commit is `ff6f88e412f09e7b2f00770ee0833b0f4b71fcaa`, parent
+`a27cd8fed7d6b953b367cd6072db9994a7409cbf`, tree
+`6cb490143f90810e7b0ea9176872313de34f8b39`. It contains no product source, test, project,
+package, persistence, schema, provider, adapter, or runtime changes.
+
+Current governance is: Sol is the chat-only planner/architect/router/quota governor/acceptance and
+prompt authority; Luna xHigh is the primary executor; Luna Max is exceptional escalation; Sonnet
+is fallback/special-need implementation only when Sol explicitly selects it; Haiku is disabled
+from active routing; Opus is the independent critical reviewer; Terra is specialist assurance; and
+only OpenAI/Codex plus Anthropic/Claude are active execution providers.
+
+PR #23 remains open, Draft, and unmerged against `main`; no Jira mutation occurred. APO-47 and
+APO-69 remain Done; APO-62, APO-48, APO-49, APO-63, and APO-50 remain To Do. Completion estimates
+remain unchanged. Product prompt counter remains `3/5`; no reviewer is due; APO was not launched;
+and the next planner boundary is GPT-5.6 Sol exact-head re-review.
