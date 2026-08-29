@@ -1,10 +1,12 @@
 using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Application.Trackers;
 using AIUsageMonitor.Providers.Antigravity;
 using AIUsageMonitor.Providers.Claude;
 using AIUsageMonitor.Providers.Codex;
 using AIUsageMonitor.Providers.Common;
 using AIUsageMonitor.Providers.Copilot;
 using AIUsageMonitor.Providers.Kimi;
+using AIUsageMonitor.Providers.Jira;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Providers;
@@ -52,6 +54,15 @@ public static class ProvidersServiceCollectionExtensions
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
         });
 
+        services.AddHttpClient(JiraWorkItemTrackerAdapter.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        });
+
         services.AddSingleton<CopilotProvider>(provider => new CopilotProvider(
             provider.GetRequiredService<AIUsageMonitor.Application.Time.IClock>(),
             provider.GetRequiredService<IHttpClientFactory>(),
@@ -71,6 +82,8 @@ public static class ProvidersServiceCollectionExtensions
             provider.GetRequiredService<IProviderRuntimeSettingsAccessor>()));
         services.AddSingleton<CodexProvider>();
         services.AddSingleton<AntigravityProvider>();
+        services.AddSingleton<JiraWorkItemTrackerAdapter>();
+        services.AddSingleton<IWorkItemTrackerAdapter>(provider => provider.GetRequiredService<JiraWorkItemTrackerAdapter>());
 
         services.AddSingleton<IAiUsageProvider>(provider => provider.GetRequiredService<CodexProvider>());
         services.AddSingleton<IAiUsageProvider>(provider => provider.GetRequiredService<ClaudeProvider>());

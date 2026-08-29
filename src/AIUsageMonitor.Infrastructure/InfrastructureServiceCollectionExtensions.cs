@@ -12,6 +12,7 @@ using AIUsageMonitor.Application.Settings;
 using AIUsageMonitor.Application.Subscriptions;
 using AIUsageMonitor.Application.Sync;
 using AIUsageMonitor.Application.Time;
+using AIUsageMonitor.Application.Trackers;
 using AIUsageMonitor.Application.Usage;
 using AIUsageMonitor.Application.Workspaces;
 using AIUsageMonitor.Infrastructure.Persistence;
@@ -45,6 +46,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<JsonlEventStore<EvidenceMetadataRecord>>();
         services.AddSingleton<JsonlEventStore<ReviewMetadataRecord>>();
         services.AddSingleton<JsonlEventStore<ActivityAuditRecordFile>>();
+        services.AddSingleton<JsonlEventStore<TrackerMutationAuditRecord>>();
 
         services.AddSingleton<IUsageSnapshotRepository, JsonUsageSnapshotRepository>();
         services.AddSingleton<IProviderRepository, JsonProviderRepository>();
@@ -101,6 +103,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<IWorkspacePreparationService, WorkspacePreparationService>();
         services.AddSingleton<IWorkspaceRecoveryInspectionService>(service =>
             (WorkspacePreparationService)service.GetRequiredService<IWorkspacePreparationService>());
+        services.AddSingleton<ITrackerMutationAuditRepository, JsonTrackerMutationAuditRepository>();
+        services.AddSingleton<IWorkItemTrackerAdapterResolver, WorkItemTrackerAdapterResolver>();
+        services.AddSingleton<ITrackerSynchronizationService, TrackerSynchronizationService>();
 
         // Stateless native-call wrapper; singleton avoids re-allocating it per resolution while
         // matching the lifetime of every other adapter registered here.
