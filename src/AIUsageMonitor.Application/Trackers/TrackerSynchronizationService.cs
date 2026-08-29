@@ -61,6 +61,15 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (request.ProjectId != request.CurrentEvidence.ProjectId)
+        {
+            return new(
+                request.ProjectId,
+                request.CurrentEvidence.State,
+                null,
+                conflicts: ["Tracker evidence local project provenance does not match the requested local project."]);
+        }
+
         if (request.CurrentEvidence.Project is null || request.CurrentEvidence.Target is null ||
             request.CurrentEvidence.Project.ProjectId != request.CurrentEvidence.Target.ProjectId)
         {
@@ -140,6 +149,12 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
         foreach (var link in request.Desired.LinksToAdd
                      .OrderBy(static value => value.CanonicalIdentity, StringComparer.Ordinal))
         {
+            if (link.RemoteTypeId is null && link.RemoteTypeName is null)
+            {
+                conflicts.Add("A desired dependency link does not contain an exact remote link type identity.");
+                continue;
+            }
+
             if (link.Source.Provider != current.Identity.Provider || link.Target.Provider != current.Identity.Provider ||
                 !string.Equals(link.Source.ProjectId, current.Project.ProjectId, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(link.Target.ProjectId, current.Project.ProjectId, StringComparison.OrdinalIgnoreCase))
@@ -152,7 +167,13 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
             {
                 operations.Add(new(
                     TrackerMutationKind.AddDependencyLink,
-                    new TrackerMutationTarget(link.Source, link.Target, link.Relationship, link.Direction),
+                    new TrackerMutationTarget(
+                        link.Source,
+                        link.Target,
+                        link.RemoteTypeName,
+                        link.Direction,
+                        link.RemoteTypeId,
+                        link.Relationship),
                     current.StateFingerprint));
             }
         }
@@ -182,8 +203,17 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
     private static bool SameRelationship(TrackerDependencyLink left, TrackerDependencyLink right) =>
         left.Direction == right.Direction &&
         string.Equals(left.Relationship, right.Relationship, StringComparison.OrdinalIgnoreCase) &&
-        left.Source.CanonicalIdentity == right.Source.CanonicalIdentity &&
-        left.Target.CanonicalIdentity == right.Target.CanonicalIdentity;
+        string.Equals(left.Source.CanonicalIdentity, right.Source.CanonicalIdentity, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.Target.CanonicalIdentity, right.Target.CanonicalIdentity, StringComparison.OrdinalIgnoreCase) &&
+        SameRemoteType(left, right);
+
+    private static bool SameRemoteType(TrackerDependencyLink left, TrackerDependencyLink right) =>
+        !(left.RemoteTypeId is not null && right.RemoteTypeId is not null &&
+          !string.Equals(left.RemoteTypeId, right.RemoteTypeId, StringComparison.OrdinalIgnoreCase)) &&
+        !(left.RemoteTypeName is not null && right.RemoteTypeName is not null &&
+          !string.Equals(left.RemoteTypeName, right.RemoteTypeName, StringComparison.OrdinalIgnoreCase)) &&
+        (left.RemoteTypeId is not null && right.RemoteTypeId is not null ||
+         left.RemoteTypeName is not null && right.RemoteTypeName is not null);
 
     public async Task<TrackerMutationResult> ExecuteAsync(
         TrackerSynchronizationPlan plan,
@@ -227,7 +257,9 @@ public sealed class TrackerSynchronizationService : ITrackerSynchronizationServi
                 resolution.ErrorMessage);
         }
 
-        if (resolution.Configuration!.ProjectId != plan.ProjectId ||
+        if (project.Id != plan.ProjectId ||
+            authority.ProjectId != project.Id ||
+            resolution.Configuration!.ProjectId != project.Id ||
             operation.Target.WorkItem.Provider != resolution.Configuration.Identity.Provider ||
             !string.Equals(operation.Target.WorkItem.ProjectId, resolution.Configuration.Identity.ProjectId, StringComparison.OrdinalIgnoreCase))
         {

@@ -23,12 +23,15 @@ public sealed class JiraWorkItemTrackerAdapterTests
         var result = await adapter.ReadAsync(Configuration(), WorkItem());
 
         Assert.Equal(TrackerEvidenceState.Available, result.State);
+        Assert.Equal(ProjectId, result.ProjectId);
         var snapshot = Assert.IsType<TrackerWorkItemSnapshot>(result.Value);
         Assert.Equal("APO-47", snapshot.Identity.KeyOrId);
         Assert.Equal("10001", snapshot.Identity.RemoteId);
         Assert.Equal("APO-1", snapshot.Parent!.Parent.KeyOrId);
         var link = Assert.Single(snapshot.Links);
         Assert.Equal("blocks", link.Relationship);
+        Assert.Equal("10000", link.RemoteTypeId);
+        Assert.Equal("Blocks", link.RemoteTypeName);
         Assert.True(link.IsDependency);
         Assert.Equal(TrackerLinkDirection.Outward, link.Direction);
         Assert.Equal("trace", Assert.Single(snapshot.Comments).Body);
@@ -56,6 +59,7 @@ public sealed class JiraWorkItemTrackerAdapterTests
         var result = await adapter.DiscoverAsync(Configuration(), new TrackerWorkItemQuery(ProjectId, maxResults: 1, maxPages: 1));
 
         Assert.Equal(TrackerEvidenceState.Available, result.State);
+        Assert.Equal(ProjectId, result.ProjectId);
         Assert.Single(result.Value!);
         Assert.Equal(1, responses);
     }
@@ -100,6 +104,7 @@ public sealed class JiraWorkItemTrackerAdapterTests
             var result = await adapter.ReadAsync(Configuration(), WorkItem());
 
             Assert.Equal(expected, result.State);
+            Assert.Equal(ProjectId, result.ProjectId);
             Assert.DoesNotContain("TOP-SECRET", result.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
             Assert.Equal(1, handler.RequestCount);
         }
@@ -145,6 +150,7 @@ public sealed class JiraWorkItemTrackerAdapterTests
         var result = await adapter.ReadAsync(Configuration(), WorkItem(), cancellationToken: cancellation.Token);
 
         Assert.Equal(TrackerEvidenceState.Cancelled, result.State);
+        Assert.Equal(ProjectId, result.ProjectId);
         Assert.Equal(0, handler.RequestCount);
     }
 
@@ -254,14 +260,20 @@ public sealed class JiraWorkItemTrackerAdapterTests
             Assert.Equal("/rest/api/3/issueLink", request.RequestUri!.AbsolutePath);
             var payload = await request.Content!.ReadAsStringAsync();
             Assert.Contains("outwardIssue", payload, StringComparison.Ordinal);
-            Assert.Contains("blocks", payload, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"Blocks\"", payload, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"name\":\"blocks\"", payload, StringComparison.Ordinal);
             return DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.Created);
         });
         var audit = new MemoryAuditRepository();
         var adapter = CreateAdapter(handler, out _, audit);
         var current = Snapshot();
         var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10002");
-        var target = new TrackerMutationTarget(current.Identity, related, "blocks", TrackerLinkDirection.Outward);
+        var target = new TrackerMutationTarget(
+            current.Identity,
+            related,
+            "Blocks",
+            TrackerLinkDirection.Outward,
+            relationship: "blocks");
 
         var result = await adapter.MutateAsync(Configuration(), new TrackerMutationRequest(
             ProjectId,
@@ -272,6 +284,53 @@ public sealed class JiraWorkItemTrackerAdapterTests
 
         Assert.Equal(TrackerMutationOutcome.Succeeded, result.Outcome);
         Assert.Equal(3, calls.Count);
+        Assert.Single(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task CustomLinkTypeIdentitySurvivesReadAndMutation()
+    {
+        var calls = 0;
+        var handler = new DelegateHttpMessageHandler(async (request, _) =>
+        {
+            calls++;
+            if (request.Method == HttpMethod.Get)
+            {
+                return DelegateHttpMessageHandler.JsonResponse(IssueJson(
+                    links: calls == 1 || calls >= 3 ? [CustomDependsLink()] : []));
+            }
+
+            var payload = await request.Content!.ReadAsStringAsync();
+            Assert.Contains("\"id\":\"10001\"", payload, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"name\":\"depends on\"", payload, StringComparison.Ordinal);
+            return DelegateHttpMessageHandler.JsonResponse("", HttpStatusCode.Created);
+        });
+        var audit = new MemoryAuditRepository();
+        var adapter = CreateAdapter(handler, out _, audit);
+        var current = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10002");
+        var target = new TrackerMutationTarget(
+            current.Identity,
+            related,
+            "Depends",
+            TrackerLinkDirection.Outward,
+            remoteTypeId: "10001",
+            relationship: "depends on");
+
+        var read = await adapter.ReadAsync(Configuration(), WorkItem());
+        var readLink = Assert.Single(Assert.IsType<TrackerWorkItemSnapshot>(read.Value).Links);
+        Assert.Equal("10001", readLink.RemoteTypeId);
+        Assert.Equal("Depends", readLink.RemoteTypeName);
+        Assert.Equal("depends on", readLink.Relationship);
+
+        var result = await adapter.MutateAsync(Configuration(), new TrackerMutationRequest(
+            ProjectId,
+            Configuration().Identity,
+            TrackerMutationKind.AddDependencyLink,
+            target,
+            Authority(current, target, TrackerMutationKind.AddDependencyLink, contentIdentity: null)));
+
+        Assert.Equal(TrackerMutationOutcome.Succeeded, result.Outcome);
         Assert.Single(audit.Receipts);
     }
 
@@ -306,6 +365,148 @@ public sealed class JiraWorkItemTrackerAdapterTests
         Assert.True(result.MayHaveModifiedRemote);
         Assert.Equal(1, posts);
         Assert.Single(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task CancellationAfterPostUsesIndependentAuditFinalization()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var posts = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(IssueJson()));
+            }
+
+            posts++;
+            cancellation.Cancel();
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse("{\"id\":\"301\"}", HttpStatusCode.Created));
+        });
+        var audit = new MemoryAuditRepository(rejectCancelledTokens: true);
+        var adapter = CreateAdapter(handler, out _, audit);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(current.Identity);
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.AddComment,
+                target,
+                Authority(current, target, TrackerMutationKind.AddComment, TrackerCommentMetadata.ComputeBodyHash("trace")),
+                commentBody: "trace"),
+            cancellation.Token);
+
+        Assert.Equal(TrackerMutationOutcome.ReconciliationRequired, result.Outcome);
+        Assert.True(result.MayHaveModifiedRemote);
+        Assert.Equal(1, posts);
+        Assert.Single(audit.Receipts);
+        Assert.Single(audit.Tokens);
+        Assert.False(audit.Tokens[^1].IsCancellationRequested);
+        Assert.NotEqual(cancellation.Token, audit.Tokens[^1]);
+        Assert.Equal(TrackerMutationOutcome.ReconciliationRequired, audit.Receipts[^1].FinalOutcome);
+        Assert.Equal(TrackerEvidenceState.Cancelled, audit.Receipts[^1].VerificationState);
+    }
+
+    [Fact]
+    public async Task OversizedSuccessfulPostRequiresReconciliationAndAudit()
+    {
+        var posts = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(IssueJson()));
+            }
+
+            posts++;
+            return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(
+                new string('x', TrackerLimits.MaxResponseBytes + 1),
+                HttpStatusCode.Created));
+        });
+        var audit = new MemoryAuditRepository();
+        var adapter = CreateAdapter(handler, out _, audit);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(current.Identity);
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.AddComment,
+                target,
+                Authority(current, target, TrackerMutationKind.AddComment, TrackerCommentMetadata.ComputeBodyHash("trace")),
+                commentBody: "trace"));
+
+        Assert.Equal(TrackerMutationOutcome.ReconciliationRequired, result.Outcome);
+        Assert.True(result.MayHaveModifiedRemote);
+        Assert.Equal(1, posts);
+        Assert.Single(audit.Receipts);
+        Assert.Equal(TrackerMutationOutcome.ReconciliationRequired, audit.Receipts[0].FinalOutcome);
+        Assert.True(audit.Receipts[0].MayHaveModifiedRemote);
+    }
+
+    [Fact]
+    public async Task PostResponseBodyReadFailureRequiresReconciliationAndAudit()
+    {
+        var posts = 0;
+        var handler = new DelegateHttpMessageHandler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(DelegateHttpMessageHandler.JsonResponse(IssueJson()));
+            }
+
+            posts++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StreamContent(new ThrowingReadStream())
+            });
+        });
+        var audit = new MemoryAuditRepository();
+        var adapter = CreateAdapter(handler, out _, audit);
+        var current = Snapshot();
+        var target = new TrackerMutationTarget(current.Identity);
+
+        var result = await adapter.MutateAsync(
+            Configuration(),
+            new TrackerMutationRequest(
+                ProjectId,
+                Configuration().Identity,
+                TrackerMutationKind.AddComment,
+                target,
+                Authority(current, target, TrackerMutationKind.AddComment, TrackerCommentMetadata.ComputeBodyHash("trace")),
+                commentBody: "trace"));
+
+        Assert.Equal(TrackerMutationOutcome.ReconciliationRequired, result.Outcome);
+        Assert.True(result.MayHaveModifiedRemote);
+        Assert.Equal(1, posts);
+        Assert.Single(audit.Receipts);
+    }
+
+    [Fact]
+    public async Task LinkTypeSubstitutionDoesNotPassAuthorityOrReachJira()
+    {
+        var handler = DelegateHttpMessageHandler.Json(IssueJson());
+        var adapter = CreateAdapter(handler, out _);
+        var current = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10002");
+        var authorizedTarget = new TrackerMutationTarget(current.Identity, related, "Blocks", TrackerLinkDirection.Outward, relationship: "blocks");
+        var substitutedTarget = new TrackerMutationTarget(current.Identity, related, "Depends", TrackerLinkDirection.Outward, relationship: "blocks");
+        var authority = Authority(current, authorizedTarget, TrackerMutationKind.AddDependencyLink, contentIdentity: null);
+
+        var result = await adapter.MutateAsync(Configuration(), new TrackerMutationRequest(
+            ProjectId,
+            Configuration().Identity,
+            TrackerMutationKind.AddDependencyLink,
+            substitutedTarget,
+            authority));
+
+        Assert.Equal(TrackerMutationOutcome.InvalidAuthority, result.Outcome);
+        Assert.Equal(0, handler.RequestCount);
     }
 
     [Fact]
@@ -427,7 +628,14 @@ public sealed class JiraWorkItemTrackerAdapterTests
     private static object BlocksLink() => new
     {
         id = "200",
-        type = new { name = "Blocks", inward = "is blocked by", outward = "blocks" },
+        type = new { id = "10000", name = "Blocks", inward = "is blocked by", outward = "blocks" },
+        outwardIssue = new { id = "10002", key = "APO-48", fields = new { project = new { key = "APO" } } }
+    };
+
+    private static object CustomDependsLink() => new
+    {
+        id = "201",
+        type = new { id = "10001", name = "Depends", inward = "is dependency for", outward = "depends on" },
         outwardIssue = new { id = "10002", key = "APO-48", fields = new { project = new { key = "APO" } } }
     };
 
@@ -466,9 +674,19 @@ public sealed class JiraWorkItemTrackerAdapterTests
 
     private sealed class MemoryAuditRepository : ITrackerMutationAuditRepository
     {
+        private readonly bool _rejectCancelledTokens;
+
+        public MemoryAuditRepository(bool rejectCancelledTokens = false) => _rejectCancelledTokens = rejectCancelledTokens;
         public List<TrackerMutationReceipt> Receipts { get; } = [];
+        public List<CancellationToken> Tokens { get; } = [];
         public Task AppendAsync(TrackerMutationReceipt receipt, CancellationToken cancellationToken = default)
         {
+            Tokens.Add(cancellationToken);
+            if (_rejectCancelledTokens && cancellationToken.IsCancellationRequested)
+            {
+                return Task.FromException(new OperationCanceledException(cancellationToken));
+            }
+
             Receipts.Add(receipt);
             return Task.CompletedTask;
         }
@@ -478,6 +696,21 @@ public sealed class JiraWorkItemTrackerAdapterTests
     {
         public Task AppendAsync(TrackerMutationReceipt receipt, CancellationToken cancellationToken = default) =>
             Task.FromException(new IOException("audit unavailable"));
+    }
+
+    private sealed class ThrowingReadStream : Stream
+    {
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => 1;
+        public override long Position { get; set; }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new IOException("response body failed");
+        public override int Read(Span<byte> buffer) => throw new IOException("response body failed");
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
 }

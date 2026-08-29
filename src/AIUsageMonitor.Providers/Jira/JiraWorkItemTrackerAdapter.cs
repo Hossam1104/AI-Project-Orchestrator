@@ -16,6 +16,7 @@ namespace AIUsageMonitor.Providers.Jira;
 public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
 {
     public const string HttpClientName = "AIUsageMonitor.Jira";
+    private static readonly TimeSpan TrackerMutationAuditFinalizationTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IClock _clock;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -45,13 +46,13 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         ArgumentNullException.ThrowIfNull(query);
         if (configuration.ProjectId != query.ProjectId || configuration.Identity.Provider != Provider || configuration.Identity.BaseUri is null)
         {
-            return ListResult(TrackerEvidenceState.NotConfigured, configuration.Identity, null, "Tracker configuration does not match the project query.");
+            return ListResult(configuration.ProjectId, TrackerEvidenceState.NotConfigured, configuration.Identity, null, "Tracker configuration does not match the project query.");
         }
 
         var credentialResult = await GetAuthorizationAsync(configuration, cancellationToken).ConfigureAwait(false);
         if (!credentialResult.Success)
         {
-            return ListResult(credentialResult.State, configuration.Identity, null, credentialResult.ErrorMessage);
+            return ListResult(configuration.ProjectId, credentialResult.State, configuration.Identity, null, credentialResult.ErrorMessage);
         }
 
         var capturedAt = _clock.UtcNow;
@@ -64,7 +65,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                return ListResult(TrackerEvidenceState.Cancelled, configuration.Identity, null, "Tracker discovery was cancelled by the caller.", capturedAt, limitations, items);
+                return ListResult(configuration.ProjectId, TrackerEvidenceState.Cancelled, configuration.Identity, null, "Tracker discovery was cancelled by the caller.", capturedAt, limitations, items);
             }
             page++;
             var payload = new
@@ -83,7 +84,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
                 cancellationToken).ConfigureAwait(false);
             if (!responseResult.Success)
             {
-                return ListFailure(configuration.Identity, responseResult, items, capturedAt, limitations);
+                return ListFailure(configuration.ProjectId, configuration.Identity, responseResult, items, capturedAt, limitations);
             }
 
             try
@@ -92,7 +93,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
                 var root = document.RootElement;
                 if (!root.TryGetProperty("issues", out var issueArray) || issueArray.ValueKind != JsonValueKind.Array)
                 {
-                    return ListResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, null, "Jira search response did not contain an issue array.", capturedAt, limitations);
+                    return ListResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, null, "Jira search response did not contain an issue array.", capturedAt, limitations);
                 }
 
                 var seenOnPage = 0;
@@ -143,11 +144,11 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             }
             catch (JsonException)
             {
-                return ListResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, null, "Jira search response JSON was malformed.", capturedAt, limitations);
+                return ListResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, null, "Jira search response JSON was malformed.", capturedAt, limitations);
             }
             catch (ArgumentException)
             {
-                return ListResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, null, "Jira search response exceeded a supported field bound.", capturedAt, limitations, items);
+                return ListResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, null, "Jira search response exceeded a supported field bound.", capturedAt, limitations, items);
             }
         }
 
@@ -157,6 +158,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         }
 
         return ListResult(
+            configuration.ProjectId,
             limitations.Count == 0 ? TrackerEvidenceState.Available : TrackerEvidenceState.Partial,
             configuration.Identity,
             null,
@@ -176,23 +178,23 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         ArgumentNullException.ThrowIfNull(target);
         if (configuration.Identity.Provider != Provider || configuration.Identity.BaseUri is null)
         {
-            return SingleResult(TrackerEvidenceState.NotConfigured, configuration.Identity, target, null, "Jira configuration is incomplete.", lastKnownValue: lastKnownValue);
+            return SingleResult(configuration.ProjectId, TrackerEvidenceState.NotConfigured, configuration.Identity, target, null, "Jira configuration is incomplete.", lastKnownValue: lastKnownValue);
         }
 
         if (cancellationToken.IsCancellationRequested)
         {
-            return SingleResult(TrackerEvidenceState.Cancelled, configuration.Identity, target, null, "Tracker read was cancelled by the caller.", lastKnownValue: lastKnownValue);
+            return SingleResult(configuration.ProjectId, TrackerEvidenceState.Cancelled, configuration.Identity, target, null, "Tracker read was cancelled by the caller.", lastKnownValue: lastKnownValue);
         }
 
         if (target.Provider != Provider || !string.Equals(target.ProjectId, configuration.Identity.ProjectId, StringComparison.OrdinalIgnoreCase))
         {
-            return SingleResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Tracker target does not belong to the configured Jira project.", lastKnownValue: lastKnownValue);
+            return SingleResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Tracker target does not belong to the configured Jira project.", lastKnownValue: lastKnownValue);
         }
 
         var credentialResult = await GetAuthorizationAsync(configuration, cancellationToken).ConfigureAwait(false);
         if (!credentialResult.Success)
         {
-            return SingleResult(credentialResult.State, configuration.Identity, target, null, credentialResult.ErrorMessage, lastKnownValue: lastKnownValue);
+            return SingleResult(configuration.ProjectId, credentialResult.State, configuration.Identity, target, null, credentialResult.ErrorMessage, lastKnownValue: lastKnownValue);
         }
 
         var responseResult = await SendAsync<object?>(
@@ -203,7 +205,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             cancellationToken).ConfigureAwait(false);
         if (!responseResult.Success)
         {
-            return SingleFailure(configuration.Identity, target, lastKnownValue, responseResult);
+            return SingleFailure(configuration.ProjectId, configuration.Identity, target, lastKnownValue, responseResult);
         }
 
         try
@@ -211,15 +213,16 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             using var document = JsonDocument.Parse(responseResult.Body!);
             if (!TryParseIssue(document.RootElement, configuration.Identity, out var snapshot, out var limitations))
             {
-                return SingleResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira issue response did not contain the required core fields.", limitations, lastKnownValue);
+                return SingleResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira issue response did not contain the required core fields.", limitations, lastKnownValue);
             }
 
             if (!IdentityMatches(target, snapshot!.Identity))
             {
-                return SingleResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira returned a different work-item identity than requested.", lastKnownValue: lastKnownValue);
+                return SingleResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira returned a different work-item identity than requested.", lastKnownValue: lastKnownValue);
             }
 
             return SingleResult(
+                configuration.ProjectId,
                 limitations.Count == 0 ? TrackerEvidenceState.Available : TrackerEvidenceState.Partial,
                 configuration.Identity,
                 snapshot.Identity,
@@ -229,11 +232,11 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         }
         catch (JsonException)
         {
-            return SingleResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira issue response JSON was malformed.", lastKnownValue: lastKnownValue);
+            return SingleResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira issue response JSON was malformed.", lastKnownValue: lastKnownValue);
         }
         catch (ArgumentException)
         {
-            return SingleResult(TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira issue response exceeded a supported field bound.", lastKnownValue: lastKnownValue);
+            return SingleResult(configuration.ProjectId, TrackerEvidenceState.InvalidResponse, configuration.Identity, target, null, "Jira issue response exceeded a supported field bound.", lastKnownValue: lastKnownValue);
         }
     }
 
@@ -274,9 +277,10 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         }
 
         if (request.Kind == TrackerMutationKind.AddDependencyLink &&
-            (request.Target.RelatedWorkItem is null || string.IsNullOrWhiteSpace(request.Target.LinkType)))
+            (request.Target.RelatedWorkItem is null ||
+             (request.Target.RemoteTypeId is null && request.Target.RemoteTypeName is null)))
         {
-            return new(TrackerMutationOutcome.InvalidAuthority, "An explicit related work item and link type are required.");
+            return new(TrackerMutationOutcome.InvalidAuthority, "An explicit related work item and exact remote link type identity are required.");
         }
 
         if (request.Target.WorkItem.Provider != Provider ||
@@ -374,18 +378,21 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
                 cancellationToken).ConfigureAwait(false);
         }
 
+        object linkType = request.Target.RemoteTypeId is { } remoteTypeId
+            ? new { id = remoteTypeId }
+            : new { name = request.Target.RemoteTypeName };
         var linkPayload = request.Target.LinkDirection == TrackerLinkDirection.Outward
             ? new
             {
                 outwardIssue = new { key = request.Target.WorkItem.KeyOrId },
                 inwardIssue = new { key = request.Target.RelatedWorkItem!.KeyOrId },
-                type = new { name = request.Target.LinkType }
+                type = linkType
             }
             : new
             {
                 outwardIssue = new { key = request.Target.RelatedWorkItem!.KeyOrId },
                 inwardIssue = new { key = request.Target.WorkItem.KeyOrId },
-                type = new { name = request.Target.LinkType }
+                type = linkType
             };
         return await SendMutationAsync(
             request,
@@ -478,8 +485,16 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         CancellationToken cancellationToken,
         string? bodyHash = null)
     {
+        if (mayHaveModifiedRemote && outcome != TrackerMutationOutcome.Succeeded)
+        {
+            outcome = TrackerMutationOutcome.ReconciliationRequired;
+        }
+
         var authority = request.Authority!;
         TrackerMutationReceipt receipt;
+        using var finalizationCancellation = mayHaveModifiedRemote || outcome == TrackerMutationOutcome.Succeeded
+            ? new CancellationTokenSource(TrackerMutationAuditFinalizationTimeout)
+            : null;
         try
         {
             receipt = new TrackerMutationReceipt(
@@ -500,11 +515,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
                 bodyHash,
                 request.Kind == TrackerMutationKind.AddComment ? request.CommentBody?.Length : null,
                 remoteReference);
-            await _audit.AppendAsync(receipt, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return new(TrackerMutationOutcome.ReconciliationRequired, "Mutation audit persistence was cancelled after the remote attempt.", mayHaveModifiedRemote: true, verificationState: TrackerEvidenceState.Cancelled);
+            await _audit.AppendAsync(receipt, finalizationCancellation?.Token ?? cancellationToken).ConfigureAwait(false);
         }
         catch (Exception) when (outcome == TrackerMutationOutcome.Succeeded || mayHaveModifiedRemote)
         {
@@ -656,9 +667,21 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         {
             return new(false, method == HttpMethod.Get ? TrackerMutationOutcome.Unavailable : TrackerMutationOutcome.ReconciliationRequired, TrackerEvidenceState.Unavailable, "Tracker request was unavailable.", "transport-failure", null, method != HttpMethod.Get);
         }
+        catch (IOException)
+        {
+            return new(false, method == HttpMethod.Get ? TrackerMutationOutcome.Unavailable : TrackerMutationOutcome.ReconciliationRequired, TrackerEvidenceState.Unavailable, "Tracker response could not be read.", "response-read-failure", null, method != HttpMethod.Get);
+        }
         catch (ResponseTooLargeException)
         {
-            return new(false, TrackerMutationOutcome.InvalidResponse, TrackerEvidenceState.InvalidResponse, "Tracker response exceeded its bounded size.", "oversized-response", null, false);
+            var mayHaveModifiedRemote = method != HttpMethod.Get;
+            return new(
+                false,
+                mayHaveModifiedRemote ? TrackerMutationOutcome.ReconciliationRequired : TrackerMutationOutcome.InvalidResponse,
+                TrackerEvidenceState.InvalidResponse,
+                "Tracker response exceeded its bounded size.",
+                "oversized-response",
+                null,
+                mayHaveModifiedRemote);
         }
     }
 
@@ -854,6 +877,13 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             }
 
             var linkId = StringProperty(link, "id");
+            var remoteTypeId = StringProperty(type, "id");
+            var remoteTypeName = StringProperty(type, "name");
+            if (remoteTypeId is null && remoteTypeName is null)
+            {
+                limitations.Add("A Jira issue link had no exact remote relationship type identity.");
+                continue;
+            }
             if (link.TryGetProperty("outwardIssue", out var outward) && outward.ValueKind == JsonValueKind.Object)
             {
                 var related = ParseLinkedIdentity(outward, configuredProject);
@@ -864,7 +894,15 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
                     continue;
                 }
 
-                links.Add(new TrackerDependencyLink(current, related, relationship, TrackerLinkDirection.Outward, linkId, IsKnownDependency(relationship)));
+                links.Add(new TrackerDependencyLink(
+                    current,
+                    related,
+                    relationship,
+                    TrackerLinkDirection.Outward,
+                    linkId,
+                    IsKnownDependency(relationship),
+                    remoteTypeId,
+                    remoteTypeName));
             }
             else if (link.TryGetProperty("inwardIssue", out var inward) && inward.ValueKind == JsonValueKind.Object)
             {
@@ -876,7 +914,15 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
                     continue;
                 }
 
-                links.Add(new TrackerDependencyLink(related, current, relationship, TrackerLinkDirection.Inward, linkId, IsKnownDependency(relationship)));
+                links.Add(new TrackerDependencyLink(
+                    related,
+                    current,
+                    relationship,
+                    TrackerLinkDirection.Inward,
+                    linkId,
+                    IsKnownDependency(relationship),
+                    remoteTypeId,
+                    remoteTypeName));
             }
             else
             {
@@ -1027,8 +1073,11 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         string.Equals(link.Target.CanonicalIdentity, target.LinkDirection == TrackerLinkDirection.Outward
             ? target.RelatedWorkItem!.CanonicalIdentity
             : target.WorkItem.CanonicalIdentity, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(link.Relationship, target.LinkType, StringComparison.OrdinalIgnoreCase) &&
-        link.Direction == target.LinkDirection;
+        link.Direction == target.LinkDirection &&
+        (target.Relationship is null || string.Equals(link.Relationship, target.Relationship, StringComparison.OrdinalIgnoreCase)) &&
+        (target.RemoteTypeId is null || string.Equals(link.RemoteTypeId, target.RemoteTypeId, StringComparison.OrdinalIgnoreCase)) &&
+        (target.RemoteTypeName is null || string.Equals(link.RemoteTypeName, target.RemoteTypeName, StringComparison.OrdinalIgnoreCase)) &&
+        (target.RemoteTypeId is not null || target.RemoteTypeName is not null);
 
     private static bool IdentityMatches(TrackerWorkItemIdentity expected, TrackerWorkItemIdentity actual) =>
         expected.Provider == actual.Provider &&
@@ -1090,12 +1139,13 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
     };
 
     private static TrackerReadResult<IReadOnlyList<TrackerWorkItemSnapshot>> ListFailure(
+        Guid projectId,
         TrackerProjectIdentity project,
         ResponseResult response,
         IReadOnlyList<TrackerWorkItemSnapshot> existing,
         DateTimeOffset capturedAt,
         IReadOnlyList<string> limitations) =>
-        ListResult(response.State is TrackerEvidenceState.AuthenticationRequired or TrackerEvidenceState.PermissionDenied or TrackerEvidenceState.NotFound or TrackerEvidenceState.RateLimited
+        ListResult(projectId, response.State is TrackerEvidenceState.AuthenticationRequired or TrackerEvidenceState.PermissionDenied or TrackerEvidenceState.NotFound or TrackerEvidenceState.RateLimited
             ? response.State
             : existing.Count > 0 ? TrackerEvidenceState.Stale : response.State,
             project,
@@ -1107,6 +1157,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             lastKnown: existing.Count > 0 ? existing : null);
 
     private static TrackerReadResult<IReadOnlyList<TrackerWorkItemSnapshot>> ListResult(
+        Guid projectId,
         TrackerEvidenceState state,
         TrackerProjectIdentity project,
         TrackerWorkItemIdentity? target,
@@ -1115,14 +1166,15 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         IReadOnlyList<string>? limitations = null,
         IReadOnlyList<TrackerWorkItemSnapshot>? value = null,
         IReadOnlyList<TrackerWorkItemSnapshot>? lastKnown = null) =>
-        new(state, project, target, capturedAt ?? DateTimeOffset.UtcNow, value ?? Array.Empty<TrackerWorkItemSnapshot>(), lastKnown, limitations, error);
+        new(projectId, state, project, target, capturedAt ?? DateTimeOffset.UtcNow, value ?? Array.Empty<TrackerWorkItemSnapshot>(), lastKnown, limitations, error);
 
     private static TrackerReadResult<TrackerWorkItemSnapshot> SingleFailure(
+        Guid projectId,
         TrackerProjectIdentity project,
         TrackerWorkItemIdentity target,
         TrackerWorkItemSnapshot? lastKnown,
         ResponseResult response) =>
-        SingleResult(response.State is TrackerEvidenceState.AuthenticationRequired or TrackerEvidenceState.PermissionDenied or TrackerEvidenceState.NotFound or TrackerEvidenceState.RateLimited
+        SingleResult(projectId, response.State is TrackerEvidenceState.AuthenticationRequired or TrackerEvidenceState.PermissionDenied or TrackerEvidenceState.NotFound or TrackerEvidenceState.RateLimited
             ? response.State
             : lastKnown is not null ? TrackerEvidenceState.Stale : response.State,
             project,
@@ -1133,6 +1185,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
             lastKnown);
 
     private static TrackerReadResult<TrackerWorkItemSnapshot> SingleResult(
+        Guid projectId,
         TrackerEvidenceState state,
         TrackerProjectIdentity project,
         TrackerWorkItemIdentity target,
@@ -1140,7 +1193,7 @@ public sealed class JiraWorkItemTrackerAdapter : IWorkItemTrackerAdapter
         string? error,
         IReadOnlyList<string>? limitations = null,
         TrackerWorkItemSnapshot? lastKnownValue = null) =>
-        new(state, project, target, DateTimeOffset.UtcNow, value, lastKnownValue, limitations, error);
+        new(projectId, state, project, target, DateTimeOffset.UtcNow, value, lastKnownValue, limitations, error);
 
     private sealed record AuthorizationResult(bool Success, TrackerEvidenceState State, AuthenticationHeaderValue? Authorization, string? ErrorMessage);
     private sealed record ResponseResult(bool Success, TrackerMutationOutcome Outcome, TrackerEvidenceState State, string? ErrorMessage, string HttpOutcome, string? Body, bool MayHaveModifiedRemote);

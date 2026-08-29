@@ -127,7 +127,9 @@ public sealed class TrackerSynchronizationTests
             related,
             "blocks",
             TrackerLinkDirection.Outward,
-            isDependency: true);
+            isDependency: true,
+            remoteTypeId: "10000",
+            remoteTypeName: "Blocks");
 
         var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
             ProjectId,
@@ -138,7 +140,75 @@ public sealed class TrackerSynchronizationTests
         Assert.Equal(TrackerMutationKind.AddDependencyLink, operation.Kind);
         Assert.Equal(link.Source.CanonicalIdentity, operation.Target.WorkItem.CanonicalIdentity);
         Assert.Equal(link.Target.CanonicalIdentity, operation.Target.RelatedWorkItem!.CanonicalIdentity);
-        Assert.Equal(link.Relationship, operation.Target.LinkType);
+        Assert.Equal(link.RemoteTypeName, operation.Target.RemoteTypeName);
+        Assert.Equal(link.RemoteTypeId, operation.Target.RemoteTypeId);
+        Assert.Equal(link.Relationship, operation.Target.Relationship);
+    }
+
+    [Fact]
+    public void EvidenceFromAnotherLocalProjectCannotCreatePlan()
+    {
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(Snapshot(), OtherProjectId),
+            new TrackerSynchronizationDesiredState(statusId: "31")));
+
+        Assert.False(plan.IsExecutable);
+        Assert.Empty(plan.Operations);
+        Assert.Contains(plan.Conflicts, value => value.Contains("local project provenance", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task AuthorityFromAnotherLocalProjectIsRejectedBeforeAdapterInvocation()
+    {
+        var adapter = new FakeAdapter(TrackerProviderKind.Jira);
+        var service = new TrackerSynchronizationService(
+            new FakeProjectRepository(CreateProject()),
+            new WorkItemTrackerAdapterResolver([adapter]));
+        var snapshot = Snapshot();
+        var operation = new TrackerSynchronizationOperation(
+            TrackerMutationKind.TransitionStatus,
+            new TrackerMutationTarget(snapshot.Identity),
+            snapshot.StateFingerprint,
+            statusId: "31");
+        var plan = new TrackerSynchronizationPlan(ProjectId, TrackerEvidenceState.Available, snapshot.StateFingerprint, [operation]);
+        var authority = Authority(operation, snapshot.StateFingerprint, OtherProjectId);
+
+        var result = await service.ExecuteAsync(plan, operation, authority);
+
+        Assert.Equal(TrackerMutationOutcome.InvalidAuthority, result.Outcome);
+        Assert.Equal(0, adapter.MutationCalls);
+    }
+
+    [Fact]
+    public void DifferentRemoteTypeIdentitiesAreNotDuplicateRelationships()
+    {
+        var baseSnapshot = Snapshot();
+        var related = new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-48", "10876");
+        var snapshot = Snapshot([
+            new TrackerDependencyLink(
+                baseSnapshot.Identity,
+                related,
+                "blocks",
+                TrackerLinkDirection.Outward,
+                remoteTypeId: "10000",
+                remoteTypeName: "Blocks")
+        ]);
+
+        var desired = new TrackerDependencyLink(
+            snapshot.Identity,
+            related,
+            "blocks",
+            TrackerLinkDirection.Outward,
+            remoteTypeId: "10001",
+            remoteTypeName: "Depends");
+        var plan = Planner().CreatePlan(new TrackerSynchronizationRequest(
+            ProjectId,
+            Evidence(snapshot),
+            new TrackerSynchronizationDesiredState(linksToAdd: [desired])));
+
+        Assert.True(plan.IsExecutable);
+        Assert.Equal("Depends", Assert.Single(plan.Operations).Target.RemoteTypeName);
     }
 
     [Fact]
@@ -146,6 +216,7 @@ public sealed class TrackerSynchronizationTests
     {
         var snapshot = Snapshot();
         var evidence = new TrackerReadResult<TrackerWorkItemSnapshot>(
+            ProjectId,
             TrackerEvidenceState.Stale,
             snapshot.Project,
             snapshot.Identity,
@@ -265,22 +336,23 @@ public sealed class TrackerSynchronizationTests
     private static TrackerSynchronizationService Planner() =>
         new(new FakeProjectRepository(CreateProject()), new WorkItemTrackerAdapterResolver([]));
 
-    private static TrackerReadResult<TrackerWorkItemSnapshot> Evidence(TrackerWorkItemSnapshot snapshot) =>
-        new(TrackerEvidenceState.Available, snapshot.Project, snapshot.Identity, Now, snapshot);
+    private static TrackerReadResult<TrackerWorkItemSnapshot> Evidence(TrackerWorkItemSnapshot snapshot, Guid? projectId = null) =>
+        new(projectId ?? ProjectId, TrackerEvidenceState.Available, snapshot.Project, snapshot.Identity, Now, snapshot);
 
-    private static TrackerWorkItemSnapshot Snapshot() =>
+    private static TrackerWorkItemSnapshot Snapshot(IReadOnlyList<TrackerDependencyLink>? links = null) =>
         new(
             new TrackerWorkItemIdentity(TrackerProviderKind.Jira, "APO", "APO-47", "10875"),
             new TrackerProjectIdentity(TrackerProviderKind.Jira, "APO", new Uri("https://jira.example/")),
             "Task",
             "Tracker sync",
             new TrackerStatusSnapshot("11", "To Do", "new"),
-            Now);
+            Now,
+            links: links);
 
-    private static TrackerMutationAuthority Authority(TrackerSynchronizationOperation operation, string expectedState) =>
+    private static TrackerMutationAuthority Authority(TrackerSynchronizationOperation operation, string expectedState, Guid? projectId = null) =>
         new(
             Guid.NewGuid(),
-            ProjectId,
+            projectId ?? ProjectId,
             Snapshot().Project,
             operation.Target,
             operation.Kind,
@@ -342,6 +414,7 @@ public sealed class TrackerSynchronizationTests
             TrackerWorkItemQuery query,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new TrackerReadResult<IReadOnlyList<TrackerWorkItemSnapshot>>(
+                configuration.ProjectId,
                 TrackerEvidenceState.Unsupported,
                 configuration.Identity,
                 null,
@@ -353,6 +426,7 @@ public sealed class TrackerSynchronizationTests
             TrackerWorkItemSnapshot? lastKnownValue = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new TrackerReadResult<TrackerWorkItemSnapshot>(
+                configuration.ProjectId,
                 TrackerEvidenceState.Unsupported,
                 configuration.Identity,
                 target,

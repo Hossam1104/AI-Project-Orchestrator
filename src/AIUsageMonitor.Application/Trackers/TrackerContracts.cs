@@ -383,7 +383,9 @@ public sealed class TrackerDependencyLink
         string relationship,
         TrackerLinkDirection direction,
         string? remoteLinkId = null,
-        bool isDependency = false)
+        bool isDependency = false,
+        string? remoteTypeId = null,
+        string? remoteTypeName = null)
     {
         Source = source ?? throw new ArgumentNullException(nameof(source));
         Target = target ?? throw new ArgumentNullException(nameof(target));
@@ -396,6 +398,8 @@ public sealed class TrackerDependencyLink
         Direction = direction;
         RemoteLinkId = string.IsNullOrWhiteSpace(remoteLinkId) ? null : Required(remoteLinkId, nameof(remoteLinkId));
         IsDependency = isDependency;
+        RemoteTypeId = string.IsNullOrWhiteSpace(remoteTypeId) ? null : Required(remoteTypeId, nameof(remoteTypeId));
+        RemoteTypeName = string.IsNullOrWhiteSpace(remoteTypeName) ? null : Required(remoteTypeName, nameof(remoteTypeName));
     }
 
     public TrackerWorkItemIdentity Source { get; }
@@ -404,9 +408,11 @@ public sealed class TrackerDependencyLink
     public TrackerLinkDirection Direction { get; }
     public string? RemoteLinkId { get; }
     public bool IsDependency { get; }
+    public string? RemoteTypeId { get; }
+    public string? RemoteTypeName { get; }
 
     public string CanonicalIdentity =>
-        $"{Source.CanonicalIdentity}|{Direction}|{Relationship}|{Target.CanonicalIdentity}|{RemoteLinkId ?? "(no-id)"}";
+        $"{Source.CanonicalIdentity}|{Direction}|{Relationship}|{Target.CanonicalIdentity}|{RemoteTypeId ?? "(no-type-id)"}|{RemoteTypeName ?? "(no-type-name)"}|{RemoteLinkId ?? "(no-id)"}";
 
     private static string Required(string value, string parameterName) =>
         string.IsNullOrWhiteSpace(value)
@@ -589,6 +595,7 @@ public sealed class TrackerWorkItemSnapshot
 public sealed class TrackerReadResult<T>
 {
     public TrackerReadResult(
+        Guid projectId,
         TrackerEvidenceState state,
         TrackerProjectIdentity project,
         TrackerWorkItemIdentity? target,
@@ -598,6 +605,11 @@ public sealed class TrackerReadResult<T>
         IReadOnlyList<string>? limitations = null,
         string? errorMessage = null)
     {
+        if (projectId == Guid.Empty)
+        {
+            throw new ArgumentException("Project id is required.", nameof(projectId));
+        }
+
         if (!Enum.IsDefined(state))
         {
             throw new ArgumentException("Tracker evidence state is undefined.", nameof(state));
@@ -609,6 +621,7 @@ public sealed class TrackerReadResult<T>
             throw new ArgumentException("Tracker capture time is required.", nameof(capturedAt));
         }
 
+        ProjectId = projectId;
         State = state;
         Target = target;
         CapturedAt = capturedAt;
@@ -619,6 +632,7 @@ public sealed class TrackerReadResult<T>
     }
 
     public TrackerEvidenceState State { get; }
+    public Guid ProjectId { get; }
     public TrackerProjectIdentity Project { get; }
     public TrackerWorkItemIdentity? Target { get; }
     public DateTimeOffset CapturedAt { get; }
@@ -732,19 +746,23 @@ public sealed class TrackerMutationTarget
         TrackerWorkItemIdentity workItem,
         TrackerWorkItemIdentity? relatedWorkItem = null,
         string? linkType = null,
-        TrackerLinkDirection linkDirection = TrackerLinkDirection.Outward)
+        TrackerLinkDirection linkDirection = TrackerLinkDirection.Outward,
+        string? remoteTypeId = null,
+        string? relationship = null)
     {
         WorkItem = workItem ?? throw new ArgumentNullException(nameof(workItem));
         RelatedWorkItem = relatedWorkItem;
         LinkType = string.IsNullOrWhiteSpace(linkType) ? null : Normalize(linkType, nameof(linkType));
-        if (RelatedWorkItem is null && LinkType is not null)
+        RemoteTypeId = string.IsNullOrWhiteSpace(remoteTypeId) ? null : Normalize(remoteTypeId, nameof(remoteTypeId));
+        Relationship = string.IsNullOrWhiteSpace(relationship) ? null : Normalize(relationship, nameof(relationship));
+        if (RelatedWorkItem is null && (LinkType is not null || RemoteTypeId is not null || Relationship is not null))
         {
             throw new ArgumentException("A link type requires a related work item.", nameof(relatedWorkItem));
         }
 
-        if (RelatedWorkItem is not null && LinkType is null)
+        if (RelatedWorkItem is not null && LinkType is null && RemoteTypeId is null)
         {
-            throw new ArgumentException("A related work item requires an explicit link type.", nameof(linkType));
+            throw new ArgumentException("A related work item requires an exact remote link type identity.", nameof(linkType));
         }
 
         if (!Enum.IsDefined(linkDirection))
@@ -757,10 +775,14 @@ public sealed class TrackerMutationTarget
 
     public TrackerWorkItemIdentity WorkItem { get; }
     public TrackerWorkItemIdentity? RelatedWorkItem { get; }
+    /// <summary>Compatibility alias for the exact remote type name.</summary>
     public string? LinkType { get; }
+    public string? RemoteTypeName => LinkType;
+    public string? RemoteTypeId { get; }
+    public string? Relationship { get; }
     public TrackerLinkDirection LinkDirection { get; }
     public string CanonicalIdentity =>
-        $"{WorkItem.CanonicalIdentity}|{LinkDirection}|{LinkType ?? "(no-link)"}|{RelatedWorkItem?.CanonicalIdentity ?? "(no-related)"}";
+        $"{WorkItem.CanonicalIdentity}|{LinkDirection}|{Relationship ?? "(no-relationship)"}|{RemoteTypeId ?? "(no-type-id)"}|{RemoteTypeName ?? "(no-type-name)"}|{RelatedWorkItem?.CanonicalIdentity ?? "(no-related)"}";
 
     private static string Normalize(string value, string parameterName)
     {
