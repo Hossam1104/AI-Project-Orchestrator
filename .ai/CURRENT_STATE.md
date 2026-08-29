@@ -3716,3 +3716,33 @@ was true when written and are not rewritten.
 > PR #20 governance remediation complete and awaiting GPT-5.6 Sol exact-head acceptance. Do not mark
 > Ready, merge PR #20, start APO-48, or execute another product Story until Sol reviews the exact
 > returned head.
+
+---
+
+## 44. SOL-GOV-01R cost/cheapest-capable tie-break remediation (chore/ai-execution-governance-migration)
+
+This corrects the live/current boundary only; §41–§43 above remain historical record and are not
+rewritten. GPT-5.6 Sol reviewed exact head `2ecb0ba38bb700a96272c62a7f1d98822ddcf7af` (tree
+`09c7ab6d8ed141e37f091bc62b9ef500b336f652`) and closed `SOL-GOV-02` through `SOL-GOV-06` and the
+Ponytail blocker, leaving one open finding, `SOL-GOV-01R`: the canonical provider-balancing text
+omitted the final explicit cost/cheapest-capable tie-break.
+
+- `.ai/AI_MODEL_ROUTING.md` §6 "Provider balancing rule" was renamed "Routing priority order and
+  provider balancing rule" and now states the canonical routing priority order explicitly —
+  correctness, security/required assurance, required capability/risk tier, provider quota health,
+  cost/cheapest-capable model — and adds a bounded cheapest-capable tie-break: it applies only after
+  correctness, security, capability/risk tier, and quota health are already satisfied among a safe,
+  sufficiently capable candidate set, and it can never reduce required capability, risk tier, or
+  reasoning/effort, and can never justify a weaker, lower-tier, or non-Anthropic/OpenAI provider.
+  The existing Tier 0–4 structure, Tier 3 dynamic Sonnet-High/Luna-xHigh selection, and the closed
+  §2 active-provider restriction were not modified.
+- No `src/` or `tests/` change. Schema versions unchanged: `JsonFileStore.CurrentSchemaVersion = 1`,
+  `ExecutionRunAuthoritySchema.CurrentVersion = 1`. No Jira transition for APO-45 or APO-48; APO-45
+  remains Done, APO-48 remains To Do. `TASK.md` was not replaced with an APO-48 executor prompt.
+- `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO` at both the start and end of this
+  remediation; the WPF application was not launched.
+
+**Next planner boundary:**
+
+> SOL-GOV-01R remediation complete and PR #20 remains Draft/unmerged awaiting GPT-5.6 Sol exact-head
+> acceptance. Do not merge PR #20 or begin APO-48 until Sol reviews the exact returned head.

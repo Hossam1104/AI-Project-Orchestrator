@@ -137,12 +137,29 @@ beyond Tier 3/4, never a default.
 Independent review (Opus) and specialist assurance (Terra) are applied on top of the tier, not in
 place of it, per the criteria in §3.
 
-### Provider balancing rule
+### Routing priority order and provider balancing rule
+
+Route selection among candidate executors follows this exact priority order:
+
+1. **Correctness**
+2. **Security / required assurance**
+3. **Required capability and risk tier**
+4. **Provider quota health**
+5. **Cost / cheapest capable model**
 
 When two candidate executors both satisfy the required tier and role, prefer the provider pool
 that is currently in a better quota state (§5), unless quality/risk considerations require a
 specific model. Quality and risk come before quota preservation — never downgrade tier solely to
 preserve quota.
+
+If, after correctness, security/required assurance, required capability/risk tier, and provider
+quota health have all been applied, more than one candidate model remains equally valid, select
+the **cheapest capable model** among them. This cost tie-break operates only within a candidate
+set that is already safe and sufficiently capable: it must never reduce required capability, risk
+tier, or reasoning/effort below what the task requires, and must never justify routing to a
+weaker, lower-tier, or non-§2 provider merely because it is cheaper. Cost never overrides
+correctness, security, required specialist assurance, architecture sensitivity, required risk
+tier, required capability, or any explicit project-specific routing requirement.
 
 ---
 
