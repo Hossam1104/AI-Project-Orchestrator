@@ -255,6 +255,8 @@ public sealed class ApplicationDataPaths
 
     public string GetProjectActivityDirectory(Guid projectId) => GetProjectPaths(projectId).ActivityDirectory;
 
+    public string GetProjectTrackerAuditDirectory(Guid projectId) => GetProjectPaths(projectId).TrackerAuditDirectory;
+
     public string GetProjectWorkspacesDirectory(Guid projectId) =>
         Path.Combine(GetProjectPaths(projectId).RootDirectory, "workspaces");
 
@@ -325,6 +327,7 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
         Directory.CreateDirectory(projectPaths.ActivityDirectory);
+        Directory.CreateDirectory(projectPaths.TrackerAuditDirectory);
         Directory.CreateDirectory(projectPaths.RootDirectory);
     }
 
@@ -356,6 +359,7 @@ public sealed class ProjectDataPaths
         EvidenceDirectory = Path.Combine(OrchestrationDirectory, "evidence");
         ReviewsDirectory = Path.Combine(OrchestrationDirectory, "reviews");
         ActivityDirectory = Path.Combine(OrchestrationDirectory, "activity");
+        TrackerAuditDirectory = Path.Combine(OrchestrationDirectory, "tracker-audit");
         ContractsDirectory = Path.Combine(rootDirectory, "contracts");
         WorkGraphsDirectory = Path.Combine(rootDirectory, "work-graphs");
         HandoffsDirectory = Path.Combine(rootDirectory, "handoffs");
@@ -380,6 +384,9 @@ public sealed class ProjectDataPaths
     public string ReviewsDirectory { get; }
 
     public string ActivityDirectory { get; }
+
+    /// <summary>Project-isolated append-only evidence for bounded tracker mutations.</summary>
+    public string TrackerAuditDirectory { get; }
 
     public string ContractsDirectory { get; }
 

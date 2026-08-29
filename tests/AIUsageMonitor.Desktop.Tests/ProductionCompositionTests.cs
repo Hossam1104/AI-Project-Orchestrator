@@ -2,6 +2,7 @@ using System.IO;
 using AIUsageMonitor.Application.Agents;
 using AIUsageMonitor.Application.Projects;
 using AIUsageMonitor.Application.Planning;
+using AIUsageMonitor.Application.Trackers;
 using AIUsageMonitor.Desktop.ViewModels;
 using AIUsageMonitor.Infrastructure;
 using AIUsageMonitor.Providers;
@@ -117,6 +118,17 @@ public sealed class ProductionCompositionTests : IDisposable
 
         Assert.NotNull(provider.GetRequiredService<IPlanningExecutionContractRepository>());
         Assert.NotNull(provider.GetRequiredService<IPlanningExecutionContractService>());
+    }
+
+    [Fact]
+    public void ProductionComposition_ResolvesTrackerBoundaryAndAudit()
+    {
+        using var provider = BuildProvider();
+
+        Assert.NotNull(provider.GetRequiredService<IWorkItemTrackerAdapterResolver>());
+        Assert.NotNull(provider.GetRequiredService<ITrackerSynchronizationService>());
+        Assert.NotNull(provider.GetRequiredService<ITrackerMutationAuditRepository>());
+        Assert.Single(provider.GetServices<IWorkItemTrackerAdapter>());
     }
 
     private ServiceProvider BuildProvider()
