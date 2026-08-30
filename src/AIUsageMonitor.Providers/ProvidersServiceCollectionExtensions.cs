@@ -1,4 +1,5 @@
 using AIUsageMonitor.Application.Providers;
+using AIUsageMonitor.Application.RemoteEvidence;
 using AIUsageMonitor.Application.Trackers;
 using AIUsageMonitor.Providers.Antigravity;
 using AIUsageMonitor.Providers.Claude;
@@ -7,6 +8,7 @@ using AIUsageMonitor.Providers.Common;
 using AIUsageMonitor.Providers.Copilot;
 using AIUsageMonitor.Providers.Kimi;
 using AIUsageMonitor.Providers.Jira;
+using AIUsageMonitor.Providers.Remote;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Providers;
@@ -63,6 +65,27 @@ public static class ProvidersServiceCollectionExtensions
             AllowAutoRedirect = false
         });
 
+        services.AddHttpClient(GitHubRemoteRepositoryEvidenceProvider.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com/", UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2026-03-10");
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        });
+
+        services.AddHttpClient(AzureReposRemoteRepositoryEvidenceProvider.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri("https://dev.azure.com/", UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AllowAutoRedirect = false
+        });
+
         services.AddSingleton<CopilotProvider>(provider => new CopilotProvider(
             provider.GetRequiredService<AIUsageMonitor.Application.Time.IClock>(),
             provider.GetRequiredService<IHttpClientFactory>(),
@@ -84,6 +107,13 @@ public static class ProvidersServiceCollectionExtensions
         services.AddSingleton<AntigravityProvider>();
         services.AddSingleton<JiraWorkItemTrackerAdapter>();
         services.AddSingleton<IWorkItemTrackerAdapter>(provider => provider.GetRequiredService<JiraWorkItemTrackerAdapter>());
+        services.AddSingleton<GitHubRemoteRepositoryEvidenceProvider>();
+        services.AddSingleton<AzureReposRemoteRepositoryEvidenceProvider>();
+        services.AddSingleton<IRemoteRepositoryEvidenceProvider>(provider =>
+            provider.GetRequiredService<GitHubRemoteRepositoryEvidenceProvider>());
+        services.AddSingleton<IRemoteRepositoryEvidenceProvider>(provider =>
+            provider.GetRequiredService<AzureReposRemoteRepositoryEvidenceProvider>());
+        services.AddSingleton<IRemoteRepositoryEvidenceService, RemoteRepositoryEvidenceService>();
 
         services.AddSingleton<IAiUsageProvider>(provider => provider.GetRequiredService<CodexProvider>());
         services.AddSingleton<IAiUsageProvider>(provider => provider.GetRequiredService<ClaudeProvider>());
