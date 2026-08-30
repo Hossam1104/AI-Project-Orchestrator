@@ -1,0 +1,225 @@
+using AIUsageMonitor.Application.Agents;
+using AIUsageMonitor.Application.Handoffs;
+using AIUsageMonitor.Application.Orchestration;
+using AIUsageMonitor.Application.Planning;
+using AIUsageMonitor.Application.Projects;
+using AIUsageMonitor.Application.Routing;
+using AIUsageMonitor.Application.Time;
+using AIUsageMonitor.Application.Validation;
+using AIUsageMonitor.Application.Workspaces;
+using AIUsageMonitor.Infrastructure.Execution;
+using AIUsageMonitor.Infrastructure.Persistence;
+using AIUsageMonitor.Infrastructure.Persistence.Repositories;
+using AIUsageMonitor.Infrastructure.Validation;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace AIUsageMonitor.Infrastructure.Tests;
+
+public sealed class ValidationInfrastructureTests
+{
+    [Fact]
+    public async Task DotNetCollector_UsesStructuredNoRestoreArgumentsAndDoesNotPersistOutput()
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, "passed", string.Empty, false, false, false, true, TimeSpan.FromSeconds(1)));
+        var context = CreateContext(@"src\App.csproj");
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.Equal(ValidationEvidenceState.Available, evidence.State);
+        Assert.Equal(ValidationOutcome.Passed, evidence.Outcome);
+        Assert.Equal("dotnet", host.Request!.ExecutablePath);
+        Assert.Equal(["build", Path.Combine("src", "App.csproj"), "--no-restore", "--nologo"], host.Request.Arguments);
+        Assert.Equal(6, evidence.StdoutBytes);
+        Assert.Null(evidence.DiagnosticSummary);
+    }
+
+    [Fact]
+    public async Task DotNetCollector_RejectsTargetEscapeBeforeStartingProcess()
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, string.Empty, string.Empty, false, false, false, true, TimeSpan.Zero));
+        var context = CreateContext(@"..\outside.csproj");
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.Equal(ValidationEvidenceState.Invalid, evidence.State);
+        Assert.False(host.Called);
+    }
+
+    [Fact]
+    public async Task DotNetCollector_DiscardsSecretShapedOutputAndReportsRedactionRejected()
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, "password=secret-value", string.Empty, false, false, false, true, TimeSpan.Zero));
+        var context = CreateContext("App.csproj");
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.Equal(ValidationEvidenceState.RedactionRejected, evidence.State);
+        Assert.Equal(ValidationOutcome.Unknown, evidence.Outcome);
+        Assert.Null(evidence.DiagnosticSummary);
+    }
+
+    [Fact]
+    public void CollectorResolverDoesNotGuessOrRankUnknownCollectors()
+    {
+        var resolver = new ValidationEvidenceCollectorResolver([]);
+
+        var result = resolver.Resolve("unknown", ValidationEvidenceKind.Test);
+
+        Assert.Equal(ValidationCollectorResolutionStatus.Unsupported, result.Status);
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task ValidationDocumentsRoundTripAndRejectImmutableOverwrite()
+    {
+        using var store = new TemporaryStore();
+        var plan = CreatePlan();
+        var plans = new JsonValidationPlanRepository(store.Paths, store.Files, NullLogger<JsonValidationPlanRepository>.Instance);
+        var evidenceRepository = new JsonValidationEvidenceRepository(store.Paths, store.Files, NullLogger<JsonValidationEvidenceRepository>.Instance);
+        var decisionRepository = new JsonValidationGateDecisionRepository(store.Paths, store.Files, NullLogger<JsonValidationGateDecisionRepository>.Instance);
+        var evidence = CreateEvidence(plan);
+        var decision = ValidationGateEvaluator.Evaluate(plan, [evidence], plan.CreatedAt.AddMinutes(1));
+
+        Assert.Equal(ValidationPlanRepositoryWriteStatus.Created, (await plans.CreateAsync(plan)).Status);
+        Assert.Equal(ValidationPlanRepositoryWriteStatus.PlanConflict, (await plans.CreateAsync(plan)).Status);
+        Assert.True((await plans.GetAsync(plan.ProjectId, plan.PlanId)).IsValid);
+        Assert.Equal(ValidationEvidenceRepositoryWriteStatus.Created, (await evidenceRepository.CreateAsync(evidence)).Status);
+        Assert.True((await evidenceRepository.GetAsync(evidence.ProjectId, evidence.EvidenceId)).IsValid);
+        Assert.Equal(ValidationDecisionRepositoryWriteStatus.Created, (await decisionRepository.CreateAsync(decision)).Status);
+        Assert.True((await decisionRepository.GetAsync(decision.ProjectId, decision.DecisionId)).IsValid);
+    }
+
+    [Fact]
+    public async Task SatisfiedGatePublishesValidationRecoveryCheckpointWithoutContinuingAutomatically()
+    {
+        var context = CreateContext("App.csproj");
+        var evidence = CreateEvidence(context.Plan);
+        var recovery = new FakeRecoveryService(context.CurrentCheckpoint);
+        var service = new ValidationGateService(
+            new FakePlanRepository(context.Plan),
+            new FakeEvidenceRepository([evidence]),
+            new FakeDecisionRepository(),
+            new FakeAuthorityRepository(context.Authority),
+            new FakeCheckpointRepository(context.CurrentCheckpoint),
+            recovery,
+            new FixedClock(context.Plan.CreatedAt.AddMinutes(2)));
+
+        var result = await service.EvaluateAsync(new ValidationGateRequest(context.Plan.ProjectId, context.Plan.PlanId, context.Plan.CurrentRecoveryCheckpointReference));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ValidationGateDecisionState.Satisfied, result.Decision!.State);
+        Assert.True(result.Recovery!.Succeeded);
+        Assert.Equal(RecoveryGateState.Satisfied, recovery.Request!.GateSnapshots.Single(value => value.Kind == RecoveryGateKind.Validation).State);
+        Assert.Equal(RecoveryNextSafeAction.ContinueFromCheckpoint, recovery.Request.NextSafeAction);
+        Assert.Equal(context.CurrentCheckpoint.Reference.ToString(), recovery.Request.PreviousCheckpointReference!.ToString());
+    }
+
+    private static ValidationCollectionContext CreateContext(string target)
+    {
+        var now = new DateTimeOffset(2026, 8, 31, 10, 0, 0, TimeSpan.Zero);
+        var projectId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        var contract = new PlanningExecutionContractReference(Guid.NewGuid(), 1, 1, Hash('a'));
+        var graph = new WorkGraphReference(Guid.NewGuid(), 1, Hash('b'));
+        var handoff = new HandoffPackageReference(Guid.NewGuid(), 1, Hash('c'));
+        var routing = new RoutingDecisionReference(Guid.NewGuid(), 1, Hash('d'));
+        var workspacePlan = new WorkspacePreparationPlanReference(Guid.NewGuid(), 1, Hash('e'), projectId);
+        var workspace = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "apo-validation-workspace"));
+        var checkpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now, RecoveryCheckpointLifecycleState.Ready,
+            new RecoveryContextReference(Guid.NewGuid(), 1, now), contract, graph, Guid.NewGuid(), handoff,
+            nextSafeAction: RecoveryNextSafeAction.RunValidation);
+        var receipt = new WorkspacePreparationReceipt(projectId, workspaceId, Guid.NewGuid(), now, workspacePlan, workspace, "apo-validation", new('f', 40), new('f', 40), "local-repository", "test");
+        var authority = new ExecutionRunAuthority(projectId, Guid.NewGuid(), now, contract, graph, checkpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
+            workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var requirement = new ValidationRequirement("build", ValidationEvidenceKind.Build, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, DotNetValidationEvidenceCollector.CollectorIdentifier, targetPath: target);
+        var plan = new ValidationPlan(projectId, Guid.NewGuid(), 1, now, authority.Reference, contract, graph, checkpoint.WorkGraphNodeId!.Value, workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, [requirement], handoff);
+        var project = new Project(projectId, "Validation", workspace, null, ProjectStatus.Active, now, now);
+        return new(plan, requirement, project, authority, receipt, checkpoint, []);
+    }
+
+    private static ValidationPlan CreatePlan()
+    {
+        var context = CreateContext("App.csproj");
+        return context.Plan;
+    }
+
+    private static ValidationEvidence CreateEvidence(ValidationPlan plan)
+    {
+        var requirement = plan.Requirements[0];
+        return new(plan.ProjectId, Guid.NewGuid(), plan.Reference, requirement.RequirementId, plan.ExecutionRunAuthorityReference.RunId,
+            plan.ExecutionRunAuthorityReference, plan.PlanningContractReference, plan.WorkGraphReference, plan.WorkGraphNodeId,
+            plan.CurrentRecoveryCheckpointReference, plan.WorkspaceId, plan.WorkspacePath, plan.WorkspaceReceiptContentHash,
+            requirement.CollectorIdentifier, requirement.EvidenceKind, ValidationEvidenceState.Available, ValidationOutcome.Passed,
+            requirement.Coverage, requirement.BaselineRelation, plan.CreatedAt.AddMinutes(1));
+    }
+
+    private static string Hash(char value) => new(value, 64);
+
+    private sealed class FixedClock(DateTimeOffset value) : IClock
+    {
+        public DateTimeOffset UtcNow => value;
+    }
+
+    private sealed class FakeProcessHost(BoundedProcessResult result) : IBoundedProcessHost
+    {
+        public BoundedProcessRequest? Request { get; private set; }
+        public bool Called { get; private set; }
+
+        public Task<BoundedProcessResult> RunAsync(BoundedProcessRequest request, CancellationToken cancellationToken = default)
+        {
+            Called = true;
+            Request = request;
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class FakePlanRepository(ValidationPlan plan) : IValidationPlanRepository
+    {
+        public Task<ValidationPlanRepositoryWriteResult> CreateAsync(ValidationPlan value, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationPlanRepositoryWriteResult(ValidationPlanRepositoryWriteStatus.Created));
+        public Task<ValidationPlanReadResult> GetAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationPlanReadResult(ValidationPlanReadState.Valid, plan));
+    }
+
+    private sealed class FakeEvidenceRepository(IReadOnlyList<ValidationEvidence> values) : IValidationEvidenceRepository
+    {
+        public Task<ValidationEvidenceRepositoryWriteResult> CreateAsync(ValidationEvidence evidence, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceRepositoryWriteResult(ValidationEvidenceRepositoryWriteStatus.Created));
+        public Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, Guid evidenceId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceReadResult(ValidationEvidenceReadState.Valid, values.Single(value => value.EvidenceId == evidenceId)));
+        public Task<IReadOnlyList<ValidationEvidence>> GetForPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult(values);
+    }
+
+    private sealed class FakeDecisionRepository : IValidationGateDecisionRepository
+    {
+        public Task<ValidationDecisionRepositoryWriteResult> CreateAsync(ValidationGateDecision decision, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationDecisionRepositoryWriteResult(ValidationDecisionRepositoryWriteStatus.Created));
+        public Task<ValidationDecisionReadResult> GetAsync(Guid projectId, Guid decisionId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationDecisionReadResult(ValidationDecisionReadState.Missing));
+    }
+
+    private sealed class FakeAuthorityRepository(ExecutionRunAuthority authority) : IExecutionRunAuthorityRepository
+    {
+        public Task<ExecutionRunAuthorityRepositoryWriteResult> CreateAsync(ExecutionRunAuthority value, CancellationToken cancellationToken = default) => Task.FromResult(new ExecutionRunAuthorityRepositoryWriteResult(ExecutionRunAuthorityRepositoryWriteStatus.Created));
+        public Task<ExecutionRunAuthorityReadResult> GetAsync(Guid projectId, Guid runId, CancellationToken cancellationToken = default) => Task.FromResult(new ExecutionRunAuthorityReadResult(ExecutionRunAuthorityReadState.Valid, authority));
+    }
+
+    private sealed class FakeCheckpointRepository(RecoveryCheckpoint checkpoint) : IRecoveryCheckpointRepository
+    {
+        public Task<RecoveryCheckpointRepositoryWriteResult> CreateAsync(RecoveryCheckpoint value, CancellationToken cancellationToken = default) => Task.FromResult(new RecoveryCheckpointRepositoryWriteResult(RecoveryCheckpointRepositoryWriteStatus.Created));
+        public Task<RecoveryCheckpointReadResult> GetAsync(Guid projectId, Guid checkpointId, CancellationToken cancellationToken = default) => Task.FromResult(new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Valid, checkpoint));
+    }
+
+    private sealed class FakeRecoveryService(RecoveryCheckpoint predecessor) : IRecoveryCheckpointService
+    {
+        public RecoveryCheckpointCreationRequest? Request { get; private set; }
+
+        public Task<RecoveryCheckpointCreationResult> CreateAsync(RecoveryCheckpointCreationRequest request, CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            var checkpoint = new RecoveryCheckpoint(request.ProjectId, request.CheckpointId, 1, request.CreatedAt ?? predecessor.CreatedAt, request.LifecycleState,
+                predecessor.Context, request.PlanningContractReference, request.WorkGraphReference, request.WorkGraphNodeId, request.HandoffPackageReference,
+                request.PreviousCheckpointReference, request.SelectedAgentRoleReferences, request.EvidenceReferences, request.GateSnapshots, request.Blockers,
+                request.NextSafeAction, request.Explanation);
+            var head = new ContinuationHead(request.ProjectId, 1, 2, checkpoint.Reference, predecessor.Reference, checkpoint.CreatedAt);
+            return Task.FromResult(new RecoveryCheckpointCreationResult(RecoveryCheckpointCreationStatus.Created, checkpoint, head));
+        }
+    }
+}

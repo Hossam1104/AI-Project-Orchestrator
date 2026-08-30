@@ -14,6 +14,7 @@ using AIUsageMonitor.Application.Sync;
 using AIUsageMonitor.Application.Time;
 using AIUsageMonitor.Application.Trackers;
 using AIUsageMonitor.Application.Usage;
+using AIUsageMonitor.Application.Validation;
 using AIUsageMonitor.Application.Workspaces;
 using AIUsageMonitor.Infrastructure.Persistence;
 using AIUsageMonitor.Infrastructure.Persistence.Repositories;
@@ -21,6 +22,7 @@ using AIUsageMonitor.Infrastructure.Security;
 using AIUsageMonitor.Infrastructure.Execution;
 using AIUsageMonitor.Infrastructure.Git;
 using AIUsageMonitor.Infrastructure.Workspaces;
+using AIUsageMonitor.Infrastructure.Validation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AIUsageMonitor.Infrastructure;
@@ -106,6 +108,19 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddSingleton<ITrackerMutationAuditRepository, JsonTrackerMutationAuditRepository>();
         services.AddSingleton<IWorkItemTrackerAdapterResolver, WorkItemTrackerAdapterResolver>();
         services.AddSingleton<ITrackerSynchronizationService, TrackerSynchronizationService>();
+
+        services.AddSingleton<IValidationPlanRepository, JsonValidationPlanRepository>();
+        services.AddSingleton<IValidationEvidenceRepository, JsonValidationEvidenceRepository>();
+        services.AddSingleton<IValidationGateDecisionRepository, JsonValidationGateDecisionRepository>();
+        services.AddSingleton<IValidationEvidenceCollector, DotNetValidationEvidenceCollector>();
+        services.AddSingleton<IValidationEvidenceCollector, LocalRepositoryValidationEvidenceCollector>();
+        services.AddSingleton<IValidationEvidenceCollector, RemoteValidationEvidenceCollector>();
+        services.AddSingleton<IValidationEvidenceCollector, TrackerValidationEvidenceCollector>();
+        services.AddSingleton<IValidationEvidenceCollector, SecurityValidationEvidenceCollector>();
+        services.AddSingleton<IValidationEvidenceCollector, RuntimeValidationEvidenceCollector>();
+        services.AddSingleton<IValidationEvidenceCollectorResolver, ValidationEvidenceCollectorResolver>();
+        services.AddSingleton<IValidationEvidenceService, ValidationEvidenceService>();
+        services.AddSingleton<IValidationGateService, ValidationGateService>();
 
         // Stateless native-call wrapper; singleton avoids re-allocating it per resolution while
         // matching the lifetime of every other adapter registered here.
