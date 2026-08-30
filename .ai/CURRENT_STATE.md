@@ -4542,3 +4542,78 @@ This section records the completed bounded remediation against Sol review commen
 **Next planner boundary:**
 
 > APO-62 Product Prompt 4/5R2 residual remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #24 remains OPEN / DRAFT / UNMERGED and APO-62 remains In Progress. Do not mark Ready or merge. Do not invoke Claude Opus. Do not begin APO-48, APO-49, APO-63, APO-50, Mission Control, Product Prompt 5/5, or another product Story. Product prompt counter remains 4/5. Any further remediation remains inside the Product Prompt 4/5R family.
+
+## 58. APO-62 Product Prompt 4/5R3 Azure CI global-bound remediation handoff (30 August 2026)
+
+This section records the bounded remediation completed against Sol review comment `12295`. Section
+57 remains historical truth; the exact R2 starting head/tree is preserved there.
+
+### Boundary and tracker
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`; branch:
+  `feat/APO-62-remote-scm-ci-evidence`.
+- Starting head/tree: `495ea40181d14e6f51cbfb8dbfb7578924c06e1e` /
+  `f9ff1fa22ab69beb2f7d66df6206aa8bb6736b57`.
+- Authorized `main`: `ace6b3f902d45bb529a9c551e1132483f51d1891` with tree
+  `3084751125117a39abc5c7f38bf5bd471b31c028`.
+- PR #24 targets `main` and remains required to be `OPEN / DRAFT / UNMERGED`.
+- Jira remediation evidence comment `12297` references Sol comment `12295`; APO-62 remains
+  `In Progress`. APO-63 remains `To Do`. No downstream authorization was created.
+
+### SOL-62-06 remediation
+
+- Azure `ReadBuildsAsync` keeps the provider/page-local bound by processing at most 100 provider
+  records into a matching page collection.
+- The page collection is appended through `RemoteEvidenceCollections.AppendBounded` against the
+  final `CiRuns` destination. No direct Azure build append can exceed `RemoteEvidenceLimits.MaxItems`.
+- Global overflow, relevant evidence dropped, or provider page truncation sets `CiState = Partial`,
+  uses `PartialCiResult`, records a factual capped-build limitation, and stops pagination.
+- A full retained collection with further continuation is Partial/Unknown; a retained deterministic
+  failure remains Failing. Exactly 100 retained relevant runs with pagination exhausted remains
+  Available/Passing.
+- Azure sourceVersion-to-target-commit correlation, PR source branch/head pairing, and continuation
+  header/token truth remain unchanged.
+
+### Functional commit and validation
+
+- Functional R3 SHA/tree/parent: `77737066d60509bc6a3da303f73bb617a8cee048` /
+  `093189293deb46a5de23efc65afacc9e93cedd8d` /
+  `495ea40181d14e6f51cbfb8dbfb7578924c06e1e`.
+- Focused remote evidence suite: 65 passed, 0 failed, 0 skipped.
+- New deterministic tests cover 60 matching + 100 matching multi-page overflow; exhaustive 60 + 40;
+  99 + 2 overflow; 100 with continuation/no third request; retained known failure; and 100
+  nonmatching builds followed by matching target-commit builds.
+- Full solution: Domain 28, Provider 138, Connection 216, Desktop 83, Infrastructure 550; total
+  1,015 passed, 0 failed, 0 skipped.
+- Restore passed; build passed with 0 warnings and 0 errors; `git diff --check` passed.
+
+### Preserved findings and safety
+
+- `SOL-62-01 = CLOSED / PRESERVED`; `SOL-62-02 = CLOSED / PRESERVED`;
+  `SOL-62-05 = CLOSED / PRESERVED`; `SOL-62-07 = CLOSED / PRESERVED`;
+  `SOL-62-08 = CLOSED / PRESERVED`.
+- Product remote operations remain GET-only:
+  `REMOTE SCM STATE-CHANGING HTTP REQUEST COUNT = 0`, `REMOTE GIT MUTATION COUNT = 0`,
+  `REMOTE PR MUTATION COUNT = 0`, `REMOTE CI TRIGGER COUNT = 0`, and
+  `SOURCE CONTENT RETRIEVAL COUNT = 0`.
+- `CREDENTIAL DISCLOSURE FINDINGS = 0`; no raw continuation token, credential, or arbitrary
+  response header is retained in evidence, limitations, safe errors, logs, or persisted metadata.
+- Schema remains V1: `JsonFileStore.CurrentSchemaVersion = 1` and
+  `TrackerMutationReceipt.CurrentSchemaVersion = 1`.
+- No APO launch occurred: `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+
+### Delivery and exact-head boundary
+
+- Functional R3 was pushed normally. Jira comment `12297` was added; no Jira transition was
+  performed. PR-body synchronization remains unclaimed because the prior GitHub integration write
+  returned `403 Resource not accessible by integration`.
+- The required metadata-only commit changes exactly `TASK.md` and `.ai/CURRENT_STATE.md`, is directly
+  descended from the functional R3 commit, and is pushed normally. Its exact SHA/tree are recorded in
+  the final completion report after commit. Exact-head GitHub statuses, check runs, and workflow runs
+  are verified after the metadata push; absent CI is reported as `GitHub CI = NONE / NOT CLAIMED`.
+- Prompt counter remains `4/5`; no Opus review is due; no Product Prompt 5/5 or downstream Story
+  started.
+
+**Next planner boundary:**
+
+> APO-62 Product Prompt 4/5R3 narrow Azure CI global-bound remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #24 remains OPEN / DRAFT / UNMERGED and APO-62 remains In Progress. Do not mark Ready or merge. Do not invoke Claude Opus. Do not begin APO-48, APO-49, APO-63, APO-50, Mission Control, Product Prompt 5/5, or another product Story. Product prompt counter remains 4/5. Any further remediation remains inside the Product Prompt 4/5R family.
