@@ -4324,3 +4324,74 @@ PR #23 remains open, Draft, and unmerged against `main`; no Jira mutation occurr
 APO-69 remain Done; APO-62, APO-48, APO-49, APO-63, and APO-50 remain To Do. Completion estimates
 remain unchanged. Product prompt counter remains `3/5`; no reviewer is due; APO was not launched;
 and the next planner boundary is GPT-5.6 Sol exact-head re-review.
+
+## 55. APO-62 Product Prompt 4/5 provider-independent remote SCM and CI evidence handoff (30 August 2026)
+
+This section records the bounded APO-62 implementation executed from the exact authorized main
+baseline. Prior historical sections remain unchanged.
+
+### Boundary and tracker
+
+- Starting main and tree were `ace6b3f902d45bb529a9c551e1132483f51d1891` and
+  `3084751125117a39abc5c7f38bf5bd471b31c028`; `origin/main` matched both at final pre-commit
+  verification.
+- Branch: `feat/APO-62-remote-scm-ci-evidence`.
+- Jira APO-62 started `To Do`, was transitioned to `In Progress`, and remains `In Progress`.
+  Start comment id: `12286`. APO-62 parent Epic is APO-6; APO-63 remains `To Do`.
+- Draft PR #24 targets `main` and is required to remain `OPEN / DRAFT / UNMERGED` pending Sol
+  exact-head acceptance.
+
+### Implementation
+
+- Functional commit: `ad1c686474aa972d2f2f98a147faf184fae2368f`, parent
+  `ace6b3f902d45bb529a9c551e1132483f51d1891`, tree
+  `2baeab8a43448d121bc077546c41ec823ce2568c`.
+- Application owns provider-independent request/result contracts, repository/branch/PR/review/
+  status/check/CI evidence, normalized state vocabulary, project anchoring, freshness timestamp,
+  and bounded orchestration.
+- GitHub adapter reads repository metadata, branch/head SHA, explicit PR state/draft/refs/SHAs/
+  mergeability, requested/submitted review facts, commit statuses, check runs, and head-SHA
+  filtered Actions workflow runs.
+- Azure adapter reads repository/project metadata, branch/object ID, explicit PR state/refs/
+  commits/merge status/reviewer votes, Git/PR statuses, and bounded commit/branch-relevant builds.
+- Local Git inspection remains separate from remote evidence. DI registers named finite-timeout
+  clients, both adapters, and the provider-independent service.
+
+### Truth and safety
+
+- Remote product HTTP is GET-only. No remote Git mutation, PR mutation, review submission, status
+  creation, build queue/update/cancel, workflow dispatch/rerun/cancel, source retrieval, logs, or
+  artifacts are implemented.
+- Existing secure credential storage is resolved only inside an adapter; results and safe errors
+  contain no raw credential. Repository URLs are validated against provider allow-lists, user-info
+  and unsafe ports are rejected, API URLs are constructed from validated identities, and redirects
+  are disabled on the new named clients.
+- Missing/no CI remains `NoEvidence`, `Partial` preserves successful sections plus failed section
+  state, mergeability null remains unknown/calculating, review records remain factual, and bounded
+  truncation is surfaced as a limitation/partial result.
+
+### Validation and runtime
+
+- Focused remote evidence tests: 29 passed, 0 failed, 0 skipped; DI registration coverage is in
+  the Provider test project.
+- Final full solution run: Domain 28, Provider 102, Connection 216, Desktop 83, Infrastructure
+  550; total 979 passed, 0 failed, 0 skipped. Restore passed. Build passed with 0 warnings and
+  0 errors. `git diff --check` passed before the functional commit.
+- An earlier concurrent full run exposed one transient existing Infrastructure timing-test
+  failure; its isolated rerun passed, and the subsequent complete 979-test run passed.
+- Live smoke was not performed. No APO WPF launch occurred; end-state runtime is
+  `APO PROCESS COUNT = 0` and `APPLICATION LEFT RUNNING = NO`.
+- No database, persistence, schema, package, LocalAppData, or WPF change was made. Schema remains
+  `JsonFileStore.CurrentSchemaVersion = 1` and `TrackerMutationReceipt.CurrentSchemaVersion = 1`.
+
+### Handoff
+
+The final handoff metadata commit is the direct child of the functional commit and changes only
+`TASK.md` and `.ai/CURRENT_STATE.md`; its exact SHA/tree are recorded after commit. The PR body and
+Jira completion comment must use that final exact head. GitHub CI for that exact head must be checked
+for statuses, check runs, and workflow runs; if all are absent, the truthful state is
+`GitHub CI = NONE / NOT CLAIMED`.
+
+**Next planner boundary:**
+
+> APO-62 Product Prompt 4/5 implementation is complete and awaits GPT-5.6 Sol exact-head review. PR remains OPEN / DRAFT / UNMERGED and APO-62 remains In Progress. Do not invoke Claude Opus. Do not begin APO-48, APO-49, APO-63, APO-50, Mission Control, or another product Story. If Sol finds remediation, remain inside the Prompt 4/5R family. Product Prompt 5/5 is not authorized.

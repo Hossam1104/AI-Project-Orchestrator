@@ -1,46 +1,47 @@
-# AI PROJECT ORCHESTRATOR — POST-MERGE STATE RECONCILIATION HANDOFF
+# AI PROJECT ORCHESTRATOR — APO-62 SOL REVIEW HANDOFF
 
-This is the current planner boundary after the 30 August 2026 project-wide state reconciliation.
-It records state and documentation only; it is not product implementation authorization.
+This is the current planner boundary for the completed APO-62 Product Prompt 4/5 implementation.
+It records the exact implementation handoff and does not authorize another product Story.
 
 ## Live identity
 
 - Repository: `Hossam1104/AI-Project-Orchestrator`
-- GitHub: `https://github.com/Hossam1104/AI-Project-Orchestrator`
 - Local root: `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
 - Tracker: Jira project `APO`
 - Default branch: `main`
-- Latest default-branch SHA/tree: `d3a88e3a6fafac3b6818f5766cedf194429b905b` /
-  `8d86e45ebb1eefa2bd621c69f0c1722aceea7e22`
-- Reconciliation branch: `docs/APO-2026-08-30-state-reconciliation`
-- Active product work item: none; APO-47 is the latest completed Story
-- Active product PR: none; PR #22 is merged/closed
-- Active reconciliation PR: #23, base `main`, `OPEN / DRAFT / UNMERGED`
+- Starting main SHA/tree: `ace6b3f902d45bb529a9c551e1132483f51d1891` /
+  `3084751125117a39abc5c7f38bf5bd471b31c028`
+- Implementation branch: `feat/APO-62-remote-scm-ci-evidence`
+- Functional commit: `ad1c686474aa972d2f2f98a147faf184fae2368f`
+- Functional tree: `2baeab8a43448d121bc077546c41ec823ce2568c`
+- Draft PR: `#24`, base `main`, `OPEN / DRAFT / UNMERGED`
 
-## Current project state
+## APO-62 delivery
 
-- APO-47: Sol accepted, merged by PR #22, independently post-merge verified, Jira `Done`.
-- APO-69: Jira `Done`; repository rebaseline and cleanup are complete.
-- Remaining critical path: APO-62 remote SCM/CI evidence, then APO-48 QA evidence, APO-49
-  human approval, APO-63 controlled delivery, and APO-50 Mission Control.
-- APO-59, APO-60, APO-61 remain planned hardening and Jira `To Do`.
-- Jira inventory: 69 issues; 36 `Done`, 5 `In Progress` Epics, 28 `To Do`.
-- GitHub CI: `NONE / NOT CLAIMED` (0 statuses, 0 check runs, 0 workflow runs for merge `d3a88e3`).
-- No Jira transition or other tracker write was needed; live Jira already reflects APO-47 `Done`.
-- Completion working estimates: implementation `60–65%`; accepted/merged `60–65%`; release/MVP
-  `45–55%`; production readiness `30–40%`; overall `55–60%`.
+- Jira APO-62 moved from `To Do` to `In Progress`; completion comment remains pending until final
+  PR-head evidence is recorded.
+- Application owns provider-independent remote evidence contracts, normalized states, bounded
+  evidence sections, project anchoring, and orchestration.
+- Provider adapters own validated GitHub REST and Azure Repos/Azure DevOps REST URL interpretation,
+  GET-only HTTP, payload parsing, and provider-specific mapping.
+- Existing secure credential storage is used only at the adapter boundary; no raw credential enters
+  the Application contract, result, persistence, logs, or error messages.
+- Local Git inspection remains separate from remote evidence. No source content is retrieved.
+- No database, schema, package, WPF, provider CLI, GraphQL, or remote mutation was added.
 
-## Validation and runtime
+## Validation
 
-- `dotnet test AIUsageMonitor.sln --no-restore --no-build`: 949/949 passed; 0 failed; 0 skipped.
+- `dotnet restore AIUsageMonitor.sln`: passed.
 - `dotnet build AIUsageMonitor.sln --no-restore`: passed; 0 warnings; 0 errors.
-- `git diff --check`: passed on the final documentation diff.
-- `APO PROCESS COUNT = 0`
-- `APPLICATION LEFT RUNNING = NO`
+- Focused remote evidence tests: 29 passed; 0 failed; 0 skipped.
+- Full solution: Domain 28, Provider 102, Connection 216, Desktop 83, Infrastructure 550;
+  979 passed; 0 failed; 0 skipped.
+- `git diff --check`: passed before the functional commit.
+- Live smoke: not performed; all remote adapter tests use deterministic sanitized fake HTTP.
 
 ## Planner boundary
 
-No next Story is authorized by this file. GPT-5.6 Sol must select and authorize exactly one
-remaining Jira Story and replace `TASK.md` with a fresh self-contained execution contract before
-implementation begins. Historical state and delivery records in `.ai/CURRENT_STATE.md` remain
-preserved; stale current claims are reconciled in its latest section.
+APO-62 awaits GPT-5.6 Sol exact-head review. PR #24 remains `OPEN / DRAFT / UNMERGED` and must not
+be merged or marked Ready. APO-62 remains `In Progress`. Do not invoke Claude Opus. Do not begin
+APO-48, APO-49, APO-63, APO-50, Mission Control, or another product Story. If Sol finds remediation,
+remain inside the Prompt 4/5R family. Product Prompt 5/5 is not authorized.
