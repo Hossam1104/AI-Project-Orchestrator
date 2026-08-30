@@ -13,24 +13,23 @@ Canonical model portfolio, routing, quota, and execution-policy detail live in
 `.ai/AI_MODEL_ROUTING.md` and `.ai/AI_EXECUTION_POLICY.md`. This section summarizes only the
 Claude-relevant slice; do not duplicate the canonical files here.
 
-- **GPT-5.6 Sol:** planner, architect, model router, quota governor, Jira decomposition owner, and
-  acceptance authority (chat mode only).
-- **Claude Haiku 4.5:** deterministic low-risk reconnaissance, file discovery, diff/log triage,
-  documentation, evidence formatting, and repetitive mechanical changes. No architecture authority.
-- **Claude Sonnet 5 Medium:** primary routine bounded implementation executor — ordinary bugs,
-  CRUD, DTOs, mappings, validators, API wiring, routine WPF/UI, tests, routine CI fixes, bounded
-  refactors.
-- **Claude Sonnet 5 High:** difficult bounded debugging, larger bounded features, substantial
-  multi-file implementation, non-trivial regressions. Not used when Medium is enough.
+- **GPT-5.6 Sol:** planner, architect, model router, quota governor, Jira decomposition owner,
+  acceptance authority, and executor prompt authority (chat mode only).
+- **GPT-5.6 Luna xHigh:** the normal primary executor for bounded repository work across routine,
+  difficult, cross-cutting, integration-sensitive, and high-blast-radius tasks.
+- **Claude Sonnet 5 Medium:** active fallback/special-need implementation for contained bounded work
+  only when Sol explicitly selects it.
+- **Claude Sonnet 5 High:** active fallback/special-need implementation for difficult or substantial
+  isolated work only when Sol explicitly selects it.
+- **Claude Haiku 4.5:** disabled from active routing. Do not assign or route work to Haiku.
 - **Claude Opus 5:** independent reviewer; not the default implementation executor. Used at
   meaningful checkpoints, not routinely.
-- **GPT-5.6 Luna xHigh:** reserved for architecture-sensitive, cross-cutting, or high-blast-radius
-  execution; not the routine executor.
+- **GPT-5.6 Luna Max:** exceptional implementation escalation only; never the normal executor.
 - **GPT-5.6 Terra Medium/High:** specialist security/concurrency/data-integrity assurance, not the
   default reviewer.
 
 Active execution providers are OpenAI/Codex and Anthropic/Claude only. Quality and risk come before
-quota preservation.
+quota preservation. Only Sol chooses when a Claude executor is explicitly assigned.
 
 ## Mandatory Startup
 

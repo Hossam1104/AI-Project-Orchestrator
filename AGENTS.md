@@ -43,14 +43,14 @@ functionality, not orchestration-executor policy.
 
 | Priority | Model | Default role |
 |---|---|---|
-| 1 | GPT-5.6 Sol | Planner / Architect / Model Router / Quota Governor / Acceptance Authority (chat only) |
-| 2 | Claude Haiku 4.5 | Deterministic low-risk reconnaissance and mechanical work |
-| 3 | Claude Sonnet 5 Medium | Primary routine bounded implementation executor |
-| 4 | Claude Sonnet 5 High | Difficult bounded debugging/implementation; not used when Medium suffices |
-| 5 | GPT-5.6 Luna xHigh | Architecture-sensitive, cross-cutting, high-blast-radius execution |
-| 6 | GPT-5.6 Luna Max | Exceptional implementation escalation only |
-| 7 | Claude Opus 5 | Independent reviewer |
-| 8 | GPT-5.6 Terra Medium/High | Specialist security/concurrency/data-integrity assurance; not default reviewer |
+| 1 | GPT-5.6 Sol High | Planner / Architect / Model Router / Quota Governor / Acceptance Authority / Executor Prompt Authority (chat only) |
+| 2 | GPT-5.6 Luna xHigh | Primary bounded implementation executor unless Sol explicitly routes elsewhere |
+| 3 | Claude Sonnet 5 Medium | Fallback / special-need bounded implementation |
+| 4 | Claude Sonnet 5 High | Fallback / special-need difficult bounded implementation |
+| 5 | GPT-5.6 Luna Max | Exceptional implementation escalation only |
+| 6 | Claude Opus 5 | Independent critical reviewer |
+| 7 | GPT-5.6 Terra Medium/High | Specialist security/concurrency/data-integrity assurance; not default reviewer |
+| 8 | Claude Haiku 4.5 | Disabled from active routing |
 
 ## Planner - GPT-5.6 Sol
 
@@ -58,19 +58,25 @@ Sol owns requirements interpretation, architecture, Jira decomposition, executio
 model-routing policy, acceptance criteria, approved scope changes, and final acceptance. Sol
 operates in chat mode only and must not become the routine Codex repository executor.
 
-## Routine Executors - Claude Haiku / Sonnet Medium / Sonnet High
+## Primary Executor - GPT-5.6 Luna xHigh
 
-Haiku handles deterministic low-risk reconnaissance and mechanical work. Sonnet Medium is the
-primary routine bounded implementation executor. Sonnet High is used only for difficult bounded
-debugging or larger bounded features where Medium is not enough. See `.ai/AI_MODEL_ROUTING.md` §3
-for full role detail and risk-tier mapping.
+Luna xHigh is the normal primary executor for bounded repository work across routine, difficult,
+cross-cutting, integration-sensitive, and high-blast-radius tasks. See `.ai/AI_MODEL_ROUTING.md`
+for the detailed tier mapping and explicit Sol route rules.
 
-## Complex Executor - GPT-5.6 Luna xHigh / Luna Max
+## Fallback / Special-Need Executors - Claude Sonnet 5 Medium / High
 
-Luna xHigh is reserved for architecture-sensitive execution, cross-cutting behavior, complex
-persistence/state, concurrency-sensitive implementation, difficult integrations, difficult
-multi-module debugging, and high regression blast radius — it is not the routine executor. Luna Max
-is an exceptional escalation only.
+Sonnet remains an active Claude-family option, but only Sol may explicitly select it for fallback,
+quota balancing, task fit, or another special need. Sonnet Medium covers contained bounded work;
+Sonnet High covers difficult or substantial isolated work. Neither is the automatic routine primary.
+
+## Disabled Model - Claude Haiku 4.5
+
+Haiku is disabled from active routing. Do not assign it automatically or route repository work to it.
+
+## Exceptional Escalation - GPT-5.6 Luna Max
+
+Luna Max is exceptional escalation only and is never the normal executor.
 
 ## Independent Reviewer - Claude Opus 5
 

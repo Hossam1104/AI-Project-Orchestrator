@@ -1,16 +1,17 @@
 # AI Project Orchestrator - Implementation Plan
 
-**Version:** 1.3
-**Date:** 29 August 2026
+**Version:** 1.4
+**Date:** 30 August 2026
 **Product:** AI Project Orchestrator (APO)
 **Primary Requirements:** `docs/BRD.md`
 **Jira Project:** `APO`
 **Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
 **Default Branch:** `main`
-**Planner / Architect / Acceptance Authority:** GPT-5.6 Sol (chat mode only)
-**Primary Routine Executor:** Claude Sonnet 5 Medium
-**Routine Executors:** Claude Haiku 4.5 (deterministic recon/mechanical) / Claude Sonnet 5 Medium / Claude Sonnet 5 High
-**High-Risk/Complex Executor:** Dynamically selected by Sol between Claude Sonnet 5 High and GPT-5.6 Luna xHigh based on complexity, architecture sensitivity, and blast radius; neither is a hard-coded universal default. GPT-5.6 Luna xHigh is normal for high-risk execution, with Luna Max reserved for exceptional escalation.
+**Planner / Architect / Acceptance / Prompt Authority:** GPT-5.6 Sol (chat mode only)
+**Primary Executor:** GPT-5.6 Luna xHigh for bounded work unless Sol explicitly routes elsewhere
+**Fallback / Special-Need Executors:** Claude Sonnet 5 Medium / Claude Sonnet 5 High, only when explicitly selected by Sol
+**Disabled from Active Routing:** Claude Haiku 4.5
+**Exceptional Escalation:** GPT-5.6 Luna Max
 **Independent Reviewer:** Claude Opus 5
 **Specialist Assurance:** GPT-5.6 Terra Medium/High
 
@@ -123,10 +124,10 @@ Known historical implementation and initial interpretation:
 | Provider-only feasibility sequence | APO-4 discovery | Superseded; replan |
 
 The current source is a reusable, partially delivered APO foundation rather than a finished product.
-APO-38 through APO-46 and APO-68 have delivered the documented control-plane, routing, workspace,
-bounded-execution, and workspace-preparation slices. Source naming and LocalAppData migration
-remain separately planner-controlled; remaining end-to-end provider execution, evidence, approval,
-and command-center capabilities remain in the Jira roadmap.
+APO-38 through APO-47 and APO-68 have delivered the documented control-plane, routing, workspace,
+bounded-execution, workspace-preparation, and bounded Jira tracker slices. Source naming and
+LocalAppData migration remain separately planner-controlled; remaining remote evidence, QA,
+approval, controlled delivery, and command-center capabilities remain in the Jira roadmap.
 
 ---
 
@@ -176,9 +177,9 @@ remain provider-independent, project-isolated, and free of chat-history or secre
 
 ### Phase C - Quality-first decision, bounded execution, and evidence inputs (P0)
 
-APO-44 delivered explainable routing; APO-46 delivered safe isolated workspaces; and APO-45
-delivered bounded cancellable execution. Tracker awareness (APO-47) is an independent
-Jira-first/Azure-optional input, not a model-CLI side effect. Add provider-independent, read-only
+APO-44 delivered explainable routing; APO-46 delivered safe isolated workspaces; APO-45 delivered
+bounded cancellable execution; and APO-47 delivered the bounded Jira-first/Azure-optional tracker
+input. Tracker awareness is an independent input, not a model-CLI side effect. Add provider-independent, read-only
 remote SCM/CI evidence (APO-62) after the local/work-item evidence inputs are defined. APO-62 is
 distinct from APO-37 local Git verification and APO-33 repository-owned CI. The ordering is
 deliberate: capability and contract truth precede quota-aware selection, safe repository/worktree
@@ -300,11 +301,11 @@ Story. A Draft PR is not Sol acceptance or a merge.
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
 move. APO-27, APO-35, APO-36, and APO-37 are historical accepted deliveries. APO-38 through
-APO-46 and APO-68 are now implemented and marked Done in Jira. The current `main` baseline is
-`49153b147ac7fd8ea327b094dd4910091102ca3a` with tree `c2337d271fa3c3f26d4f8e7ba3857b62cb0b9f36`.
-APO-48 remains To Do and is not started. APO-69 is the current repository-wide documentation,
-architecture-audit, and hygiene handoff; its Draft PR is awaiting GPT-5.6 Sol exact-head review.
-No executor may start another Story from this document or `TASK.md` until Sol authorizes it.
+APO-47 and APO-68 are implemented and marked Done in Jira. APO-47 was merged by PR #22; the
+current `main` baseline is `d3a88e3a6fafac3b6818f5766cedf194429b905b` with tree
+`8d86e45ebb1eefa2bd621c69f0c1722aceea7e22`. APO-69 is also Done. APO-62, APO-48, APO-49,
+APO-63, and APO-50 remain To Do and are not started. No executor may start another Story from
+this document or `TASK.md` until Sol authorizes it with a fresh contract.
 
 Sections 10-17 below are retained historical delivery records and planning snapshots. They do not
 override this current boundary or the latest evidence in `.ai/CURRENT_STATE.md`.
@@ -564,8 +565,8 @@ release prerequisite and may be sequenced by Sol when the release risk warrants 
 
 ## 18. Strategic Acceptance Boundary
 
-This document is a roadmap and architecture rebaseline, not implementation authorization. The
-current Sol gate is the exact-head review of the APO-69 Draft PR, including the BRD/plan/Jira
-consistency, architecture audit, deletion proof, and validation evidence. After acceptance, Sol may
-replace `TASK.md` with one self-contained contract for a selected remaining Story; no executor may
-start APO-48 or any other Story from roadmap presence alone.
+This document is a roadmap and architecture rebaseline, not implementation authorization. APO-69 is
+complete and APO-47 is merged, Sol-accepted, post-merge verified, and Jira Done. The current planner
+boundary is the post-merge state reconciliation recorded in `.ai/CURRENT_STATE.md` and `TASK.md`.
+Sol must replace `TASK.md` with one self-contained contract for a selected remaining Story; no
+executor may start APO-62, APO-48, or any other Story from roadmap presence alone.
