@@ -546,6 +546,7 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
             try
             {
                 var pageTruncated = false;
+                var pageRuns = new List<RemoteCiRunEvidence>();
                 var index = 0;
                 foreach (var build in builds.EnumerateArray())
                 {
@@ -566,7 +567,7 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                         RemoteEvidenceJson.String(definition, "name") is { } definitionName
                         ? definitionName
                         : RemoteEvidenceJson.String(build, "buildNumber") ?? "Azure build";
-                    draft.CiRuns.Add(new RemoteCiRunEvidence(
+                    pageRuns.Add(new RemoteCiRunEvidence(
                         RemoteStatusKind.Build,
                         id,
                         name,
@@ -580,11 +581,17 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                         SafeAzureUri(build, "_links", "web", "href")));
                 }
 
-                if (pageTruncated)
+                var destinationTruncated = RemoteEvidenceCollections.AppendBounded(
+                    draft.CiRuns,
+                    pageRuns,
+                    RemoteEvidenceLimits.MaxItems);
+                if (pageTruncated || destinationTruncated)
                 {
                     draft.CiState = RemoteEvidenceState.Partial;
                     draft.CiResult = PartialCiResult(draft.CiRuns);
-                    draft.Limitations.Add("Azure builds were capped by the adapter bound.");
+                    draft.Limitations.Add(destinationTruncated
+                        ? "Azure build evidence was capped by the adapter bound."
+                        : "Azure builds were capped by the adapter bound.");
                     return;
                 }
             }

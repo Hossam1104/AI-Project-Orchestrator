@@ -1120,6 +1120,123 @@ public sealed class RemoteRepositoryEvidenceTests
     }
 
     [Fact]
+    public async Task Azure_BuildsAreGloballyBoundedAcrossPages_WhenLaterEvidenceIsDropped()
+    {
+        var provider = CreateAzureBuildProvider(out var requests, request =>
+        {
+            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            return query.Contains("continuationToken=page-2", StringComparison.Ordinal)
+                ? Json(AzureBuildResponse(AzureBuildValues(61, 100)))
+                : JsonWithHeaders(AzureBuildResponse(AzureBuildValues(1, 60)), ("x-ms-continuationtoken", "page-2"));
+        });
+
+        var evidence = await InspectAzureBuildsAsync(provider);
+        var buildRequests = requests.Where(request => request.RequestUri!.AbsolutePath.EndsWith("/_apis/build/builds", StringComparison.Ordinal)).ToArray();
+
+        Assert.Equal(2, buildRequests.Length);
+        Assert.False(Uri.UnescapeDataString(buildRequests[0].RequestUri!.Query).Contains("continuationToken=", StringComparison.Ordinal));
+        Assert.Contains("continuationToken=page-2", Uri.UnescapeDataString(buildRequests[1].RequestUri!.Query), StringComparison.Ordinal);
+        Assert.Equal(100, evidence.CiRuns.Count);
+        Assert.True(evidence.CiRuns.Count <= 100);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.CiState);
+        Assert.Equal(RemoteCiState.Unknown, evidence.CiResult);
+        Assert.Contains(evidence.Limitations, limitation => limitation.Contains("capped", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Azure_ExactlyFullGlobalBuildBound_IsAvailableWhenPaginationIsExhaustive()
+    {
+        var provider = CreateAzureBuildProvider(out var requests, request =>
+        {
+            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            return query.Contains("continuationToken=page-2", StringComparison.Ordinal)
+                ? Json(AzureBuildResponse(AzureBuildValues(61, 40)))
+                : JsonWithHeaders(AzureBuildResponse(AzureBuildValues(1, 60)), ("x-ms-continuationtoken", "page-2"));
+        });
+
+        var evidence = await InspectAzureBuildsAsync(provider);
+        var buildRequests = requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/_apis/build/builds", StringComparison.Ordinal));
+
+        Assert.Equal(2, buildRequests);
+        Assert.Equal(100, evidence.CiRuns.Count);
+        Assert.True(evidence.CiRuns.Count <= 100);
+        Assert.Equal(RemoteEvidenceState.Available, evidence.CiState);
+        Assert.Equal(RemoteCiState.Passing, evidence.CiResult);
+    }
+
+    [Fact]
+    public async Task Azure_BuildsExceedingGlobalBoundWithinLaterPage_ArePartialAndUnknown()
+    {
+        var provider = CreateAzureBuildProvider(out var requests, request =>
+        {
+            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            return query.Contains("continuationToken=page-2", StringComparison.Ordinal)
+                ? Json(AzureBuildResponse(AzureBuildValues(100, 2)))
+                : JsonWithHeaders(AzureBuildResponse(AzureBuildValues(1, 99)), ("x-ms-continuationtoken", "page-2"));
+        });
+
+        var evidence = await InspectAzureBuildsAsync(provider);
+
+        Assert.Equal(100, evidence.CiRuns.Count);
+        Assert.True(evidence.CiRuns.Count <= 100);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.CiState);
+        Assert.Equal(RemoteCiState.Unknown, evidence.CiResult);
+        Assert.Equal(2, requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/_apis/build/builds", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Azure_BuildCapacityWithContinuation_StopsWithoutFollowingAnotherPage()
+    {
+        var provider = CreateAzureBuildProvider(out var requests, _ =>
+            JsonWithHeaders(AzureBuildResponse(AzureBuildValues(1, 100)), ("x-ms-continuationtoken", "page-2")));
+
+        var evidence = await InspectAzureBuildsAsync(provider);
+
+        Assert.Equal(100, evidence.CiRuns.Count);
+        Assert.True(evidence.CiRuns.Count <= 100);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.CiState);
+        Assert.Equal(RemoteCiState.Unknown, evidence.CiResult);
+        Assert.Equal(1, requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/_apis/build/builds", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Azure_PartialBuildEvidence_PreservesKnownRetainedFailure()
+    {
+        var provider = CreateAzureBuildProvider(out var requests, _ =>
+            JsonWithHeaders(
+                AzureBuildResponse(AzureBuildValues(1, 100, result: index => index == 1 ? "failed" : "succeeded")),
+                ("x-ms-continuationtoken", "page-2")));
+
+        var evidence = await InspectAzureBuildsAsync(provider);
+
+        Assert.Equal(100, evidence.CiRuns.Count);
+        Assert.True(evidence.CiRuns.Count <= 100);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.CiState);
+        Assert.Equal(RemoteCiState.Failing, evidence.CiResult);
+        Assert.Single(requests, request => request.RequestUri!.AbsolutePath.EndsWith("/_apis/build/builds", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Azure_NonmatchingBuildsDoNotConsumeGlobalCiRunCapacity()
+    {
+        var provider = CreateAzureBuildProvider(out _, request =>
+        {
+            var query = Uri.UnescapeDataString(request.RequestUri!.Query);
+            return query.Contains("continuationToken=page-2", StringComparison.Ordinal)
+                ? Json(AzureBuildResponse(AzureBuildValues(1, 2)))
+                : JsonWithHeaders(AzureBuildResponse(AzureBuildValues(1, 100, "other-commit")), ("x-ms-continuationtoken", "page-2"));
+        });
+
+        var evidence = await InspectAzureBuildsAsync(provider);
+
+        Assert.Equal(2, evidence.CiRuns.Count);
+        Assert.True(evidence.CiRuns.Count <= 100);
+        Assert.Equal(RemoteEvidenceState.Available, evidence.CiState);
+        Assert.Equal(RemoteCiState.Passing, evidence.CiResult);
+        Assert.All(evidence.CiRuns, run => Assert.Equal("abc123", run.HeadCommitId));
+    }
+
+    [Fact]
     public async Task Azure_BuildEvidenceIsBoundedAndMarkedPartial()
     {
         var builds = string.Join(',', Enumerable.Range(1, 101).Select(index =>
@@ -1240,6 +1357,38 @@ public sealed class RemoteRepositoryEvidenceTests
         return new AzureReposRemoteRepositoryEvidenceProvider(
             new TestClock(), new TestHttpClientFactory(handler), credentials);
     }
+
+    private static AzureReposRemoteRepositoryEvidenceProvider CreateAzureBuildProvider(
+        out List<HttpRequestMessage> requests,
+        Func<HttpRequestMessage, HttpResponseMessage> buildRoute) =>
+        CreateAzureProvider(AzureCredentials(), out requests, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/org/Project/_apis/git/repositories/repo" => Json("{\"id\":\"repo-guid\",\"name\":\"repo\",\"defaultBranch\":\"refs/heads/main\",\"project\":{\"id\":\"project-guid\",\"name\":\"Project\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/refs" => Json("{\"value\":[{\"name\":\"refs/heads/main\",\"objectId\":\"abc123\"}]}"),
+                "/org/Project/_apis/git/repositories/repo-guid/commits/abc123/statuses" => Json("{\"value\":[]}"),
+                _ when path.EndsWith("/_apis/build/builds", StringComparison.Ordinal) => buildRoute(request),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+    private static async Task<RemoteRepositoryEvidence> InspectAzureBuildsAsync(
+        AzureReposRemoteRepositoryEvidenceProvider provider) =>
+        await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "AzureRepos", "https://dev.azure.com/org/Project/_git/repo", repositoryId: "repo-guid",
+            repositoryMetadata: new Dictionary<string, string?> { ["credentialReference"] = "azure-ref" }));
+
+    private static string AzureBuildResponse(string builds) => $"{{\"value\":[{builds}]}}";
+
+    private static string AzureBuildValues(
+        int start,
+        int count,
+        string sourceVersion = "abc123",
+        Func<int, string>? result = null) =>
+        string.Join(',', Enumerable.Range(start, count).Select(index =>
+            $"{{\"id\":{index},\"buildNumber\":\"{index}\",\"status\":\"completed\",\"result\":\"{result?.Invoke(index) ?? "succeeded"}\",\"sourceVersion\":\"{sourceVersion}\"}}"));
 
     private static void AssertReadOnly(IEnumerable<HttpRequestMessage> requests, string host)
     {
