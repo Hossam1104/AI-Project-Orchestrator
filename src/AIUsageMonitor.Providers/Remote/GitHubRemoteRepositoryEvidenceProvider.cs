@@ -57,7 +57,8 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
                 cancellationToken).ConfigureAwait(false);
             if (repositoryResponse.State is not RemoteEvidenceState.Available)
             {
-                return draft.Failure(GitHubFailureState(repositoryResponse), repositoryResponse.ErrorMessage!);
+                var failure = GitHubFailure(repositoryResponse);
+                return draft.Failure(failure.State, failure.Error);
             }
 
             using var repositoryDocument = RemoteEvidenceJson.Parse(repositoryResponse.Body, out var repositoryError);
@@ -117,8 +118,9 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
                 cancellationToken).ConfigureAwait(false);
             if (branchResponse.State is not RemoteEvidenceState.Available)
             {
-                draft.BranchState = GitHubFailureState(branchResponse);
-                draft.Error ??= branchResponse.ErrorMessage;
+                var failure = GitHubFailure(branchResponse);
+                draft.BranchState = failure.State;
+                draft.Error ??= failure.Error;
                 return draft.Build();
             }
 
@@ -193,8 +195,9 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (response.State is not RemoteEvidenceState.Available)
         {
-            draft.PullRequestState = GitHubFailureState(response);
-            draft.Error ??= response.ErrorMessage;
+            var failure = GitHubFailure(response);
+            draft.PullRequestState = failure.State;
+            draft.Error ??= failure.Error;
             return;
         }
 
@@ -242,15 +245,28 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         }
 
         var requested = await ReadRequestedReviewersAsync(target, number, authorization, client, cancellationToken).ConfigureAwait(false);
-        var submitted = await ReadReviewsAsync(target, number, authorization, client, cancellationToken).ConfigureAwait(false);
+        var submitted = await ReadReviewsAsync(
+            target,
+            number,
+            RemoteEvidenceLimits.MaxItems - requested.Values.Count,
+            authorization,
+            client,
+            cancellationToken).ConfigureAwait(false);
         draft.ReviewState = requested.State is RemoteEvidenceState.Available && submitted.State is RemoteEvidenceState.Available
             ? RemoteEvidenceState.Available
             : requested.State is not RemoteEvidenceState.Available ? requested.State : submitted.State;
-        draft.Reviews.AddRange(requested.Values);
-        draft.Reviews.AddRange(submitted.Values);
-        if (requested.Truncated || submitted.Truncated)
+        var reviewTruncated = RemoteEvidenceCollections.AppendBounded(
+            draft.Reviews,
+            requested.Values,
+            RemoteEvidenceLimits.MaxItems);
+        reviewTruncated |= RemoteEvidenceCollections.AppendBounded(
+            draft.Reviews,
+            submitted.Values,
+            RemoteEvidenceLimits.MaxItems);
+        if (requested.Truncated || submitted.Truncated || reviewTruncated)
         {
             draft.Limitations.Add("GitHub review evidence was capped by the adapter bound.");
+            draft.ReviewState = RemoteEvidenceState.Partial;
         }
         if (draft.ReviewState is not RemoteEvidenceState.Available)
         {
@@ -274,8 +290,9 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            draft.StatusState = GitHubFailureState(pages.Pages[0].Response);
-            draft.Error ??= pages.Pages[0].Response.ErrorMessage;
+            var failure = GitHubFailure(pages.Pages[0].Response);
+            draft.StatusState = failure.State;
+            draft.Error ??= failure.Error;
             return;
         }
 
@@ -339,8 +356,9 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            draft.CheckState = GitHubFailureState(pages.Pages[0].Response);
-            draft.Error ??= pages.Pages[0].Response.ErrorMessage;
+            var failure = GitHubFailure(pages.Pages[0].Response);
+            draft.CheckState = failure.State;
+            draft.Error ??= failure.Error;
             return;
         }
 
@@ -411,9 +429,10 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             uri => HasQueryParameter(uri, "head_sha", commit)).ConfigureAwait(false);
         if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            draft.CiState = GitHubFailureState(pages.Pages[0].Response);
+            var failure = GitHubFailure(pages.Pages[0].Response);
+            draft.CiState = failure.State;
             draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= pages.Pages[0].Response.ErrorMessage;
+            draft.Error ??= failure.Error;
             return;
         }
 
@@ -511,7 +530,8 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (response.State is not RemoteEvidenceState.Available)
         {
-            return (GitHubFailureState(response), [], response.ErrorMessage, false);
+            var failure = GitHubFailure(response);
+            return (failure.State, [], failure.Error, false);
         }
 
         using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
@@ -523,9 +543,10 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         try
         {
             var values = new List<RemoteReviewEvidence>();
-            var usersTruncated = ReadRequestedArray(document.RootElement, "users", values);
-            var teamsTruncated = ReadRequestedArray(document.RootElement, "teams", values);
-            return (RemoteEvidenceState.Available, values, null, usersTruncated || teamsTruncated);
+            var usersTruncated = ReadRequestedArray(document.RootElement, "users", values, RemoteEvidenceLimits.MaxItems);
+            var teamsTruncated = ReadRequestedArray(document.RootElement, "teams", values, RemoteEvidenceLimits.MaxItems);
+            var truncated = usersTruncated || teamsTruncated;
+            return (truncated ? RemoteEvidenceState.Partial : RemoteEvidenceState.Available, values, null, truncated);
         }
         catch (ArgumentException)
         {
@@ -536,6 +557,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
     private async Task<(RemoteEvidenceState State, List<RemoteReviewEvidence> Values, string? Error, bool Truncated)> ReadReviewsAsync(
         GitHubTarget target,
         int number,
+        int maxItems,
         AuthenticationHeaderValue? authorization,
         HttpClient client,
         CancellationToken cancellationToken)
@@ -548,7 +570,8 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            return (GitHubFailureState(pages.Pages[0].Response), [], pages.Pages[0].Response.ErrorMessage, false);
+            var failure = GitHubFailure(pages.Pages[0].Response);
+            return (failure.State, [], failure.Error, false);
         }
 
         var values = new List<RemoteReviewEvidence>();
@@ -574,7 +597,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             {
                 foreach (var review in document.RootElement.EnumerateArray())
                 {
-                    if (values.Count >= RemoteEvidenceLimits.MaxItems)
+                    if (values.Count >= maxItems)
                     {
                         truncated = true;
                         break;
@@ -609,11 +632,17 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             truncated);
     }
 
-    private static RemoteEvidenceState GitHubFailureState(RemoteHttpResult response) =>
-        response.State is RemoteEvidenceState.PermissionDenied &&
-        (response.RateLimitRemaining == 0 || response.RetryAfterSeconds is not null)
-            ? RemoteEvidenceState.RateLimited
-            : response.State;
+    private static (RemoteEvidenceState State, string Error) GitHubFailure(RemoteHttpResult response)
+    {
+        if (response.State is RemoteEvidenceState.RateLimited ||
+            response.State is RemoteEvidenceState.PermissionDenied &&
+            (response.RateLimitRemaining == 0 || response.RetryAfterSeconds is not null))
+        {
+            return (RemoteEvidenceState.RateLimited, "The GitHub provider rate-limited the request.");
+        }
+
+        return (response.State, response.ErrorMessage ?? "The GitHub provider returned an unusable response.");
+    }
 
     private static RemoteCiState PartialCiResult(IReadOnlyCollection<RemoteCiRunEvidence> runs)
     {
@@ -748,7 +777,11 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         }
     }
 
-    private static bool ReadRequestedArray(JsonElement root, string property, ICollection<RemoteReviewEvidence> destination)
+    private static bool ReadRequestedArray(
+        JsonElement root,
+        string property,
+        ICollection<RemoteReviewEvidence> destination,
+        int maxItems)
     {
         if (!root.TryGetProperty(property, out var values) || values.ValueKind is not JsonValueKind.Array)
         {
@@ -758,7 +791,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         var index = 0;
         foreach (var value in values.EnumerateArray())
         {
-            if (index++ >= RemoteEvidenceLimits.MaxItems)
+            if (index++ >= maxItems || destination.Count >= maxItems)
             {
                 return true;
             }

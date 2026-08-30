@@ -26,6 +26,7 @@ internal sealed record RemoteHttpResult(
     Uri? NextPageUri = null,
     bool HasNextPage = false,
     string? ContinuationToken = null,
+    bool ContinuationHeaderPresent = false,
     int? RateLimitRemaining = null,
     int? RetryAfterSeconds = null);
 
@@ -55,6 +56,7 @@ internal static class RemoteEvidenceHttp
                 response.Headers,
                 "x-ms-continuationtoken",
                 RemoteEvidenceLimits.MaxContinuationTokenLength);
+            var continuationHeaderPresent = HasHeader(response.Headers, "x-ms-continuationtoken");
             var rateLimitRemaining = ReadBoundedInt(response.Headers, "x-ratelimit-remaining", int.MaxValue);
             var retryAfterSeconds = ReadBoundedInt(
                 response.Headers,
@@ -69,6 +71,7 @@ internal static class RemoteEvidenceHttp
                     NextPageUri: nextPageUri,
                     HasNextPage: hasNextPage,
                     ContinuationToken: continuationToken,
+                    ContinuationHeaderPresent: continuationHeaderPresent,
                     RateLimitRemaining: rateLimitRemaining,
                     RetryAfterSeconds: retryAfterSeconds);
             }
@@ -82,6 +85,7 @@ internal static class RemoteEvidenceHttp
                     NextPageUri: nextPageUri,
                     HasNextPage: hasNextPage,
                     ContinuationToken: continuationToken,
+                    ContinuationHeaderPresent: continuationHeaderPresent,
                     RateLimitRemaining: rateLimitRemaining,
                     RetryAfterSeconds: retryAfterSeconds);
             }
@@ -106,6 +110,7 @@ internal static class RemoteEvidenceHttp
                         NextPageUri: nextPageUri,
                         HasNextPage: hasNextPage,
                         ContinuationToken: continuationToken,
+                        ContinuationHeaderPresent: continuationHeaderPresent,
                         RateLimitRemaining: rateLimitRemaining,
                         RetryAfterSeconds: retryAfterSeconds);
                 }
@@ -120,6 +125,7 @@ internal static class RemoteEvidenceHttp
                 NextPageUri: nextPageUri,
                 HasNextPage: hasNextPage,
                 ContinuationToken: continuationToken,
+                ContinuationHeaderPresent: continuationHeaderPresent,
                 RateLimitRemaining: rateLimitRemaining,
                 RetryAfterSeconds: retryAfterSeconds);
         }
@@ -230,6 +236,8 @@ internal static class RemoteEvidenceHttp
             : null;
     }
 
+    private static bool HasHeader(HttpHeaders headers, string name) => headers.TryGetValues(name, out _);
+
     private static int? ReadBoundedInt(HttpHeaders headers, string name, int maximum)
     {
         var value = ReadBoundedHeader(headers, name, 32);
@@ -238,6 +246,24 @@ internal static class RemoteEvidenceHttp
             parsed >= 0 && parsed <= maximum
             ? parsed
             : null;
+    }
+}
+
+internal static class RemoteEvidenceCollections
+{
+    public static bool AppendBounded<T>(ICollection<T> destination, IEnumerable<T> source, int maxItems)
+    {
+        foreach (var item in source)
+        {
+            if (destination.Count >= maxItems)
+            {
+                return true;
+            }
+
+            destination.Add(item);
+        }
+
+        return false;
     }
 }
 

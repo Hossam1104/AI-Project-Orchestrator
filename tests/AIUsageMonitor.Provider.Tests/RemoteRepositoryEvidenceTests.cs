@@ -439,6 +439,48 @@ public sealed class RemoteRepositoryEvidenceTests
         var evidence = await provider.InspectAsync(Request("GitHub", "https://github.com/octo/repo"));
 
         Assert.Equal(expectedState, evidence.CheckState);
+        var message = evidence.SafeErrorMessage ?? string.Empty;
+        if (expectedState is RemoteEvidenceState.RateLimited)
+        {
+            Assert.Contains("rate-limited", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("permission", message, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.Contains("permission", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("rate-limit", message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false, HttpStatusCode.Forbidden, RemoteEvidenceState.PermissionDenied)]
+    [InlineData(true, false, HttpStatusCode.Forbidden, RemoteEvidenceState.RateLimited)]
+    [InlineData(false, true, HttpStatusCode.Forbidden, RemoteEvidenceState.RateLimited)]
+    [InlineData(false, false, (HttpStatusCode)429, RemoteEvidenceState.RateLimited)]
+    public async Task GitHub_RepositoryFailuresHaveMatchingSafeMessages(
+        bool primaryLimit,
+        bool retryAfter,
+        HttpStatusCode status,
+        RemoteEvidenceState expectedState)
+    {
+        var provider = CreateGitHubProvider(new TestCredentialStore(), out _, _ =>
+            StatusWithHeaders(status,
+                primaryLimit ? ("x-ratelimit-remaining", "0") : retryAfter ? ("retry-after", "60") : null));
+
+        var evidence = await provider.InspectAsync(Request("GitHub", "https://github.com/octo/repo"));
+
+        Assert.Equal(expectedState, evidence.State);
+        var message = evidence.SafeErrorMessage ?? string.Empty;
+        if (expectedState is RemoteEvidenceState.RateLimited)
+        {
+            Assert.Contains("rate-limited", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("permission", message, StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            Assert.Contains("permission", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("rate-limit", message, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [Fact]
@@ -535,6 +577,194 @@ public sealed class RemoteRepositoryEvidenceTests
         Assert.Contains("top=100", Uri.UnescapeDataString(commitStatusRequest.RequestUri!.Query), StringComparison.Ordinal);
         Assert.DoesNotContain("$top=", Uri.UnescapeDataString(commitStatusRequest.RequestUri!.Query), StringComparison.Ordinal);
         Assert.Equal("https://dev.azure.com/org/Project/_build/results/99", evidence.CiRuns.Single().WebUrl!.ToString());
+    }
+
+    [Theory]
+    [InlineData(99, false, false, 1)]
+    [InlineData(100, false, false, 2)]
+    [InlineData(100, true, true, 2)]
+    public async Task Azure_CommitStatusesProveExhaustivenessWithBoundedLookAhead(
+        int firstPageCount,
+        bool lookAheadHasStatus,
+        bool expectedPartial,
+        int expectedStatusRequests)
+    {
+        var provider = CreateAzureProvider(AzureCredentials(), out var requests, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/commits/abc123/statuses", StringComparison.Ordinal))
+            {
+                return request.RequestUri.Query.Contains("skip=100", StringComparison.Ordinal)
+                    ? Json($"{{\"value\":[{(lookAheadHasStatus ? AzureStatusValues(101, 1) : string.Empty)}]}}")
+                    : Json($"{{\"value\":[{AzureStatusValues(1, firstPageCount)}]}}");
+            }
+
+            return path switch
+            {
+                "/org/Project/_apis/git/repositories/repo" => Json("{\"id\":\"repo-guid\",\"name\":\"repo\",\"defaultBranch\":\"refs/heads/main\",\"project\":{\"id\":\"project-guid\",\"name\":\"Project\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/refs" => Json("{\"value\":[{\"name\":\"refs/heads/main\",\"objectId\":\"abc123\"}]}"),
+                "/org/Project/_apis/build/builds" => Json("{\"value\":[]}"),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "AzureRepos", "https://dev.azure.com/org/Project/_git/repo",
+            repositoryId: "repo-guid", credentialReference: "azure-ref"));
+
+        Assert.Equal(expectedPartial ? RemoteEvidenceState.Partial : RemoteEvidenceState.Available, evidence.StatusState);
+        Assert.Equal(Math.Min(firstPageCount, 100), evidence.Statuses.Count);
+        var statusRequests = requests.Where(request => request.RequestUri!.AbsolutePath.EndsWith(
+            "/commits/abc123/statuses", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(expectedStatusRequests, statusRequests.Length);
+        var firstQuery = Uri.UnescapeDataString(statusRequests[0].RequestUri!.Query);
+        Assert.Contains("top=100", firstQuery, StringComparison.Ordinal);
+        Assert.Contains("skip=0", firstQuery, StringComparison.Ordinal);
+        if (firstPageCount == 100)
+        {
+            var lookAheadQuery = Uri.UnescapeDataString(statusRequests[1].RequestUri!.Query);
+            Assert.Contains("top=1", lookAheadQuery, StringComparison.Ordinal);
+            Assert.Contains("skip=100", lookAheadQuery, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task GitHub_ReviewsShareOneGlobalBoundAcrossSources()
+    {
+        var users = string.Join(',', Enumerable.Range(1, 40).Select(index => $"{{\"login\":\"user-{index}\"}}"));
+        var teams = string.Join(',', Enumerable.Range(41, 40).Select(index => $"{{\"slug\":\"team-{index}\"}}"));
+        var submitted = string.Join(',', Enumerable.Range(81, 30).Select(index => $"{{\"id\":{index},\"user\":{{\"login\":\"reviewer-{index}\"}},\"state\":\"APPROVED\"}}"));
+        var provider = CreateGitHubProvider(new TestCredentialStore(), out _, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/repos/octo/repo" => Json(GitHubRepository),
+                "/repos/octo/repo/branches/main" => Json(GitHubBranch),
+                "/repos/octo/repo/pulls/7" => Json("{\"number\":7,\"state\":\"open\",\"head\":{\"ref\":\"feature\",\"sha\":\"def456\"},\"base\":{\"ref\":\"main\",\"sha\":\"abc123\"}}"),
+                "/repos/octo/repo/pulls/7/requested_reviewers" => Json($"{{\"users\":[{users}],\"teams\":[{teams}]}}"),
+                "/repos/octo/repo/pulls/7/reviews" => Json($"[{submitted}]"),
+                _ when path.EndsWith("/statuses", StringComparison.Ordinal) => Json(GitHubEmptyStatuses),
+                _ when path.EndsWith("/check-runs", StringComparison.Ordinal) => Json(GitHubEmptyChecks),
+                _ when path.EndsWith("/actions/runs", StringComparison.Ordinal) => Json(GitHubEmptyRuns),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "GitHub", "https://github.com/octo/repo", pullRequestNumber: 7));
+
+        Assert.Equal(100, evidence.Reviews.Count);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.ReviewState);
+        Assert.Contains(evidence.Limitations, limitation => limitation.Contains("review", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Azure_StatusesShareOneGlobalBoundAcrossCommitAndPullRequestSources()
+    {
+        var provider = CreateAzureProvider(AzureCredentials(), out _, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/org/Project/_apis/git/repositories/repo" => Json("{\"id\":\"repo-guid\",\"name\":\"repo\",\"defaultBranch\":\"refs/heads/main\",\"project\":{\"id\":\"project-guid\",\"name\":\"Project\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/refs" => Json("{\"value\":[{\"name\":\"refs/heads/main\",\"objectId\":\"abc123\"}]}"),
+                "/org/Project/_apis/git/repositories/repo-guid/pullRequests/7" => Json("{\"pullRequestId\":7,\"status\":\"active\",\"sourceRefName\":\"refs/heads/feature\",\"targetRefName\":\"refs/heads/main\",\"lastMergeSourceCommit\":{\"commitId\":\"def456\"},\"repository\":{\"id\":\"repo-guid\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/commits/def456/statuses" => Json($"{{\"value\":[{AzureStatusValues(1, 80)}]}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/pullRequests/7/statuses" => Json($"{{\"value\":[{AzureStatusValues(81, 30)}]}}"),
+                "/org/Project/_apis/build/builds" => Json("{\"value\":[]}"),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "AzureRepos", "https://dev.azure.com/org/Project/_git/repo",
+            repositoryId: "repo-guid", pullRequestNumber: 7, credentialReference: "azure-ref"));
+
+        Assert.Equal(100, evidence.Statuses.Count);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.StatusState);
+        Assert.Contains(evidence.Limitations, limitation => limitation.Contains("status", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Azure_ReviewersUseGlobalBoundAndBecomePartialWhenTruncated()
+    {
+        var reviewers = string.Join(',', Enumerable.Range(1, 101).Select(index => $"{{\"id\":\"reviewer-{index}\",\"displayName\":\"Reviewer {index}\",\"vote\":0}}"));
+        var provider = CreateAzureProvider(AzureCredentials(), out _, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/org/Project/_apis/git/repositories/repo" => Json("{\"id\":\"repo-guid\",\"name\":\"repo\",\"defaultBranch\":\"refs/heads/main\",\"project\":{\"id\":\"project-guid\",\"name\":\"Project\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/refs" => Json("{\"value\":[{\"name\":\"refs/heads/main\",\"objectId\":\"abc123\"}]}"),
+                "/org/Project/_apis/git/repositories/repo-guid/pullRequests/7" => Json($"{{\"pullRequestId\":7,\"status\":\"active\",\"sourceRefName\":\"refs/heads/feature\",\"targetRefName\":\"refs/heads/main\",\"lastMergeSourceCommit\":{{\"commitId\":\"def456\"}},\"repository\":{{\"id\":\"repo-guid\"}},\"reviewers\":[{reviewers}]}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/commits/def456/statuses" => Json("{\"value\":[]}"),
+                "/org/Project/_apis/git/repositories/repo-guid/pullRequests/7/statuses" => Json("{\"value\":[]}"),
+                "/org/Project/_apis/build/builds" => Json("{\"value\":[]}"),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "AzureRepos", "https://dev.azure.com/org/Project/_git/repo",
+            repositoryId: "repo-guid", pullRequestNumber: 7, credentialReference: "azure-ref"));
+
+        Assert.Equal(100, evidence.Reviews.Count);
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.ReviewState);
+        Assert.Contains(evidence.Limitations, limitation => limitation.Contains("reviewer", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Azure_OversizedRefContinuationIsPartialWithoutFollowingOrExposingToken()
+    {
+        var token = new string('x', 1_025);
+        var provider = CreateAzureProvider(AzureCredentials(), out var requests, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/org/Project/_apis/git/repositories/repo" => Json("{\"id\":\"repo-guid\",\"name\":\"repo\",\"defaultBranch\":\"refs/heads/main\",\"project\":{\"id\":\"project-guid\",\"name\":\"Project\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/refs" => JsonWithHeaders("{\"value\":[]}", ("x-ms-continuationtoken", token)),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "AzureRepos", "https://dev.azure.com/org/Project/_git/repo",
+            repositoryId: "repo-guid", credentialReference: "azure-ref"));
+
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.BranchState);
+        Assert.Single(requests, request => request.RequestUri!.AbsolutePath.EndsWith("/refs", StringComparison.Ordinal));
+        Assert.DoesNotContain(token, string.Join(' ', evidence.Limitations), StringComparison.Ordinal);
+        Assert.DoesNotContain(token, evidence.SafeErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Azure_OversizedBuildContinuationIsPartialWithoutFollowingOrExposingToken()
+    {
+        var token = new string('x', 1_025);
+        var provider = CreateAzureProvider(AzureCredentials(), out var requests, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/org/Project/_apis/git/repositories/repo" => Json("{\"id\":\"repo-guid\",\"name\":\"repo\",\"defaultBranch\":\"refs/heads/main\",\"project\":{\"id\":\"project-guid\",\"name\":\"Project\"}}"),
+                "/org/Project/_apis/git/repositories/repo-guid/refs" => Json("{\"value\":[{\"name\":\"refs/heads/main\",\"objectId\":\"abc123\"}]}"),
+                "/org/Project/_apis/git/repositories/repo-guid/commits/abc123/statuses" => Json("{\"value\":[]}"),
+                "/org/Project/_apis/build/builds" => JsonWithHeaders("{\"value\":[]}", ("x-ms-continuationtoken", token)),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(new RemoteRepositoryEvidenceRequest(
+            Guid.NewGuid(), "AzureRepos", "https://dev.azure.com/org/Project/_git/repo",
+            repositoryId: "repo-guid", credentialReference: "azure-ref"));
+
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.CiState);
+        Assert.Equal(RemoteCiState.Unknown, evidence.CiResult);
+        Assert.Single(requests, request => request.RequestUri!.AbsolutePath.EndsWith("/build/builds", StringComparison.Ordinal));
+        Assert.DoesNotContain(token, string.Join(' ', evidence.Limitations), StringComparison.Ordinal);
+        Assert.DoesNotContain(token, evidence.SafeErrorMessage ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1059,6 +1289,10 @@ public sealed class RemoteRepositoryEvidenceTests
         credentials.Add("azure-ref", "fixture-token");
         return credentials;
     }
+
+    private static string AzureStatusValues(int start, int count) =>
+        string.Join(',', Enumerable.Range(start, count).Select(index =>
+            $"{{\"context\":{{\"name\":\"status-{index}\"}},\"state\":\"succeeded\",\"description\":\"ok\",\"commitId\":\"abc123\"}}"));
 
     private sealed class FakeRemoteProvider(RemoteRepositoryProvider provider) : IRemoteRepositoryEvidenceProvider
     {

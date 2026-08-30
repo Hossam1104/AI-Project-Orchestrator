@@ -178,10 +178,17 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                     return draft.Build();
                 }
 
-                if (branchResponse.ContinuationToken is null)
+                if (!branchResponse.ContinuationHeaderPresent)
                 {
                     draft.BranchState = RemoteEvidenceState.Unavailable;
                     draft.Error ??= "The requested Azure branch was unavailable.";
+                    return draft.Build();
+                }
+
+                if (branchResponse.ContinuationToken is null)
+                {
+                    draft.BranchState = RemoteEvidenceState.Partial;
+                    draft.Limitations.Add("Azure branch pagination metadata was rejected before the exact ref was proven.");
                     return draft.Build();
                 }
 
@@ -333,11 +340,13 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
             if (root.TryGetProperty("reviewers", out var reviewers) && reviewers.ValueKind == JsonValueKind.Array)
             {
                 var index = 0;
+                var values = new List<RemoteReviewEvidence>();
+                var truncated = false;
                 foreach (var reviewer in reviewers.EnumerateArray())
                 {
                     if (index++ >= RemoteEvidenceLimits.MaxItems)
                     {
-                        draft.Limitations.Add("Azure pull-request reviewers were capped by the adapter bound.");
+                        truncated = true;
                         break;
                     }
 
@@ -350,7 +359,7 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                     }
 
                     var vote = RemoteEvidenceJson.String(reviewer, "vote");
-                    draft.Reviews.Add(new RemoteReviewEvidence(
+                    values.Add(new RemoteReviewEvidence(
                         name,
                         vote switch
                         {
@@ -362,9 +371,22 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                         requested: true,
                         reviewId: RemoteEvidenceJson.String(reviewer, "id")));
                 }
-            }
 
-            draft.ReviewState = RemoteEvidenceState.Available;
+                truncated |= RemoteEvidenceCollections.AppendBounded(
+                    draft.Reviews,
+                    values,
+                    RemoteEvidenceLimits.MaxItems);
+                if (truncated)
+                {
+                    draft.Limitations.Add("Azure pull-request reviewers were capped by the adapter bound.");
+                }
+
+                draft.ReviewState = truncated ? RemoteEvidenceState.Partial : RemoteEvidenceState.Available;
+            }
+            else
+            {
+                draft.ReviewState = RemoteEvidenceState.Available;
+            }
         }
         catch (ArgumentException)
         {
@@ -383,16 +405,60 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
     {
         var response = await RemoteEvidenceHttp.GetJsonAsync(
             client,
-            target.Api($"commits/{Uri.EscapeDataString(commit)}/statuses?top={RemoteEvidenceLimits.MaxItems}&api-version=7.1"),
+            target.Api($"commits/{Uri.EscapeDataString(commit)}/statuses?top={RemoteEvidenceLimits.MaxItems}&skip=0&api-version=7.1"),
             authorization,
             cancellationToken).ConfigureAwait(false);
         var (state, values, truncated) = ParseAzureStatuses(response, RemoteStatusKind.CommitStatus);
         draft.StatusState = state;
-        draft.Statuses.AddRange(values);
+        if (state is not RemoteEvidenceState.Available)
+        {
+            draft.Error ??= response.ErrorMessage;
+            return;
+        }
+
+        truncated |= RemoteEvidenceCollections.AppendBounded(
+            draft.Statuses,
+            values,
+            RemoteEvidenceLimits.MaxItems);
         if (truncated)
         {
             draft.Limitations.Add("Azure commit statuses were capped by the adapter bound.");
+            draft.StatusState = RemoteEvidenceState.Partial;
+            return;
         }
+
+        if (values.Count == RemoteEvidenceLimits.MaxItems)
+        {
+            var lookahead = await RemoteEvidenceHttp.GetJsonAsync(
+                client,
+                target.Api($"commits/{Uri.EscapeDataString(commit)}/statuses?top=1&skip={RemoteEvidenceLimits.MaxItems}&api-version=7.1"),
+                authorization,
+                cancellationToken).ConfigureAwait(false);
+            if (lookahead.State is not RemoteEvidenceState.Available)
+            {
+                draft.StatusState = RemoteEvidenceState.Partial;
+                draft.Error ??= lookahead.ErrorMessage;
+                draft.Limitations.Add("Azure commit-status look-ahead did not prove exhaustive evidence.");
+                return;
+            }
+
+            var (lookaheadState, lookaheadValues, _) = ParseAzureStatuses(lookahead, RemoteStatusKind.CommitStatus);
+            if (lookaheadState is not RemoteEvidenceState.Available)
+            {
+                draft.StatusState = RemoteEvidenceState.Partial;
+                draft.Error ??= "Azure commit-status look-ahead was malformed.";
+                draft.Limitations.Add("Azure commit-status look-ahead did not prove exhaustive evidence.");
+                return;
+            }
+
+            if (lookaheadValues.Count > 0)
+            {
+                draft.StatusState = RemoteEvidenceState.Partial;
+                draft.Limitations.Add("Azure commit statuses continued beyond the retained evidence bound.");
+                return;
+            }
+        }
+
         draft.Error ??= response.State is not RemoteEvidenceState.Available ? response.ErrorMessage : null;
     }
 
@@ -415,10 +481,17 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
             draft.StatusState = state;
         }
 
-        draft.Statuses.AddRange(values);
-        if (truncated)
+        var destinationTruncated = RemoteEvidenceCollections.AppendBounded(
+            draft.Statuses,
+            values,
+            RemoteEvidenceLimits.MaxItems);
+        if (truncated || destinationTruncated)
         {
             draft.Limitations.Add("Azure pull-request statuses were capped by the adapter bound.");
+            if (draft.StatusState is RemoteEvidenceState.Available)
+            {
+                draft.StatusState = RemoteEvidenceState.Partial;
+            }
         }
         draft.Error ??= response.State is not RemoteEvidenceState.Available ? response.ErrorMessage : null;
     }
@@ -523,10 +596,18 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                 return;
             }
 
-            if (response.ContinuationToken is null)
+            if (!response.ContinuationHeaderPresent)
             {
                 draft.CiState = RemoteEvidenceState.Available;
                 draft.CiResult = RemoteEvidenceCi.Aggregate(draft.CiRuns);
+                return;
+            }
+
+            if (response.ContinuationToken is null)
+            {
+                draft.CiState = RemoteEvidenceState.Partial;
+                draft.CiResult = PartialCiResult(draft.CiRuns);
+                draft.Limitations.Add("Azure build pagination metadata was rejected before the target commit was exhaustively searched.");
                 return;
             }
 
