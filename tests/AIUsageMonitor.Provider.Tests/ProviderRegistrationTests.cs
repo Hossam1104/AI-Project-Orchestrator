@@ -1,5 +1,6 @@
 using AIUsageMonitor.Application.Security;
 using AIUsageMonitor.Application.Time;
+using AIUsageMonitor.Application.RemoteEvidence;
 using AIUsageMonitor.Domain.Providers;
 using AIUsageMonitor.Providers;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,5 +29,21 @@ public sealed class ProviderRegistrationTests
         {
             Assert.NotNull(registry.Find(code));
         }
+    }
+
+    [Fact]
+    public void AddProviders_ResolvesBothRemoteEvidenceAdaptersAndService()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IClock>(new TestClock());
+        services.AddSingleton<ISecureCredentialStore>(new TestCredentialStore());
+        services.AddProviders();
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.NotNull(serviceProvider.GetRequiredService<IRemoteRepositoryEvidenceService>());
+        Assert.Equal(
+            [RemoteRepositoryProvider.GitHub, RemoteRepositoryProvider.AzureRepos],
+            serviceProvider.GetServices<IRemoteRepositoryEvidenceProvider>().Select(provider => provider.Provider));
     }
 }
