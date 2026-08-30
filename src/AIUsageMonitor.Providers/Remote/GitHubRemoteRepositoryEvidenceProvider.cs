@@ -57,7 +57,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
                 cancellationToken).ConfigureAwait(false);
             if (repositoryResponse.State is not RemoteEvidenceState.Available)
             {
-                return draft.Failure(repositoryResponse.State, repositoryResponse.ErrorMessage!);
+                return draft.Failure(GitHubFailureState(repositoryResponse), repositoryResponse.ErrorMessage!);
             }
 
             using var repositoryDocument = RemoteEvidenceJson.Parse(repositoryResponse.Body, out var repositoryError);
@@ -117,7 +117,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
                 cancellationToken).ConfigureAwait(false);
             if (branchResponse.State is not RemoteEvidenceState.Available)
             {
-                draft.BranchState = branchResponse.State;
+                draft.BranchState = GitHubFailureState(branchResponse);
                 draft.Error ??= branchResponse.ErrorMessage;
                 return draft.Build();
             }
@@ -193,7 +193,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (response.State is not RemoteEvidenceState.Available)
         {
-            draft.PullRequestState = response.State;
+            draft.PullRequestState = GitHubFailureState(response);
             draft.Error ??= response.ErrorMessage;
             return;
         }
@@ -266,35 +266,61 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         HttpClient client,
         CancellationToken cancellationToken)
     {
-        var response = await RemoteEvidenceHttp.GetJsonAsync(
+        var pages = await ReadGitHubPagesAsync(
             client,
+            target,
             target.Api($"commits/{Uri.EscapeDataString(commit)}/statuses?per_page={RemoteEvidenceLimits.MaxItems}"),
             authorization,
             cancellationToken).ConfigureAwait(false);
-        if (response.State is not RemoteEvidenceState.Available)
+        if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            draft.StatusState = response.State;
-            draft.Error ??= response.ErrorMessage;
+            draft.StatusState = GitHubFailureState(pages.Pages[0].Response);
+            draft.Error ??= pages.Pages[0].Response.ErrorMessage;
             return;
         }
 
-        using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
-        if (document is null || document.RootElement.ValueKind is not JsonValueKind.Array)
+        var truncated = false;
+        foreach (var page in pages.Pages)
         {
-            draft.StatusState = RemoteEvidenceState.InvalidResponse;
-            draft.Error ??= error ?? "GitHub status response was malformed.";
-            return;
+            if (page.Response.State is not RemoteEvidenceState.Available)
+            {
+                draft.StatusState = RemoteEvidenceState.Partial;
+                draft.Error ??= page.Response.ErrorMessage;
+                draft.Limitations.Add("GitHub commit status pagination stopped before all pages were read.");
+                return;
+            }
+
+            using var document = RemoteEvidenceJson.Parse(page.Response.Body, out var error);
+            if (document is null || document.RootElement.ValueKind is not JsonValueKind.Array)
+            {
+                draft.StatusState = RemoteEvidenceState.InvalidResponse;
+                draft.Error ??= error ?? "GitHub status response was malformed.";
+                return;
+            }
+
+            var state = ParseStatusArray(
+                document.RootElement,
+                RemoteStatusKind.CommitStatus,
+                draft.Statuses,
+                out var pageTruncated);
+            if (state is not RemoteEvidenceState.Available)
+            {
+                draft.StatusState = state;
+                draft.Error ??= "GitHub status response was malformed.";
+                return;
+            }
+
+            truncated |= pageTruncated;
         }
 
-        draft.StatusState = ParseStatusArray(
-            document.RootElement,
-            RemoteStatusKind.CommitStatus,
-            draft.Statuses,
-            out var statusesTruncated);
-        if (statusesTruncated)
+        if (truncated || pages.Incomplete)
         {
             draft.Limitations.Add("GitHub commit statuses were capped by the adapter bound.");
+            draft.StatusState = RemoteEvidenceState.Partial;
+            return;
         }
+
+        draft.StatusState = RemoteEvidenceState.Available;
     }
 
     private async Task ReadChecksAsync(
@@ -305,37 +331,66 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         HttpClient client,
         CancellationToken cancellationToken)
     {
-        var response = await RemoteEvidenceHttp.GetJsonAsync(
+        var pages = await ReadGitHubPagesAsync(
             client,
+            target,
             target.Api($"commits/{Uri.EscapeDataString(commit)}/check-runs?per_page={RemoteEvidenceLimits.MaxItems}"),
             authorization,
             cancellationToken).ConfigureAwait(false);
-        if (response.State is not RemoteEvidenceState.Available)
+        if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            draft.CheckState = response.State;
-            draft.Error ??= response.ErrorMessage;
+            draft.CheckState = GitHubFailureState(pages.Pages[0].Response);
+            draft.Error ??= pages.Pages[0].Response.ErrorMessage;
             return;
         }
 
-        using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
-        if (document is null ||
-            !document.RootElement.TryGetProperty("check_runs", out var checks) ||
-            checks.ValueKind is not JsonValueKind.Array)
+        var totalCount = 0;
+        var truncated = false;
+        foreach (var page in pages.Pages)
         {
-            draft.CheckState = RemoteEvidenceState.InvalidResponse;
-            draft.Error ??= error ?? "GitHub check-run response was malformed.";
-            return;
+            if (page.Response.State is not RemoteEvidenceState.Available)
+            {
+                draft.CheckState = RemoteEvidenceState.Partial;
+                draft.Error ??= page.Response.ErrorMessage;
+                draft.Limitations.Add("GitHub check-run pagination stopped before all pages were read.");
+                return;
+            }
+
+            using var document = RemoteEvidenceJson.Parse(page.Response.Body, out var error);
+            if (document is null ||
+                !document.RootElement.TryGetProperty("check_runs", out var checks) ||
+                checks.ValueKind is not JsonValueKind.Array)
+            {
+                draft.CheckState = RemoteEvidenceState.InvalidResponse;
+                draft.Error ??= error ?? "GitHub check-run response was malformed.";
+                return;
+            }
+
+            if (document.RootElement.TryGetProperty("total_count", out var total) &&
+                total.ValueKind == JsonValueKind.Number && total.TryGetInt32(out var pageTotal))
+            {
+                totalCount = Math.Max(totalCount, pageTotal);
+            }
+
+            var state = ParseStatusArray(checks, RemoteStatusKind.CheckRun, draft.Checks, out var pageTruncated);
+            if (state is not RemoteEvidenceState.Available)
+            {
+                draft.CheckState = state;
+                draft.Error ??= "GitHub check-run response was malformed.";
+                return;
+            }
+
+            truncated |= pageTruncated;
         }
 
-        draft.CheckState = ParseStatusArray(
-            checks,
-            RemoteStatusKind.CheckRun,
-            draft.Checks,
-            out var checksTruncated);
-        if (checksTruncated)
+        if (truncated || totalCount > draft.Checks.Count || pages.Incomplete)
         {
             draft.Limitations.Add("GitHub check runs were capped by the adapter bound.");
+            draft.CheckState = RemoteEvidenceState.Partial;
+            return;
         }
+
+        draft.CheckState = RemoteEvidenceState.Available;
     }
 
     private async Task ReadWorkflowRunsAsync(
@@ -347,73 +402,99 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         HttpClient client,
         CancellationToken cancellationToken)
     {
-        var response = await RemoteEvidenceHttp.GetJsonAsync(
+        var pages = await ReadGitHubPagesAsync(
             client,
+            target,
             target.Api($"actions/runs?head_sha={Uri.EscapeDataString(commit)}&per_page={RemoteEvidenceLimits.MaxItems}"),
             authorization,
-            cancellationToken).ConfigureAwait(false);
-        if (response.State is not RemoteEvidenceState.Available)
+            cancellationToken,
+            uri => HasQueryParameter(uri, "head_sha", commit)).ConfigureAwait(false);
+        if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            draft.CiState = response.State;
+            draft.CiState = GitHubFailureState(pages.Pages[0].Response);
             draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= response.ErrorMessage;
+            draft.Error ??= pages.Pages[0].Response.ErrorMessage;
             return;
         }
 
-        using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
-        if (document is null ||
-            !document.RootElement.TryGetProperty("workflow_runs", out var runs) ||
-            runs.ValueKind is not JsonValueKind.Array)
+        var totalCount = 0;
+        var truncated = false;
+        foreach (var page in pages.Pages)
         {
-            draft.CiState = RemoteEvidenceState.InvalidResponse;
-            draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= error ?? "GitHub workflow-run response was malformed.";
-            return;
-        }
-
-        var index = 0;
-        try
-        {
-            foreach (var run in runs.EnumerateArray())
+            if (page.Response.State is not RemoteEvidenceState.Available)
             {
-                if (index++ >= RemoteEvidenceLimits.MaxItems)
+                draft.CiState = RemoteEvidenceState.Partial;
+                draft.CiResult = PartialCiResult(draft.CiRuns);
+                draft.Error ??= page.Response.ErrorMessage;
+                draft.Limitations.Add("GitHub workflow-run pagination stopped before all pages were read.");
+                return;
+            }
+
+            using var document = RemoteEvidenceJson.Parse(page.Response.Body, out var error);
+            if (document is null ||
+                !document.RootElement.TryGetProperty("workflow_runs", out var runs) ||
+                runs.ValueKind is not JsonValueKind.Array)
+            {
+                draft.CiState = RemoteEvidenceState.InvalidResponse;
+                draft.CiResult = RemoteCiState.Unknown;
+                draft.Error ??= error ?? "GitHub workflow-run response was malformed.";
+                return;
+            }
+
+            if (document.RootElement.TryGetProperty("total_count", out var total) &&
+                total.ValueKind == JsonValueKind.Number && total.TryGetInt32(out var pageTotal))
+            {
+                totalCount = Math.Max(totalCount, pageTotal);
+            }
+
+            try
+            {
+                foreach (var run in runs.EnumerateArray())
                 {
-                    draft.Limitations.Add("GitHub workflow runs were capped by the adapter bound.");
-                    break;
+                    if (draft.CiRuns.Count >= RemoteEvidenceLimits.MaxItems)
+                    {
+                        truncated = true;
+                        break;
+                    }
+
+                    var id = RemoteEvidenceJson.Required(run, "id");
+                    var name = RemoteEvidenceJson.String(run, "name") ?? "workflow run";
+                    var status = RemoteEvidenceJson.String(run, "status");
+                    var conclusion = RemoteEvidenceJson.String(run, "conclusion");
+                    draft.CiRuns.Add(new RemoteCiRunEvidence(
+                        RemoteStatusKind.WorkflowRun,
+                        id,
+                        name,
+                        RemoteEvidenceCi.FromStatus(status, conclusion),
+                        conclusion,
+                        RemoteEvidenceJson.String(run, "head_branch") ?? branch,
+                        RemoteEvidenceJson.String(run, "head_sha") ?? commit,
+                        RemoteEvidenceJson.Time(run, "created_at"),
+                        RemoteEvidenceJson.Time(run, "updated_at"),
+                        null,
+                        RemoteEvidenceJson.SafeUri(run, "html_url", "github.com")));
                 }
-
-                var id = RemoteEvidenceJson.Required(run, "id");
-                var name = RemoteEvidenceJson.String(run, "name") ?? "workflow run";
-                var status = RemoteEvidenceJson.String(run, "status");
-                var conclusion = RemoteEvidenceJson.String(run, "conclusion");
-                draft.CiRuns.Add(new RemoteCiRunEvidence(
-                    RemoteStatusKind.WorkflowRun,
-                    id,
-                    name,
-                    RemoteEvidenceCi.FromStatus(status, conclusion),
-                    conclusion,
-                    RemoteEvidenceJson.String(run, "head_branch") ?? branch,
-                    RemoteEvidenceJson.String(run, "head_sha") ?? commit,
-                    RemoteEvidenceJson.Time(run, "created_at"),
-                    RemoteEvidenceJson.Time(run, "updated_at"),
-                    null,
-                    RemoteEvidenceJson.SafeUri(run, "html_url", "github.com")));
             }
-
-            if (HasMore(response.Body, "total_count", draft.CiRuns.Count))
+            catch (ArgumentException)
             {
-                draft.Limitations.Add("GitHub workflow-run evidence may be truncated by the adapter bound.");
+                draft.CiState = RemoteEvidenceState.InvalidResponse;
+                draft.CiResult = RemoteCiState.Unknown;
+                draft.Error ??= "GitHub workflow-run evidence was malformed.";
+                return;
             }
+        }
 
-            draft.CiState = RemoteEvidenceState.Available;
-            draft.CiResult = RemoteEvidenceCi.Aggregate(draft.CiRuns);
-        }
-        catch (ArgumentException)
+        draft.CiResult = pages.Incomplete
+            ? PartialCiResult(draft.CiRuns)
+            : RemoteEvidenceCi.Aggregate(draft.CiRuns);
+        if (truncated || totalCount > draft.CiRuns.Count || pages.Incomplete)
         {
-            draft.CiState = RemoteEvidenceState.InvalidResponse;
-            draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= "GitHub workflow-run evidence was malformed.";
+            draft.Limitations.Add("GitHub workflow-run evidence may be truncated by the adapter bound.");
+            draft.CiState = RemoteEvidenceState.Partial;
+            return;
         }
+
+        draft.CiState = RemoteEvidenceState.Available;
     }
 
     private async Task<(RemoteEvidenceState State, List<RemoteReviewEvidence> Values, string? Error, bool Truncated)> ReadRequestedReviewersAsync(
@@ -430,7 +511,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             cancellationToken).ConfigureAwait(false);
         if (response.State is not RemoteEvidenceState.Available)
         {
-            return (response.State, [], response.ErrorMessage, false);
+            return (GitHubFailureState(response), [], response.ErrorMessage, false);
         }
 
         using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
@@ -459,57 +540,155 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         HttpClient client,
         CancellationToken cancellationToken)
     {
-        var response = await RemoteEvidenceHttp.GetJsonAsync(
+        var pages = await ReadGitHubPagesAsync(
             client,
+            target,
             target.Api($"pulls/{number.ToString(System.Globalization.CultureInfo.InvariantCulture)}/reviews?per_page={RemoteEvidenceLimits.MaxItems}"),
             authorization,
             cancellationToken).ConfigureAwait(false);
-        if (response.State is not RemoteEvidenceState.Available)
+        if (pages.Pages[0].Response.State is not RemoteEvidenceState.Available)
         {
-            return (response.State, [], response.ErrorMessage, false);
+            return (GitHubFailureState(pages.Pages[0].Response), [], pages.Pages[0].Response.ErrorMessage, false);
         }
 
-        using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
-        if (document is null || document.RootElement.ValueKind is not JsonValueKind.Array)
+        var values = new List<RemoteReviewEvidence>();
+        var truncated = pages.Incomplete;
+        foreach (var page in pages.Pages)
         {
-            return (RemoteEvidenceState.InvalidResponse, [], error ?? "GitHub review response was malformed.", false);
-        }
-
-        try
-        {
-            var values = new List<RemoteReviewEvidence>();
-            var index = 0;
-            var truncated = false;
-            foreach (var review in document.RootElement.EnumerateArray())
+            if (page.Response.State is not RemoteEvidenceState.Available)
             {
-                if (index++ >= RemoteEvidenceLimits.MaxItems)
-                {
-                    truncated = true;
-                    break;
-                }
-
-                var reviewer = review.TryGetProperty("user", out var user)
-                    ? RemoteEvidenceJson.String(user, "login")
-                    : null;
-                if (reviewer is null)
-                {
-                    continue;
-                }
-
-                values.Add(new RemoteReviewEvidence(
-                    reviewer,
-                    RemoteEvidenceJson.String(review, "state") ?? "unknown",
-                    requested: false,
-                    RemoteEvidenceJson.Time(review, "submitted_at"),
-                    RemoteEvidenceJson.String(review, "id")));
+                return (
+                    RemoteEvidenceState.Partial,
+                    values,
+                    page.Response.ErrorMessage,
+                    true);
             }
 
-            return (RemoteEvidenceState.Available, values, null, truncated);
+            using var document = RemoteEvidenceJson.Parse(page.Response.Body, out var error);
+            if (document is null || document.RootElement.ValueKind is not JsonValueKind.Array)
+            {
+                return (RemoteEvidenceState.InvalidResponse, [], error ?? "GitHub review response was malformed.", false);
+            }
+
+            try
+            {
+                foreach (var review in document.RootElement.EnumerateArray())
+                {
+                    if (values.Count >= RemoteEvidenceLimits.MaxItems)
+                    {
+                        truncated = true;
+                        break;
+                    }
+
+                    var reviewer = review.TryGetProperty("user", out var user)
+                        ? RemoteEvidenceJson.String(user, "login")
+                        : null;
+                    if (reviewer is null)
+                    {
+                        continue;
+                    }
+
+                    values.Add(new RemoteReviewEvidence(
+                        reviewer,
+                        RemoteEvidenceJson.String(review, "state") ?? "unknown",
+                        requested: false,
+                        RemoteEvidenceJson.Time(review, "submitted_at"),
+                        RemoteEvidenceJson.String(review, "id")));
+                }
+            }
+            catch (ArgumentException)
+            {
+                return (RemoteEvidenceState.InvalidResponse, [], "GitHub submitted-review evidence was malformed.", false);
+            }
         }
-        catch (ArgumentException)
+
+        return (
+            truncated ? RemoteEvidenceState.Partial : RemoteEvidenceState.Available,
+            values,
+            null,
+            truncated);
+    }
+
+    private static RemoteEvidenceState GitHubFailureState(RemoteHttpResult response) =>
+        response.State is RemoteEvidenceState.PermissionDenied &&
+        (response.RateLimitRemaining == 0 || response.RetryAfterSeconds is not null)
+            ? RemoteEvidenceState.RateLimited
+            : response.State;
+
+    private static RemoteCiState PartialCiResult(IReadOnlyCollection<RemoteCiRunEvidence> runs)
+    {
+        var aggregate = RemoteEvidenceCi.Aggregate(runs);
+        return aggregate is RemoteCiState.NoEvidence or RemoteCiState.Passing
+            ? RemoteCiState.Unknown
+            : aggregate;
+    }
+
+    private static async Task<(List<(Uri Uri, RemoteHttpResult Response)> Pages, bool Incomplete)> ReadGitHubPagesAsync(
+        HttpClient client,
+        GitHubTarget target,
+        Uri firstUri,
+        AuthenticationHeaderValue? authorization,
+        CancellationToken cancellationToken,
+        Func<Uri, bool>? queryGuard = null)
+    {
+        var pages = new List<(Uri Uri, RemoteHttpResult Response)>();
+        var uri = firstUri;
+        for (var page = 0; page < RemoteEvidenceLimits.MaxPages; page++)
         {
-            return (RemoteEvidenceState.InvalidResponse, [], "GitHub submitted-review evidence was malformed.", false);
+            var response = await RemoteEvidenceHttp.GetJsonAsync(
+                client,
+                uri,
+                authorization,
+                cancellationToken).ConfigureAwait(false);
+            pages.Add((uri, response));
+            if (response.State is not RemoteEvidenceState.Available)
+            {
+                return (pages, pages.Count > 1);
+            }
+
+            if (!response.HasNextPage)
+            {
+                return (pages, false);
+            }
+
+            if (response.NextPageUri is null ||
+                !RemoteEvidenceUrl.IsSafeGitHubNextPage(response.NextPageUri, target, uri) ||
+                queryGuard is not null && !queryGuard(response.NextPageUri))
+            {
+                return (pages, true);
+            }
+
+            if (page + 1 >= RemoteEvidenceLimits.MaxPages)
+            {
+                return (pages, true);
+            }
+
+            uri = response.NextPageUri;
         }
+
+        return (pages, true);
+    }
+
+    private static bool HasQueryParameter(Uri uri, string name, string expectedValue)
+    {
+        foreach (var parameter in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separator = parameter.IndexOf('=');
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            var parameterName = Uri.UnescapeDataString(parameter[..separator].Replace('+', ' '));
+            var parameterValue = Uri.UnescapeDataString(parameter[(separator + 1)..].Replace('+', ' '));
+            if (parameterName.Equals(name, StringComparison.Ordinal) &&
+                parameterValue.Equals(expectedValue, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<(RemoteEvidenceState State, AuthenticationHeaderValue? Value, string? Error)> ResolveAuthorizationAsync(
@@ -536,10 +715,9 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         truncated = false;
         try
         {
-            var index = 0;
             foreach (var item in values.EnumerateArray())
             {
-                if (index++ >= RemoteEvidenceLimits.MaxItems)
+                if (destination.Count >= RemoteEvidenceLimits.MaxItems)
                 {
                     truncated = true;
                     break;
@@ -580,9 +758,9 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         var index = 0;
         foreach (var value in values.EnumerateArray())
         {
-                if (index++ >= RemoteEvidenceLimits.MaxItems)
-                {
-                    return true;
+            if (index++ >= RemoteEvidenceLimits.MaxItems)
+            {
+                return true;
             }
 
             var name = RemoteEvidenceJson.String(value, "login") ?? RemoteEvidenceJson.String(value, "slug");
@@ -595,10 +773,4 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
         return false;
     }
 
-    private static bool HasMore(string? body, string property, int count)
-    {
-        using var document = RemoteEvidenceJson.Parse(body, out _);
-        return document is not null && document.RootElement.TryGetProperty(property, out var value) &&
-            value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var total) && total > count;
-    }
 }

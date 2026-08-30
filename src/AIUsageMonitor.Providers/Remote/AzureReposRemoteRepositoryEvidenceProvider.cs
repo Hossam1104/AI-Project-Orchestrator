@@ -122,55 +122,84 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
             }
 
             var branchTarget = new AzureTarget(target.Organization, target.Project, repositoryId);
-            var branchResponse = await RemoteEvidenceHttp.GetJsonAsync(
-                client,
-                branchTarget.Api($"refs?filter={Uri.EscapeDataString(RemoteEvidenceBranches.Ref(branch))}&%24top=1&api-version=7.1"),
-                authorization.Value,
-                cancellationToken).ConfigureAwait(false);
-            if (branchResponse.State is not RemoteEvidenceState.Available)
+            var expectedRef = RemoteEvidenceBranches.Ref(branch);
+            var branchUri = branchTarget.Api(
+                $"refs?filter={Uri.EscapeDataString(expectedRef)}&%24top={RemoteEvidenceLimits.MaxItems}&api-version=7.1");
+            for (var page = 0; page < RemoteEvidenceLimits.MaxPages; page++)
             {
-                draft.BranchState = branchResponse.State;
-                draft.Error ??= branchResponse.ErrorMessage;
-                return draft.Build();
-            }
+                var branchResponse = await RemoteEvidenceHttp.GetJsonAsync(
+                    client,
+                    branchUri,
+                    authorization.Value,
+                    cancellationToken).ConfigureAwait(false);
+                if (branchResponse.State is not RemoteEvidenceState.Available)
+                {
+                    draft.BranchState = page == 0
+                        ? branchResponse.State
+                        : RemoteEvidenceState.Partial;
+                    draft.Error ??= branchResponse.ErrorMessage;
+                    if (page > 0)
+                    {
+                        draft.Limitations.Add("Azure branch pagination stopped before the exact ref was proven.");
+                    }
 
-            using var branchDocument = RemoteEvidenceJson.Parse(branchResponse.Body, out var branchError);
-            if (branchDocument is null ||
-                !branchDocument.RootElement.TryGetProperty("value", out var refs) ||
-                refs.ValueKind is not JsonValueKind.Array)
-            {
-                draft.BranchState = RemoteEvidenceState.InvalidResponse;
-                draft.Error ??= branchError ?? "Azure branch response was malformed.";
-                return draft.Build();
-            }
+                    return draft.Build();
+                }
 
-            try
-            {
-                var reference = refs.EnumerateArray().FirstOrDefault();
-                if (reference.ValueKind is not JsonValueKind.Object)
+                using var branchDocument = RemoteEvidenceJson.Parse(branchResponse.Body, out var branchError);
+                if (branchDocument is null ||
+                    !branchDocument.RootElement.TryGetProperty("value", out var refs) ||
+                    refs.ValueKind is not JsonValueKind.Array)
+                {
+                    draft.BranchState = RemoteEvidenceState.InvalidResponse;
+                    draft.Error ??= branchError ?? "Azure branch response was malformed.";
+                    return draft.Build();
+                }
+
+                try
+                {
+                    var reference = refs.EnumerateArray()
+                        .FirstOrDefault(value => RemoteEvidenceJson.String(value, "name") == expectedRef);
+                    if (reference.ValueKind is JsonValueKind.Object)
+                    {
+                        var commit = RemoteEvidenceJson.Required(reference, "objectId");
+                        draft.Branch = new RemoteBranchEvidence(
+                            branch,
+                            commit,
+                            branch.Equals(draft.Repository.DefaultBranch, StringComparison.OrdinalIgnoreCase));
+                        draft.BranchState = RemoteEvidenceState.Available;
+                        break;
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    draft.BranchState = RemoteEvidenceState.InvalidResponse;
+                    draft.Error ??= "Azure branch metadata was malformed.";
+                    return draft.Build();
+                }
+
+                if (branchResponse.ContinuationToken is null)
                 {
                     draft.BranchState = RemoteEvidenceState.Unavailable;
                     draft.Error ??= "The requested Azure branch was unavailable.";
                     return draft.Build();
                 }
 
-                var commit = RemoteEvidenceJson.Required(reference, "objectId");
-                var actualBranch = RemoteEvidenceJson.String(reference, "name") ?? RemoteEvidenceBranches.Ref(branch);
-                if (!RemoteEvidenceBranches.TryNormalize(actualBranch, out actualBranch))
+                if (page + 1 >= RemoteEvidenceLimits.MaxPages)
                 {
-                    throw new ArgumentException("Azure returned an invalid branch.");
+                    draft.BranchState = RemoteEvidenceState.Partial;
+                    draft.Limitations.Add("Azure branch evidence was capped before the exact ref was proven.");
+                    return draft.Build();
                 }
 
-                draft.Branch = new RemoteBranchEvidence(
-                    actualBranch,
-                    commit,
-                    actualBranch.Equals(draft.Repository.DefaultBranch, StringComparison.OrdinalIgnoreCase));
-                draft.BranchState = RemoteEvidenceState.Available;
+                branchUri = branchTarget.Api(
+                    $"refs?filter={Uri.EscapeDataString(expectedRef)}&%24top={RemoteEvidenceLimits.MaxItems}&continuationToken={Uri.EscapeDataString(branchResponse.ContinuationToken)}&api-version=7.1");
             }
-            catch (ArgumentException)
+
+            if (draft.Branch is null)
             {
-                draft.BranchState = RemoteEvidenceState.InvalidResponse;
-                draft.Error ??= "Azure branch metadata was malformed.";
+                draft.BranchState = RemoteEvidenceState.Partial;
+                draft.Limitations.Add("Azure branch evidence was capped before the exact ref was proven.");
                 return draft.Build();
             }
 
@@ -180,23 +209,46 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                     .ConfigureAwait(false);
             }
 
-            var evidenceCommit = draft.PullRequest?.HeadCommitId ?? draft.Branch.CommitId;
-            await ReadCommitStatusesAsync(draft, branchTarget, evidenceCommit, auth, client, cancellationToken).ConfigureAwait(false);
+            var evidenceCommit = draft.PullRequest is null ? draft.Branch.CommitId : draft.PullRequest.HeadCommitId;
+            if (evidenceCommit is not null)
+            {
+                await ReadCommitStatusesAsync(draft, branchTarget, evidenceCommit, auth, client, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                draft.StatusState = RemoteEvidenceState.Partial;
+                draft.Limitations.Add("Azure PR head commit was unavailable; commit status evidence was not correlated.");
+            }
             if (draft.PullRequest is not null)
             {
                 await ReadPullRequestStatusesAsync(draft, branchTarget, draft.PullRequest.Id, auth, client, cancellationToken)
                     .ConfigureAwait(false);
             }
 
-            await ReadBuildsAsync(
-                draft,
-                target,
-                repositoryId,
-                branch,
-                evidenceCommit,
-                auth,
-                client,
-                cancellationToken).ConfigureAwait(false);
+            var buildBranch = draft.PullRequest?.SourceBranch;
+            if (draft.PullRequest is null)
+            {
+                buildBranch = branch;
+            }
+
+            if (evidenceCommit is null || buildBranch is null)
+            {
+                draft.CiState = RemoteEvidenceState.Partial;
+                draft.CiResult = RemoteCiState.Unknown;
+                draft.Limitations.Add("Azure PR build evidence was not correlated because its source branch and head commit were not both established.");
+            }
+            else
+            {
+                await ReadBuildsAsync(
+                    draft,
+                    target,
+                    repositoryId,
+                    buildBranch,
+                    evidenceCommit,
+                    auth,
+                    client,
+                    cancellationToken).ConfigureAwait(false);
+            }
             return draft.Build();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -264,8 +316,8 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
                 RemoteEvidenceJson.Required(root, "pullRequestId"),
                 RemoteEvidenceJson.Required(root, "status"),
                 RemoteEvidenceJson.Boolean(root, "isDraft"),
-                StripRef(RemoteEvidenceJson.String(root, "sourceRefName")),
-                StripRef(RemoteEvidenceJson.String(root, "targetRefName")),
+                NormalizeBranch(RemoteEvidenceJson.String(root, "sourceRefName")),
+                NormalizeBranch(RemoteEvidenceJson.String(root, "targetRefName")),
                 lastSource,
                 lastTarget,
                 RemoteEvidenceJson.String(root, "mergeStatus")?.ToLowerInvariant() switch
@@ -331,7 +383,7 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
     {
         var response = await RemoteEvidenceHttp.GetJsonAsync(
             client,
-            target.Api($"commits/{Uri.EscapeDataString(commit)}/statuses?%24top={RemoteEvidenceLimits.MaxItems}&api-version=7.1"),
+            target.Api($"commits/{Uri.EscapeDataString(commit)}/statuses?top={RemoteEvidenceLimits.MaxItems}&api-version=7.1"),
             authorization,
             cancellationToken).ConfigureAwait(false);
         var (state, values, truncated) = ParseAzureStatuses(response, RemoteStatusKind.CommitStatus);
@@ -381,70 +433,121 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
         HttpClient client,
         CancellationToken cancellationToken)
     {
-        var uri = target.BuildApi(
-            $"builds?repositoryId={Uri.EscapeDataString(repositoryId)}&branchName={Uri.EscapeDataString(RemoteEvidenceBranches.Ref(branch))}&queryOrder=finishTimeDescending&%24top={RemoteEvidenceLimits.MaxItems}&api-version=7.1");
-        var response = await RemoteEvidenceHttp.GetJsonAsync(client, uri, authorization, cancellationToken).ConfigureAwait(false);
-        if (response.State is not RemoteEvidenceState.Available)
+        var query =
+            $"builds?repositoryId={Uri.EscapeDataString(repositoryId)}&branchName={Uri.EscapeDataString(RemoteEvidenceBranches.Ref(branch))}&queryOrder=finishTimeDescending&%24top={RemoteEvidenceLimits.MaxItems}&api-version=7.1";
+        for (var page = 0; page < RemoteEvidenceLimits.MaxPages; page++)
         {
-            draft.CiState = response.State;
-            draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= response.ErrorMessage;
-            return;
-        }
-
-        using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
-        if (document is null || !document.RootElement.TryGetProperty("value", out var builds) || builds.ValueKind is not JsonValueKind.Array)
-        {
-            draft.CiState = RemoteEvidenceState.InvalidResponse;
-            draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= error ?? "Azure build response was malformed.";
-            return;
-        }
-
-        try
-        {
-            var index = 0;
-            foreach (var build in builds.EnumerateArray())
+            var response = await RemoteEvidenceHttp.GetJsonAsync(
+                client,
+                target.BuildApi(query),
+                authorization,
+                cancellationToken).ConfigureAwait(false);
+            if (response.State is not RemoteEvidenceState.Available)
             {
-                if (index++ >= RemoteEvidenceLimits.MaxItems)
+                if (page == 0)
                 {
-                    draft.Limitations.Add("Azure builds were capped by the adapter bound.");
-                    break;
+                    draft.CiState = response.State;
+                    draft.CiResult = RemoteCiState.Unknown;
+                    draft.Error ??= response.ErrorMessage;
+                }
+                else
+                {
+                    draft.CiState = RemoteEvidenceState.Partial;
+                    draft.CiResult = PartialCiResult(draft.CiRuns);
+                    draft.Error ??= response.ErrorMessage;
+                    draft.Limitations.Add("Azure build pagination stopped before all pages were read.");
                 }
 
-                var sourceVersion = RemoteEvidenceJson.String(build, "sourceVersion");
-                if (sourceVersion is null || !sourceVersion.Equals(commit, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var id = RemoteEvidenceJson.Required(build, "id");
-                var name = build.TryGetProperty("definition", out var definition) &&
-                    RemoteEvidenceJson.String(definition, "name") is { } definitionName
-                    ? definitionName
-                    : RemoteEvidenceJson.String(build, "buildNumber") ?? "Azure build";
-                draft.CiRuns.Add(new RemoteCiRunEvidence(
-                    RemoteStatusKind.Build,
-                    id,
-                    name,
-                    FromBuild(RemoteEvidenceJson.String(build, "status"), RemoteEvidenceJson.String(build, "result")),
-                    RemoteEvidenceJson.String(build, "result"),
-                    StripRef(RemoteEvidenceJson.String(build, "sourceBranch")) ?? branch,
-                    sourceVersion,
-                    RemoteEvidenceJson.Time(build, "queueTime"),
-                    RemoteEvidenceJson.Time(build, "finishTime"),
-                    RemoteEvidenceJson.Time(build, "finishTime"),
-                    SafeAzureUri(build, "_links", "web", "href")));
+                return;
             }
 
-            draft.CiState = RemoteEvidenceState.Available;
-            draft.CiResult = RemoteEvidenceCi.Aggregate(draft.CiRuns);
-        }
-        catch (ArgumentException)
-        {
-            draft.CiState = RemoteEvidenceState.InvalidResponse;
-            draft.CiResult = RemoteCiState.Unknown;
-            draft.Error ??= "Azure build evidence was malformed.";
+            using var document = RemoteEvidenceJson.Parse(response.Body, out var error);
+            if (document is null || !document.RootElement.TryGetProperty("value", out var builds) || builds.ValueKind is not JsonValueKind.Array)
+            {
+                draft.CiState = RemoteEvidenceState.InvalidResponse;
+                draft.CiResult = RemoteCiState.Unknown;
+                draft.Error ??= error ?? "Azure build response was malformed.";
+                return;
+            }
+
+            try
+            {
+                var pageTruncated = false;
+                var index = 0;
+                foreach (var build in builds.EnumerateArray())
+                {
+                    if (index++ >= RemoteEvidenceLimits.MaxItems)
+                    {
+                        pageTruncated = true;
+                        break;
+                    }
+
+                    var sourceVersion = RemoteEvidenceJson.String(build, "sourceVersion");
+                    if (sourceVersion is null || !sourceVersion.Equals(commit, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var id = RemoteEvidenceJson.Required(build, "id");
+                    var name = build.TryGetProperty("definition", out var definition) &&
+                        RemoteEvidenceJson.String(definition, "name") is { } definitionName
+                        ? definitionName
+                        : RemoteEvidenceJson.String(build, "buildNumber") ?? "Azure build";
+                    draft.CiRuns.Add(new RemoteCiRunEvidence(
+                        RemoteStatusKind.Build,
+                        id,
+                        name,
+                        FromBuild(RemoteEvidenceJson.String(build, "status"), RemoteEvidenceJson.String(build, "result")),
+                        RemoteEvidenceJson.String(build, "result"),
+                        NormalizeBranch(RemoteEvidenceJson.String(build, "sourceBranch")) ?? branch,
+                        sourceVersion,
+                        RemoteEvidenceJson.Time(build, "queueTime"),
+                        RemoteEvidenceJson.Time(build, "finishTime"),
+                        RemoteEvidenceJson.Time(build, "finishTime"),
+                        SafeAzureUri(build, "_links", "web", "href")));
+                }
+
+                if (pageTruncated)
+                {
+                    draft.CiState = RemoteEvidenceState.Partial;
+                    draft.CiResult = PartialCiResult(draft.CiRuns);
+                    draft.Limitations.Add("Azure builds were capped by the adapter bound.");
+                    return;
+                }
+            }
+            catch (ArgumentException)
+            {
+                draft.CiState = RemoteEvidenceState.InvalidResponse;
+                draft.CiResult = RemoteCiState.Unknown;
+                draft.Error ??= "Azure build evidence was malformed.";
+                return;
+            }
+
+            if (response.ContinuationToken is null)
+            {
+                draft.CiState = RemoteEvidenceState.Available;
+                draft.CiResult = RemoteEvidenceCi.Aggregate(draft.CiRuns);
+                return;
+            }
+
+            if (draft.CiRuns.Count >= RemoteEvidenceLimits.MaxItems)
+            {
+                draft.CiState = RemoteEvidenceState.Partial;
+                draft.CiResult = PartialCiResult(draft.CiRuns);
+                draft.Limitations.Add("Azure build evidence was capped before the target commit was exhaustively searched.");
+                return;
+            }
+
+            if (page + 1 >= RemoteEvidenceLimits.MaxPages)
+            {
+                draft.CiState = RemoteEvidenceState.Partial;
+                draft.CiResult = PartialCiResult(draft.CiRuns);
+                draft.Limitations.Add("Azure build evidence was capped before the target commit was exhaustively searched.");
+                return;
+            }
+
+            query =
+                $"builds?repositoryId={Uri.EscapeDataString(repositoryId)}&branchName={Uri.EscapeDataString(RemoteEvidenceBranches.Ref(branch))}&queryOrder=finishTimeDescending&%24top={RemoteEvidenceLimits.MaxItems}&continuationToken={Uri.EscapeDataString(response.ContinuationToken)}&api-version=7.1";
         }
     }
 
@@ -535,12 +638,25 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
             _ => RemoteCiState.Pending
         };
 
-    private static string? StripRef(string? value) =>
-        value?.StartsWith("refs/heads/", StringComparison.OrdinalIgnoreCase) == true ? value[11..] : value;
+    private static RemoteCiState PartialCiResult(IReadOnlyCollection<RemoteCiRunEvidence> runs)
+    {
+        var aggregate = RemoteEvidenceCi.Aggregate(runs);
+        return aggregate is RemoteCiState.NoEvidence or RemoteCiState.Passing
+            ? RemoteCiState.Unknown
+            : aggregate;
+    }
+
+    private static string? NormalizeBranch(string? value) =>
+        RemoteEvidenceBranches.TryNormalize(value, out var branch) ? branch : null;
 
     private static Uri? SafeAzureUri(JsonElement element, string propertyName, params string[] nestedProperties)
     {
         var value = element;
+        if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(propertyName, out value))
+        {
+            return null;
+        }
+
         foreach (var property in nestedProperties)
         {
             if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(property, out value))
@@ -549,9 +665,7 @@ public sealed class AzureReposRemoteRepositoryEvidenceProvider : IRemoteReposito
             }
         }
 
-        var raw = nestedProperties.Length > 0
-            ? value.ValueKind == JsonValueKind.String ? RemoteEvidenceJson.Limit(value.GetString()) : null
-            : RemoteEvidenceJson.String(value, propertyName);
+        var raw = value.ValueKind == JsonValueKind.String ? RemoteEvidenceJson.Limit(value.GetString()) : null;
 
         return raw is not null && Uri.TryCreate(raw, UriKind.Absolute, out var uri) &&
             RemoteEvidenceUrl.IsSafeResponseUri(uri, "dev.azure.com", "*.visualstudio.com")

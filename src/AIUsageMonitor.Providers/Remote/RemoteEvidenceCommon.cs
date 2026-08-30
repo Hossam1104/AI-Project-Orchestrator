@@ -11,6 +11,9 @@ internal static class RemoteEvidenceLimits
 {
     public const int MaxResponseBytes = 512 * 1024;
     public const int MaxItems = 100;
+    public const int MaxPages = 3;
+    public const int MaxContinuationTokenLength = 1_024;
+    public const int MaxRetryAfterSeconds = 86_400;
     public const int MaxStringLength = 1_024;
     public const int MaxBranchLength = 256;
 }
@@ -18,7 +21,13 @@ internal static class RemoteEvidenceLimits
 internal sealed record RemoteHttpResult(
     RemoteEvidenceState State,
     string? Body = null,
-    string? ErrorMessage = null);
+    string? ErrorMessage = null,
+    HttpStatusCode? StatusCode = null,
+    Uri? NextPageUri = null,
+    bool HasNextPage = false,
+    string? ContinuationToken = null,
+    int? RateLimitRemaining = null,
+    int? RetryAfterSeconds = null);
 
 internal static class RemoteEvidenceHttp
 {
@@ -41,14 +50,40 @@ internal static class RemoteEvidenceHttp
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken).ConfigureAwait(false);
+            var (hasNextPage, nextPageUri) = ReadNextPage(response.Headers);
+            var continuationToken = ReadBoundedHeader(
+                response.Headers,
+                "x-ms-continuationtoken",
+                RemoteEvidenceLimits.MaxContinuationTokenLength);
+            var rateLimitRemaining = ReadBoundedInt(response.Headers, "x-ratelimit-remaining", int.MaxValue);
+            var retryAfterSeconds = ReadBoundedInt(
+                response.Headers,
+                "retry-after",
+                RemoteEvidenceLimits.MaxRetryAfterSeconds);
             if (!response.IsSuccessStatusCode)
             {
-                return new(MapStatus(response.StatusCode), ErrorMessage(response.StatusCode));
+                return new(
+                    MapStatus(response.StatusCode),
+                    ErrorMessage: ErrorMessage(response.StatusCode),
+                    StatusCode: response.StatusCode,
+                    NextPageUri: nextPageUri,
+                    HasNextPage: hasNextPage,
+                    ContinuationToken: continuationToken,
+                    RateLimitRemaining: rateLimitRemaining,
+                    RetryAfterSeconds: retryAfterSeconds);
             }
 
             if (response.Content.Headers.ContentLength > RemoteEvidenceLimits.MaxResponseBytes)
             {
-                return new(RemoteEvidenceState.InvalidResponse, ErrorMessage: "Remote response exceeded its bounded size.");
+                return new(
+                    RemoteEvidenceState.InvalidResponse,
+                    ErrorMessage: "Remote response exceeded its bounded size.",
+                    StatusCode: response.StatusCode,
+                    NextPageUri: nextPageUri,
+                    HasNextPage: hasNextPage,
+                    ContinuationToken: continuationToken,
+                    RateLimitRemaining: rateLimitRemaining,
+                    RetryAfterSeconds: retryAfterSeconds);
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -64,13 +99,29 @@ internal static class RemoteEvidenceHttp
 
                 if (memory.Length + read > RemoteEvidenceLimits.MaxResponseBytes)
                 {
-                    return new(RemoteEvidenceState.InvalidResponse, ErrorMessage: "Remote response exceeded its bounded size.");
+                    return new(
+                        RemoteEvidenceState.InvalidResponse,
+                        ErrorMessage: "Remote response exceeded its bounded size.",
+                        StatusCode: response.StatusCode,
+                        NextPageUri: nextPageUri,
+                        HasNextPage: hasNextPage,
+                        ContinuationToken: continuationToken,
+                        RateLimitRemaining: rateLimitRemaining,
+                        RetryAfterSeconds: retryAfterSeconds);
                 }
 
                 memory.Write(buffer, 0, read);
             }
 
-            return new(RemoteEvidenceState.Available, Encoding.UTF8.GetString(memory.ToArray()));
+            return new(
+                RemoteEvidenceState.Available,
+                Encoding.UTF8.GetString(memory.ToArray()),
+                StatusCode: response.StatusCode,
+                NextPageUri: nextPageUri,
+                HasNextPage: hasNextPage,
+                ContinuationToken: continuationToken,
+                RateLimitRemaining: rateLimitRemaining,
+                RetryAfterSeconds: retryAfterSeconds);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -109,6 +160,85 @@ internal static class RemoteEvidenceHttp
         >= HttpStatusCode.InternalServerError => "The remote provider was unavailable.",
         _ => "The remote provider returned an unusable response."
     };
+
+    private static (bool HasNextPage, Uri? NextPageUri) ReadNextPage(HttpHeaders headers)
+    {
+        if (!headers.TryGetValues("Link", out var values))
+        {
+            return (false, null);
+        }
+
+        var hasNextPage = false;
+        foreach (var header in values)
+        {
+            foreach (var entry in header.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = entry.Split(';');
+                if (parts.Length < 2)
+                {
+                    continue;
+                }
+
+                var link = parts[0].Trim();
+                if (link.Length < 3 || link[0] != '<' || link[^1] != '>')
+                {
+                    continue;
+                }
+
+                var isNext = parts.Skip(1).Any(part =>
+                {
+                    var attribute = part.Trim();
+                    var separator = attribute.IndexOf('=');
+                    return separator > 0 &&
+                        attribute[..separator].Trim().Equals("rel", StringComparison.OrdinalIgnoreCase) &&
+                        attribute[(separator + 1)..].Trim().Trim('"').Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                            .Any(value => value.Equals("next", StringComparison.OrdinalIgnoreCase));
+                });
+                if (!isNext)
+                {
+                    continue;
+                }
+
+                hasNextPage = true;
+                if (!Uri.TryCreate(link[1..^1], UriKind.Absolute, out var uri) ||
+                    uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo) ||
+                    uri.Fragment.Length != 0 ||
+                    !uri.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase) &&
+                    !uri.Host.Equals("dev.azure.com", StringComparison.OrdinalIgnoreCase) &&
+                    !uri.Host.EndsWith(".visualstudio.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                return (true, uri);
+            }
+        }
+
+        return (hasNextPage, null);
+    }
+
+    private static string? ReadBoundedHeader(HttpHeaders headers, string name, int maxLength)
+    {
+        if (!headers.TryGetValues(name, out var values))
+        {
+            return null;
+        }
+
+        var value = values.FirstOrDefault()?.Trim();
+        return value is not null && value.Length > 0 && value.Length <= maxLength && !value.Any(char.IsControl)
+            ? value
+            : null;
+    }
+
+    private static int? ReadBoundedInt(HttpHeaders headers, string name, int maximum)
+    {
+        var value = ReadBoundedHeader(headers, name, 32);
+        return value is not null &&
+            int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) &&
+            parsed >= 0 && parsed <= maximum
+            ? parsed
+            : null;
+    }
 }
 
 internal static class RemoteEvidenceJson
@@ -365,6 +495,15 @@ internal static class RemoteEvidenceUrl
         string.IsNullOrEmpty(uri.UserInfo) && uri.Query.Length == 0 && uri.Fragment.Length == 0 &&
         allowedHosts.Any(host => uri.Host.Equals(host, StringComparison.OrdinalIgnoreCase) ||
             host.StartsWith("*.", StringComparison.Ordinal) && uri.Host.EndsWith(host[1..], StringComparison.OrdinalIgnoreCase));
+
+    public static bool IsSafeGitHubNextPage(Uri? uri, GitHubTarget target, Uri current) =>
+        uri is not null && uri.Scheme == Uri.UriSchemeHttps &&
+        uri.Host.Equals("api.github.com", StringComparison.OrdinalIgnoreCase) &&
+        string.IsNullOrEmpty(uri.UserInfo) && uri.Fragment.Length == 0 &&
+        uri.AbsolutePath.Equals(current.AbsolutePath, StringComparison.Ordinal) &&
+        uri.AbsolutePath.StartsWith(
+            $"/repos/{Uri.EscapeDataString(target.Owner)}/{Uri.EscapeDataString(target.Repository)}/",
+            StringComparison.Ordinal);
 
     private static IReadOnlyList<string>? PathParts(string? path)
     {
