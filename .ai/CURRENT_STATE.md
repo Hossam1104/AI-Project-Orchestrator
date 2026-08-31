@@ -4719,3 +4719,84 @@ Story.
 **Next planner boundary:**
 
 > APO-48 Product Prompt 5/5 implementation is complete and awaits GPT-5.6 Sol exact-head review. PR remains OPEN / DRAFT / UNMERGED and APO-48 remains In Progress. The five-product-prompt checkpoint has been reached. Do not mark Ready or merge. Do not invoke Claude Opus from the executor. After Sol exact-head review, the independent reviewer checkpoint requires a separate Sol-authorized reviewer prompt under the standalone lowercase `p` gate. Do not begin APO-49, APO-63, APO-50, Mission Control, or another product Story.
+
+## 60. APO-48 Product Prompt 5/5R independent validation evidence and QA gate remediation handoff (31 August 2026)
+
+This section records the bounded remediation submitted against Sol review comment `12308`. Section
+59 remains the pre-remediation handoff history; this section is the current factual handoff and does
+not authorize merge, readiness promotion, tracker completion, human approval, waiver issuance, or a
+downstream Story.
+
+### Identity and route
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`; branch:
+  `feat/APO-48-independent-validation-evidence-gates`.
+- Starting rejected head/tree: `dac6de8c88736aacca82dbb246699784027d1001` /
+  `f45d7cf3ef8c7474c339f89fc674656e5bf6085f`.
+- Authorized `main` head/tree: `98cb8e86bad0729aa07d33ec6f93b86a49a668bf` /
+  `a59b0a5a4dcd9f5d1366fd3a775c8e045aa27597`.
+- Executor route: GPT-5.6 Luna xHigh / OpenAI-Codex / Tier 4.
+- Jira states remain `APO-48 = In Progress`, `APO-49 = To Do`, and `APO-63 = To Do`.
+- Product prompt counter remains `5/5`; Opus checkpoint is due but was not invoked.
+
+### Remediation submitted
+
+- `SOL-48-01`: shared exact authority binding validates project, run, planning contract, graph/node,
+  handoff, workspace, receipt hash, and current/input Recovery checkpoint identities before plan
+  persistence, capture, or gate satisfaction; mismatch capture invokes zero collectors.
+- `SOL-48-02`: Remote CI evidence binds explicit PR checks to the exact PR head or non-PR checks to
+  the exact branch head, rejecting missing and conflicting CI commit identities.
+- `SOL-48-03`: regression plans carry an immutable exact baseline plan/evidence reference and a
+  provider-independent definition identity; production capture resolves that binding explicitly.
+- Plan revision semantics are truthful: plans and evidence are stored/read by exact plan revision
+  and content hash, with no latest-revision inference.
+- `SOL-48-04`: evidence is enumerated under the exact plan revision with complete-set states;
+  corruption, capacity overflow, unsupported versions, permission, and I/O failures are not mapped
+  to ordinary missing evidence.
+- `SOL-48-05`: IClock-backed not-before and MaxAge boundaries reject stale, pre-epoch, and future
+  evidence; Recovery freshness maps fresh, stale, failed, partial, and future evidence truthfully.
+- `SOL-48-06`: all-optional plans are rejected at construction, preserving the Recovery satisfied
+  gate evidence invariant.
+- `SOL-48-07`: focused coverage is 74 tests across four APO-48 classes, including authority,
+  A/B commit binding, baseline lifecycle, revisions, >128 cross-plan evidence, freshness, Recovery,
+  redaction, process outcomes, and read-only boundaries.
+
+### Functional commit and validation
+
+- Functional remediation SHA/tree/parent: `5df6dc46761b38b6211ec09026dc819604e6b0b9` /
+  `40d425c255b1331619f7c234586a6e331434866d` /
+  `dac6de8c88736aacca82dbb246699784027d1001`.
+- Restore passed; build passed with 0 warnings and 0 errors; `git diff --check` passed.
+- Focused APO-48: 74 passed, 0 failed, 0 skipped.
+- Full solution: Domain 28, Connection 248, Provider 138, Desktop 83, Infrastructure 592;
+  total 1,089 passed, 0 failed, 0 skipped.
+- Global schema remains V1 (`JsonFileStore.CurrentSchemaVersion = 1`); no package or global schema
+  change was made.
+
+### Security, runtime, and product boundary
+
+- Structured fixed `dotnet` executable with `ArgumentList`, `--no-restore`, bounded timeout/output,
+  explicit workspace path, no shell, no arbitrary executable, no retry, and no raw diagnostic
+  persistence remains in force. Existing managed workspace reparse-point validation is preserved.
+- Credential/redaction findings: 0. Unsafe path, secret-shaped output, and collector identity
+  violations fail closed.
+- Product boundary remains read-only: no remote SCM state-changing request, Git mutation, PR
+  mutation, CI trigger, source-content retrieval, human approval, waiver issuance, or remote delivery.
+- No WPF launch occurred: `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`.
+- Dependency-condition validation is not part of accepted APO-48 scope; tracker status and identity
+  behavior only are implemented.
+
+### Delivery and exact-head boundary
+
+- Draft PR #25 targets `main` and remains `OPEN / DRAFT / UNMERGED`.
+- The functional commit was pushed normally. The metadata-only commit is its direct child and
+  changes only `TASK.md` and `.ai/CURRENT_STATE.md`; exact final metadata SHA/tree are recorded in
+  the final executor report.
+- Exact-head GitHub statuses, checks, and workflow runs are verified after the metadata push; absent
+  CI is reported as `GitHub CI = NONE / NOT CLAIMED`.
+- One Jira remediation evidence comment will be added to APO-48 after exact-head validation and will
+  reference Sol comment `12308`; no Jira transition is authorized.
+
+**Next planner boundary:**
+
+> APO-48 Product Prompt 5/5R remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #25 remains OPEN / DRAFT / UNMERGED and APO-48 remains In Progress. Product prompt counter remains 5/5. The independent Claude Opus checkpoint remains due but must not be invoked until Sol accepts the remediated exact head. Do not begin APO-49, APO-63, APO-50, Mission Control, or another Product Story.
