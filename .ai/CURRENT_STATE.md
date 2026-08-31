@@ -4800,3 +4800,86 @@ downstream Story.
 **Next planner boundary:**
 
 > APO-48 Product Prompt 5/5R remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #25 remains OPEN / DRAFT / UNMERGED and APO-48 remains In Progress. Product prompt counter remains 5/5. The independent Claude Opus checkpoint remains due but must not be invoked until Sol accepts the remediated exact head. Do not begin APO-49, APO-63, APO-50, Mission Control, or another Product Story.
+
+## 61. APO-48 Product Prompt 5/5R2 residual validation lifecycle and security snapshot remediation (31 August 2026)
+
+This section records the bounded residual remediation submitted against Sol exact-head re-review
+comment `12343`. Sections 1-60 remain historical truth; this section is the current factual
+handoff and does not authorize merge, readiness promotion, tracker completion, human approval,
+waiver issuance, or a downstream Story.
+
+### Identity, authority, and tracker
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`; branch:
+  `feat/APO-48-independent-validation-evidence-gates`.
+- Authorized `main` head/tree: `98cb8e86bad0729aa07d33ec6f93b86a49a668bf` /
+  `a59b0a5a4dcd9f5d1366fd3a775c8e045aa27597`.
+- Residual remediation parent head/tree: `768d8db5a863af32c7a2fd0a1b22e94681b1b1d` /
+  `9add1feff396b81e5148776e523835a24ead6aed`.
+- Jira remains `APO-48 = In Progress`, `APO-49 = To Do`, and `APO-63 = To Do`.
+- Sol exact-head comment `12343` remains `CHANGES REQUIRED`; factual remediation handoff comment
+  `12344` was added exactly once and verified.
+- Product prompt counter remains `5/5`; the independent Claude Opus checkpoint is due but was not
+  invoked.
+
+### Residual implementation
+
+- `SOL-48-01R`: `ValidationAuthorityBindingValidator` now distinguishes the pre-run authority
+  input checkpoint from the post-execution terminal checkpoint. Trusted plan creation, capture,
+  and gate evaluation require the exact current canonical continuation head, a bounded valid
+  predecessor lineage reaching the authority input, and stable APO-45 execution-run evidence
+  bound to the authority content hash. The terminal must be `Ready` with `RunValidation` as the
+  next safe action.
+- `SOL-48-04R`: `JsonValidationEvidenceRepository.GetForPlanAsync` uses lazy directory enumeration
+  with a bounded `MaxEvidenceItems + 1` look-ahead and returns `CapacityExceeded` without
+  materializing an unbounded directory list.
+- `SOL-48-08`: Security capture requires complete required non-Security evidence for the exact
+  plan revision, persists an immutable hash and evidence-reference snapshot, and prevents later
+  non-Security capture. Gate evaluation rejects missing, changed, unbound, or tampered evidence
+  outside the exact Security snapshot.
+- Existing exact remote-CI identity, explicit baseline/revision, deterministic freshness, and
+  all-optional rejection behavior was preserved; no accepted finding was regressed.
+- The actual `BoundedExecutionService` successful path now feeds its real terminal checkpoint into
+  APO-48 trusted plan creation, evidence capture, and gate evaluation in deterministic integration
+  coverage.
+
+### Functional commit and validation
+
+- Functional SHA/tree/parent: `b526671012d175b4fb03d073e0586684efd0fbbf` /
+  `76d6f12a902ae40f76e1334f1e60feec60e5aabc` /
+  `768d8db5a863af32c7a2fd0a1b22e94681b1b1d`.
+- Changed functional files are limited to the application validation model/service, infrastructure
+  validation record/repository/collector, and focused Connection/Infrastructure tests.
+- `dotnet restore AIUsageMonitor.sln`: passed; all projects up to date.
+- `dotnet build AIUsageMonitor.sln --no-restore`: 0 warnings, 0 errors.
+- Full solution: Domain 28, Provider 138, Connection 248, Desktop 83, Infrastructure 607;
+  total 1,104 passed, 0 failed, 0 skipped.
+- Focused APO-48 residual coverage: 76 passed, 0 failed, 0 skipped.
+- `git diff --check`: PASS. `JsonFileStore.CurrentSchemaVersion = 1`; no global schema or package
+  change.
+
+### Safety and runtime boundary
+
+- Credential, redaction, path, collector identity, and bounded process safety remain fail closed;
+  raw diagnostics are not persisted and no credentials were disclosed.
+- `CREDENTIAL DISCLOSURE FINDINGS = 0`.
+- No WPF launch occurred: `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`.
+- No automatic validation retry, Security recapture, next-action execution, remote SCM mutation,
+  PR mutation, CI trigger, release, human approval, or waiver issuance was performed.
+- Tracker dependency-condition semantics remain outside accepted APO-48 scope; tracker status and
+  identity behavior only are implemented.
+
+### Delivery and exact-head boundary
+
+- Draft PR #25 targets `main` and remains `OPEN / DRAFT / UNMERGED`; `origin/main` remains the
+  authorized baseline.
+- Functional delivery was pushed normally. The required metadata-only commit directly follows it
+  and changes exactly `TASK.md` and `.ai/CURRENT_STATE.md`.
+- Final exact-head GitHub statuses, check runs, and workflow runs are checked after the metadata
+  push. No CI pass is claimed; absent exact-head evidence is reported as
+  `GitHub CI = NONE / NOT CLAIMED`.
+- No Jira transition was performed. Sol exact-head re-review is the next authority boundary.
+
+### Planner boundary
+
+> APO-48 Product Prompt 5/5R2 residual remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #25 remains OPEN / DRAFT / UNMERGED and APO-48 remains In Progress. Product prompt counter remains 5/5. The independent Claude Opus checkpoint remains due but must not be invoked until Sol accepts the remediated exact head. Do not begin APO-49, APO-63, APO-50, Mission Control, or another Product Story.
