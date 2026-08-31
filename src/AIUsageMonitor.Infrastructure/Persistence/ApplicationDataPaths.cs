@@ -257,26 +257,36 @@ public sealed class ApplicationDataPaths
     public string GetProjectValidationPlansDirectory(Guid projectId) =>
         Path.Combine(GetProjectValidationDirectory(projectId), "plans");
 
-    public string GetValidationPlanDirectory(Guid projectId, Guid planId)
+    public string GetValidationPlanDirectory(Guid projectId, Guid planId, int revision)
     {
         ValidateGuid(planId, nameof(planId));
-        return Path.Combine(GetProjectValidationPlansDirectory(projectId), planId.ToString("D"));
+        if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
+        return Path.Combine(GetProjectValidationPlansDirectory(projectId), planId.ToString("D"), "revisions", revision.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    public string GetValidationPlanFile(Guid projectId, Guid planId) =>
-        Path.Combine(GetValidationPlanDirectory(projectId, planId), "plan.json");
+    public string GetValidationPlanFile(Guid projectId, Guid planId, int revision) =>
+        Path.Combine(GetValidationPlanDirectory(projectId, planId, revision), "plan.json");
 
     public string GetProjectValidationEvidenceDirectory(Guid projectId) =>
         Path.Combine(GetProjectValidationDirectory(projectId), "evidence");
 
-    public string GetValidationEvidenceDirectory(Guid projectId, Guid evidenceId)
+    public string GetValidationEvidenceRevisionDirectory(Guid projectId, Guid planId, int revision)
     {
-        ValidateGuid(evidenceId, nameof(evidenceId));
-        return Path.Combine(GetProjectValidationEvidenceDirectory(projectId), evidenceId.ToString("D"));
+        ValidateGuid(planId, nameof(planId));
+        if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
+        return Path.Combine(GetProjectValidationEvidenceDirectory(projectId), planId.ToString("D"), "revisions", revision.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    public string GetValidationEvidenceFile(Guid projectId, Guid evidenceId) =>
-        Path.Combine(GetValidationEvidenceDirectory(projectId, evidenceId), "evidence.json");
+    public string GetValidationEvidenceDirectory(Guid projectId, Guid planId, int revision, Guid evidenceId)
+    {
+        ValidateGuid(planId, nameof(planId));
+        if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
+        ValidateGuid(evidenceId, nameof(evidenceId));
+        return Path.Combine(GetValidationEvidenceRevisionDirectory(projectId, planId, revision), evidenceId.ToString("D"));
+    }
+
+    public string GetValidationEvidenceFile(Guid projectId, Guid planId, int revision, Guid evidenceId) =>
+        Path.Combine(GetValidationEvidenceDirectory(projectId, planId, revision, evidenceId), "evidence.json");
 
     public string GetProjectValidationDecisionsDirectory(Guid projectId) =>
         Path.Combine(GetProjectValidationDirectory(projectId), "decisions");

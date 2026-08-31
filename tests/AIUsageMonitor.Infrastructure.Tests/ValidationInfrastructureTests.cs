@@ -85,9 +85,10 @@ public sealed class ValidationInfrastructureTests
 
         Assert.Equal(ValidationPlanRepositoryWriteStatus.Created, (await plans.CreateAsync(plan)).Status);
         Assert.Equal(ValidationPlanRepositoryWriteStatus.PlanConflict, (await plans.CreateAsync(plan)).Status);
-        Assert.True((await plans.GetAsync(plan.ProjectId, plan.PlanId)).IsValid);
+        Assert.True((await plans.GetAsync(plan.ProjectId, plan.Reference)).IsValid);
         Assert.Equal(ValidationEvidenceRepositoryWriteStatus.Created, (await evidenceRepository.CreateAsync(evidence)).Status);
-        Assert.True((await evidenceRepository.GetAsync(evidence.ProjectId, evidence.EvidenceId)).IsValid);
+        Assert.True((await evidenceRepository.GetAsync(evidence.ProjectId, evidence.PlanReference, evidence.Reference)).IsValid);
+        Assert.True((await evidenceRepository.GetForPlanAsync(evidence.ProjectId, evidence.PlanReference)).IsComplete);
         Assert.Equal(ValidationDecisionRepositoryWriteStatus.Created, (await decisionRepository.CreateAsync(decision)).Status);
         Assert.True((await decisionRepository.GetAsync(decision.ProjectId, decision.DecisionId)).IsValid);
     }
@@ -103,11 +104,12 @@ public sealed class ValidationInfrastructureTests
             new FakeEvidenceRepository([evidence]),
             new FakeDecisionRepository(),
             new FakeAuthorityRepository(context.Authority),
+            new FakeReceiptRepository(context.WorkspaceReceipt),
             new FakeCheckpointRepository(context.CurrentCheckpoint),
             recovery,
             new FixedClock(context.Plan.CreatedAt.AddMinutes(2)));
 
-        var result = await service.EvaluateAsync(new ValidationGateRequest(context.Plan.ProjectId, context.Plan.PlanId, context.Plan.CurrentRecoveryCheckpointReference));
+        var result = await service.EvaluateAsync(new ValidationGateRequest(context.Plan.ProjectId, context.Plan.Reference, context.Plan.CurrentRecoveryCheckpointReference));
 
         Assert.True(result.Succeeded);
         Assert.Equal(ValidationGateDecisionState.Satisfied, result.Decision!.State);
@@ -153,7 +155,7 @@ public sealed class ValidationInfrastructureTests
             plan.ExecutionRunAuthorityReference, plan.PlanningContractReference, plan.WorkGraphReference, plan.WorkGraphNodeId,
             plan.CurrentRecoveryCheckpointReference, plan.WorkspaceId, plan.WorkspacePath, plan.WorkspaceReceiptContentHash,
             requirement.CollectorIdentifier, requirement.EvidenceKind, ValidationEvidenceState.Available, ValidationOutcome.Passed,
-            requirement.Coverage, requirement.BaselineRelation, plan.CreatedAt.AddMinutes(1));
+            requirement.Coverage, requirement.BaselineRelation, plan.CreatedAt.AddMinutes(1), validationDefinitionId: requirement.ValidationDefinitionId);
     }
 
     private static string Hash(char value) => new(value, 64);
@@ -179,14 +181,14 @@ public sealed class ValidationInfrastructureTests
     private sealed class FakePlanRepository(ValidationPlan plan) : IValidationPlanRepository
     {
         public Task<ValidationPlanRepositoryWriteResult> CreateAsync(ValidationPlan value, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationPlanRepositoryWriteResult(ValidationPlanRepositoryWriteStatus.Created));
-        public Task<ValidationPlanReadResult> GetAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationPlanReadResult(ValidationPlanReadState.Valid, plan));
+        public Task<ValidationPlanReadResult> GetAsync(Guid projectId, ValidationPlanReference reference, CancellationToken cancellationToken = default) => Task.FromResult(reference == plan.Reference ? new ValidationPlanReadResult(ValidationPlanReadState.Valid, plan) : new ValidationPlanReadResult(ValidationPlanReadState.Missing));
     }
 
     private sealed class FakeEvidenceRepository(IReadOnlyList<ValidationEvidence> values) : IValidationEvidenceRepository
     {
         public Task<ValidationEvidenceRepositoryWriteResult> CreateAsync(ValidationEvidence evidence, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceRepositoryWriteResult(ValidationEvidenceRepositoryWriteStatus.Created));
-        public Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, Guid evidenceId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceReadResult(ValidationEvidenceReadState.Valid, values.Single(value => value.EvidenceId == evidenceId)));
-        public Task<IReadOnlyList<ValidationEvidence>> GetForPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default) => Task.FromResult(values);
+        public Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, ValidationPlanReference planReference, ValidationEvidenceReference evidenceReference, CancellationToken cancellationToken = default) => Task.FromResult(values.SingleOrDefault(value => value.EvidenceId == evidenceReference.EvidenceId && value.PlanReference == planReference) is { } value ? new ValidationEvidenceReadResult(ValidationEvidenceReadState.Valid, value) : new ValidationEvidenceReadResult(ValidationEvidenceReadState.Missing));
+        public Task<ValidationEvidenceSetReadResult> GetForPlanAsync(Guid projectId, ValidationPlanReference planReference, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceSetReadResult(ValidationEvidenceSetReadState.Valid, values.Where(value => value.PlanReference == planReference).ToArray()));
     }
 
     private sealed class FakeDecisionRepository : IValidationGateDecisionRepository
@@ -199,6 +201,12 @@ public sealed class ValidationInfrastructureTests
     {
         public Task<ExecutionRunAuthorityRepositoryWriteResult> CreateAsync(ExecutionRunAuthority value, CancellationToken cancellationToken = default) => Task.FromResult(new ExecutionRunAuthorityRepositoryWriteResult(ExecutionRunAuthorityRepositoryWriteStatus.Created));
         public Task<ExecutionRunAuthorityReadResult> GetAsync(Guid projectId, Guid runId, CancellationToken cancellationToken = default) => Task.FromResult(new ExecutionRunAuthorityReadResult(ExecutionRunAuthorityReadState.Valid, authority));
+    }
+
+    private sealed class FakeReceiptRepository(WorkspacePreparationReceipt receipt) : IWorkspacePreparationReceiptRepository
+    {
+        public Task<WorkspacePreparationReceiptWriteResult> CreateAsync(WorkspacePreparationReceipt value, CancellationToken cancellationToken = default) => Task.FromResult(new WorkspacePreparationReceiptWriteResult(WorkspacePreparationReceiptWriteStatus.Created));
+        public Task<WorkspacePreparationReceiptReadResult> GetAsync(Guid projectId, Guid workspaceId, CancellationToken cancellationToken = default) => Task.FromResult(new WorkspacePreparationReceiptReadResult(WorkspacePreparationReceiptReadState.Valid, receipt));
     }
 
     private sealed class FakeCheckpointRepository(RecoveryCheckpoint checkpoint) : IRecoveryCheckpointRepository

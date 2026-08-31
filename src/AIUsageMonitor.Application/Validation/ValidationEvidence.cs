@@ -112,6 +112,12 @@ public static class ValidationReasonCodes
     public const string RepositoryMismatch = "RepositoryIdentityMismatch";
     public const string TrackerMismatch = "TrackerIdentityMismatch";
     public const string SecurityBoundaryInvalid = "SecurityBoundaryInvalid";
+    public const string AuthorityMismatch = "ValidationAuthorityMismatch";
+    public const string EvidenceTimestampInFuture = "EvidenceTimestampInFuture";
+    public const string EvidenceBeforeValidationEpoch = "EvidenceBeforeValidationEpoch";
+    public const string ProviderEvidenceStale = "ProviderEvidenceStale";
+    public const string RemoteCiCommitIdentityMissing = "RemoteCiCommitIdentityMissing";
+    public const string RemoteCiCommitConflict = "RemoteCiCommitConflict";
 }
 
 public sealed class ValidationPlanReference
@@ -169,6 +175,25 @@ public sealed class ValidationEvidenceReference
         $"validation-evidence:{EvidenceId:D}/schema:{SchemaVersion}/sha256:{ContentHash}";
 }
 
+public sealed class ValidationBaselineBinding
+{
+    public ValidationBaselineBinding(
+        ValidationPlanReference planReference,
+        ValidationEvidenceReference evidenceReference,
+        string validationDefinitionId)
+    {
+        PlanReference = planReference ?? throw new ArgumentNullException(nameof(planReference));
+        EvidenceReference = evidenceReference ?? throw new ArgumentNullException(nameof(evidenceReference));
+        ValidationDefinitionId = string.IsNullOrWhiteSpace(validationDefinitionId) || validationDefinitionId.Trim().Length > 200
+            ? throw new ArgumentException("A bounded validation-definition identity is required.", nameof(validationDefinitionId))
+            : validationDefinitionId.Trim();
+    }
+
+    public ValidationPlanReference PlanReference { get; }
+    public ValidationEvidenceReference EvidenceReference { get; }
+    public string ValidationDefinitionId { get; }
+}
+
 public sealed class ValidationGateDecisionReference
 {
     public ValidationGateDecisionReference(Guid decisionId, int schemaVersion, string contentHash)
@@ -218,7 +243,9 @@ public sealed class ValidationRequirement
         ValidationEvidenceState? expectedState = null,
         ValidationOutcome? expectedOutcome = null,
         string? requestedBranch = null,
-        int? pullRequestNumber = null)
+        int? pullRequestNumber = null,
+        string? validationDefinitionId = null,
+        ValidationBaselineBinding? baselineBinding = null)
     {
         RequirementId = RequiredText(requirementId, nameof(requirementId), 200);
         if (!Enum.IsDefined(evidenceKind) || !Enum.IsDefined(coverage) || !Enum.IsDefined(baselineRelation))
@@ -256,6 +283,13 @@ public sealed class ValidationRequirement
         ExpectedOutcome = expectedOutcome;
         RequestedBranch = Optional(requestedBranch, nameof(requestedBranch), 500);
         PullRequestNumber = pullRequestNumber;
+        if (baselineRelation == ValidationBaselineRelation.Regression && baselineBinding is null)
+            throw new ArgumentException("Regression requirements must bind an exact immutable baseline.", nameof(baselineBinding));
+        if (baselineRelation != ValidationBaselineRelation.Regression && baselineBinding is not null)
+            throw new ArgumentException("Only regression requirements may carry a baseline binding.", nameof(baselineBinding));
+        ValidationDefinitionId = Optional(validationDefinitionId, nameof(validationDefinitionId), 200) ??
+            ValidationDefinitionIdentity.Compute(this);
+        BaselineBinding = baselineBinding;
     }
 
     public string RequirementId { get; }
@@ -281,6 +315,8 @@ public sealed class ValidationRequirement
     public ValidationOutcome? ExpectedOutcome { get; }
     public string? RequestedBranch { get; }
     public int? PullRequestNumber { get; }
+    public string ValidationDefinitionId { get; }
+    public ValidationBaselineBinding? BaselineBinding { get; }
 
     private static string RequiredText(string value, string parameterName, int max) =>
         Optional(value, parameterName, max) ?? throw new ArgumentException("A bounded value is required.", parameterName);
@@ -293,6 +329,43 @@ public sealed class ValidationRequirement
             ? normalized
             : throw new ArgumentException($"The value cannot exceed {max} characters.", parameterName);
     }
+}
+
+public static class ValidationDefinitionIdentity
+{
+    public static string Compute(ValidationRequirement value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        var payload = new
+        {
+            value.EvidenceKind, value.Coverage, value.CollectorIdentifier, maxAgeSeconds = value.MaxAge?.TotalSeconds,
+            value.AllowFullEvidenceForTargeted, value.TargetPath, value.TestFilter, timeoutSeconds = value.Timeout?.TotalSeconds,
+            value.ExpectedBranchName, value.RequireCleanWorktree, value.ExpectedRepositoryIdentity,
+            value.ExpectedTrackerProjectId, value.ExpectedTrackerWorkItemKey, value.ExpectedTrackerStatus,
+            value.ExpectedState, value.ExpectedOutcome, value.RequestedBranch, value.PullRequestNumber
+        };
+        return "validation-definition:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload)))).ToLowerInvariant();
+    }
+}
+
+public static class ValidationRequirementCompatibility
+{
+    public static bool AreCompatible(ValidationRequirement left, ValidationRequirement right) =>
+        string.Equals(left.ValidationDefinitionId, right.ValidationDefinitionId, StringComparison.Ordinal) &&
+        left.EvidenceKind == right.EvidenceKind && left.Coverage == right.Coverage &&
+        left.AllowFullEvidenceForTargeted == right.AllowFullEvidenceForTargeted &&
+        string.Equals(left.CollectorIdentifier, right.CollectorIdentifier, StringComparison.Ordinal) &&
+        left.MaxAge == right.MaxAge && string.Equals(left.TargetPath, right.TargetPath, StringComparison.Ordinal) &&
+        string.Equals(left.TestFilter, right.TestFilter, StringComparison.Ordinal) && left.Timeout == right.Timeout &&
+        string.Equals(left.ExpectedBranchName, right.ExpectedBranchName, StringComparison.Ordinal) &&
+        left.RequireCleanWorktree == right.RequireCleanWorktree &&
+        string.Equals(left.ExpectedRepositoryIdentity, right.ExpectedRepositoryIdentity, StringComparison.Ordinal) &&
+        string.Equals(left.ExpectedTrackerProjectId, right.ExpectedTrackerProjectId, StringComparison.Ordinal) &&
+        string.Equals(left.ExpectedTrackerWorkItemKey, right.ExpectedTrackerWorkItemKey, StringComparison.Ordinal) &&
+        string.Equals(left.ExpectedTrackerStatus, right.ExpectedTrackerStatus, StringComparison.Ordinal) &&
+        left.ExpectedState == right.ExpectedState && left.ExpectedOutcome == right.ExpectedOutcome &&
+        string.Equals(left.RequestedBranch, right.RequestedBranch, StringComparison.Ordinal) &&
+        left.PullRequestNumber == right.PullRequestNumber;
 }
 
 public sealed class ValidationPlan
@@ -313,7 +386,8 @@ public sealed class ValidationPlan
         IReadOnlyList<ValidationRequirement> requirements,
         HandoffPackageReference? handoffPackageReference = null,
         int schemaVersion = ValidationSchema.CurrentVersion,
-        string? contentHash = null)
+        string? contentHash = null,
+        DateTimeOffset? evidenceNotBefore = null)
     {
         if (projectId == Guid.Empty || planId == Guid.Empty || workspaceId == Guid.Empty)
             throw new ArgumentException("Project, plan, and workspace identifiers are required.");
@@ -321,6 +395,8 @@ public sealed class ValidationPlan
             throw new ArgumentException("Only the current validation-plan schema is supported.");
         if (createdAt == default)
             throw new ArgumentException("Validation-plan creation time is required.", nameof(createdAt));
+        if (evidenceNotBefore is { } suppliedNotBefore && (suppliedNotBefore == default || suppliedNotBefore > createdAt))
+            throw new ArgumentException("Validation evidence lower boundary is invalid.", nameof(evidenceNotBefore));
         ExecutionRunAuthorityReference = executionRunAuthorityReference ?? throw new ArgumentNullException(nameof(executionRunAuthorityReference));
         PlanningContractReference = planningContractReference ?? throw new ArgumentNullException(nameof(planningContractReference));
         WorkGraphReference = workGraphReference ?? throw new ArgumentNullException(nameof(workGraphReference));
@@ -334,14 +410,16 @@ public sealed class ValidationPlan
         CurrentRecoveryCheckpointReference = currentRecoveryCheckpointReference ?? throw new ArgumentNullException(nameof(currentRecoveryCheckpointReference));
         var values = requirements?.ToArray() ?? throw new ArgumentNullException(nameof(requirements));
         if (values.Length == 0 || values.Length > ValidationLimits.MaxRequirements || values.Any(static value => value is null) ||
+            !values.Any(static value => value.Required) ||
             values.GroupBy(static value => value.RequirementId, StringComparer.Ordinal).Any(static group => group.Count() > 1))
-            throw new ArgumentException("Validation requirements are empty, duplicated, or exceed the supported bound.", nameof(requirements));
+            throw new ArgumentException("Validation requirements are empty, all optional, duplicated, or exceed the supported bound.", nameof(requirements));
 
         ProjectId = projectId;
         PlanId = planId;
         Revision = revision;
         SchemaVersion = schemaVersion;
         CreatedAt = createdAt;
+        EvidenceNotBefore = evidenceNotBefore ?? createdAt;
         WorkGraphNodeId = workGraphNodeId;
         WorkspaceId = workspaceId;
         WorkspaceReceiptContentHash = workspaceReceiptContentHash.ToLowerInvariant();
@@ -362,6 +440,7 @@ public sealed class ValidationPlan
     public int Revision { get; }
     public int SchemaVersion { get; }
     public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset EvidenceNotBefore { get; }
     public ExecutionRunAuthorityReference ExecutionRunAuthorityReference { get; }
     public PlanningExecutionContractReference PlanningContractReference { get; }
     public WorkGraphReference WorkGraphReference { get; }
@@ -378,6 +457,69 @@ public sealed class ValidationPlan
     private static string Required(string value, string parameterName, int max) =>
         string.IsNullOrWhiteSpace(value) ? throw new ArgumentException("A value is required.", parameterName) :
         value.Trim().Length <= max ? value.Trim() : throw new ArgumentException($"The value cannot exceed {max} characters.", parameterName);
+}
+
+public sealed record ValidationAuthorityBindingResult(bool IsValid, DateTimeOffset NotBefore, string? ErrorMessage = null);
+
+public static class ValidationAuthorityBindingValidator
+{
+    public static ValidationAuthorityBindingResult Validate(
+        ValidationPlan plan,
+        ExecutionRunAuthority authority,
+        WorkspacePreparationReceipt receipt,
+        RecoveryCheckpoint checkpoint)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(authority);
+        ArgumentNullException.ThrowIfNull(receipt);
+        ArgumentNullException.ThrowIfNull(checkpoint);
+
+        var notBefore = new[] { plan.CreatedAt, authority.CreatedAt, receipt.PreparedAt, checkpoint.CreatedAt }.Max();
+        var valid = authority.ProjectId == plan.ProjectId &&
+            Same(authority.Reference, plan.ExecutionRunAuthorityReference) &&
+            Same(authority.PlanningContractReference, plan.PlanningContractReference) &&
+            Same(authority.WorkGraphReference, plan.WorkGraphReference) &&
+            authority.WorkGraphNodeId == plan.WorkGraphNodeId &&
+            Same(authority.HandoffPackageReference, plan.HandoffPackageReference) &&
+            Same(authority.InputRecoveryCheckpointReference, plan.CurrentRecoveryCheckpointReference) &&
+            authority.WorkspaceId == plan.WorkspaceId &&
+            string.Equals(authority.WorkspacePath, plan.WorkspacePath, StringComparison.Ordinal) &&
+            string.Equals(authority.WorkspaceReceiptContentHash, plan.WorkspaceReceiptContentHash, StringComparison.OrdinalIgnoreCase) &&
+            receipt.ProjectId == plan.ProjectId && receipt.WorkspaceId == plan.WorkspaceId &&
+            string.Equals(receipt.WorkspacePath, plan.WorkspacePath, StringComparison.Ordinal) &&
+            string.Equals(receipt.ContentHash, plan.WorkspaceReceiptContentHash, StringComparison.OrdinalIgnoreCase) &&
+            checkpoint.ProjectId == plan.ProjectId &&
+            Same(checkpoint.Reference, plan.CurrentRecoveryCheckpointReference) &&
+            Same(checkpoint.PlanningContractReference, plan.PlanningContractReference) &&
+            Same(checkpoint.WorkGraphReference, plan.WorkGraphReference) &&
+            checkpoint.WorkGraphNodeId == plan.WorkGraphNodeId &&
+            Same(checkpoint.HandoffPackageReference, plan.HandoffPackageReference) &&
+            plan.EvidenceNotBefore == notBefore;
+
+        return valid
+            ? new(true, notBefore)
+            : new(false, notBefore, ValidationReasonCodes.AuthorityMismatch);
+    }
+
+    private static bool Same(ExecutionRunAuthorityReference left, ExecutionRunAuthorityReference right) =>
+        left.RunId == right.RunId && left.SchemaVersion == right.SchemaVersion &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Same(PlanningExecutionContractReference left, PlanningExecutionContractReference right) =>
+        left.ContractId == right.ContractId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Same(WorkGraphReference? left, WorkGraphReference? right) =>
+        left is null && right is null || left is not null && right is not null && left.GraphId == right.GraphId &&
+        left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Same(HandoffPackageReference? left, HandoffPackageReference? right) =>
+        left is null && right is null || left is not null && right is not null && left.PackageId == right.PackageId &&
+        left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Same(RecoveryCheckpointReference left, RecoveryCheckpointReference right) =>
+        left.CheckpointId == right.CheckpointId && left.SchemaVersion == right.SchemaVersion &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class ValidationEvidence
@@ -421,7 +563,8 @@ public sealed class ValidationEvidence
         string? diagnosticSummary = null,
         string? reasonCode = null,
         int schemaVersion = ValidationSchema.CurrentVersion,
-        string? contentHash = null)
+        string? contentHash = null,
+        string? validationDefinitionId = null)
     {
         if (projectId == Guid.Empty || evidenceId == Guid.Empty || runId == Guid.Empty || workspaceId == Guid.Empty)
             throw new ArgumentException("Project, evidence, run, and workspace identifiers are required.");
@@ -443,6 +586,7 @@ public sealed class ValidationEvidence
         SchemaVersion = schemaVersion;
         PlanReference = planReference;
         RequirementId = Required(requirementId, nameof(requirementId), 200);
+        ValidationDefinitionId = Required(validationDefinitionId ?? "legacy", nameof(validationDefinitionId), 200);
         RunId = runId;
         ExecutionRunAuthorityReference = executionRunAuthorityReference;
         PlanningContractReference = planningContractReference ?? throw new ArgumentNullException(nameof(planningContractReference));
@@ -493,6 +637,7 @@ public sealed class ValidationEvidence
     public int SchemaVersion { get; }
     public ValidationPlanReference PlanReference { get; }
     public string RequirementId { get; }
+    public string ValidationDefinitionId { get; }
     public Guid RunId { get; }
     public ExecutionRunAuthorityReference ExecutionRunAuthorityReference { get; }
     public PlanningExecutionContractReference PlanningContractReference { get; }
@@ -663,7 +808,7 @@ public static class ValidationIntegrity
 
     internal static object CreatePlanPayload(ValidationPlan value) => new
     {
-        value.ProjectId, value.PlanId, value.Revision, value.SchemaVersion, value.CreatedAt,
+        value.ProjectId, value.PlanId, value.Revision, value.SchemaVersion, value.CreatedAt, value.EvidenceNotBefore,
         executionRunAuthorityReference = new { value.ExecutionRunAuthorityReference.RunId, value.ExecutionRunAuthorityReference.SchemaVersion, value.ExecutionRunAuthorityReference.ContentHash },
         planningContractReference = new { value.PlanningContractReference.ContractId, value.PlanningContractReference.Revision, value.PlanningContractReference.SchemaVersion, value.PlanningContractReference.ContentHash },
         workGraphReference = value.WorkGraphReference is null ? null : new { value.WorkGraphReference.GraphId, value.WorkGraphReference.SchemaVersion, value.WorkGraphReference.ContentHash },
@@ -676,7 +821,7 @@ public static class ValidationIntegrity
 
     internal static object CreateEvidencePayload(ValidationEvidence value) => new
     {
-        value.ProjectId, value.EvidenceId, value.SchemaVersion, value.PlanReference, value.RequirementId, value.RunId,
+        value.ProjectId, value.EvidenceId, value.SchemaVersion, value.PlanReference, value.RequirementId, value.ValidationDefinitionId, value.RunId,
         executionRunAuthorityReference = new { value.ExecutionRunAuthorityReference.RunId, value.ExecutionRunAuthorityReference.SchemaVersion, value.ExecutionRunAuthorityReference.ContentHash },
         planningContractReference = new { value.PlanningContractReference.ContractId, value.PlanningContractReference.Revision, value.PlanningContractReference.SchemaVersion, value.PlanningContractReference.ContentHash },
         workGraphReference = value.WorkGraphReference is null ? null : new { value.WorkGraphReference.GraphId, value.WorkGraphReference.SchemaVersion, value.WorkGraphReference.ContentHash },
@@ -708,11 +853,17 @@ public static class ValidationIntegrity
 
     private static object CreateRequirementPayload(ValidationRequirement value) => new
     {
-        value.RequirementId, value.EvidenceKind, value.Required, value.Coverage, value.BaselineRelation, value.CollectorIdentifier,
+        value.RequirementId, value.ValidationDefinitionId, value.EvidenceKind, value.Required, value.Coverage, value.BaselineRelation, value.CollectorIdentifier,
         maxAgeSeconds = value.MaxAge?.TotalSeconds, value.AllowFullEvidenceForTargeted, value.TargetPath, value.TestFilter,
         timeoutSeconds = value.Timeout?.TotalSeconds, value.ExpectedLocalHeadCommitSha, value.ExpectedBranchName, value.RequireCleanWorktree,
         value.ExpectedRepositoryIdentity, value.ExpectedRemoteCommitId, value.ExpectedTrackerProjectId, value.ExpectedTrackerWorkItemKey,
-        value.ExpectedTrackerStatus, value.ExpectedState, value.ExpectedOutcome, value.RequestedBranch, value.PullRequestNumber
+        value.ExpectedTrackerStatus, value.ExpectedState, value.ExpectedOutcome, value.RequestedBranch, value.PullRequestNumber,
+        baselineBinding = value.BaselineBinding is null ? null : new
+        {
+            planReference = new { value.BaselineBinding.PlanReference.ProjectId, value.BaselineBinding.PlanReference.PlanId, value.BaselineBinding.PlanReference.Revision, value.BaselineBinding.PlanReference.SchemaVersion, value.BaselineBinding.PlanReference.ContentHash },
+            evidenceReference = new { value.BaselineBinding.EvidenceReference.EvidenceId, value.BaselineBinding.EvidenceReference.SchemaVersion, value.BaselineBinding.EvidenceReference.ContentHash },
+            value.BaselineBinding.ValidationDefinitionId
+        }
     };
 
     private static string Hash(object value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, Options)))).ToLowerInvariant();
@@ -734,7 +885,8 @@ public sealed class ValidationCollectionContext
         ExecutionRunAuthority authority,
         WorkspacePreparationReceipt workspaceReceipt,
         RecoveryCheckpoint currentCheckpoint,
-        IReadOnlyList<ValidationEvidence> existingEvidence)
+        IReadOnlyList<ValidationEvidence> existingEvidence,
+        ValidationEvidenceReference? baselineEvidenceReference = null)
     {
         Plan = plan ?? throw new ArgumentNullException(nameof(plan));
         Requirement = requirement ?? throw new ArgumentNullException(nameof(requirement));
@@ -743,6 +895,7 @@ public sealed class ValidationCollectionContext
         WorkspaceReceipt = workspaceReceipt ?? throw new ArgumentNullException(nameof(workspaceReceipt));
         CurrentCheckpoint = currentCheckpoint ?? throw new ArgumentNullException(nameof(currentCheckpoint));
         ExistingEvidence = existingEvidence?.ToArray() ?? throw new ArgumentNullException(nameof(existingEvidence));
+        BaselineEvidenceReference = baselineEvidenceReference;
     }
 
     public ValidationPlan Plan { get; }
@@ -752,6 +905,7 @@ public sealed class ValidationCollectionContext
     public WorkspacePreparationReceipt WorkspaceReceipt { get; }
     public RecoveryCheckpoint CurrentCheckpoint { get; }
     public IReadOnlyList<ValidationEvidence> ExistingEvidence { get; }
+    public ValidationEvidenceReference? BaselineEvidenceReference { get; }
 }
 
 public sealed class ValidationEvidenceCollectorDescriptor
@@ -836,7 +990,7 @@ public sealed record ValidationPlanReadResult(ValidationPlanReadState State, Val
 public interface IValidationPlanRepository
 {
     Task<ValidationPlanRepositoryWriteResult> CreateAsync(ValidationPlan plan, CancellationToken cancellationToken = default);
-    Task<ValidationPlanReadResult> GetAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default);
+    Task<ValidationPlanReadResult> GetAsync(Guid projectId, ValidationPlanReference reference, CancellationToken cancellationToken = default);
 }
 
 public enum ValidationEvidenceRepositoryWriteStatus { Created, EvidenceConflict, Unavailable }
@@ -854,8 +1008,14 @@ public sealed record ValidationEvidenceReadResult(ValidationEvidenceReadState St
 public interface IValidationEvidenceRepository
 {
     Task<ValidationEvidenceRepositoryWriteResult> CreateAsync(ValidationEvidence evidence, CancellationToken cancellationToken = default);
-    Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, Guid evidenceId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<ValidationEvidence>> GetForPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default);
+    Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, ValidationPlanReference planReference, ValidationEvidenceReference evidenceReference, CancellationToken cancellationToken = default);
+    Task<ValidationEvidenceSetReadResult> GetForPlanAsync(Guid projectId, ValidationPlanReference planReference, CancellationToken cancellationToken = default);
+}
+
+public enum ValidationEvidenceSetReadState { Valid, UnsupportedFutureVersion, MigrationRequired, Invalid, IntegrityFailure, CapacityExceeded, Unavailable }
+public sealed record ValidationEvidenceSetReadResult(ValidationEvidenceSetReadState State, IReadOnlyList<ValidationEvidence>? Evidence = null, string? ErrorMessage = null)
+{
+    public bool IsComplete => State == ValidationEvidenceSetReadState.Valid && Evidence is not null;
 }
 
 public enum ValidationDecisionRepositoryWriteStatus { Created, DecisionConflict, Unavailable }
@@ -876,7 +1036,7 @@ public interface IValidationGateDecisionRepository
     Task<ValidationDecisionReadResult> GetAsync(Guid projectId, Guid decisionId, CancellationToken cancellationToken = default);
 }
 
-public sealed record ValidationCaptureRequest(Guid ProjectId, Guid PlanId, string RequirementId, RecoveryCheckpointReference CurrentRecoveryCheckpointReference);
+public sealed record ValidationCaptureRequest(Guid ProjectId, ValidationPlanReference PlanReference, string RequirementId, RecoveryCheckpointReference CurrentRecoveryCheckpointReference);
 public sealed record ValidationCaptureResult(ValidationEvidence? Evidence, string? ErrorMessage = null)
 {
     public bool Succeeded => Evidence is not null && ErrorMessage is null;
@@ -888,7 +1048,7 @@ public interface IValidationEvidenceService
     Task<ValidationCaptureResult> CaptureAsync(ValidationCaptureRequest request, CancellationToken cancellationToken = default);
 }
 
-public sealed record ValidationGateRequest(Guid ProjectId, Guid PlanId, RecoveryCheckpointReference CurrentRecoveryCheckpointReference);
+public sealed record ValidationGateRequest(Guid ProjectId, ValidationPlanReference PlanReference, RecoveryCheckpointReference CurrentRecoveryCheckpointReference);
 public sealed record ValidationGateEvaluationResult(ValidationGateDecision? Decision, RecoveryCheckpointCreationResult? Recovery = null, string? ErrorMessage = null)
 {
     public bool Succeeded => Decision is not null && ErrorMessage is null;
@@ -905,7 +1065,8 @@ public static class ValidationGateEvaluator
         ValidationPlan plan,
         IReadOnlyList<ValidationEvidence> evidence,
         DateTimeOffset now,
-        Guid? decisionId = null)
+        Guid? decisionId = null,
+        IReadOnlyList<ValidationEvidence>? baselineEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(evidence);
@@ -925,36 +1086,37 @@ public static class ValidationGateEvaluator
                 continue;
             }
 
-            var failed = matches.FirstOrDefault(value => value.State == ValidationEvidenceState.Available && value.Outcome == ValidationOutcome.Failed);
-            if (failed is not null)
-            {
-                decisions.Add(Decision(requirement, failed, ValidationRequirementDecisionState.Failed, ValidationReasonCodes.EvidenceFailed, "Independent validation evidence reported a failure."));
-                supporting.Add(failed.Reference);
-                continue;
-            }
-
             var stale = matches.FirstOrDefault(value => !Freshness(requirement, plan, value, now).IsFresh);
             if (stale is not null)
             {
-                decisions.Add(Decision(requirement, stale, ValidationRequirementDecisionState.Stale, Freshness(requirement, plan, stale, now).Reason, "Independent validation evidence is outside the accepted freshness boundary."));
+                var freshness = Freshness(requirement, plan, stale, now);
+                decisions.Add(Decision(requirement, stale, ValidationRequirementDecisionState.Stale, freshness.Reason, "Independent validation evidence is outside the accepted freshness boundary.", false));
                 supporting.Add(stale.Reference);
                 continue;
             }
 
-            var unusable = matches.FirstOrDefault(value => !IsUsable(requirement, plan, value, evidence, now, out _));
+            var failed = matches.FirstOrDefault(value => value.State == ValidationEvidenceState.Available && value.Outcome == ValidationOutcome.Failed);
+            if (failed is not null)
+            {
+                decisions.Add(Decision(requirement, failed, ValidationRequirementDecisionState.Failed, ValidationReasonCodes.EvidenceFailed, "Independent validation evidence reported a failure.", true));
+                supporting.Add(failed.Reference);
+                continue;
+            }
+
+            var unusable = matches.FirstOrDefault(value => !IsUsable(requirement, plan, value, baselineEvidence, now, out _));
             if (unusable is not null)
             {
                 var unusableReason = ValidationReasonCodes.EvidenceNotUsable;
-                IsUsable(requirement, plan, unusable, evidence, now, out unusableReason);
-                decisions.Add(Decision(requirement, unusable, ValidationRequirementDecisionState.Blocked, unusableReason, "Independent validation evidence cannot satisfy the requirement."));
+                IsUsable(requirement, plan, unusable, baselineEvidence, now, out unusableReason);
+                decisions.Add(Decision(requirement, unusable, ValidationRequirementDecisionState.Blocked, unusableReason, "Independent validation evidence cannot satisfy the requirement.", false));
                 supporting.Add(unusable.Reference);
                 continue;
             }
 
-            var passed = matches.FirstOrDefault(value => IsUsable(requirement, plan, value, evidence, now, out _));
+            var passed = matches.FirstOrDefault(value => IsUsable(requirement, plan, value, baselineEvidence, now, out _));
             if (passed is not null)
             {
-                decisions.Add(Decision(requirement, passed, ValidationRequirementDecisionState.Satisfied, ValidationReasonCodes.Satisfied, "Independent validation evidence satisfies the requirement."));
+                decisions.Add(Decision(requirement, passed, ValidationRequirementDecisionState.Satisfied, ValidationReasonCodes.Satisfied, "Independent validation evidence satisfies the requirement.", true));
                 supporting.Add(passed.Reference);
             }
         }
@@ -987,25 +1149,24 @@ public static class ValidationGateEvaluator
             plan.CurrentRecoveryCheckpointReference, now, state, decisions, supporting.DistinctBy(static value => value.EvidenceId).ToArray(), reason, explanation);
     }
 
-    private static ValidationRequirementDecision Decision(ValidationRequirement requirement, ValidationEvidence evidence, ValidationRequirementDecisionState state, string reason, string explanation) =>
+    private static ValidationRequirementDecision Decision(ValidationRequirement requirement, ValidationEvidence evidence, ValidationRequirementDecisionState state, string reason, string explanation, bool fresh) =>
         new(requirement.RequirementId, requirement.Required ? state : ValidationRequirementDecisionState.NotApplicable,
-            new[] { evidence.Reference }, evidence.State, evidence.Outcome, state == ValidationRequirementDecisionState.Stale ? false : true, reason, explanation);
+            new[] { evidence.Reference }, evidence.State, evidence.Outcome, fresh, reason, explanation);
 
     private static bool MatchesIdentity(ValidationPlan plan, ValidationRequirement requirement, ValidationEvidence value) =>
         MatchesEvidenceIdentity(plan, requirement, value) && value.BaselineRelation == requirement.BaselineRelation;
 
     private static bool MatchesEvidenceIdentity(ValidationPlan plan, ValidationRequirement requirement, ValidationEvidence value) =>
-        value.ProjectId == plan.ProjectId && value.PlanReference.PlanId == plan.PlanId && value.PlanReference.Revision == plan.Revision &&
-        string.Equals(value.PlanReference.ContentHash, plan.ContentHash, StringComparison.OrdinalIgnoreCase) &&
+        value.ProjectId == plan.ProjectId && Same(value.PlanReference, plan.Reference) &&
         value.RunId == plan.ExecutionRunAuthorityReference.RunId && Same(value.ExecutionRunAuthorityReference, plan.ExecutionRunAuthorityReference) &&
         Same(value.PlanningContractReference, plan.PlanningContractReference) && Same(value.CurrentRecoveryCheckpointReference, plan.CurrentRecoveryCheckpointReference) &&
         Same(value.WorkGraphReference, plan.WorkGraphReference) && value.WorkGraphNodeId == plan.WorkGraphNodeId &&
         value.WorkspaceId == plan.WorkspaceId && string.Equals(value.WorkspacePath, plan.WorkspacePath, StringComparison.Ordinal) &&
         string.Equals(value.WorkspaceReceiptContentHash, plan.WorkspaceReceiptContentHash, StringComparison.OrdinalIgnoreCase) &&
-        value.RequirementId == requirement.RequirementId && value.Kind == requirement.EvidenceKind &&
+        value.RequirementId == requirement.RequirementId && value.ValidationDefinitionId == requirement.ValidationDefinitionId && value.Kind == requirement.EvidenceKind &&
         string.Equals(value.CollectorIdentifier, requirement.CollectorIdentifier, StringComparison.Ordinal) && value.IndependentlyCaptured;
 
-    private static bool IsUsable(ValidationRequirement requirement, ValidationPlan plan, ValidationEvidence value, IReadOnlyList<ValidationEvidence> all, DateTimeOffset now, out string reason)
+    private static bool IsUsable(ValidationRequirement requirement, ValidationPlan plan, ValidationEvidence value, IReadOnlyList<ValidationEvidence>? baselineEvidence, DateTimeOffset now, out string reason)
     {
         reason = ValidationReasonCodes.EvidenceNotUsable;
         if (value.State != ValidationEvidenceState.Available || value.Outcome != ValidationOutcome.Passed) return false;
@@ -1028,12 +1189,18 @@ public static class ValidationGateEvaluator
             return false;
         }
         if (requirement.BaselineRelation == ValidationBaselineRelation.Regression &&
-            (value.BaselineEvidenceReference is null || !all.Any(candidate => candidate.ProjectId == plan.ProjectId &&
-                MatchesEvidenceIdentity(plan, requirement, candidate) && candidate.PlanReference.Revision == plan.Revision &&
-                candidate.BaselineRelation == ValidationBaselineRelation.Baseline && candidate.State == ValidationEvidenceState.Available &&
-                candidate.Outcome == ValidationOutcome.Passed && candidate.Reference.EvidenceId == value.BaselineEvidenceReference.EvidenceId &&
-                candidate.Reference.SchemaVersion == value.BaselineEvidenceReference.SchemaVersion &&
-                string.Equals(candidate.ContentHash, value.BaselineEvidenceReference.ContentHash, StringComparison.OrdinalIgnoreCase))))
+            (requirement.BaselineBinding is null || value.BaselineEvidenceReference is null ||
+             !Same(value.BaselineEvidenceReference, requirement.BaselineBinding.EvidenceReference) ||
+             baselineEvidence is null || !baselineEvidence.Any(candidate =>
+                 candidate.ProjectId == requirement.BaselineBinding.PlanReference.ProjectId &&
+                 Same(candidate.PlanReference, requirement.BaselineBinding.PlanReference) &&
+                 Same(candidate.Reference, requirement.BaselineBinding.EvidenceReference) &&
+                 candidate.ValidationDefinitionId == requirement.ValidationDefinitionId &&
+                 candidate.Kind == requirement.EvidenceKind && candidate.CollectorIdentifier == requirement.CollectorIdentifier &&
+                 candidate.Coverage == requirement.Coverage &&
+                 candidate.BaselineRelation == ValidationBaselineRelation.Baseline &&
+                 candidate.State == ValidationEvidenceState.Available && candidate.Outcome == ValidationOutcome.Passed &&
+                 candidate.IndependentlyCaptured && candidate.SecurityBoundaryValid)))
         {
             reason = ValidationReasonCodes.BaselineMissing;
             return false;
@@ -1053,8 +1220,14 @@ public static class ValidationGateEvaluator
 
     private static FreshnessResult Freshness(ValidationRequirement requirement, ValidationPlan plan, ValidationEvidence evidence, DateTimeOffset now)
     {
-        if (evidence.CapturedAt < plan.CreatedAt || (requirement.MaxAge is not null && evidence.CapturedAt < now - requirement.MaxAge.Value))
-            return new(false, evidence.CapturedAt < plan.CreatedAt ? ValidationReasonCodes.EvidenceBeforeExecution : ValidationReasonCodes.EvidenceStale);
+        if (evidence.CapturedAt > now)
+            return new(false, ValidationReasonCodes.EvidenceTimestampInFuture);
+        if (evidence.CapturedAt < plan.EvidenceNotBefore)
+            return new(false, ValidationReasonCodes.EvidenceBeforeValidationEpoch);
+        if (evidence.State == ValidationEvidenceState.Stale)
+            return new(false, ValidationReasonCodes.ProviderEvidenceStale);
+        if (requirement.MaxAge is not null && evidence.CapturedAt < now - requirement.MaxAge.Value)
+            return new(false, ValidationReasonCodes.EvidenceStale);
         return new(true, ValidationReasonCodes.Satisfied);
     }
 
@@ -1062,7 +1235,58 @@ public static class ValidationGateEvaluator
     private static bool Same(PlanningExecutionContractReference left, PlanningExecutionContractReference right) => left.ContractId == right.ContractId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
     private static bool Same(RecoveryCheckpointReference left, RecoveryCheckpointReference right) => left.CheckpointId == right.CheckpointId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
     private static bool Same(WorkGraphReference? left, WorkGraphReference? right) => left is null && right is null || left is not null && right is not null && left.GraphId == right.GraphId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(HandoffPackageReference? left, HandoffPackageReference? right) => left is null && right is null || left is not null && right is not null && left.PackageId == right.PackageId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(ValidationPlanReference left, ValidationPlanReference right) => left.ProjectId == right.ProjectId && left.PlanId == right.PlanId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(ValidationEvidenceReference left, ValidationEvidenceReference right) => left.EvidenceId == right.EvidenceId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
     private readonly record struct FreshnessResult(bool IsFresh, string Reason);
+}
+
+public sealed record ValidationBaselineResolution(bool IsValid, ValidationEvidence? Evidence = null, string? ErrorMessage = null);
+
+public static class ValidationBaselineResolver
+{
+    public static async Task<ValidationBaselineResolution> ResolveAsync(
+        ValidationPlan currentPlan,
+        ValidationRequirement requirement,
+        IValidationPlanRepository plans,
+        IValidationEvidenceRepository evidenceRepository,
+        DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        if (requirement.BaselineRelation != ValidationBaselineRelation.Regression || requirement.BaselineBinding is null)
+            return new(false, ErrorMessage: ValidationReasonCodes.BaselineMissing);
+        var binding = requirement.BaselineBinding;
+        if (binding.PlanReference.ProjectId != currentPlan.ProjectId ||
+            !string.Equals(binding.ValidationDefinitionId, requirement.ValidationDefinitionId, StringComparison.Ordinal))
+            return new(false, ErrorMessage: ValidationReasonCodes.BaselineMissing);
+
+        var baselinePlanRead = await plans.GetAsync(currentPlan.ProjectId, binding.PlanReference, cancellationToken).ConfigureAwait(false);
+        if (!baselinePlanRead.IsValid || baselinePlanRead.Plan is null)
+            return new(false, ErrorMessage: "The explicitly bound baseline plan is unavailable or invalid.");
+        var baselinePlan = baselinePlanRead.Plan;
+        var baselineRead = await evidenceRepository.GetAsync(currentPlan.ProjectId, binding.PlanReference, binding.EvidenceReference, cancellationToken).ConfigureAwait(false);
+        if (!baselineRead.IsValid || baselineRead.Evidence is null)
+            return new(false, ErrorMessage: "The explicitly bound baseline evidence is unavailable or invalid.");
+        var baseline = baselineRead.Evidence;
+        var baselineRequirement = baselinePlan.Requirements.FirstOrDefault(value => value.RequirementId == baseline.RequirementId);
+        var valid = Same(baselinePlan.Reference, binding.PlanReference) &&
+            Same(baseline.PlanReference, binding.PlanReference) && Same(baseline.Reference, binding.EvidenceReference) && baseline.ProjectId == currentPlan.ProjectId &&
+            baseline.ValidationDefinitionId == requirement.ValidationDefinitionId && baselineRequirement is not null &&
+            baselineRequirement.BaselineRelation == ValidationBaselineRelation.Baseline &&
+            ValidationRequirementCompatibility.AreCompatible(requirement, baselineRequirement) &&
+            baseline.BaselineRelation == ValidationBaselineRelation.Baseline &&
+            baseline.State == ValidationEvidenceState.Available && baseline.Outcome == ValidationOutcome.Passed &&
+            baseline.IndependentlyCaptured && baseline.SecurityBoundaryValid && baseline.CapturedAt <= now;
+        return valid ? new(true, baseline) : new(false, ErrorMessage: "The explicitly bound baseline does not match the current validation definition.");
+    }
+
+    private static bool Same(ValidationPlanReference left, ValidationPlanReference right) =>
+        left.ProjectId == right.ProjectId && left.PlanId == right.PlanId && left.Revision == right.Revision &&
+        left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool Same(ValidationEvidenceReference left, ValidationEvidenceReference right) =>
+        left.EvidenceId == right.EvidenceId && left.SchemaVersion == right.SchemaVersion &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class ValidationEvidenceService : IValidationEvidenceService
@@ -1074,47 +1298,77 @@ public sealed class ValidationEvidenceService : IValidationEvidenceService
     private readonly IWorkspacePreparationReceiptRepository _receipts;
     private readonly IRecoveryCheckpointRepository _checkpoints;
     private readonly IValidationEvidenceCollectorResolver _collectors;
+    private readonly IClock _clock;
 
-    public ValidationEvidenceService(IValidationPlanRepository plans, IValidationEvidenceRepository evidence, IProjectRepository projects, IExecutionRunAuthorityRepository authorities, IWorkspacePreparationReceiptRepository receipts, IRecoveryCheckpointRepository checkpoints, IValidationEvidenceCollectorResolver collectors)
+    public ValidationEvidenceService(IValidationPlanRepository plans, IValidationEvidenceRepository evidence, IProjectRepository projects, IExecutionRunAuthorityRepository authorities, IWorkspacePreparationReceiptRepository receipts, IRecoveryCheckpointRepository checkpoints, IValidationEvidenceCollectorResolver collectors, IClock clock)
     {
-        _plans = plans ?? throw new ArgumentNullException(nameof(plans)); _evidence = evidence ?? throw new ArgumentNullException(nameof(evidence)); _projects = projects ?? throw new ArgumentNullException(nameof(projects)); _authorities = authorities ?? throw new ArgumentNullException(nameof(authorities)); _receipts = receipts ?? throw new ArgumentNullException(nameof(receipts)); _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints)); _collectors = collectors ?? throw new ArgumentNullException(nameof(collectors));
+        _plans = plans ?? throw new ArgumentNullException(nameof(plans)); _evidence = evidence ?? throw new ArgumentNullException(nameof(evidence)); _projects = projects ?? throw new ArgumentNullException(nameof(projects)); _authorities = authorities ?? throw new ArgumentNullException(nameof(authorities)); _receipts = receipts ?? throw new ArgumentNullException(nameof(receipts)); _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints)); _collectors = collectors ?? throw new ArgumentNullException(nameof(collectors)); _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
-    public Task<ValidationPlanRepositoryWriteResult> CreatePlanAsync(ValidationPlan plan, CancellationToken cancellationToken = default) => _plans.CreateAsync(plan, cancellationToken);
+    public async Task<ValidationPlanRepositoryWriteResult> CreatePlanAsync(ValidationPlan plan, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        var now = _clock.UtcNow;
+        if (plan.CreatedAt > now) return new(ValidationPlanRepositoryWriteStatus.PlanConflict, "Validation plan is dated in the future.");
+        var authorities = await _authorities.GetAsync(plan.ProjectId, plan.ExecutionRunAuthorityReference.RunId, cancellationToken).ConfigureAwait(false);
+        var receipt = await _receipts.GetAsync(plan.ProjectId, plan.WorkspaceId, cancellationToken).ConfigureAwait(false);
+        var checkpoint = await _checkpoints.GetAsync(plan.ProjectId, plan.CurrentRecoveryCheckpointReference.CheckpointId, cancellationToken).ConfigureAwait(false);
+        if (!authorities.IsValid || authorities.Authority is null || receipt.State != WorkspacePreparationReceiptReadState.Valid || receipt.Receipt is null || !checkpoint.IsValid || checkpoint.Checkpoint is null)
+            return new(ValidationPlanRepositoryWriteStatus.Unavailable, "Validation authorities are missing or invalid.");
+        var binding = ValidationAuthorityBindingValidator.Validate(plan, authorities.Authority, receipt.Receipt, checkpoint.Checkpoint);
+        if (!binding.IsValid || checkpoint.Checkpoint.LifecycleState != RecoveryCheckpointLifecycleState.Ready || checkpoint.Checkpoint.NextSafeAction != RecoveryNextSafeAction.RunValidation)
+            return new(ValidationPlanRepositoryWriteStatus.PlanConflict, "Validation plan authority binding is invalid.");
+        foreach (var requirement in plan.Requirements.Where(value => value.BaselineRelation == ValidationBaselineRelation.Regression))
+        {
+            var baseline = await ValidationBaselineResolver.ResolveAsync(plan, requirement, _plans, _evidence, now, cancellationToken).ConfigureAwait(false);
+            if (!baseline.IsValid) return new(ValidationPlanRepositoryWriteStatus.PlanConflict, baseline.ErrorMessage);
+        }
+        return await _plans.CreateAsync(plan, cancellationToken).ConfigureAwait(false);
+    }
 
     public async Task<ValidationCaptureResult> CaptureAsync(ValidationCaptureRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var planRead = await _plans.GetAsync(request.ProjectId, request.PlanId, cancellationToken).ConfigureAwait(false);
+        if (request.ProjectId != request.PlanReference.ProjectId) return new(null, "The validation project does not match the exact plan reference.");
+        var planRead = await _plans.GetAsync(request.ProjectId, request.PlanReference, cancellationToken).ConfigureAwait(false);
         if (!planRead.IsValid || planRead.Plan is null) return new(null, "The exact validation plan is unavailable.");
         var plan = planRead.Plan;
+        var now = _clock.UtcNow;
+        if (plan.CreatedAt > now || plan.EvidenceNotBefore > now) return new(null, "The validation plan is dated in the future.");
         var requirement = plan.Requirements.FirstOrDefault(value => value.RequirementId == request.RequirementId);
         if (requirement is null || !Same(plan.CurrentRecoveryCheckpointReference, request.CurrentRecoveryCheckpointReference)) return new(null, "The validation requirement or current checkpoint does not match the plan.");
         var project = await _projects.GetByIdAsync(plan.ProjectId, cancellationToken).ConfigureAwait(false);
         var authority = await _authorities.GetAsync(plan.ProjectId, plan.ExecutionRunAuthorityReference.RunId, cancellationToken).ConfigureAwait(false);
         var receipt = await _receipts.GetAsync(plan.ProjectId, plan.WorkspaceId, cancellationToken).ConfigureAwait(false);
         var checkpoint = await _checkpoints.GetAsync(plan.ProjectId, plan.CurrentRecoveryCheckpointReference.CheckpointId, cancellationToken).ConfigureAwait(false);
-        if (project is null || !authority.IsValid || authority.Authority is null || receipt.State != WorkspacePreparationReceiptReadState.Valid || receipt.Receipt is null || !checkpoint.IsValid || checkpoint.Checkpoint is null) return new(null, "Validation authorities are missing or invalid.");
-        if (authority.Authority.ProjectId != plan.ProjectId || !Same(authority.Authority.Reference, plan.ExecutionRunAuthorityReference) ||
-            !string.Equals(authority.Authority.WorkspacePath, plan.WorkspacePath, StringComparison.Ordinal) ||
-            receipt.Receipt.WorkspaceId != plan.WorkspaceId || !string.Equals(receipt.Receipt.ContentHash, plan.WorkspaceReceiptContentHash, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(receipt.Receipt.WorkspacePath, plan.WorkspacePath, StringComparison.Ordinal) ||
-            !Same(checkpoint.Checkpoint.Reference, plan.CurrentRecoveryCheckpointReference) ||
-            checkpoint.Checkpoint.LifecycleState != RecoveryCheckpointLifecycleState.Ready ||
-            checkpoint.Checkpoint.NextSafeAction != RecoveryNextSafeAction.RunValidation) return new(null, "Validation authority identity or validation checkpoint does not match the exact plan.");
-        var existing = await _evidence.GetForPlanAsync(plan.ProjectId, plan.PlanId, cancellationToken).ConfigureAwait(false);
-        if (existing.Any(value => value.RequirementId == requirement.RequirementId && value.Kind == requirement.EvidenceKind &&
-            string.Equals(value.CollectorIdentifier, requirement.CollectorIdentifier, StringComparison.Ordinal) &&
-            value.PlanReference.PlanId == plan.PlanId && string.Equals(value.PlanReference.ContentHash, plan.ContentHash, StringComparison.OrdinalIgnoreCase)))
+        if (project is null || !authority.IsValid || authority.Authority is null || receipt.State != WorkspacePreparationReceiptReadState.Valid || receipt.Receipt is null || !checkpoint.IsValid || checkpoint.Checkpoint is null)
+            return new(null, "Validation authorities are missing or invalid.");
+        var binding = ValidationAuthorityBindingValidator.Validate(plan, authority.Authority, receipt.Receipt, checkpoint.Checkpoint);
+        if (!binding.IsValid || checkpoint.Checkpoint.LifecycleState != RecoveryCheckpointLifecycleState.Ready || checkpoint.Checkpoint.NextSafeAction != RecoveryNextSafeAction.RunValidation)
+            return new(null, "Validation authority identity or validation checkpoint does not match the exact plan.");
+        var existingRead = await _evidence.GetForPlanAsync(plan.ProjectId, plan.Reference, cancellationToken).ConfigureAwait(false);
+        if (!existingRead.IsComplete) return new(null, existingRead.ErrorMessage ?? "Validation evidence set is incomplete or untrusted.");
+        var existing = existingRead.Evidence!;
+        if (existing.Any(value => value.RequirementId == requirement.RequirementId && value.Kind == requirement.EvidenceKind && value.CollectorIdentifier == requirement.CollectorIdentifier))
             return new(null, "This immutable validation plan already has evidence for the requested requirement.");
+        ValidationEvidence? baselineEvidence = null;
+        if (requirement.BaselineRelation == ValidationBaselineRelation.Regression)
+        {
+            var baseline = await ValidationBaselineResolver.ResolveAsync(plan, requirement, _plans, _evidence, now, cancellationToken).ConfigureAwait(false);
+            if (!baseline.IsValid) return new(null, baseline.ErrorMessage);
+            baselineEvidence = baseline.Evidence;
+        }
         var resolution = _collectors.Resolve(requirement.CollectorIdentifier, requirement.EvidenceKind);
         if (!resolution.Succeeded || resolution.Collector is null) return new(null, resolution.ErrorMessage ?? "The validation collector is unsupported.");
-        var value = await resolution.Collector.CaptureAsync(new ValidationCollectionContext(plan, requirement, project, authority.Authority, receipt.Receipt, checkpoint.Checkpoint, existing), cancellationToken).ConfigureAwait(false);
+        var value = await resolution.Collector.CaptureAsync(new ValidationCollectionContext(plan, requirement, project, authority.Authority, receipt.Receipt, checkpoint.Checkpoint, existing, baselineEvidence?.Reference), cancellationToken).ConfigureAwait(false);
+        if (!Same(value.PlanReference, plan.Reference) || value.RequirementId != requirement.RequirementId || value.ValidationDefinitionId != requirement.ValidationDefinitionId || value.BaselineRelation != requirement.BaselineRelation || (requirement.BaselineBinding is not null && !Same(value.BaselineEvidenceReference, requirement.BaselineBinding.EvidenceReference)))
+            return new(null, "The collector returned evidence outside the exact immutable validation binding.");
         var write = await _evidence.CreateAsync(value, cancellationToken).ConfigureAwait(false);
         return write.Succeeded ? new(value) : new(null, write.ErrorMessage ?? "Validation evidence persistence failed.");
     }
 
-    private static bool Same(ExecutionRunAuthorityReference left, ExecutionRunAuthorityReference right) => left.RunId == right.RunId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(ValidationPlanReference left, ValidationPlanReference right) => left.ProjectId == right.ProjectId && left.PlanId == right.PlanId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(ValidationEvidenceReference? left, ValidationEvidenceReference? right) => left is null && right is null || left is not null && right is not null && left.EvidenceId == right.EvidenceId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
     private static bool Same(RecoveryCheckpointReference left, RecoveryCheckpointReference right) => left.CheckpointId == right.CheckpointId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
 }
 
@@ -1124,34 +1378,61 @@ public sealed class ValidationGateService : IValidationGateService
     private readonly IValidationEvidenceRepository _evidence;
     private readonly IValidationGateDecisionRepository _decisions;
     private readonly IExecutionRunAuthorityRepository _authorities;
+    private readonly IWorkspacePreparationReceiptRepository _receipts;
     private readonly IRecoveryCheckpointRepository _checkpoints;
     private readonly IRecoveryCheckpointService _recovery;
     private readonly IClock _clock;
 
-    public ValidationGateService(IValidationPlanRepository plans, IValidationEvidenceRepository evidence, IValidationGateDecisionRepository decisions, IExecutionRunAuthorityRepository authorities, IRecoveryCheckpointRepository checkpoints, IRecoveryCheckpointService recovery, IClock clock)
+    public ValidationGateService(IValidationPlanRepository plans, IValidationEvidenceRepository evidence, IValidationGateDecisionRepository decisions, IExecutionRunAuthorityRepository authorities, IWorkspacePreparationReceiptRepository receipts, IRecoveryCheckpointRepository checkpoints, IRecoveryCheckpointService recovery, IClock clock)
     {
-        _plans = plans ?? throw new ArgumentNullException(nameof(plans)); _evidence = evidence ?? throw new ArgumentNullException(nameof(evidence)); _decisions = decisions ?? throw new ArgumentNullException(nameof(decisions)); _authorities = authorities ?? throw new ArgumentNullException(nameof(authorities)); _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints)); _recovery = recovery ?? throw new ArgumentNullException(nameof(recovery)); _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _plans = plans ?? throw new ArgumentNullException(nameof(plans)); _evidence = evidence ?? throw new ArgumentNullException(nameof(evidence)); _decisions = decisions ?? throw new ArgumentNullException(nameof(decisions)); _authorities = authorities ?? throw new ArgumentNullException(nameof(authorities)); _receipts = receipts ?? throw new ArgumentNullException(nameof(receipts)); _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints)); _recovery = recovery ?? throw new ArgumentNullException(nameof(recovery)); _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     public async Task<ValidationGateEvaluationResult> EvaluateAsync(ValidationGateRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var planRead = await _plans.GetAsync(request.ProjectId, request.PlanId, cancellationToken).ConfigureAwait(false);
+        if (request.ProjectId != request.PlanReference.ProjectId) return new(null, ErrorMessage: "The validation project does not match the exact plan reference.");
+        var planRead = await _plans.GetAsync(request.ProjectId, request.PlanReference, cancellationToken).ConfigureAwait(false);
         if (!planRead.IsValid || planRead.Plan is null) return new(null, ErrorMessage: "The exact validation plan is unavailable.");
         var plan = planRead.Plan;
+        var now = _clock.UtcNow;
+        if (plan.CreatedAt > now || plan.EvidenceNotBefore > now) return new(null, ErrorMessage: "The validation plan is dated in the future.");
         if (!Same(plan.CurrentRecoveryCheckpointReference, request.CurrentRecoveryCheckpointReference)) return new(null, ErrorMessage: "The current recovery checkpoint does not match the validation plan.");
         var authority = await _authorities.GetAsync(plan.ProjectId, plan.ExecutionRunAuthorityReference.RunId, cancellationToken).ConfigureAwait(false);
+        var receipt = await _receipts.GetAsync(plan.ProjectId, plan.WorkspaceId, cancellationToken).ConfigureAwait(false);
         var checkpoint = await _checkpoints.GetAsync(plan.ProjectId, plan.CurrentRecoveryCheckpointReference.CheckpointId, cancellationToken).ConfigureAwait(false);
-        if (!authority.IsValid || authority.Authority is null || !checkpoint.IsValid || checkpoint.Checkpoint is null || !Same(authority.Authority.Reference, plan.ExecutionRunAuthorityReference) || !Same(checkpoint.Checkpoint.Reference, plan.CurrentRecoveryCheckpointReference) || checkpoint.Checkpoint.NextSafeAction != RecoveryNextSafeAction.RunValidation) return new(null, ErrorMessage: "The exact validation authority or validation checkpoint is unavailable.");
-        var evidence = await _evidence.GetForPlanAsync(plan.ProjectId, plan.PlanId, cancellationToken).ConfigureAwait(false);
-        var decision = ValidationGateEvaluator.Evaluate(plan, evidence, _clock.UtcNow);
+        if (!authority.IsValid || authority.Authority is null || receipt.State != WorkspacePreparationReceiptReadState.Valid || receipt.Receipt is null || !checkpoint.IsValid || checkpoint.Checkpoint is null)
+            return new(null, ErrorMessage: "The exact validation authority or validation checkpoint is unavailable.");
+        var binding = ValidationAuthorityBindingValidator.Validate(plan, authority.Authority, receipt.Receipt, checkpoint.Checkpoint);
+        if (!binding.IsValid || checkpoint.Checkpoint.LifecycleState != RecoveryCheckpointLifecycleState.Ready || checkpoint.Checkpoint.NextSafeAction != RecoveryNextSafeAction.RunValidation)
+            return new(null, ErrorMessage: "The exact validation authority or validation checkpoint is unavailable.");
+        var evidenceRead = await _evidence.GetForPlanAsync(plan.ProjectId, plan.Reference, cancellationToken).ConfigureAwait(false);
+        if (!evidenceRead.IsComplete) return new(null, ErrorMessage: evidenceRead.ErrorMessage ?? "Validation evidence set is incomplete or untrusted.");
+        var evidence = evidenceRead.Evidence!;
+        var baselines = new List<ValidationEvidence>();
+        foreach (var requirement in plan.Requirements.Where(value => value.BaselineRelation == ValidationBaselineRelation.Regression))
+        {
+            var baseline = await ValidationBaselineResolver.ResolveAsync(plan, requirement, _plans, _evidence, now, cancellationToken).ConfigureAwait(false);
+            if (!baseline.IsValid) return new(null, ErrorMessage: baseline.ErrorMessage);
+            baselines.Add(baseline.Evidence!);
+        }
+        var decision = ValidationGateEvaluator.Evaluate(plan, evidence, now, baselineEvidence: baselines);
         var write = await _decisions.CreateAsync(decision, cancellationToken).ConfigureAwait(false);
         if (!write.Succeeded) return new(decision, ErrorMessage: write.ErrorMessage ?? "Validation-decision persistence failed.");
 
         var refs = checkpoint.Checkpoint.EvidenceReferences.ToList();
         foreach (var value in evidence.Where(value => decision.SupportingEvidence.Any(reference => reference.EvidenceId == value.EvidenceId)))
         {
-            if (refs.All(reference => reference.EvidenceId != value.EvidenceId)) refs.Add(new RecoveryEvidenceReference(value.EvidenceId, RecoveryEvidenceKind.Validation, value.Reference.ToString(), value.CapturedAt, value.State == ValidationEvidenceState.Available ? RecoveryEvidenceFreshness.Verified : RecoveryEvidenceFreshness.Stale, contentHash: value.ContentHash));
+            if (refs.All(reference => reference.EvidenceId != value.EvidenceId))
+            {
+                var requirementDecision = decision.RequirementDecisions.FirstOrDefault(item => item.RequirementId == value.RequirementId);
+                var freshness = requirementDecision?.ReasonCode == ValidationReasonCodes.EvidenceTimestampInFuture || requirementDecision?.ReasonCode == ValidationReasonCodes.EvidenceBeforeValidationEpoch
+                    ? RecoveryEvidenceFreshness.Unknown
+                    : requirementDecision?.Fresh == true && value.State == ValidationEvidenceState.Available
+                        ? RecoveryEvidenceFreshness.Verified
+                        : RecoveryEvidenceFreshness.Stale;
+                refs.Add(new RecoveryEvidenceReference(value.EvidenceId, RecoveryEvidenceKind.Validation, value.Reference.ToString(), value.CapturedAt, freshness, contentHash: value.ContentHash));
+            }
         }
         var gates = checkpoint.Checkpoint.GateSnapshots.Where(value => value.Kind != RecoveryGateKind.Validation).ToList();
         gates.Add(new RecoveryGateSnapshot(RecoveryGateKind.Validation, decision.State switch { ValidationGateDecisionState.Satisfied => RecoveryGateState.Satisfied, ValidationGateDecisionState.Failed => RecoveryGateState.Failed, _ => RecoveryGateState.Pending }, decision.SupportingEvidence.Select(value => value.EvidenceId).ToArray()));
@@ -1163,6 +1444,6 @@ public sealed class ValidationGateService : IValidationGateService
         return new(decision, recovery, recovery.Succeeded ? null : recovery.ErrorMessage);
     }
 
-    private static bool Same(ExecutionRunAuthorityReference left, ExecutionRunAuthorityReference right) => left.RunId == right.RunId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+    private static bool Same(ValidationPlanReference left, ValidationPlanReference right) => left.ProjectId == right.ProjectId && left.PlanId == right.PlanId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
     private static bool Same(RecoveryCheckpointReference left, RecoveryCheckpointReference right) => left.CheckpointId == right.CheckpointId && left.SchemaVersion == right.SchemaVersion && string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
 }

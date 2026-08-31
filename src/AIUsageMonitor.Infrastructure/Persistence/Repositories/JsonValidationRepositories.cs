@@ -21,11 +21,11 @@ public sealed class JsonValidationPlanRepository : IValidationPlanRepository
     {
         ArgumentNullException.ThrowIfNull(plan);
         Validate(plan);
-        var path = _paths.GetValidationPlanFile(plan.ProjectId, plan.PlanId);
+        var path = _paths.GetValidationPlanFile(plan.ProjectId, plan.PlanId, plan.Revision);
         try
         {
             await _paths.EnsureProjectDirectoriesAsync(plan.ProjectId, cancellationToken).ConfigureAwait(false);
-            Directory.CreateDirectory(_paths.GetValidationPlanDirectory(plan.ProjectId, plan.PlanId));
+            Directory.CreateDirectory(_paths.GetValidationPlanDirectory(plan.ProjectId, plan.PlanId, plan.Revision));
             await _files.CreateNewAsync(path, ValidationPlanRecord.FromApplication(plan), cancellationToken).ConfigureAwait(false);
             return new(ValidationPlanRepositoryWriteStatus.Created);
         }
@@ -46,11 +46,12 @@ public sealed class JsonValidationPlanRepository : IValidationPlanRepository
         }
     }
 
-    public async Task<ValidationPlanReadResult> GetAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default)
+    public async Task<ValidationPlanReadResult> GetAsync(Guid projectId, ValidationPlanReference reference, CancellationToken cancellationToken = default)
     {
         ValidateGuid(projectId, nameof(projectId));
-        ValidateGuid(planId, nameof(planId));
-        var path = _paths.GetValidationPlanFile(projectId, planId);
+        ArgumentNullException.ThrowIfNull(reference);
+        if (reference.ProjectId != projectId) return new(ValidationPlanReadState.IntegrityFailure, ErrorMessage: "Validation-plan project does not match its exact reference.");
+        var path = _paths.GetValidationPlanFile(projectId, reference.PlanId, reference.Revision);
         var result = await _files.ReadPreservingAsync<ValidationPlanRecord>(path, cancellationToken).ConfigureAwait(false);
         return result.Status switch
         {
@@ -58,17 +59,18 @@ public sealed class JsonValidationPlanRepository : IValidationPlanRepository
             FileReadStatus.UnsupportedSchema => new(ValidationPlanReadState.UnsupportedFutureVersion, ErrorMessage: "Validation-plan storage schema is newer than supported."),
             FileReadStatus.IoFailure or FileReadStatus.PermissionFailure => new(ValidationPlanReadState.Unavailable, ErrorMessage: "Validation-plan persistence is unavailable."),
             FileReadStatus.Empty or FileReadStatus.Corrupt => new(ValidationPlanReadState.Invalid, ErrorMessage: "Validation-plan JSON is invalid."),
-            FileReadStatus.Valid => Map(projectId, planId, result.Value),
+            FileReadStatus.Valid => Map(projectId, reference, result.Value),
             _ => new(ValidationPlanReadState.Invalid, ErrorMessage: "Validation plan is invalid.")
         };
     }
 
-    private ValidationPlanReadResult Map(Guid projectId, Guid planId, ValidationPlanRecord? record)
+    private ValidationPlanReadResult Map(Guid projectId, ValidationPlanReference reference, ValidationPlanRecord? record)
     {
         if (record is null || record.RecordType != "validation-plan") return new(ValidationPlanReadState.Invalid, ErrorMessage: "Validation-plan record type is invalid.");
         if (record.SchemaVersion > ValidationSchema.CurrentVersion) return new(ValidationPlanReadState.UnsupportedFutureVersion);
         if (record.SchemaVersion < ValidationSchema.CurrentVersion) return new(ValidationPlanReadState.MigrationRequired);
-        if (record.ProjectId != projectId || record.PlanId != planId) return new(ValidationPlanReadState.IntegrityFailure, ErrorMessage: "Validation-plan identity does not match its path.");
+        if (record.ProjectId != projectId || record.PlanId != reference.PlanId || record.Revision != reference.Revision ||
+            !string.Equals(record.ContentHash, reference.ContentHash, StringComparison.OrdinalIgnoreCase)) return new(ValidationPlanReadState.IntegrityFailure, ErrorMessage: "Validation-plan identity does not match its exact reference.");
         try
         {
             var value = record.ToApplication();
@@ -79,7 +81,7 @@ public sealed class JsonValidationPlanRepository : IValidationPlanRepository
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NullReferenceException)
         {
-            _logger.LogWarning(exception, "Rejected invalid validation plan {PlanId}", planId);
+            _logger.LogWarning(exception, "Rejected invalid validation plan {PlanId}", reference.PlanId);
             return new(ValidationPlanReadState.IntegrityFailure, ErrorMessage: "Validation-plan content does not match its integrity evidence.");
         }
     }
@@ -113,11 +115,11 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
     {
         ArgumentNullException.ThrowIfNull(evidence);
         Validate(evidence);
-        var path = _paths.GetValidationEvidenceFile(evidence.ProjectId, evidence.EvidenceId);
+        var path = _paths.GetValidationEvidenceFile(evidence.ProjectId, evidence.PlanReference.PlanId, evidence.PlanReference.Revision, evidence.EvidenceId);
         try
         {
             await _paths.EnsureProjectDirectoriesAsync(evidence.ProjectId, cancellationToken).ConfigureAwait(false);
-            Directory.CreateDirectory(_paths.GetValidationEvidenceDirectory(evidence.ProjectId, evidence.EvidenceId));
+            Directory.CreateDirectory(_paths.GetValidationEvidenceDirectory(evidence.ProjectId, evidence.PlanReference.PlanId, evidence.PlanReference.Revision, evidence.EvidenceId));
             await _files.CreateNewAsync(path, ValidationEvidenceRecord.FromApplication(evidence), cancellationToken).ConfigureAwait(false);
             return new(ValidationEvidenceRepositoryWriteStatus.Created);
         }
@@ -138,11 +140,13 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
         }
     }
 
-    public async Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, Guid evidenceId, CancellationToken cancellationToken = default)
+    public async Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, ValidationPlanReference planReference, ValidationEvidenceReference evidenceReference, CancellationToken cancellationToken = default)
     {
         ValidateGuid(projectId, nameof(projectId));
-        ValidateGuid(evidenceId, nameof(evidenceId));
-        var path = _paths.GetValidationEvidenceFile(projectId, evidenceId);
+        ArgumentNullException.ThrowIfNull(planReference);
+        ArgumentNullException.ThrowIfNull(evidenceReference);
+        if (planReference.ProjectId != projectId) return new(ValidationEvidenceReadState.IntegrityFailure, ErrorMessage: "Validation-evidence project does not match its exact plan reference.");
+        var path = _paths.GetValidationEvidenceFile(projectId, planReference.PlanId, planReference.Revision, evidenceReference.EvidenceId);
         var result = await _files.ReadPreservingAsync<ValidationEvidenceRecord>(path, cancellationToken).ConfigureAwait(false);
         return result.Status switch
         {
@@ -150,39 +154,48 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
             FileReadStatus.UnsupportedSchema => new(ValidationEvidenceReadState.UnsupportedFutureVersion),
             FileReadStatus.IoFailure or FileReadStatus.PermissionFailure => new(ValidationEvidenceReadState.Unavailable),
             FileReadStatus.Empty or FileReadStatus.Corrupt => new(ValidationEvidenceReadState.Invalid),
-            FileReadStatus.Valid => Map(projectId, evidenceId, result.Value),
+            FileReadStatus.Valid => Map(projectId, planReference, evidenceReference, result.Value),
             _ => new(ValidationEvidenceReadState.Invalid)
         };
     }
 
-    public async Task<IReadOnlyList<ValidationEvidence>> GetForPlanAsync(Guid projectId, Guid planId, CancellationToken cancellationToken = default)
+    public async Task<ValidationEvidenceSetReadResult> GetForPlanAsync(Guid projectId, ValidationPlanReference planReference, CancellationToken cancellationToken = default)
     {
         ValidateGuid(projectId, nameof(projectId));
-        ValidateGuid(planId, nameof(planId));
-        var directory = _paths.GetProjectValidationEvidenceDirectory(projectId);
-        if (!Directory.Exists(directory)) return Array.Empty<ValidationEvidence>();
+        ArgumentNullException.ThrowIfNull(planReference);
+        if (planReference.ProjectId != projectId) return new(ValidationEvidenceSetReadState.IntegrityFailure, ErrorMessage: "Validation-evidence project does not match its exact plan reference.");
+        var directory = _paths.GetValidationEvidenceRevisionDirectory(projectId, planReference.PlanId, planReference.Revision);
         var values = new List<ValidationEvidence>();
-        IEnumerable<string> children;
-        try { children = Directory.EnumerateDirectories(directory).Take(ValidationLimits.MaxEvidenceItems).ToArray(); }
-        catch (IOException) { return values; }
-        catch (UnauthorizedAccessException) { return values; }
+        string[] children;
+        try { children = Directory.GetDirectories(directory); }
+        catch (DirectoryNotFoundException) { return new(ValidationEvidenceSetReadState.Valid, Array.Empty<ValidationEvidence>()); }
+        catch (IOException) { return new(ValidationEvidenceSetReadState.Unavailable, ErrorMessage: "Validation-evidence enumeration is unavailable."); }
+        catch (UnauthorizedAccessException) { return new(ValidationEvidenceSetReadState.Unavailable, ErrorMessage: "Validation-evidence enumeration permission was denied."); }
+        if (children.Length > ValidationLimits.MaxEvidenceItems) return new(ValidationEvidenceSetReadState.CapacityExceeded, ErrorMessage: "Validation-evidence capacity was exceeded for the exact plan revision.");
         foreach (var child in children)
         {
             var file = Path.Combine(child, "evidence.json");
             var result = await _files.ReadPreservingAsync<ValidationEvidenceRecord>(file, cancellationToken).ConfigureAwait(false);
-            if (result.Status != FileReadStatus.Valid || result.Value is null) continue;
-            var mapped = Map(projectId, result.Value.EvidenceId, result.Value);
-            if (mapped.IsValid && mapped.Evidence!.PlanReference.PlanId == planId) values.Add(mapped.Evidence);
+            if (result.Status != FileReadStatus.Valid || result.Value is null)
+                return new(MapSetState(result.Status), ErrorMessage: "An exact-plan validation-evidence record is incomplete or unreadable.");
+            if (result.Value.EvidenceId == Guid.Empty || result.Value.SchemaVersion <= 0 || !ValidationPlanReference.IsSha256(result.Value.ContentHash))
+                return new(ValidationEvidenceSetReadState.IntegrityFailure, ErrorMessage: "An exact-plan validation-evidence record has an invalid identity.");
+            var mapped = Map(projectId, planReference, new ValidationEvidenceReference(result.Value.EvidenceId, result.Value.SchemaVersion, result.Value.ContentHash), result.Value);
+            if (!mapped.IsValid || mapped.Evidence is null) return new(ValidationEvidenceSetReadState.IntegrityFailure, ErrorMessage: mapped.ErrorMessage ?? "An exact-plan validation-evidence record failed integrity validation.");
+            values.Add(mapped.Evidence);
         }
-        return values;
+        return new(ValidationEvidenceSetReadState.Valid, values.OrderBy(value => value.EvidenceId).ToArray());
     }
 
-    private ValidationEvidenceReadResult Map(Guid projectId, Guid evidenceId, ValidationEvidenceRecord? record)
+    private ValidationEvidenceReadResult Map(Guid projectId, ValidationPlanReference planReference, ValidationEvidenceReference evidenceReference, ValidationEvidenceRecord? record)
     {
         if (record is null || record.RecordType != "validation-evidence") return new(ValidationEvidenceReadState.Invalid);
         if (record.SchemaVersion > ValidationSchema.CurrentVersion) return new(ValidationEvidenceReadState.UnsupportedFutureVersion);
         if (record.SchemaVersion < ValidationSchema.CurrentVersion) return new(ValidationEvidenceReadState.MigrationRequired);
-        if (record.ProjectId != projectId || record.EvidenceId != evidenceId) return new(ValidationEvidenceReadState.IntegrityFailure, ErrorMessage: "Validation-evidence identity does not match its path.");
+        if (record.ProjectId != projectId || record.EvidenceId != evidenceReference.EvidenceId || record.PlanReference is null ||
+            record.PlanReference.ProjectId != planReference.ProjectId || record.PlanReference.PlanId != planReference.PlanId || record.PlanReference.Revision != planReference.Revision ||
+            !string.Equals(record.PlanReference.ContentHash, planReference.ContentHash, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(record.ContentHash, evidenceReference.ContentHash, StringComparison.OrdinalIgnoreCase)) return new(ValidationEvidenceReadState.IntegrityFailure, ErrorMessage: "Validation-evidence identity does not match its exact path or reference.");
         try
         {
             var value = record.ToApplication();
@@ -193,7 +206,7 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NullReferenceException)
         {
-            _logger.LogWarning(exception, "Rejected invalid validation evidence {EvidenceId}", evidenceId);
+            _logger.LogWarning(exception, "Rejected invalid validation evidence {EvidenceId}", evidenceReference.EvidenceId);
             return new(ValidationEvidenceReadState.IntegrityFailure, ErrorMessage: "Validation-evidence content does not match its integrity evidence.");
         }
     }
@@ -208,6 +221,14 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
     {
         if (value == Guid.Empty) throw new ArgumentException("Identifier cannot be empty.", name);
     }
+
+    private static ValidationEvidenceSetReadState MapSetState(FileReadStatus status) => status switch
+    {
+        FileReadStatus.UnsupportedSchema => ValidationEvidenceSetReadState.UnsupportedFutureVersion,
+        FileReadStatus.IoFailure or FileReadStatus.PermissionFailure => ValidationEvidenceSetReadState.Unavailable,
+        FileReadStatus.Empty or FileReadStatus.Corrupt => ValidationEvidenceSetReadState.Invalid,
+        _ => ValidationEvidenceSetReadState.IntegrityFailure
+    };
 }
 
 public sealed class JsonValidationGateDecisionRepository : IValidationGateDecisionRepository

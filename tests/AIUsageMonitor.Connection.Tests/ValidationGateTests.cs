@@ -60,7 +60,7 @@ public sealed class ValidationGateTests
     [Fact]
     public void RegressionRequiresMatchingBaselineEvidence()
     {
-        var requirement = new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Regression, "collector");
+        var requirement = CreateRegressionRequirement();
         var plan = CreatePlan(requirement);
         var regression = CreateEvidence(plan, requirement, baselineRelation: ValidationBaselineRelation.Regression);
 
@@ -152,19 +152,39 @@ public sealed class ValidationGateTests
     [Fact]
     public void ValidBaselineAndRegressionEvidenceSatisfyRegressionRequirement()
     {
-        var requirement = new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Regression, "collector");
+        var provisional = CreateRegressionRequirement();
+        var provisionalPlan = CreatePlan(provisional);
+        var baseline = CreateEvidence(provisionalPlan, provisional, baselineRelation: ValidationBaselineRelation.Baseline, planReference: provisional.BaselineBinding!.PlanReference);
+        var requirement = new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted,
+            ValidationBaselineRelation.Regression, "collector", validationDefinitionId: provisional.ValidationDefinitionId,
+            baselineBinding: new ValidationBaselineBinding(provisional.BaselineBinding.PlanReference, baseline.Reference, provisional.ValidationDefinitionId));
         var plan = CreatePlan(requirement);
-        var baseline = CreateEvidence(plan, requirement, baselineRelation: ValidationBaselineRelation.Baseline);
         var regression = CreateEvidence(plan, requirement, baselineEvidenceReference: baseline.Reference);
 
-        var decision = ValidationGateEvaluator.Evaluate(plan, [baseline, regression], regression.CapturedAt.AddMinutes(1));
+        var decision = ValidationGateEvaluator.Evaluate(plan, [regression], regression.CapturedAt.AddMinutes(1), baselineEvidence: [baseline]);
 
         Assert.Equal(ValidationGateDecisionState.Satisfied, decision.State);
     }
 
+    [Fact]
+    public void RegressionRequirementWithoutExplicitBaselineIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() => new ValidationRequirement("tests", ValidationEvidenceKind.Test, true,
+            ValidationCoverageScope.Targeted, ValidationBaselineRelation.Regression, "collector"));
+    }
+
+    [Fact]
+    public void AllOptionalPlanIsRejectedBeforeRecoveryCanSeeIt()
+    {
+        var optional = new ValidationRequirement("security", ValidationEvidenceKind.Security, false,
+            ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "security");
+
+        Assert.Throws<ArgumentException>(() => CreatePlan(optional));
+    }
+
     private static ValidationPlan CreatePlan(params ValidationRequirement[] requirements)
     {
-        var projectId = Guid.NewGuid();
+        var projectId = requirements.Select(value => value.BaselineBinding?.PlanReference.ProjectId).FirstOrDefault(value => value is not null) ?? Guid.NewGuid();
         var graphReference = new WorkGraphReference(Guid.NewGuid(), 1, Hash('e'));
         return new(
             projectId,
@@ -193,11 +213,12 @@ public sealed class ValidationGateTests
         ValidationEvidenceReference? baselineEvidenceReference = null,
         ExecutionRunAuthorityReference? authorityReference = null,
         Guid? workspaceId = null,
-        string? workspacePath = null) =>
+        string? workspacePath = null,
+        ValidationPlanReference? planReference = null) =>
         new(
             plan.ProjectId,
             Guid.NewGuid(),
-            plan.Reference,
+            planReference ?? plan.Reference,
             requirement.RequirementId,
             (authorityReference ?? plan.ExecutionRunAuthorityReference).RunId,
             authorityReference ?? plan.ExecutionRunAuthorityReference,
@@ -217,7 +238,19 @@ public sealed class ValidationGateTests
             capturedAt ?? plan.CreatedAt.AddMinutes(1),
             independentlyCaptured: true,
             securityBoundaryValid: true,
-            baselineEvidenceReference: baselineEvidenceReference);
+            baselineEvidenceReference: baselineEvidenceReference,
+            validationDefinitionId: requirement.ValidationDefinitionId);
+
+    private static ValidationRequirement CreateRegressionRequirement()
+    {
+        const string definition = "validation-definition:regression-tests";
+        var projectId = Guid.NewGuid();
+        var baselinePlan = new ValidationPlanReference(projectId, Guid.NewGuid(), 1, 1, Hash('1'));
+        var baselineEvidence = new ValidationEvidenceReference(Guid.NewGuid(), 1, Hash('2'));
+        return new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted,
+            ValidationBaselineRelation.Regression, "collector", validationDefinitionId: definition,
+            baselineBinding: new ValidationBaselineBinding(baselinePlan, baselineEvidence, definition));
+    }
 
     private static string Hash(char value) => new(value, 64);
 }

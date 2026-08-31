@@ -100,6 +100,8 @@ internal sealed class ValidationRequirementRecord
     public ValidationOutcome? ExpectedOutcome { get; set; }
     public string? RequestedBranch { get; set; }
     public int? PullRequestNumber { get; set; }
+    public string? ValidationDefinitionId { get; set; }
+    public ValidationBaselineBindingRecord? BaselineBinding { get; set; }
 
     public static ValidationRequirementRecord From(ValidationRequirement value) => new()
     {
@@ -112,7 +114,8 @@ internal sealed class ValidationRequirementRecord
         ExpectedRemoteCommitId = value.ExpectedRemoteCommitId, ExpectedTrackerProjectId = value.ExpectedTrackerProjectId,
         ExpectedTrackerWorkItemKey = value.ExpectedTrackerWorkItemKey, ExpectedTrackerStatus = value.ExpectedTrackerStatus,
         ExpectedState = value.ExpectedState, ExpectedOutcome = value.ExpectedOutcome, RequestedBranch = value.RequestedBranch,
-        PullRequestNumber = value.PullRequestNumber
+        PullRequestNumber = value.PullRequestNumber, ValidationDefinitionId = value.ValidationDefinitionId,
+        BaselineBinding = value.BaselineBinding is null ? null : ValidationBaselineBindingRecord.From(value.BaselineBinding)
     };
 
     public ValidationRequirement ToApplication() => new(
@@ -121,7 +124,24 @@ internal sealed class ValidationRequirementRecord
         TargetPath, TestFilter, TimeoutSeconds is null ? null : TimeSpan.FromSeconds(TimeoutSeconds.Value),
         ExpectedLocalHeadCommitSha, ExpectedBranchName, RequireCleanWorktree, ExpectedRepositoryIdentity,
         ExpectedRemoteCommitId, ExpectedTrackerProjectId, ExpectedTrackerWorkItemKey, ExpectedTrackerStatus,
-        ExpectedState, ExpectedOutcome, RequestedBranch, PullRequestNumber);
+        ExpectedState, ExpectedOutcome, RequestedBranch, PullRequestNumber, ValidationDefinitionId,
+        BaselineBinding?.ToApplication());
+}
+
+internal sealed class ValidationBaselineBindingRecord
+{
+    public ValidationPlanReferenceRecord PlanReference { get; set; } = new();
+    public ValidationEvidenceReferenceRecord EvidenceReference { get; set; } = new();
+    public string ValidationDefinitionId { get; set; } = string.Empty;
+
+    public static ValidationBaselineBindingRecord From(ValidationBaselineBinding value) => new()
+    {
+        PlanReference = ValidationPlanReferenceRecord.From(value.PlanReference),
+        EvidenceReference = ValidationEvidenceReferenceRecord.From(value.EvidenceReference),
+        ValidationDefinitionId = value.ValidationDefinitionId
+    };
+
+    public ValidationBaselineBinding ToApplication() => new(PlanReference.ToApplication(), EvidenceReference.ToApplication(), ValidationDefinitionId);
 }
 
 internal sealed class ValidationPlanRecord
@@ -132,6 +152,7 @@ internal sealed class ValidationPlanRecord
     public Guid PlanId { get; set; }
     public int Revision { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset EvidenceNotBefore { get; set; }
     public ExecutionRunAuthorityReferenceRecord ExecutionRunAuthorityReference { get; set; } = new();
     public PlanningContractReferenceRecord PlanningContractReference { get; set; } = new();
     public WorkGraphReferenceRecord? WorkGraphReference { get; set; }
@@ -147,7 +168,7 @@ internal sealed class ValidationPlanRecord
     public static ValidationPlanRecord FromApplication(ValidationPlan value) => new()
     {
         SchemaVersion = value.SchemaVersion, ProjectId = value.ProjectId, PlanId = value.PlanId, Revision = value.Revision,
-        CreatedAt = value.CreatedAt, ExecutionRunAuthorityReference = ExecutionRunAuthorityReferenceRecord.From(value.ExecutionRunAuthorityReference),
+        CreatedAt = value.CreatedAt, EvidenceNotBefore = value.EvidenceNotBefore, ExecutionRunAuthorityReference = ExecutionRunAuthorityReferenceRecord.From(value.ExecutionRunAuthorityReference),
         PlanningContractReference = PlanningContractReferenceRecord.From(value.PlanningContractReference), WorkGraphReference = WorkGraphReferenceRecord.From(value.WorkGraphReference),
         WorkGraphNodeId = value.WorkGraphNodeId, HandoffPackageReference = value.HandoffPackageReference is null ? null : HandoffPackageReferenceRecord.FromApplication(value.HandoffPackageReference),
         WorkspaceId = value.WorkspaceId, WorkspacePath = value.WorkspacePath, WorkspaceReceiptContentHash = value.WorkspaceReceiptContentHash,
@@ -159,7 +180,7 @@ internal sealed class ValidationPlanRecord
         ProjectId, PlanId, Revision, CreatedAt, ExecutionRunAuthorityReference.ToApplication(), PlanningContractReference.ToApplication(),
         WorkGraphReference?.ToApplication() ?? throw new ArgumentException("Validation-plan work graph reference is missing."), WorkGraphNodeId ?? Guid.Empty, WorkspaceId, WorkspacePath, WorkspaceReceiptContentHash,
         CurrentRecoveryCheckpointReference.ToApplication(), Requirements.Select(static value => value.ToApplication()).ToArray(),
-        HandoffPackageReference?.ToApplication(), SchemaVersion, ContentHash);
+        HandoffPackageReference?.ToApplication(), SchemaVersion, ContentHash, EvidenceNotBefore == default ? CreatedAt : EvidenceNotBefore);
 }
 
 internal sealed class ValidationEvidenceReferenceRecord
@@ -184,6 +205,7 @@ internal sealed class ValidationEvidenceRecord
     public Guid EvidenceId { get; set; }
     public ValidationPlanReferenceRecord PlanReference { get; set; } = new();
     public string RequirementId { get; set; } = string.Empty;
+    public string? ValidationDefinitionId { get; set; }
     public Guid RunId { get; set; }
     public ExecutionRunAuthorityReferenceRecord ExecutionRunAuthorityReference { get; set; } = new();
     public PlanningContractReferenceRecord PlanningContractReference { get; set; } = new();
@@ -222,7 +244,7 @@ internal sealed class ValidationEvidenceRecord
     public static ValidationEvidenceRecord FromApplication(ValidationEvidence value) => new()
     {
         SchemaVersion = value.SchemaVersion, ProjectId = value.ProjectId, EvidenceId = value.EvidenceId,
-        PlanReference = ValidationPlanReferenceRecord.From(value.PlanReference), RequirementId = value.RequirementId, RunId = value.RunId,
+        PlanReference = ValidationPlanReferenceRecord.From(value.PlanReference), RequirementId = value.RequirementId, ValidationDefinitionId = value.ValidationDefinitionId, RunId = value.RunId,
         ExecutionRunAuthorityReference = ExecutionRunAuthorityReferenceRecord.From(value.ExecutionRunAuthorityReference),
         PlanningContractReference = PlanningContractReferenceRecord.From(value.PlanningContractReference), WorkGraphReference = WorkGraphReferenceRecord.From(value.WorkGraphReference),
         WorkGraphNodeId = value.WorkGraphNodeId, CurrentRecoveryCheckpointReference = RecoveryCheckpointReferenceRecord.FromApplication(value.CurrentRecoveryCheckpointReference),
@@ -242,7 +264,7 @@ internal sealed class ValidationEvidenceRecord
         WorkspaceId, WorkspacePath, WorkspaceReceiptContentHash, CollectorIdentifier, Kind, State, Outcome, Coverage, BaselineRelation, CapturedAt,
         IndependentlyCaptured, SecurityBoundaryValid, BaselineEvidenceReference?.ToApplication(), TargetIdentity, LocalHeadCommitSha, BranchName,
         LocalIsClean, RepositoryIdentity, RemoteCommitId, TrackerProjectId, TrackerWorkItemKey, TrackerStatus, StdoutBytes, StderrBytes,
-        OutputTruncated, DiagnosticSummary, ReasonCode, SchemaVersion, ContentHash);
+        OutputTruncated, DiagnosticSummary, ReasonCode, SchemaVersion, ContentHash, ValidationDefinitionId);
 }
 
 internal sealed class ValidationRequirementDecisionRecord

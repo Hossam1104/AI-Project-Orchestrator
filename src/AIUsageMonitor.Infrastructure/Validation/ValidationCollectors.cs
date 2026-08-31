@@ -53,6 +53,7 @@ internal static class ValidationEvidenceFactory
             capturedAt,
             independentlyCaptured: true,
             securityBoundaryValid,
+            baselineEvidenceReference: context.BaselineEvidenceReference,
             targetIdentity: targetIdentity,
             localHeadCommitSha: localHeadCommitSha,
             branchName: branchName,
@@ -65,7 +66,8 @@ internal static class ValidationEvidenceFactory
             stdoutBytes: stdoutBytes,
             stderrBytes: stderrBytes,
             outputTruncated: outputTruncated,
-            reasonCode: reasonCode);
+            reasonCode: reasonCode,
+            validationDefinitionId: context.Requirement.ValidationDefinitionId);
 }
 
 public sealed class DotNetValidationEvidenceCollector : IValidationEvidenceCollector
@@ -175,10 +177,12 @@ public sealed class LocalRepositoryValidationEvidenceCollector : IValidationEvid
 {
     public const string CollectorIdentifier = "local-git";
     private readonly ILocalRepositoryInspector _inspector;
+    private readonly IClock _clock;
 
-    public LocalRepositoryValidationEvidenceCollector(ILocalRepositoryInspector inspector)
+    public LocalRepositoryValidationEvidenceCollector(ILocalRepositoryInspector inspector, IClock? clock = null)
     {
         _inspector = inspector ?? throw new ArgumentNullException(nameof(inspector));
+        _clock = clock ?? new SystemClock();
         Descriptor = new(CollectorIdentifier, [ValidationEvidenceKind.LocalRepository], false, true);
     }
 
@@ -198,7 +202,7 @@ public sealed class LocalRepositoryValidationEvidenceCollector : IValidationEvid
         var outcome = available && !(context.Requirement.RequireCleanWorktree == true && inspection.IsClean != true)
             ? ValidationOutcome.Passed
             : available ? ValidationOutcome.Failed : ValidationOutcome.Unknown;
-        return ValidationEvidenceFactory.Create(context, state, outcome, inspection.CapturedAt,
+        return ValidationEvidenceFactory.Create(context, state, outcome, _clock.UtcNow,
             localHeadCommitSha: inspection.HeadSha,
             branchName: inspection.BranchName,
             localIsClean: inspection.IsClean,
@@ -224,13 +228,27 @@ public sealed class RemoteValidationEvidenceCollector : IValidationEvidenceColle
     {
         var remote = await _service.InspectAsync(context.Project, context.Requirement.RequestedBranch, context.Requirement.PullRequestNumber, cancellationToken).ConfigureAwait(false);
         var repositoryIdentity = remote.Repository?.CanonicalName;
-        var commitId = remote.Branch?.CommitId ?? remote.PullRequest?.HeadCommitId ?? remote.CiRuns.FirstOrDefault()?.HeadCommitId;
+        var repositoryCommitId = remote.Branch?.CommitId ?? remote.PullRequest?.HeadCommitId;
         if (context.Requirement.EvidenceKind == ValidationEvidenceKind.RemoteRepository)
         {
             var state = Map(remote.RepositoryState);
             if (state == ValidationEvidenceState.Available && remote.Repository is null) state = ValidationEvidenceState.Missing;
             return ValidationEvidenceFactory.Create(context, state, state == ValidationEvidenceState.Available ? ValidationOutcome.Passed : ValidationOutcome.Unknown, remote.CapturedAt,
-                repositoryIdentity: repositoryIdentity, remoteCommitId: commitId, reasonCode: state == ValidationEvidenceState.Available ? null : ValidationReasonCodes.EvidenceNotUsable);
+                repositoryIdentity: repositoryIdentity, remoteCommitId: repositoryCommitId, reasonCode: state == ValidationEvidenceState.Available ? null : ValidationReasonCodes.EvidenceNotUsable);
+        }
+
+        var targetCiCommitId = context.Requirement.PullRequestNumber is not null
+            ? remote.PullRequest?.HeadCommitId
+            : remote.Branch?.CommitId;
+        var ciCommitIds = remote.CiRuns.Where(value => value.HeadCommitId is not null).Select(value => value.HeadCommitId!).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var commitMustBeProven = remote.CiResult is RemoteCiState.Passing or RemoteCiState.Failing;
+        var missingCiIdentity = commitMustBeProven && (string.IsNullOrWhiteSpace(targetCiCommitId) || remote.CiRuns.Count == 0 || remote.CiRuns.Any(value => string.IsNullOrWhiteSpace(value.HeadCommitId)));
+        var conflictingCiIdentity = commitMustBeProven && !missingCiIdentity && ciCommitIds.Any(value => !string.Equals(value, targetCiCommitId, StringComparison.OrdinalIgnoreCase));
+        if (missingCiIdentity || conflictingCiIdentity)
+        {
+            return ValidationEvidenceFactory.Create(context, ValidationEvidenceState.Invalid, ValidationOutcome.Unknown, remote.CapturedAt,
+                repositoryIdentity: repositoryIdentity, remoteCommitId: targetCiCommitId,
+                reasonCode: missingCiIdentity ? ValidationReasonCodes.RemoteCiCommitIdentityMissing : ValidationReasonCodes.RemoteCiCommitConflict);
         }
 
         var ciState = remote.CiResult switch
@@ -249,7 +267,7 @@ public sealed class RemoteValidationEvidenceCollector : IValidationEvidenceColle
             _ => ValidationOutcome.Unknown
         };
         return ValidationEvidenceFactory.Create(context, ciState, outcome, remote.CapturedAt,
-            repositoryIdentity: repositoryIdentity, remoteCommitId: commitId,
+            repositoryIdentity: repositoryIdentity, remoteCommitId: targetCiCommitId,
             reasonCode: outcome == ValidationOutcome.Failed ? ValidationReasonCodes.EvidenceFailed : null);
     }
 
@@ -273,10 +291,12 @@ public sealed class TrackerValidationEvidenceCollector : IValidationEvidenceColl
 {
     public const string CollectorIdentifier = "tracker";
     private readonly IWorkItemTrackerAdapterResolver _resolver;
+    private readonly IClock _clock;
 
-    public TrackerValidationEvidenceCollector(IWorkItemTrackerAdapterResolver resolver)
+    public TrackerValidationEvidenceCollector(IWorkItemTrackerAdapterResolver resolver, IClock clock)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         Descriptor = new(CollectorIdentifier, [ValidationEvidenceKind.Tracker], false, true);
     }
 
@@ -293,12 +313,12 @@ public sealed class TrackerValidationEvidenceCollector : IValidationEvidenceColl
                 TrackerAdapterResolutionStatus.ConfigurationConflict => ValidationEvidenceState.ConfigurationConflict,
                 _ => ValidationEvidenceState.Unsupported
             };
-            return ValidationEvidenceFactory.Create(context, resolutionState, ValidationOutcome.Unknown, DateTimeOffset.UtcNow, reasonCode: ValidationReasonCodes.EvidenceNotUsable);
+            return ValidationEvidenceFactory.Create(context, resolutionState, ValidationOutcome.Unknown, _clock.UtcNow, reasonCode: ValidationReasonCodes.EvidenceNotUsable);
         }
 
         var key = context.Requirement.ExpectedTrackerWorkItemKey;
         if (string.IsNullOrWhiteSpace(key))
-            return ValidationEvidenceFactory.Create(context, ValidationEvidenceState.Invalid, ValidationOutcome.Unknown, DateTimeOffset.UtcNow, reasonCode: ValidationReasonCodes.TrackerMismatch);
+            return ValidationEvidenceFactory.Create(context, ValidationEvidenceState.Invalid, ValidationOutcome.Unknown, _clock.UtcNow, reasonCode: ValidationReasonCodes.TrackerMismatch);
 
         var target = new TrackerWorkItemIdentity(resolution.Configuration.Identity.Provider, resolution.Configuration.Identity.ProjectId, key);
         var read = await resolution.Adapter.ReadAsync(resolution.Configuration, target, cancellationToken: cancellationToken).ConfigureAwait(false);
@@ -331,10 +351,12 @@ public sealed class SecurityValidationEvidenceCollector : IValidationEvidenceCol
 {
     public const string CollectorIdentifier = "security-boundary";
     private readonly IHandoffRedactionService _redaction;
+    private readonly IClock _clock;
 
-    public SecurityValidationEvidenceCollector(IHandoffRedactionService redaction)
+    public SecurityValidationEvidenceCollector(IHandoffRedactionService redaction, IClock clock)
     {
         _redaction = redaction ?? throw new ArgumentNullException(nameof(redaction));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         Descriptor = new(CollectorIdentifier, [ValidationEvidenceKind.Security], false, true);
     }
 
@@ -353,7 +375,7 @@ public sealed class SecurityValidationEvidenceCollector : IValidationEvidenceCol
         return Task.FromResult(ValidationEvidenceFactory.Create(context,
             rejected ? ValidationEvidenceState.RedactionRejected : ValidationEvidenceState.Available,
             rejected ? ValidationOutcome.Unknown : ValidationOutcome.Passed,
-            DateTimeOffset.UtcNow,
+            _clock.UtcNow,
             securityBoundaryValid: !rejected,
             reasonCode: rejected ? ValidationReasonCodes.SecurityBoundaryInvalid : ValidationReasonCodes.Satisfied));
     }
@@ -375,9 +397,11 @@ public sealed class SecurityValidationEvidenceCollector : IValidationEvidenceCol
 public sealed class RuntimeValidationEvidenceCollector : IValidationEvidenceCollector
 {
     public const string CollectorIdentifier = "runtime-checkpoint";
+    private readonly IClock _clock;
 
-    public RuntimeValidationEvidenceCollector()
+    public RuntimeValidationEvidenceCollector(IClock clock)
     {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         Descriptor = new(CollectorIdentifier, [ValidationEvidenceKind.Runtime], false, true);
     }
 
@@ -396,7 +420,7 @@ public sealed class RuntimeValidationEvidenceCollector : IValidationEvidenceColl
         return Task.FromResult(ValidationEvidenceFactory.Create(context,
             valid ? ValidationEvidenceState.Available : ValidationEvidenceState.Invalid,
             valid ? ValidationOutcome.Passed : ValidationOutcome.Failed,
-            DateTimeOffset.UtcNow,
+            _clock.UtcNow,
             reasonCode: valid ? ValidationReasonCodes.Satisfied : ValidationReasonCodes.EvidenceNotUsable));
     }
 }
