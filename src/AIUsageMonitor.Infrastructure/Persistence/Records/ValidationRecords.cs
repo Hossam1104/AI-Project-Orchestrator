@@ -239,6 +239,8 @@ internal sealed class ValidationEvidenceRecord
     public bool OutputTruncated { get; set; }
     public string? DiagnosticSummary { get; set; }
     public string? ReasonCode { get; set; }
+    public string? ValidatedEvidenceSetHash { get; set; }
+    public List<ValidationEvidenceReferenceRecord> ValidatedEvidenceReferences { get; set; } = [];
     public string ContentHash { get; set; } = string.Empty;
 
     public static ValidationEvidenceRecord FromApplication(ValidationEvidence value) => new()
@@ -255,7 +257,8 @@ internal sealed class ValidationEvidenceRecord
         TargetIdentity = value.TargetIdentity, LocalHeadCommitSha = value.LocalHeadCommitSha, BranchName = value.BranchName, LocalIsClean = value.LocalIsClean,
         RepositoryIdentity = value.RepositoryIdentity, RemoteCommitId = value.RemoteCommitId, TrackerProjectId = value.TrackerProjectId,
         TrackerWorkItemKey = value.TrackerWorkItemKey, TrackerStatus = value.TrackerStatus, StdoutBytes = value.StdoutBytes, StderrBytes = value.StderrBytes,
-        OutputTruncated = value.OutputTruncated, DiagnosticSummary = value.DiagnosticSummary, ReasonCode = value.ReasonCode, ContentHash = value.ContentHash
+        OutputTruncated = value.OutputTruncated, DiagnosticSummary = value.DiagnosticSummary, ReasonCode = value.ReasonCode,
+        ValidatedEvidenceSetHash = value.ValidatedEvidenceSetHash, ValidatedEvidenceReferences = value.ValidatedEvidenceReferences.Select(ValidationEvidenceReferenceRecord.From).ToList(), ContentHash = value.ContentHash
     };
 
     public ValidationEvidence ToApplication() => new(
@@ -264,7 +267,8 @@ internal sealed class ValidationEvidenceRecord
         WorkspaceId, WorkspacePath, WorkspaceReceiptContentHash, CollectorIdentifier, Kind, State, Outcome, Coverage, BaselineRelation, CapturedAt,
         IndependentlyCaptured, SecurityBoundaryValid, BaselineEvidenceReference?.ToApplication(), TargetIdentity, LocalHeadCommitSha, BranchName,
         LocalIsClean, RepositoryIdentity, RemoteCommitId, TrackerProjectId, TrackerWorkItemKey, TrackerStatus, StdoutBytes, StderrBytes,
-        OutputTruncated, DiagnosticSummary, ReasonCode, SchemaVersion, ContentHash, ValidationDefinitionId);
+        OutputTruncated, DiagnosticSummary, ReasonCode, SchemaVersion, ContentHash, ValidationDefinitionId, ValidatedEvidenceSetHash,
+        ValidatedEvidenceReferences.Select(static value => value.ToApplication()).ToArray());
 }
 
 internal sealed class ValidationRequirementDecisionRecord

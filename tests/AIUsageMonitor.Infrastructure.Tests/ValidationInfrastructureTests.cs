@@ -106,6 +106,7 @@ public sealed class ValidationInfrastructureTests
             new FakeAuthorityRepository(context.Authority),
             new FakeReceiptRepository(context.WorkspaceReceipt),
             new FakeCheckpointRepository(context.CurrentCheckpoint),
+            new FakeContinuationHeadRepository(context.CurrentCheckpoint),
             recovery,
             new FixedClock(context.Plan.CreatedAt.AddMinutes(2)));
 
@@ -130,12 +131,18 @@ public sealed class ValidationInfrastructureTests
         var routing = new RoutingDecisionReference(Guid.NewGuid(), 1, Hash('d'));
         var workspacePlan = new WorkspacePreparationPlanReference(Guid.NewGuid(), 1, Hash('e'), projectId);
         var workspace = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "apo-validation-workspace"));
-        var checkpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now, RecoveryCheckpointLifecycleState.Ready,
+        var inputCheckpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now.AddMinutes(-2), RecoveryCheckpointLifecycleState.Ready,
             new RecoveryContextReference(Guid.NewGuid(), 1, now), contract, graph, Guid.NewGuid(), handoff,
-            nextSafeAction: RecoveryNextSafeAction.RunValidation);
+            nextSafeAction: RecoveryNextSafeAction.ContinueFromCheckpoint);
         var receipt = new WorkspacePreparationReceipt(projectId, workspaceId, Guid.NewGuid(), now, workspacePlan, workspace, "apo-validation", new('f', 40), new('f', 40), "local-repository", "test");
-        var authority = new ExecutionRunAuthority(projectId, Guid.NewGuid(), now, contract, graph, checkpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
-            workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var authority = new ExecutionRunAuthority(projectId, Guid.NewGuid(), now.AddMinutes(-1), contract, graph, inputCheckpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
+            workspaceId, workspace, receipt.ContentHash, inputCheckpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var executionEvidence = new RecoveryEvidenceReference(authority.RunId, RecoveryEvidenceKind.Other,
+            $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}", authority.CreatedAt,
+            RecoveryEvidenceFreshness.PointInTime, contentHash: authority.ContentHash);
+        var checkpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now, RecoveryCheckpointLifecycleState.Ready,
+            inputCheckpoint.Context, contract, graph, inputCheckpoint.WorkGraphNodeId, handoff, inputCheckpoint.Reference,
+            evidenceReferences: [executionEvidence], nextSafeAction: RecoveryNextSafeAction.RunValidation);
         var requirement = new ValidationRequirement("build", ValidationEvidenceKind.Build, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, DotNetValidationEvidenceCollector.CollectorIdentifier, targetPath: target);
         var plan = new ValidationPlan(projectId, Guid.NewGuid(), 1, now, authority.Reference, contract, graph, checkpoint.WorkGraphNodeId!.Value, workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, [requirement], handoff);
         var project = new Project(projectId, "Validation", workspace, null, ProjectStatus.Active, now, now);
@@ -211,8 +218,20 @@ public sealed class ValidationInfrastructureTests
 
     private sealed class FakeCheckpointRepository(RecoveryCheckpoint checkpoint) : IRecoveryCheckpointRepository
     {
+        private readonly RecoveryCheckpoint _input = new(checkpoint.ProjectId, checkpoint.PreviousCheckpointReference!.CheckpointId, checkpoint.SchemaVersion, checkpoint.CreatedAt.AddMinutes(-2), RecoveryCheckpointLifecycleState.Ready,
+            checkpoint.Context, checkpoint.PlanningContractReference, checkpoint.WorkGraphReference, checkpoint.WorkGraphNodeId, checkpoint.HandoffPackageReference,
+            nextSafeAction: RecoveryNextSafeAction.ContinueFromCheckpoint);
         public Task<RecoveryCheckpointRepositoryWriteResult> CreateAsync(RecoveryCheckpoint value, CancellationToken cancellationToken = default) => Task.FromResult(new RecoveryCheckpointRepositoryWriteResult(RecoveryCheckpointRepositoryWriteStatus.Created));
-        public Task<RecoveryCheckpointReadResult> GetAsync(Guid projectId, Guid checkpointId, CancellationToken cancellationToken = default) => Task.FromResult(new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Valid, checkpoint));
+        public Task<RecoveryCheckpointReadResult> GetAsync(Guid projectId, Guid checkpointId, CancellationToken cancellationToken = default) => Task.FromResult(checkpointId == checkpoint.CheckpointId ? new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Valid, checkpoint) : checkpointId == _input.CheckpointId ? new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Valid, _input) : new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Missing));
+    }
+
+    private sealed class FakeContinuationHeadRepository(RecoveryCheckpoint checkpoint) : IContinuationHeadRepository
+    {
+        public Task<ContinuationHeadReadResult> GetAsync(Guid projectId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ContinuationHeadReadResult(ContinuationHeadReadState.Valid,
+                new ContinuationHead(projectId, ContinuationHeadSchema.CurrentVersion, 1, checkpoint.Reference, null, checkpoint.CreatedAt)));
+        public Task<ContinuationHeadRepositoryWriteResult> PublishAsync(ContinuationHead head, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ContinuationHeadRepositoryWriteResult(ContinuationHeadRepositoryWriteStatus.Published));
     }
 
     private sealed class FakeRecoveryService(RecoveryCheckpoint predecessor) : IRecoveryCheckpointService

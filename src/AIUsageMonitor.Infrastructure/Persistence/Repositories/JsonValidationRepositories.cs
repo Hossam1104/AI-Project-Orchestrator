@@ -103,12 +103,14 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
     private readonly ApplicationDataPaths _paths;
     private readonly JsonFileStore _files;
     private readonly ILogger<JsonValidationEvidenceRepository> _logger;
+    private readonly Func<string, IEnumerable<string>> _enumerateDirectories;
 
-    public JsonValidationEvidenceRepository(ApplicationDataPaths paths, JsonFileStore files, ILogger<JsonValidationEvidenceRepository> logger)
+    public JsonValidationEvidenceRepository(ApplicationDataPaths paths, JsonFileStore files, ILogger<JsonValidationEvidenceRepository> logger, Func<string, IEnumerable<string>>? enumerateDirectories = null)
     {
         _paths = paths ?? throw new ArgumentNullException(nameof(paths));
         _files = files ?? throw new ArgumentNullException(nameof(files));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _enumerateDirectories = enumerateDirectories ?? Directory.EnumerateDirectories;
     }
 
     public async Task<ValidationEvidenceRepositoryWriteResult> CreateAsync(ValidationEvidence evidence, CancellationToken cancellationToken = default)
@@ -166,12 +168,19 @@ public sealed class JsonValidationEvidenceRepository : IValidationEvidenceReposi
         if (planReference.ProjectId != projectId) return new(ValidationEvidenceSetReadState.IntegrityFailure, ErrorMessage: "Validation-evidence project does not match its exact plan reference.");
         var directory = _paths.GetValidationEvidenceRevisionDirectory(projectId, planReference.PlanId, planReference.Revision);
         var values = new List<ValidationEvidence>();
-        string[] children;
-        try { children = Directory.GetDirectories(directory); }
+        var children = new List<string>(ValidationLimits.MaxEvidenceItems + 1);
+        try
+        {
+            foreach (var child in _enumerateDirectories(directory))
+            {
+                children.Add(child);
+                if (children.Count > ValidationLimits.MaxEvidenceItems)
+                    return new(ValidationEvidenceSetReadState.CapacityExceeded, ErrorMessage: "Validation-evidence capacity was exceeded for the exact plan revision.");
+            }
+        }
         catch (DirectoryNotFoundException) { return new(ValidationEvidenceSetReadState.Valid, Array.Empty<ValidationEvidence>()); }
         catch (IOException) { return new(ValidationEvidenceSetReadState.Unavailable, ErrorMessage: "Validation-evidence enumeration is unavailable."); }
         catch (UnauthorizedAccessException) { return new(ValidationEvidenceSetReadState.Unavailable, ErrorMessage: "Validation-evidence enumeration permission was denied."); }
-        if (children.Length > ValidationLimits.MaxEvidenceItems) return new(ValidationEvidenceSetReadState.CapacityExceeded, ErrorMessage: "Validation-evidence capacity was exceeded for the exact plan revision.");
         foreach (var child in children)
         {
             var file = Path.Combine(child, "evidence.json");

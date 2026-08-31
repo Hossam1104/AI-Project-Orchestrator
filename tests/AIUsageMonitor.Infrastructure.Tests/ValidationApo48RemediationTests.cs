@@ -139,6 +139,89 @@ public sealed class ValidationApo48RemediationTests
     }
 
     [Fact]
+    public async Task PreRunCheckpointCannotImpersonateTheValidationTerminal()
+    {
+        var fixture = CreateFixture();
+        var plan = PlanFor(fixture, fixture.InputCheckpoint, fixture.Now, fixture.Now);
+
+        var result = await ValidateAsync(fixture, plan, checkpoint: fixture.InputCheckpoint);
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task WrongRunTerminalCannotValidateThePlan()
+    {
+        var fixture = CreateFixture();
+
+        var result = await ValidateAsync(fixture, authority: CreateAuthority(fixture, runId: Guid.NewGuid()));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task NonCurrentTerminalCannotValidateThePlan()
+    {
+        var fixture = CreateFixture();
+        var heads = new FakeContinuationHeadRepository(fixture.Checkpoint) { Latest = new RecoveryCheckpointReference(Guid.NewGuid(), 1, Hash('9')) };
+
+        var result = await ValidateAsync(fixture, heads: heads);
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task MissingExecutionEvidenceCannotValidateTheTerminal()
+    {
+        var fixture = CreateFixture();
+        var terminal = RebuildTerminal(fixture, []);
+
+        var result = await ValidateAsync(fixture, PlanFor(fixture, terminal), checkpoint: terminal,
+            heads: new FakeContinuationHeadRepository(terminal));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task WrongExecutionEvidenceCannotValidateTheTerminal()
+    {
+        var fixture = CreateFixture();
+        var wrong = new RecoveryEvidenceReference(fixture.Authority.RunId, RecoveryEvidenceKind.Other, "execution-run:wrong",
+            fixture.Authority.CreatedAt, RecoveryEvidenceFreshness.PointInTime, contentHash: Hash('9'));
+        var terminal = RebuildTerminal(fixture, [wrong]);
+
+        var result = await ValidateAsync(fixture, PlanFor(fixture, terminal), checkpoint: terminal,
+            heads: new FakeContinuationHeadRepository(terminal));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task BrokenCheckpointLineageCannotValidateTheTerminal()
+    {
+        var fixture = CreateFixture();
+        var terminal = RebuildTerminal(fixture, fixture.Checkpoint.EvidenceReferences,
+            new RecoveryCheckpointReference(Guid.NewGuid(), 1, Hash('9')));
+
+        var result = await ValidateAsync(fixture, PlanFor(fixture, terminal), checkpoint: terminal,
+            heads: new FakeContinuationHeadRepository(terminal));
+
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task ValidationNotBeforeIncludesTheActualTerminalTimestamp()
+    {
+        var fixture = CreateFixture();
+        var plan = PlanFor(fixture, fixture.Checkpoint, fixture.Checkpoint.CreatedAt, fixture.Checkpoint.CreatedAt);
+
+        var result = await ValidateAsync(fixture, plan);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(fixture.Checkpoint.CreatedAt, result.NotBefore);
+    }
+
+    [Fact]
     public async Task ExplicitBaselineIsPassedToProductionRegressionCapture()
     {
         const string definition = "validation-definition:production-regression";
@@ -267,6 +350,28 @@ public sealed class ValidationApo48RemediationTests
     }
 
     [Fact]
+    public async Task ExactPlanEvidenceEnumeratorStopsAfterCapacityPlusOne()
+    {
+        using var store = new TemporaryStore();
+        var fixture = CreateFixture();
+        var yielded = 0;
+        IEnumerable<string> Enumerate(string _)
+        {
+            while (yielded < ValidationLimits.MaxEvidenceItems + 20)
+            {
+                yielded++;
+                yield return Path.Combine(fixture.Workspace, yielded.ToString());
+            }
+        }
+        var repository = new JsonValidationEvidenceRepository(store.Paths, store.Files, NullLogger<JsonValidationEvidenceRepository>.Instance, Enumerate);
+
+        var result = await repository.GetForPlanAsync(fixture.Plan.ProjectId, fixture.Plan.Reference);
+
+        Assert.Equal(ValidationEvidenceSetReadState.CapacityExceeded, result.State);
+        Assert.Equal(ValidationLimits.MaxEvidenceItems + 1, yielded);
+    }
+
+    [Fact]
     public async Task EvidenceSetCorruptionIsNotReturnedAsOrdinaryMissingEvidence()
     {
         using var store = new TemporaryStore();
@@ -320,7 +425,7 @@ public sealed class ValidationApo48RemediationTests
         var fixture = CreateFixture();
         var result = await EvaluateGate(fixture, CreateEvidence(fixture));
 
-        Assert.Equal(RecoveryEvidenceFreshness.Verified, result.Recovery!.Checkpoint!.EvidenceReferences.Single().Freshness);
+        Assert.Equal(RecoveryEvidenceFreshness.Verified, result.Recovery!.Checkpoint!.EvidenceReferences.Single(value => value.Kind == RecoveryEvidenceKind.Validation).Freshness);
     }
 
     [Fact]
@@ -329,7 +434,7 @@ public sealed class ValidationApo48RemediationTests
         var fixture = CreateFixture();
         var result = await EvaluateGate(fixture, CreateEvidence(fixture, capturedAt: fixture.Now, state: ValidationEvidenceState.Stale));
 
-        Assert.Equal(RecoveryEvidenceFreshness.Stale, result.Recovery!.Checkpoint!.EvidenceReferences.Single().Freshness);
+        Assert.Equal(RecoveryEvidenceFreshness.Stale, result.Recovery!.Checkpoint!.EvidenceReferences.Single(value => value.Kind == RecoveryEvidenceKind.Validation).Freshness);
     }
 
     [Fact]
@@ -338,7 +443,140 @@ public sealed class ValidationApo48RemediationTests
         var fixture = CreateFixture();
         var result = await EvaluateGate(fixture, CreateEvidence(fixture, capturedAt: fixture.Now.AddTicks(1)));
 
-        Assert.Equal(RecoveryEvidenceFreshness.Unknown, result.Recovery!.Checkpoint!.EvidenceReferences.Single().Freshness);
+        Assert.Equal(RecoveryEvidenceFreshness.Unknown, result.Recovery!.Checkpoint!.EvidenceReferences.Single(value => value.Kind == RecoveryEvidenceKind.Validation).Freshness);
+    }
+
+    [Fact]
+    public async Task SecurityCaptureIsRejectedUntilAllRequiredNonSecurityEvidenceExists()
+    {
+        var fixture = WithRequirements(CreateFixture(),
+            new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"),
+            SecurityRequirement(),
+            new ValidationRequirement("build", ValidationEvidenceKind.Build, false, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"));
+        var security = new SecurityValidationEvidenceCollector(new HandoffRedactionService(), new FixedClock(fixture.Now));
+        var service = CreateEvidenceService(fixture, new FakePlanRepository(fixture.Plan), new FakeEvidenceRepository([]), new FakeCollectorResolver(new FakeCollector("dotnet"), security));
+        Assert.True((await service.CreatePlanAsync(fixture.Plan)).Succeeded);
+
+        var result = await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "security", fixture.Plan.CurrentRecoveryCheckpointReference));
+
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task SecurityCaptureBindsTheCompletePreSecurityEvidenceSnapshot()
+    {
+        var fixture = WithRequirements(CreateFixture(),
+            new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"),
+            SecurityRequirement(),
+            new ValidationRequirement("build", ValidationEvidenceKind.Build, false, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"));
+        var evidence = new FakeEvidenceRepository([]);
+        var security = new SecurityValidationEvidenceCollector(new HandoffRedactionService(), new FixedClock(fixture.Now));
+        var service = CreateEvidenceService(fixture, new FakePlanRepository(fixture.Plan), evidence, new FakeCollectorResolver(new FakeCollector("dotnet"), security));
+        Assert.True((await service.CreatePlanAsync(fixture.Plan)).Succeeded);
+        Assert.True((await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "tests", fixture.Plan.CurrentRecoveryCheckpointReference))).Succeeded);
+        Assert.True((await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "build", fixture.Plan.CurrentRecoveryCheckpointReference))).Succeeded);
+
+        var result = await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "security", fixture.Plan.CurrentRecoveryCheckpointReference));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ValidationEvidenceKind.Security, result.Evidence!.Kind);
+        Assert.Equal(2, result.Evidence.ValidatedEvidenceReferences.Count);
+        Assert.Equal(result.Evidence.ValidatedEvidenceSetHash,
+            ValidationEvidenceSnapshot.FromReferences(result.Evidence.ValidatedEvidenceReferences).Hash);
+    }
+
+    [Fact]
+    public async Task SecurityEvidenceSnapshotRoundTripsWithItsContentHash()
+    {
+        using var store = new TemporaryStore();
+        var fixture = WithRequirements(CreateFixture(),
+            new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"),
+            SecurityRequirement());
+        var testEvidence = CreateEvidence(fixture, requirement: fixture.Plan.Requirements.Single(value => value.RequirementId == "tests"));
+        var security = new SecurityValidationEvidenceCollector(new HandoffRedactionService(), new FixedClock(fixture.Now));
+        var securityEvidence = await security.CaptureAsync(new ValidationCollectionContext(fixture.Plan,
+            fixture.Plan.Requirements.Single(value => value.RequirementId == "security"), fixture.Project, fixture.Authority,
+            fixture.Receipt, fixture.Checkpoint, [testEvidence]));
+        var repository = new JsonValidationEvidenceRepository(store.Paths, store.Files, NullLogger<JsonValidationEvidenceRepository>.Instance);
+        await repository.CreateAsync(testEvidence);
+        await repository.CreateAsync(securityEvidence);
+
+        var result = await repository.GetAsync(fixture.Plan.ProjectId, fixture.Plan.Reference, securityEvidence.Reference);
+
+        Assert.True(result.IsValid);
+        Assert.Equal(securityEvidence.ValidatedEvidenceSetHash, result.Evidence!.ValidatedEvidenceSetHash);
+        Assert.Equal(securityEvidence.ValidatedEvidenceReferences.Single().ContentHash,
+            result.Evidence.ValidatedEvidenceReferences.Single().ContentHash);
+        Assert.Equal(securityEvidence.ContentHash, result.Evidence.ContentHash);
+    }
+
+    [Fact]
+    public async Task NonSecurityCaptureIsRejectedAfterSecurityBoundary()
+    {
+        var fixture = WithRequirements(CreateFixture(),
+            new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"),
+            SecurityRequirement(),
+            new ValidationRequirement("build", ValidationEvidenceKind.Build, false, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"));
+        var evidence = new FakeEvidenceRepository([]);
+        var security = new SecurityValidationEvidenceCollector(new HandoffRedactionService(), new FixedClock(fixture.Now));
+        var service = CreateEvidenceService(fixture, new FakePlanRepository(fixture.Plan), evidence, new FakeCollectorResolver(new FakeCollector("dotnet"), security));
+        Assert.True((await service.CreatePlanAsync(fixture.Plan)).Succeeded);
+        Assert.True((await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "tests", fixture.Plan.CurrentRecoveryCheckpointReference))).Succeeded);
+        Assert.True((await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "security", fixture.Plan.CurrentRecoveryCheckpointReference))).Succeeded);
+
+        var result = await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "build", fixture.Plan.CurrentRecoveryCheckpointReference));
+
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task ChangedEvidenceAfterSecurityInvalidatesTheSnapshotAtTheGate()
+    {
+        var fixture = WithRequirements(CreateFixture(),
+            new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"),
+            SecurityRequirement(),
+            new ValidationRequirement("build", ValidationEvidenceKind.Build, false, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "dotnet"));
+        var evidence = new FakeEvidenceRepository([]);
+        var security = new SecurityValidationEvidenceCollector(new HandoffRedactionService(), new FixedClock(fixture.Now));
+        var service = CreateEvidenceService(fixture, new FakePlanRepository(fixture.Plan), evidence, new FakeCollectorResolver(new FakeCollector("dotnet"), security));
+        Assert.True((await service.CreatePlanAsync(fixture.Plan)).Succeeded);
+        Assert.True((await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "tests", fixture.Plan.CurrentRecoveryCheckpointReference))).Succeeded);
+        Assert.True((await service.CaptureAsync(new ValidationCaptureRequest(fixture.Plan.ProjectId, fixture.Plan.Reference,
+            "security", fixture.Plan.CurrentRecoveryCheckpointReference))).Succeeded);
+        evidence.Add(CreateEvidence(fixture, requirement: fixture.Plan.Requirements.Single(value => value.RequirementId == "build")));
+
+        var result = await EvaluateGate(fixture, evidence.Values.ToArray());
+
+        Assert.Equal(ValidationGateDecisionState.Blocked, result.Decision!.State);
+        Assert.Equal(ValidationReasonCodes.SecurityEvidenceSetMismatch,
+            result.Decision.RequirementDecisions.Single(value => value.RequirementId == "security").ReasonCode);
+    }
+
+    [Fact]
+    public void TamperedSecuritySnapshotReferenceCannotSatisfyGate()
+    {
+        var fixture = WithRequirements(CreateFixture(),
+            new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "fake"),
+            SecurityRequirement());
+        var testEvidence = CreateEvidence(fixture, requirement: fixture.Plan.Requirements.Single(value => value.RequirementId == "tests"));
+        var reference = new ValidationEvidenceReference(Guid.NewGuid(), 1, Hash('9'));
+        var snapshot = ValidationEvidenceSnapshot.FromReferences([reference]);
+        var tampered = CreateEvidence(fixture, requirement: fixture.Plan.Requirements.Single(value => value.RequirementId == "security"),
+            validatedEvidenceSetHash: snapshot.Hash, validatedEvidenceReferences: snapshot.References);
+
+        var decision = ValidationGateEvaluator.Evaluate(fixture.Plan, [testEvidence, tampered], fixture.Now.AddMinutes(1));
+
+        Assert.Equal(ValidationGateDecisionState.Blocked, decision.State);
+        Assert.Equal(ValidationReasonCodes.SecurityEvidenceSetMismatch,
+            decision.RequirementDecisions.Single(value => value.RequirementId == "security").ReasonCode);
     }
 
     [Fact]
@@ -348,7 +586,7 @@ public sealed class ValidationApo48RemediationTests
         var result = await EvaluateGate(fixture, CreateEvidence(fixture, outcome: ValidationOutcome.Failed));
 
         Assert.Equal(ValidationGateDecisionState.Failed, result.Decision!.State);
-        Assert.Equal(RecoveryEvidenceFreshness.Verified, result.Recovery!.Checkpoint!.EvidenceReferences.Single().Freshness);
+        Assert.Equal(RecoveryEvidenceFreshness.Verified, result.Recovery!.Checkpoint!.EvidenceReferences.Single(value => value.Kind == RecoveryEvidenceKind.Validation).Freshness);
     }
 
     [Theory]
@@ -381,15 +619,17 @@ public sealed class ValidationApo48RemediationTests
     }
 
     private static ValidationEvidenceService CreateEvidenceService(Fixture fixture, FakePlanRepository plans, FakeEvidenceRepository evidence,
-        FakeCollectorResolver resolver, FakeAuthorityRepository? authorities = null) =>
+        FakeCollectorResolver resolver, FakeAuthorityRepository? authorities = null, FakeContinuationHeadRepository? heads = null) =>
         new(plans, evidence, new FakeProjectRepository(fixture.Project), authorities ?? new FakeAuthorityRepository(fixture.Authority),
-            new FakeReceiptRepository(fixture.Receipt), new FakeCheckpointRepository(fixture.Checkpoint), resolver, new FixedClock(fixture.Now));
+            new FakeReceiptRepository(fixture.Receipt), new FakeCheckpointRepository(fixture.InputCheckpoint, fixture.Checkpoint),
+            heads ?? new FakeContinuationHeadRepository(fixture.Checkpoint), resolver, new FixedClock(fixture.Now));
 
-    private static async Task<ValidationGateEvaluationResult> EvaluateGate(Fixture fixture, ValidationEvidence evidence)
+    private static async Task<ValidationGateEvaluationResult> EvaluateGate(Fixture fixture, params ValidationEvidence[] evidence)
     {
         var recovery = new FakeRecoveryService(fixture.Checkpoint);
-        var service = new ValidationGateService(new FakePlanRepository(fixture.Plan), new FakeEvidenceRepository([evidence]), new FakeDecisionRepository(),
-            new FakeAuthorityRepository(fixture.Authority), new FakeReceiptRepository(fixture.Receipt), new FakeCheckpointRepository(fixture.Checkpoint),
+        var service = new ValidationGateService(new FakePlanRepository(fixture.Plan), new FakeEvidenceRepository(evidence), new FakeDecisionRepository(),
+            new FakeAuthorityRepository(fixture.Authority), new FakeReceiptRepository(fixture.Receipt), new FakeCheckpointRepository(fixture.InputCheckpoint, fixture.Checkpoint),
+            new FakeContinuationHeadRepository(fixture.Checkpoint),
             recovery, new FixedClock(fixture.Now));
         return await service.EvaluateAsync(new ValidationGateRequest(fixture.Plan.ProjectId, fixture.Plan.Reference, fixture.Plan.CurrentRecoveryCheckpointReference));
     }
@@ -411,6 +651,45 @@ public sealed class ValidationApo48RemediationTests
             ciState: state, ciResult: result);
     }
 
+    private static Fixture WithRequirements(Fixture fixture, params ValidationRequirement[] requirements)
+    {
+        var plan = new ValidationPlan(fixture.Plan.ProjectId, fixture.Plan.PlanId, fixture.Plan.Revision, fixture.Plan.CreatedAt,
+            fixture.Authority.Reference, fixture.Plan.PlanningContractReference, fixture.Plan.WorkGraphReference, fixture.Plan.WorkGraphNodeId,
+            fixture.Plan.WorkspaceId, fixture.Plan.WorkspacePath, fixture.Plan.WorkspaceReceiptContentHash, fixture.Checkpoint.Reference,
+            requirements, fixture.Plan.HandoffPackageReference, evidenceNotBefore: fixture.Plan.EvidenceNotBefore);
+        var context = new ValidationCollectionContext(plan, requirements[0], fixture.Project, fixture.Authority, fixture.Receipt, fixture.Checkpoint, []);
+        return fixture with { Plan = plan, Requirement = requirements[0], Context = context };
+    }
+
+    private static ValidationPlan PlanFor(Fixture fixture, RecoveryCheckpoint checkpoint, DateTimeOffset? createdAt = null, DateTimeOffset? evidenceNotBefore = null) =>
+        new(fixture.Plan.ProjectId, fixture.Plan.PlanId, fixture.Plan.Revision, createdAt ?? checkpoint.CreatedAt,
+            fixture.Authority.Reference, fixture.Plan.PlanningContractReference, fixture.Plan.WorkGraphReference, fixture.Plan.WorkGraphNodeId,
+            fixture.Plan.WorkspaceId, fixture.Plan.WorkspacePath, fixture.Plan.WorkspaceReceiptContentHash, checkpoint.Reference,
+            fixture.Plan.Requirements, fixture.Plan.HandoffPackageReference, evidenceNotBefore: evidenceNotBefore ?? checkpoint.CreatedAt);
+
+    private static RecoveryCheckpoint RebuildTerminal(Fixture fixture, IReadOnlyList<RecoveryEvidenceReference> evidence,
+        RecoveryCheckpointReference? previous = null) =>
+        new(fixture.Checkpoint.ProjectId, fixture.Checkpoint.CheckpointId, fixture.Checkpoint.SchemaVersion, fixture.Checkpoint.CreatedAt,
+            fixture.Checkpoint.LifecycleState, fixture.Checkpoint.Context, fixture.Checkpoint.PlanningContractReference,
+            fixture.Checkpoint.WorkGraphReference, fixture.Checkpoint.WorkGraphNodeId, fixture.Checkpoint.HandoffPackageReference,
+            previous ?? fixture.Checkpoint.PreviousCheckpointReference, fixture.Checkpoint.SelectedAgentRoleReferences, evidence,
+            fixture.Checkpoint.GateSnapshots, fixture.Checkpoint.Blockers, fixture.Checkpoint.NextSafeAction, fixture.Checkpoint.Explanation);
+
+    private static async Task<ValidationAuthorityBindingResult> ValidateAsync(Fixture fixture, ValidationPlan? plan = null,
+        ExecutionRunAuthority? authority = null, RecoveryCheckpoint? checkpoint = null, FakeContinuationHeadRepository? heads = null)
+    {
+        var current = checkpoint ?? fixture.Checkpoint;
+        var repository = current.CheckpointId == fixture.InputCheckpoint.CheckpointId
+            ? new FakeCheckpointRepository(current)
+            : new FakeCheckpointRepository(fixture.InputCheckpoint, current);
+        return await ValidationAuthorityBindingValidator.ValidateAsync(plan ?? fixture.Plan, authority ?? fixture.Authority, fixture.Receipt,
+            current, repository, heads ?? new FakeContinuationHeadRepository(current));
+    }
+
+    private static ValidationRequirement SecurityRequirement() =>
+        new("security", ValidationEvidenceKind.Security, true, ValidationCoverageScope.Targeted,
+            ValidationBaselineRelation.Standalone, SecurityValidationEvidenceCollector.CollectorIdentifier);
+
     private static Fixture CreateFixture(ValidationRequirement? requirement = null, Guid? projectId = null, DateTimeOffset? now = null)
     {
         var capturedAt = now ?? new DateTimeOffset(2026, 8, 31, 10, 0, 0, TimeSpan.Zero);
@@ -422,18 +701,24 @@ public sealed class ValidationApo48RemediationTests
         var routing = new RoutingDecisionReference(Guid.NewGuid(), 1, Hash('d'));
         var workspacePlan = new WorkspacePreparationPlanReference(Guid.NewGuid(), 1, Hash('e'), id);
         var workspace = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "apo-remediation-workspace"));
-        var checkpoint = new RecoveryCheckpoint(id, Guid.NewGuid(), 1, capturedAt, RecoveryCheckpointLifecycleState.Ready,
+        var inputCheckpoint = new RecoveryCheckpoint(id, Guid.NewGuid(), 1, capturedAt.AddMinutes(-2), RecoveryCheckpointLifecycleState.Ready,
             new RecoveryContextReference(Guid.NewGuid(), 1, capturedAt), contract, graph, Guid.NewGuid(), handoff,
-            nextSafeAction: RecoveryNextSafeAction.RunValidation);
+            nextSafeAction: RecoveryNextSafeAction.ContinueFromCheckpoint);
         var receipt = new WorkspacePreparationReceipt(id, workspaceId, Guid.NewGuid(), capturedAt, workspacePlan, workspace, "main", Sha40('f'), Sha40('f'), "local-repository", "test");
-        var authority = new ExecutionRunAuthority(id, Guid.NewGuid(), capturedAt, contract, graph, checkpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
-            workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var authority = new ExecutionRunAuthority(id, Guid.NewGuid(), capturedAt.AddMinutes(-1), contract, graph, inputCheckpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
+            workspaceId, workspace, receipt.ContentHash, inputCheckpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var executionEvidence = new RecoveryEvidenceReference(authority.RunId, RecoveryEvidenceKind.Other,
+            $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}", authority.CreatedAt,
+            RecoveryEvidenceFreshness.PointInTime, contentHash: authority.ContentHash);
+        var checkpoint = new RecoveryCheckpoint(id, Guid.NewGuid(), 1, capturedAt, RecoveryCheckpointLifecycleState.Ready,
+            inputCheckpoint.Context, contract, graph, inputCheckpoint.WorkGraphNodeId, handoff, inputCheckpoint.Reference,
+            evidenceReferences: [executionEvidence], nextSafeAction: RecoveryNextSafeAction.RunValidation);
         var value = requirement ?? new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "fake");
         var plan = new ValidationPlan(id, Guid.NewGuid(), 1, capturedAt, authority.Reference, contract, graph, checkpoint.WorkGraphNodeId!.Value,
             workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, [value], handoff);
         var project = new Project(id, "Validation", workspace, null, ProjectStatus.Active, capturedAt, capturedAt);
         var context = new ValidationCollectionContext(plan, value, project, authority, receipt, checkpoint, []);
-        return new(capturedAt, plan, value, project, authority, receipt, checkpoint, context, workspace);
+        return new(capturedAt, plan, value, project, authority, receipt, inputCheckpoint, checkpoint, context, workspace);
     }
 
     private static ValidationPlan CreateRevision(Fixture fixture, int revision) =>
@@ -446,24 +731,26 @@ public sealed class ValidationApo48RemediationTests
         new(fixture.Plan.ProjectId, runId ?? fixture.Authority.RunId, fixture.Now, contract ?? fixture.Plan.PlanningContractReference,
             fixture.Plan.WorkGraphReference, fixture.Plan.WorkGraphNodeId, fixture.Authority.HandoffPackageReference, fixture.Authority.RoutingDecisionReference,
             new WorkspacePreparationPlanReference(Guid.NewGuid(), 1, Hash('e'), fixture.Plan.ProjectId), fixture.Plan.WorkspaceId, fixture.Plan.WorkspacePath,
-            fixture.Plan.WorkspaceReceiptContentHash, fixture.Plan.CurrentRecoveryCheckpointReference, fixture.Authority.AgentId, fixture.Authority.Provider,
+            fixture.Plan.WorkspaceReceiptContentHash, fixture.Authority.InputRecoveryCheckpointReference, fixture.Authority.AgentId, fixture.Authority.Provider,
             fixture.Authority.ModelIdentifier, fixture.Authority.ConnectionMode, fixture.Authority.AdapterIdentifier, fixture.Authority.Budgets);
 
     private static ValidationEvidence CreateEvidence(Fixture fixture, ValidationPlan? plan = null, Guid? evidenceId = null,
         ValidationEvidenceState state = ValidationEvidenceState.Available, ValidationOutcome? outcome = null,
-        DateTimeOffset? capturedAt = null, ValidationBaselineRelation? baselineRelation = null) =>
-        new((plan ?? fixture.Plan).ProjectId, evidenceId ?? Guid.NewGuid(), (plan ?? fixture.Plan).Reference, fixture.Requirement.RequirementId,
+        DateTimeOffset? capturedAt = null, ValidationBaselineRelation? baselineRelation = null, ValidationRequirement? requirement = null,
+        string? validatedEvidenceSetHash = null, IReadOnlyList<ValidationEvidenceReference>? validatedEvidenceReferences = null) =>
+        new((plan ?? fixture.Plan).ProjectId, evidenceId ?? Guid.NewGuid(), (plan ?? fixture.Plan).Reference, (requirement ?? fixture.Requirement).RequirementId,
             fixture.Authority.RunId, fixture.Authority.Reference, fixture.Plan.PlanningContractReference, fixture.Plan.WorkGraphReference, fixture.Plan.WorkGraphNodeId,
             fixture.Plan.CurrentRecoveryCheckpointReference, fixture.Plan.WorkspaceId, fixture.Plan.WorkspacePath, fixture.Plan.WorkspaceReceiptContentHash,
-            fixture.Requirement.CollectorIdentifier, fixture.Requirement.EvidenceKind, state, outcome ?? (state == ValidationEvidenceState.Available ? ValidationOutcome.Passed : ValidationOutcome.Unknown),
-            fixture.Requirement.Coverage, baselineRelation ?? fixture.Requirement.BaselineRelation, capturedAt ?? fixture.Now,
-            validationDefinitionId: fixture.Requirement.ValidationDefinitionId);
+            (requirement ?? fixture.Requirement).CollectorIdentifier, (requirement ?? fixture.Requirement).EvidenceKind, state, outcome ?? (state == ValidationEvidenceState.Available ? ValidationOutcome.Passed : ValidationOutcome.Unknown),
+            (requirement ?? fixture.Requirement).Coverage, baselineRelation ?? (requirement ?? fixture.Requirement).BaselineRelation, capturedAt ?? fixture.Now,
+            validationDefinitionId: (requirement ?? fixture.Requirement).ValidationDefinitionId,
+            validatedEvidenceSetHash: validatedEvidenceSetHash, validatedEvidenceReferences: validatedEvidenceReferences);
 
     private static string Hash(char value) => new(value, 64);
     private static string Sha40(char value) => new(value, 40);
 
     private sealed record Fixture(DateTimeOffset Now, ValidationPlan Plan, ValidationRequirement Requirement, Project Project,
-        ExecutionRunAuthority Authority, WorkspacePreparationReceipt Receipt, RecoveryCheckpoint Checkpoint,
+        ExecutionRunAuthority Authority, WorkspacePreparationReceipt Receipt, RecoveryCheckpoint InputCheckpoint, RecoveryCheckpoint Checkpoint,
         ValidationCollectionContext Context, string Workspace);
 
     private sealed class FixedClock(DateTimeOffset value) : IClock { public DateTimeOffset UtcNow => value; }
@@ -480,8 +767,10 @@ public sealed class ValidationApo48RemediationTests
 
     private sealed class FakeCollector : IValidationEvidenceCollector
     {
+        private readonly string _identifier;
+        public FakeCollector(string identifier = "fake") => _identifier = identifier;
         public int InvocationCount { get; private set; }
-        public ValidationEvidenceCollectorDescriptor Descriptor { get; } = new("fake", [ValidationEvidenceKind.Test, ValidationEvidenceKind.Build], false, true);
+        public ValidationEvidenceCollectorDescriptor Descriptor => new(_identifier, [ValidationEvidenceKind.Test, ValidationEvidenceKind.Build], false, true);
         public Task<ValidationEvidence> CaptureAsync(ValidationCollectionContext context, CancellationToken cancellationToken = default)
         {
             InvocationCount++;
@@ -489,17 +778,23 @@ public sealed class ValidationApo48RemediationTests
                 context.Authority.RunId, context.Authority.Reference, context.Plan.PlanningContractReference, context.Plan.WorkGraphReference, context.Plan.WorkGraphNodeId,
                 context.CurrentCheckpoint.Reference, context.Plan.WorkspaceId, context.Plan.WorkspacePath, context.Plan.WorkspaceReceiptContentHash,
                 context.Requirement.CollectorIdentifier, context.Requirement.EvidenceKind, ValidationEvidenceState.Available, ValidationOutcome.Passed,
-                context.Requirement.Coverage, context.Requirement.BaselineRelation, context.Plan.CreatedAt.AddMinutes(1), baselineEvidenceReference: context.BaselineEvidenceReference,
+                context.Requirement.Coverage, context.Requirement.BaselineRelation, context.Plan.CreatedAt, baselineEvidenceReference: context.BaselineEvidenceReference,
                 validationDefinitionId: context.Requirement.ValidationDefinitionId));
         }
     }
 
-    private sealed class FakeCollectorResolver(FakeCollector? collector = null) : IValidationEvidenceCollectorResolver
+    private sealed class FakeCollectorResolver : IValidationEvidenceCollectorResolver
     {
-        private readonly FakeCollector _collector = collector ?? new();
-        public ValidationCollectorResolution Resolve(string collectorIdentifier, ValidationEvidenceKind kind) =>
-            collectorIdentifier == _collector.Descriptor.Identifier && _collector.Descriptor.SupportedKinds.Contains(kind)
-                ? new(ValidationCollectorResolutionStatus.Resolved, _collector) : new(ValidationCollectorResolutionStatus.Unsupported);
+        private readonly IReadOnlyList<IValidationEvidenceCollector> _collectors;
+        public FakeCollectorResolver(FakeCollector? collector = null, params IValidationEvidenceCollector[] additional) =>
+            _collectors = new IValidationEvidenceCollector[] { collector ?? new() }.Concat(additional).ToArray();
+        public ValidationCollectorResolution Resolve(string collectorIdentifier, ValidationEvidenceKind kind)
+        {
+            var collector = _collectors.FirstOrDefault(value => value.Descriptor.Identifier == collectorIdentifier && value.Descriptor.SupportedKinds.Contains(kind));
+            return collector is null
+                ? new(ValidationCollectorResolutionStatus.Unsupported)
+                : new(ValidationCollectorResolutionStatus.Resolved, collector);
+        }
     }
 
     private sealed class FakePlanRepository(params ValidationPlan[] values) : IValidationPlanRepository
@@ -513,6 +808,8 @@ public sealed class ValidationApo48RemediationTests
     private sealed class FakeEvidenceRepository(IReadOnlyList<ValidationEvidence> values) : IValidationEvidenceRepository
     {
         private readonly List<ValidationEvidence> _values = values.ToList();
+        public IReadOnlyList<ValidationEvidence> Values => _values;
+        public void Add(ValidationEvidence value) => _values.Add(value);
         public Task<ValidationEvidenceRepositoryWriteResult> CreateAsync(ValidationEvidence evidence, CancellationToken cancellationToken = default) { _values.Add(evidence); return Task.FromResult(new ValidationEvidenceRepositoryWriteResult(ValidationEvidenceRepositoryWriteStatus.Created)); }
         public Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, ValidationPlanReference planReference, ValidationEvidenceReference evidenceReference, CancellationToken cancellationToken = default) => Task.FromResult(_values.FirstOrDefault(value => value.ProjectId == projectId && value.PlanReference.PlanId == planReference.PlanId && value.PlanReference.Revision == planReference.Revision && value.EvidenceId == evidenceReference.EvidenceId && value.ContentHash == evidenceReference.ContentHash) is { } value ? new ValidationEvidenceReadResult(ValidationEvidenceReadState.Valid, value) : new ValidationEvidenceReadResult(ValidationEvidenceReadState.Missing));
         public Task<ValidationEvidenceSetReadResult> GetForPlanAsync(Guid projectId, ValidationPlanReference planReference, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceSetReadResult(ValidationEvidenceSetReadState.Valid, _values.Where(value => value.ProjectId == projectId && value.PlanReference.PlanId == planReference.PlanId && value.PlanReference.Revision == planReference.Revision && value.PlanReference.ContentHash == planReference.ContentHash).ToArray()));
@@ -537,10 +834,21 @@ public sealed class ValidationApo48RemediationTests
         public Task<WorkspacePreparationReceiptReadResult> GetAsync(Guid projectId, Guid workspaceId, CancellationToken cancellationToken = default) => Task.FromResult(new WorkspacePreparationReceiptReadResult(WorkspacePreparationReceiptReadState.Valid, receipt));
     }
 
-    private sealed class FakeCheckpointRepository(RecoveryCheckpoint checkpoint) : IRecoveryCheckpointRepository
+    private sealed class FakeCheckpointRepository(params RecoveryCheckpoint[] checkpoints) : IRecoveryCheckpointRepository
     {
+        private readonly Dictionary<Guid, RecoveryCheckpoint> _values = checkpoints.ToDictionary(value => value.CheckpointId);
         public Task<RecoveryCheckpointRepositoryWriteResult> CreateAsync(RecoveryCheckpoint value, CancellationToken cancellationToken = default) => Task.FromResult(new RecoveryCheckpointRepositoryWriteResult(RecoveryCheckpointRepositoryWriteStatus.Created));
-        public Task<RecoveryCheckpointReadResult> GetAsync(Guid projectId, Guid checkpointId, CancellationToken cancellationToken = default) => Task.FromResult(new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Valid, checkpoint));
+        public Task<RecoveryCheckpointReadResult> GetAsync(Guid projectId, Guid checkpointId, CancellationToken cancellationToken = default) => Task.FromResult(_values.TryGetValue(checkpointId, out var checkpoint) && checkpoint.ProjectId == projectId ? new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Valid, checkpoint) : new RecoveryCheckpointReadResult(RecoveryCheckpointReadState.Missing));
+    }
+
+    private sealed class FakeContinuationHeadRepository(RecoveryCheckpoint checkpoint) : IContinuationHeadRepository
+    {
+        public RecoveryCheckpointReference Latest { get; set; } = checkpoint.Reference;
+        public Task<ContinuationHeadReadResult> GetAsync(Guid projectId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ContinuationHeadReadResult(ContinuationHeadReadState.Valid,
+                new ContinuationHead(projectId, ContinuationHeadSchema.CurrentVersion, 1, Latest, null, checkpoint.CreatedAt)));
+        public Task<ContinuationHeadRepositoryWriteResult> PublishAsync(ContinuationHead head, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ContinuationHeadRepositoryWriteResult(ContinuationHeadRepositoryWriteStatus.Published));
     }
 
     private sealed class FakeDecisionRepository : IValidationGateDecisionRepository

@@ -29,7 +29,9 @@ internal static class ValidationEvidenceFactory
         int stdoutBytes = 0,
         int stderrBytes = 0,
         bool outputTruncated = false,
-        string? reasonCode = null) =>
+        string? reasonCode = null,
+        string? validatedEvidenceSetHash = null,
+        IReadOnlyList<ValidationEvidenceReference>? validatedEvidenceReferences = null) =>
         new(
             context.Plan.ProjectId,
             Guid.NewGuid(),
@@ -67,7 +69,9 @@ internal static class ValidationEvidenceFactory
             stderrBytes: stderrBytes,
             outputTruncated: outputTruncated,
             reasonCode: reasonCode,
-            validationDefinitionId: context.Requirement.ValidationDefinitionId);
+            validationDefinitionId: context.Requirement.ValidationDefinitionId,
+            validatedEvidenceSetHash: validatedEvidenceSetHash,
+            validatedEvidenceReferences: validatedEvidenceReferences);
 }
 
 public sealed class DotNetValidationEvidenceCollector : IValidationEvidenceCollector
@@ -372,12 +376,15 @@ public sealed class SecurityValidationEvidenceCollector : IValidationEvidenceCol
         var workspace = Path.GetFullPath(context.Plan.WorkspacePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var targetPathsAreSafe = context.ExistingEvidence.Where(value => value.TargetIdentity is not null).All(value => !Path.IsPathFullyQualified(value.TargetIdentity!) || IsWithin(workspace, value.TargetIdentity!));
         var rejected = !collectorSetIsSafe || !targetPathsAreSafe || texts.Concat(evidenceTexts).Any(value => _redaction.ValidateIdentityText(value).RequiresRedaction);
+        var snapshot = ValidationEvidenceSnapshot.TryCreate(context.ExistingEvidence, out var evidenceSnapshot) ? evidenceSnapshot : null;
         return Task.FromResult(ValidationEvidenceFactory.Create(context,
             rejected ? ValidationEvidenceState.RedactionRejected : ValidationEvidenceState.Available,
             rejected ? ValidationOutcome.Unknown : ValidationOutcome.Passed,
             _clock.UtcNow,
             securityBoundaryValid: !rejected,
-            reasonCode: rejected ? ValidationReasonCodes.SecurityBoundaryInvalid : ValidationReasonCodes.Satisfied));
+            reasonCode: rejected ? ValidationReasonCodes.SecurityBoundaryInvalid : ValidationReasonCodes.Satisfied,
+            validatedEvidenceSetHash: snapshot?.Hash,
+            validatedEvidenceReferences: snapshot?.References));
     }
 
     private static bool IsWithin(string root, string path)

@@ -85,10 +85,10 @@ public sealed class ValidationAuthorityAndFreshnessTests
     }
 
     [Fact]
-    public void InputCheckpointIdentityMismatchFailsClosed()
+    public void TerminalCheckpointCannotImpersonateAuthorityInput()
     {
         var fixture = CreateFixture();
-        Assert.False(Validate(fixture, CreateAuthority(fixture, inputCheckpoint: new RecoveryCheckpointReference(Guid.NewGuid(), 2, Hash('1')))).IsValid);
+        Assert.False(Validate(fixture, CreateAuthority(fixture, inputCheckpoint: fixture.Checkpoint.Reference)).IsValid);
     }
 
     [Fact]
@@ -188,12 +188,18 @@ public sealed class ValidationAuthorityAndFreshnessTests
         var routing = new RoutingDecisionReference(Guid.NewGuid(), 1, Hash('d'));
         var workspacePlan = new WorkspacePreparationPlanReference(Guid.NewGuid(), 1, Hash('e'), projectId);
         var workspace = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "apo-authority-tests"));
-        var checkpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now,
+        var inputCheckpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now.AddMinutes(-2),
             RecoveryCheckpointLifecycleState.Ready, new RecoveryContextReference(Guid.NewGuid(), 1, now), contract, graph, Guid.NewGuid(), handoff,
-            nextSafeAction: RecoveryNextSafeAction.RunValidation);
+            nextSafeAction: RecoveryNextSafeAction.ContinueFromCheckpoint);
         var receipt = CreateReceipt(projectId, workspaceId, workspacePlan, workspace, now, Sha40('f'));
-        var authority = new ExecutionRunAuthority(projectId, Guid.NewGuid(), now, contract, graph, checkpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
-            workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var authority = new ExecutionRunAuthority(projectId, Guid.NewGuid(), now.AddMinutes(-1), contract, graph, inputCheckpoint.WorkGraphNodeId!.Value, handoff, routing, workspacePlan,
+            workspaceId, workspace, receipt.ContentHash, inputCheckpoint.Reference, Guid.NewGuid(), "provider", "model", AgentConnectionMode.Cli, "adapter", new ExecutionBudgetEnvelope(1, 1));
+        var executionEvidence = new RecoveryEvidenceReference(authority.RunId, RecoveryEvidenceKind.Other,
+            $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}", authority.CreatedAt,
+            RecoveryEvidenceFreshness.PointInTime, contentHash: authority.ContentHash);
+        var checkpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now,
+            RecoveryCheckpointLifecycleState.Ready, inputCheckpoint.Context, contract, graph, inputCheckpoint.WorkGraphNodeId, handoff,
+            inputCheckpoint.Reference, evidenceReferences: [executionEvidence], nextSafeAction: RecoveryNextSafeAction.RunValidation);
         var plan = new ValidationPlan(projectId, Guid.NewGuid(), 1, now, authority.Reference, contract, graph, checkpoint.WorkGraphNodeId!.Value,
             workspaceId, workspace, receipt.ContentHash, checkpoint.Reference,
             [requirement ?? new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "collector")], handoff);
@@ -213,7 +219,7 @@ public sealed class ValidationAuthorityAndFreshnessTests
             contract ?? fixture.Plan.PlanningContractReference, graph ?? fixture.Plan.WorkGraphReference, nodeId ?? fixture.Plan.WorkGraphNodeId,
             handoff ?? fixture.Authority.HandoffPackageReference, fixture.Authority.RoutingDecisionReference, workspacePlan,
             workspaceId ?? fixture.Plan.WorkspaceId, workspacePath ?? fixture.Plan.WorkspacePath,
-            fixture.Plan.WorkspaceReceiptContentHash, inputCheckpoint ?? fixture.Plan.CurrentRecoveryCheckpointReference,
+            fixture.Plan.WorkspaceReceiptContentHash, inputCheckpoint ?? fixture.Authority.InputRecoveryCheckpointReference,
             fixture.Authority.AgentId, fixture.Authority.Provider, fixture.Authority.ModelIdentifier, fixture.Authority.ConnectionMode,
             fixture.Authority.AdapterIdentifier, fixture.Authority.Budgets);
     }
