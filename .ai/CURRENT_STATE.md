@@ -4883,3 +4883,75 @@ waiver issuance, or a downstream Story.
 ### Planner boundary
 
 > APO-48 Product Prompt 5/5R2 residual remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #25 remains OPEN / DRAFT / UNMERGED and APO-48 remains In Progress. Product prompt counter remains 5/5. The independent Claude Opus checkpoint remains due but must not be invoked until Sol accepts the remediated exact head. Do not begin APO-49, APO-63, APO-50, Mission Control, or another Product Story.
+
+## 62. APO-48 Product Prompt 5/5R3 exact execution-terminal ownership remediation (31 August 2026)
+
+This section records the bounded remediation submitted against Sol exact-head re-review comment
+`12345`. Sections 1-61 remain historical truth; this section is the current factual handoff and
+does not authorize merge, readiness promotion, tracker completion, human approval, waiver issuance,
+or a downstream Story.
+
+### Identity and authority
+
+- Repository: `Hossam1104/AI-Project-Orchestrator`; branch:
+  `feat/APO-48-independent-validation-evidence-gates`.
+- Required starting head/tree: `e0584a726a23d60dde17b4e5d97527ab8dca21bd` /
+  `d9cea02b1f3dab6e7f1985d7674c212b6fd24d74`.
+- Authorized `origin/main` head/tree: `98cb8e86bad0729aa07d33ec6f93b86a49a668bf` /
+  `a59b0a5a4dcd9f5d1366fd3a775c8e045aa27597`.
+- Jira remains `APO-48 = In Progress`, `APO-49 = To Do`, and `APO-63 = To Do`.
+- Sol exact-head comment `12345` remains `CHANGES REQUIRED`; Jira remediation comment `12347`
+  records `SOL-48-01R2 = REMEDIATION SUBMITTED`.
+- Product prompt counter remains `5/5`; the independent Claude Opus checkpoint is due but was not
+  invoked.
+
+### Exact ownership remediation
+
+- `ValidationAuthorityBindingValidator` now requires the exact direct topology authority input ->
+  target pre-run -> target terminal. The target terminal is the current canonical head and must be
+  `Ready` / `RunValidation`; its direct predecessor is the target pre-run, and the pre-run directly
+  references the authority input. Each read validates the exact reference, checkpoint integrity,
+  project, contract, graph, node, and handoff authorities.
+- Execution evidence is recognized only in the accepted APO-45 format
+  `execution-run:{ProjectId}/{RunId}/{ContentHash}`. The validator proves the target is absent at
+  input, pre-run minus input is exactly the target, and terminal execution evidence is identical to
+  pre-run execution evidence across EvidenceId, Kind, Reference, ObservedAt, Freshness, ValidUntil,
+  and ContentHash.
+- Existing accepted behavior remains preserved: `SOL-48-02`, `SOL-48-03`, `SOL-48-04R`,
+  `SOL-48-05`, `SOL-48-06`, and `SOL-48-08`.
+
+### Functional commit and validation
+
+- Functional SHA/tree/parent: `b78298aca7e5f9ea588c77f08e139c10209cd11f` /
+  `f3ca09568fe9cef40cb1b06d2e4b3eeb3b898978` /
+  `e0584a726a23d60dde17b4e5d97527ab8dca21bd`.
+- Functional changed files are limited to the application validator and focused Connection and
+  Infrastructure tests, including the existing infrastructure fixture update required by the
+  exact topology contract.
+- Restore passed; build passed with 0 warnings and 0 errors; `git diff --check` passed; the
+  targeted secret-pattern scan returned 0 matches.
+- Full solution: Domain 28, Provider 138, Connection 248, Desktop 83, Infrastructure 617;
+  total 1,114 passed, 0 failed, 0 skipped.
+- Focused APO-48 and bounded execution coverage: 122 passed, 0 failed, 0 skipped. This includes
+  the actual Run A -> terminal -> plan/capture/gate -> continuation -> Run B path, inherited
+  execution history, older-authority rejection before collector invocation, and legitimate B
+  acceptance.
+- `JsonFileStore.CurrentSchemaVersion = 1`; validation schema remains V1; no package change.
+
+### Safety, delivery, and exact-head boundary
+
+- `CREDENTIAL DISCLOSURE FINDINGS = 0`.
+- No WPF launch occurred: `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`.
+- No automatic validation retry, Security recapture, next-action execution, remote CI trigger,
+  human approval, waiver issuance, release, or tracker transition was performed.
+- Functional delivery was pushed normally. Jira comment `12347` was added exactly once after the
+  functional push; no Jira transition was performed.
+- The required metadata-only child commit changes exactly `TASK.md` and `.ai/CURRENT_STATE.md` and
+  is pushed normally. Its exact SHA/tree are recorded in the final executor report.
+- PR #25 remains `OPEN / DRAFT / UNMERGED`; exact final metadata-head statuses, check runs, and
+  workflow runs are checked after the metadata push. No CI pass is claimed; absent exact-head
+  evidence is reported as `GitHub CI = NONE / NOT CLAIMED`.
+
+### Planner boundary
+
+> APO-48 Product Prompt 5/5R3 exact execution-terminal ownership remediation is complete and awaits GPT-5.6 Sol exact-head re-review. PR #25 remains OPEN / DRAFT / UNMERGED and APO-48 remains In Progress. Product prompt counter remains 5/5. The independent Claude Opus checkpoint remains due but must not be invoked until Sol accepts the remediated exact head. Do not begin APO-49, APO-63, APO-50, Mission Control, or another Product Story.
