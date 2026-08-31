@@ -197,13 +197,16 @@ public sealed class ValidationAuthorityAndFreshnessTests
         var executionEvidence = new RecoveryEvidenceReference(authority.RunId, RecoveryEvidenceKind.Other,
             $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}", authority.CreatedAt,
             RecoveryEvidenceFreshness.PointInTime, contentHash: authority.ContentHash);
+        var preRunCheckpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now,
+            RecoveryCheckpointLifecycleState.Waiting, inputCheckpoint.Context, contract, graph, inputCheckpoint.WorkGraphNodeId, handoff,
+            inputCheckpoint.Reference, evidenceReferences: [executionEvidence], nextSafeAction: RecoveryNextSafeAction.ResolveBlocker);
         var checkpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now,
             RecoveryCheckpointLifecycleState.Ready, inputCheckpoint.Context, contract, graph, inputCheckpoint.WorkGraphNodeId, handoff,
-            inputCheckpoint.Reference, evidenceReferences: [executionEvidence], nextSafeAction: RecoveryNextSafeAction.RunValidation);
+            preRunCheckpoint.Reference, evidenceReferences: [executionEvidence], nextSafeAction: RecoveryNextSafeAction.RunValidation);
         var plan = new ValidationPlan(projectId, Guid.NewGuid(), 1, now, authority.Reference, contract, graph, checkpoint.WorkGraphNodeId!.Value,
             workspaceId, workspace, receipt.ContentHash, checkpoint.Reference,
             [requirement ?? new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "collector")], handoff);
-        return new(now, workspace, plan, authority, receipt, checkpoint);
+        return new(now, workspace, plan, authority, receipt, inputCheckpoint, preRunCheckpoint, checkpoint);
     }
 
     private static ExecutionRunAuthority CreateAuthority(Fixture fixture, Guid? projectId = null, Guid? runId = null,
@@ -250,5 +253,5 @@ public sealed class ValidationAuthorityAndFreshnessTests
     private static string Sha40(char value) => new(value, 40);
 
     private sealed record Fixture(DateTimeOffset Now, string Workspace, ValidationPlan Plan, ExecutionRunAuthority Authority,
-        WorkspacePreparationReceipt Receipt, RecoveryCheckpoint Checkpoint);
+        WorkspacePreparationReceipt Receipt, RecoveryCheckpoint InputCheckpoint, RecoveryCheckpoint PreRunCheckpoint, RecoveryCheckpoint Checkpoint);
 }

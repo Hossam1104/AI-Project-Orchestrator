@@ -21,8 +21,6 @@ public static class ValidationLimits
     public const int MaxRequirements = 64;
     public const int MaxEvidenceItems = 128;
     public const int MaxSupportingEvidenceReferences = 32;
-    // ponytail: bounded ancestry walk; replace with a persisted lineage index if history exceeds this ceiling.
-    public const int MaxCheckpointLineageDepth = 128;
     public const int MaxDiagnosticLength = 2_000;
     public const int MaxCanonicalPayloadBytes = 128 * 1024;
     public const int MaxIdentityLength = 2_000;
@@ -493,12 +491,11 @@ public static class ValidationAuthorityBindingValidator
             string.Equals(receipt.ContentHash, plan.WorkspaceReceiptContentHash, StringComparison.OrdinalIgnoreCase) &&
             checkpoint.ProjectId == plan.ProjectId &&
             Same(checkpoint.Reference, plan.CurrentRecoveryCheckpointReference) &&
-            Same(checkpoint.PlanningContractReference, plan.PlanningContractReference) &&
-            Same(checkpoint.WorkGraphReference, plan.WorkGraphReference) &&
-            checkpoint.WorkGraphNodeId == plan.WorkGraphNodeId &&
-            Same(checkpoint.HandoffPackageReference, plan.HandoffPackageReference) &&
+            checkpoint.PreviousCheckpointReference is not null &&
+            SameCheckpointAuthorities(checkpoint, plan) &&
             checkpoint.LifecycleState == RecoveryCheckpointLifecycleState.Ready &&
             checkpoint.NextSafeAction == RecoveryNextSafeAction.RunValidation &&
+            MatchesReference(checkpoint) &&
             plan.EvidenceNotBefore == notBefore;
 
         return valid
@@ -524,41 +521,91 @@ public static class ValidationAuthorityBindingValidator
             !Same(head.Head.LatestCheckpointReference, checkpoint.Reference))
             return new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
 
-        var visited = new HashSet<Guid>();
-        var current = checkpoint;
-        var reachedInput = false;
-        var hasExecutionEvidence = false;
-        var expectedExecutionReference = $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}";
-        for (var depth = 0; depth < ValidationLimits.MaxCheckpointLineageDepth; depth++)
-        {
-            if (!visited.Add(current.CheckpointId) || current.ProjectId != plan.ProjectId)
-                return new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
+        var preRunReference = checkpoint.PreviousCheckpointReference;
+        if (preRunReference is null)
+            return new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
 
-            hasExecutionEvidence |= current.EvidenceReferences.Any(value =>
-                value.EvidenceId == authority.RunId &&
-                value.Kind == RecoveryEvidenceKind.Other &&
-                string.Equals(value.Reference, expectedExecutionReference, StringComparison.Ordinal) &&
-                string.Equals(value.ContentHash, authority.ContentHash, StringComparison.OrdinalIgnoreCase));
+        var preRunRead = await checkpoints.GetAsync(plan.ProjectId, preRunReference.CheckpointId, cancellationToken).ConfigureAwait(false);
+        if (!preRunRead.IsValid || preRunRead.Checkpoint is null ||
+            !Same(preRunRead.Checkpoint.Reference, preRunReference) || !MatchesReference(preRunRead.Checkpoint) ||
+            !SameCheckpointAuthorities(preRunRead.Checkpoint, plan) ||
+            !SameNullable(preRunRead.Checkpoint.PreviousCheckpointReference, authority.InputRecoveryCheckpointReference))
+            return new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
 
-            if (Same(current.Reference, authority.InputRecoveryCheckpointReference))
-            {
-                reachedInput = true;
-                break;
-            }
+        var inputRead = await checkpoints.GetAsync(plan.ProjectId, authority.InputRecoveryCheckpointReference.CheckpointId, cancellationToken).ConfigureAwait(false);
+        if (!inputRead.IsValid || inputRead.Checkpoint is null ||
+            !Same(inputRead.Checkpoint.Reference, authority.InputRecoveryCheckpointReference) || !MatchesReference(inputRead.Checkpoint) ||
+            !SameCheckpointAuthorities(inputRead.Checkpoint, plan))
+            return new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
 
-            var previous = current.PreviousCheckpointReference;
-            if (previous is null)
-                break;
-            var predecessor = await checkpoints.GetAsync(plan.ProjectId, previous.CheckpointId, cancellationToken).ConfigureAwait(false);
-            if (!predecessor.IsValid || predecessor.Checkpoint is null || !Same(predecessor.Checkpoint.Reference, previous))
-                return new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
-            current = predecessor.Checkpoint;
-        }
-
-        return reachedInput && hasExecutionEvidence
+        return HasExactExecutionEvidenceTopology(inputRead.Checkpoint, preRunRead.Checkpoint, checkpoint, authority)
             ? basic
             : new(false, basic.NotBefore, ValidationReasonCodes.AuthorityMismatch);
     }
+
+    private static bool SameCheckpointAuthorities(RecoveryCheckpoint checkpoint, ValidationPlan plan) =>
+        checkpoint.ProjectId == plan.ProjectId &&
+        Same(checkpoint.PlanningContractReference, plan.PlanningContractReference) &&
+        Same(checkpoint.WorkGraphReference, plan.WorkGraphReference) &&
+        checkpoint.WorkGraphNodeId == plan.WorkGraphNodeId &&
+        Same(checkpoint.HandoffPackageReference, plan.HandoffPackageReference);
+
+    private static bool MatchesReference(RecoveryCheckpoint checkpoint) =>
+        string.Equals(RecoveryCheckpointIntegrity.ComputeContentHash(checkpoint), checkpoint.Reference.ContentHash, StringComparison.OrdinalIgnoreCase) &&
+        checkpoint.Reference.CheckpointId == checkpoint.CheckpointId && checkpoint.Reference.SchemaVersion == checkpoint.SchemaVersion;
+
+    private static bool HasExactExecutionEvidenceTopology(
+        RecoveryCheckpoint input,
+        RecoveryCheckpoint preRun,
+        RecoveryCheckpoint terminal,
+        ExecutionRunAuthority authority)
+    {
+        var inputEvidence = ExecutionEvidence(input, authority.ProjectId);
+        var preRunEvidence = ExecutionEvidence(preRun, authority.ProjectId);
+        var terminalEvidence = ExecutionEvidence(terminal, authority.ProjectId);
+        if (inputEvidence is null || preRunEvidence is null || terminalEvidence is null)
+            return false;
+
+        var target = CreateExecutionEvidence(authority);
+        if (input.EvidenceReferences.Any(value => value.EvidenceId == target.EvidenceId) ||
+            !preRunEvidence.Any(value => SameEvidence(value, target)) ||
+            !terminalEvidence.Any(value => SameEvidence(value, target)))
+            return false;
+
+        var introduced = preRunEvidence.Where(value => inputEvidence.All(existing => !SameEvidence(existing, value))).ToArray();
+        return introduced.Length == 1 && SameEvidence(introduced[0], target) && SameExecutionEvidenceSet(preRunEvidence, terminalEvidence);
+    }
+
+    private static IReadOnlyList<RecoveryEvidenceReference>? ExecutionEvidence(RecoveryCheckpoint checkpoint, Guid projectId) =>
+        checkpoint.EvidenceReferences.Count <= RecoveryCheckpointLimits.MaxEvidenceReferences
+            ? checkpoint.EvidenceReferences.Where(value => IsExecutionEvidence(value, projectId)).ToArray()
+            : null;
+
+    private static bool IsExecutionEvidence(RecoveryEvidenceReference value, Guid projectId)
+    {
+        const string prefix = "execution-run:";
+        if (value.Kind != RecoveryEvidenceKind.Other || !value.Reference.StartsWith(prefix, StringComparison.Ordinal))
+            return false;
+
+        var parts = value.Reference[prefix.Length..].Split('/');
+        return parts.Length == 3 && Guid.TryParseExact(parts[0], "D", out var evidenceProjectId) && evidenceProjectId == projectId &&
+            Guid.TryParseExact(parts[1], "D", out var runId) && runId == value.EvidenceId &&
+            RecoveryCheckpointReference.IsSha256(parts[2]) && string.Equals(value.ContentHash, parts[2], StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool SameExecutionEvidenceSet(IReadOnlyList<RecoveryEvidenceReference> left, IReadOnlyList<RecoveryEvidenceReference> right) =>
+        left.Count == right.Count && left.All(value => right.Any(candidate => SameEvidence(value, candidate)));
+
+    private static RecoveryEvidenceReference CreateExecutionEvidence(ExecutionRunAuthority authority) =>
+        new(authority.RunId, RecoveryEvidenceKind.Other,
+            $"execution-run:{authority.ProjectId:D}/{authority.RunId:D}/{authority.ContentHash}", authority.CreatedAt,
+            RecoveryEvidenceFreshness.PointInTime, contentHash: authority.ContentHash);
+
+    private static bool SameEvidence(RecoveryEvidenceReference left, RecoveryEvidenceReference right) =>
+        left.EvidenceId == right.EvidenceId && left.Kind == right.Kind &&
+        string.Equals(left.Reference, right.Reference, StringComparison.Ordinal) && left.ObservedAt == right.ObservedAt &&
+        left.Freshness == right.Freshness && left.ValidUntil == right.ValidUntil &&
+        string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
 
     private static bool Same(ExecutionRunAuthorityReference left, ExecutionRunAuthorityReference right) =>
         left.RunId == right.RunId && left.SchemaVersion == right.SchemaVersion &&
@@ -579,6 +626,9 @@ public static class ValidationAuthorityBindingValidator
     private static bool Same(RecoveryCheckpointReference left, RecoveryCheckpointReference right) =>
         left.CheckpointId == right.CheckpointId && left.SchemaVersion == right.SchemaVersion &&
         string.Equals(left.ContentHash, right.ContentHash, StringComparison.OrdinalIgnoreCase);
+
+    private static bool SameNullable(RecoveryCheckpointReference? left, RecoveryCheckpointReference? right) =>
+        left is null && right is null || left is not null && right is not null && Same(left, right);
 }
 
 public sealed record ValidationEvidenceSnapshot(string Hash, IReadOnlyList<ValidationEvidenceReference> References)

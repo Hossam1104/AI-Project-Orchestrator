@@ -84,6 +84,88 @@ public sealed class BoundedExecutionServiceTests
     }
 
     [Fact]
+    public async Task ActualSecondRunTerminalCannotValidateOlderAuthorityDespiteInheritedEvidence()
+    {
+        using var harness = ExecutionHarness.Create();
+        var runA = await harness.Service.ExecuteAsync(harness.Request);
+        var authorityA = runA.Authority!;
+        var preRunA = harness.CheckpointService.Created[0];
+        var terminalA = runA.TerminalCheckpoint!;
+        var requirement = new ValidationRequirement("tests", ValidationEvidenceKind.Test, true,
+            ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "integration");
+        var planA = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminalA.CreatedAt,
+            authorityA.Reference, authorityA.PlanningContractReference, authorityA.WorkGraphReference, authorityA.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminalA.Reference,
+            [requirement], authorityA.HandoffPackageReference);
+        var evidenceA = new IntegrationValidationEvidenceRepository();
+        var validationA = new ValidationEvidenceService(new IntegrationValidationPlanRepository(planA), evidenceA,
+            new IntegrationProjectRepository(harness.Project), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt),
+            harness.Checkpoints, harness.Heads, new IntegrationCollectorResolver(), new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        Assert.True((await validationA.CreatePlanAsync(planA)).Succeeded);
+        Assert.True((await validationA.CaptureAsync(new ValidationCaptureRequest(planA.ProjectId, planA.Reference, requirement.RequirementId, terminalA.Reference))).Succeeded);
+        var gateA = new ValidationGateService(new IntegrationValidationPlanRepository(planA), evidenceA,
+            new IntegrationDecisionRepository(), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints,
+            harness.Heads, harness.CheckpointService, new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        var decisionA = await gateA.EvaluateAsync(new ValidationGateRequest(planA.ProjectId, planA.Reference, terminalA.Reference));
+        var continuationA = decisionA.Recovery!.Checkpoint!;
+
+        var requestB = new BoundedExecutionRequest(harness.Request.ProjectId, Guid.NewGuid(), harness.Request.PlanningContractReference,
+            harness.Request.WorkGraphReference, harness.Request.WorkGraphNodeId, harness.Request.HandoffPackageReference,
+            harness.Request.RoutingDecisionReference, harness.Request.WorkspacePreparationPlanReference, continuationA.Reference);
+        var runB = await harness.Service.ExecuteAsync(requestB);
+        var authorityB = runB.Authority!;
+        var preRunB = harness.CheckpointService.Created[3];
+        var terminalB = runB.TerminalCheckpoint!;
+
+        Assert.True(runA.Succeeded);
+        Assert.Equal(RecoveryCheckpointLifecycleState.Ready, terminalA.LifecycleState);
+        Assert.Equal(RecoveryNextSafeAction.RunValidation, terminalA.NextSafeAction);
+        Assert.Equal(preRunA.Reference, terminalA.PreviousCheckpointReference);
+        Assert.Equal(harness.CurrentCheckpoint.Reference, preRunA.PreviousCheckpointReference);
+        Assert.Contains(terminalB.EvidenceReferences, value => value.EvidenceId == authorityA.RunId);
+        Assert.Contains(terminalB.EvidenceReferences, value => value.EvidenceId == authorityB.RunId);
+
+        var attackPlan = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminalB.CreatedAt,
+            authorityA.Reference, authorityA.PlanningContractReference, authorityA.WorkGraphReference, authorityA.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminalB.Reference,
+            [requirement], authorityA.HandoffPackageReference);
+        var attackCollector = new IntegrationCollectorResolver();
+        var attackValidation = new ValidationEvidenceService(new IntegrationValidationPlanRepository(attackPlan),
+            new IntegrationValidationEvidenceRepository(), new IntegrationProjectRepository(harness.Project), harness.Authorities,
+            new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints, harness.Heads, attackCollector,
+            new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        Assert.False((await attackValidation.CreatePlanAsync(attackPlan)).Succeeded);
+        var attackCapture = await attackValidation.CaptureAsync(new ValidationCaptureRequest(attackPlan.ProjectId, attackPlan.Reference,
+            requirement.RequirementId, terminalB.Reference));
+
+        Assert.False(attackCapture.Succeeded);
+        Assert.Equal(0, attackCollector.InvocationCount);
+
+        var planB = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminalB.CreatedAt,
+            authorityB.Reference, authorityB.PlanningContractReference, authorityB.WorkGraphReference, authorityB.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminalB.Reference,
+            [requirement], authorityB.HandoffPackageReference);
+        var evidenceB = new IntegrationValidationEvidenceRepository();
+        var legitimateCollector = new IntegrationCollectorResolver();
+        var validationB = new ValidationEvidenceService(new IntegrationValidationPlanRepository(planB), evidenceB,
+            new IntegrationProjectRepository(harness.Project), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt),
+            harness.Checkpoints, harness.Heads, legitimateCollector, new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        Assert.True((await validationB.CreatePlanAsync(planB)).Succeeded);
+        Assert.True((await validationB.CaptureAsync(new ValidationCaptureRequest(planB.ProjectId, planB.Reference,
+            requirement.RequirementId, terminalB.Reference))).Succeeded);
+        var gateB = new ValidationGateService(new IntegrationValidationPlanRepository(planB), evidenceB,
+            new IntegrationDecisionRepository(), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints,
+            harness.Heads, harness.CheckpointService, new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        var decisionB = await gateB.EvaluateAsync(new ValidationGateRequest(planB.ProjectId, planB.Reference, terminalB.Reference));
+
+        Assert.Equal(1, legitimateCollector.InvocationCount);
+        Assert.True(decisionB.Succeeded, decisionB.ErrorMessage);
+        Assert.Equal(ValidationGateDecisionState.Satisfied, decisionB.Decision!.State);
+        Assert.Equal(preRunB.Reference, terminalB.PreviousCheckpointReference);
+        Assert.Equal(continuationA.Reference, preRunB.PreviousCheckpointReference);
+    }
+
+    [Fact]
     public async Task CallerCancellation_IsRecordedWithoutRetryOrCompletedClaim()
     {
         using var harness = ExecutionHarness.Create(hangAdapter: true);
@@ -1394,6 +1476,7 @@ public sealed class BoundedExecutionServiceTests
     private sealed class IntegrationCollectorResolver : IValidationEvidenceCollectorResolver
     {
         private readonly IntegrationCollector _collector = new();
+        public int InvocationCount => _collector.InvocationCount;
         public ValidationCollectorResolution Resolve(string collectorIdentifier, ValidationEvidenceKind kind) =>
             collectorIdentifier == _collector.Descriptor.Identifier && kind == ValidationEvidenceKind.Test
                 ? new(ValidationCollectorResolutionStatus.Resolved, _collector)
@@ -1403,13 +1486,17 @@ public sealed class BoundedExecutionServiceTests
     private sealed class IntegrationCollector : IValidationEvidenceCollector
     {
         public ValidationEvidenceCollectorDescriptor Descriptor { get; } = new("integration", [ValidationEvidenceKind.Test], false, true);
-        public Task<ValidationEvidence> CaptureAsync(ValidationCollectionContext context, CancellationToken cancellationToken = default) =>
-            Task.FromResult(new ValidationEvidence(context.Plan.ProjectId, Guid.NewGuid(), context.Plan.Reference, context.Requirement.RequirementId,
+        public int InvocationCount { get; private set; }
+        public Task<ValidationEvidence> CaptureAsync(ValidationCollectionContext context, CancellationToken cancellationToken = default)
+        {
+            InvocationCount++;
+            return Task.FromResult(new ValidationEvidence(context.Plan.ProjectId, Guid.NewGuid(), context.Plan.Reference, context.Requirement.RequirementId,
                 context.Authority.RunId, context.Authority.Reference, context.Plan.PlanningContractReference, context.Plan.WorkGraphReference, context.Plan.WorkGraphNodeId,
                 context.CurrentCheckpoint.Reference, context.Plan.WorkspaceId, context.Plan.WorkspacePath, context.Plan.WorkspaceReceiptContentHash,
                 context.Requirement.CollectorIdentifier, context.Requirement.EvidenceKind, ValidationEvidenceState.Available, ValidationOutcome.Passed,
                 context.Requirement.Coverage, context.Requirement.BaselineRelation, context.Plan.EvidenceNotBefore,
                 validationDefinitionId: context.Requirement.ValidationDefinitionId));
+        }
     }
 
     private sealed class FixedClock(DateTimeOffset now) : IClock
