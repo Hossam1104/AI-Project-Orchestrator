@@ -7,7 +7,7 @@
     <RootNamespace>AIUsageMonitor.Desktop</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>$(MSBuildThisFileDirectory)..\..\assets\runtime\apo-icon.ico</ApplicationIcon>
-    <AssemblyTitle>AI Project Orchestrator</AssemblyTitle>
+    <AssemblyTitle>AI_Orchestrator</AssemblyTitle>
     <Description>Local-first Windows control center for AI-assisted software delivery.</Description>
     <Platforms>x86;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>

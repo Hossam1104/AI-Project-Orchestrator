@@ -11,7 +11,7 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NeutralLanguage>en-US</NeutralLanguage>
     <Authors>Hossam</Authors>
-    <Product>AI Project Orchestrator</Product>
+    <Product>AI_Orchestrator</Product>
   </PropertyGroup>
 
 </Project>
