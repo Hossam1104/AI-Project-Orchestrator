@@ -103,11 +103,14 @@ reports **1,112 passed / 2 failed / 0 skipped**; the two known failures are in
 for this repository (APO-33 remains To Do); no CI status should be read as claimed or passing.
 
 Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries,
-end-to-end autonomous provider execution, tracker automation, remote SCM evidence, controlled
-remote delivery, independent validation/review/acceptance engines, and the full APO-15 dashboard.
+end-to-end autonomous provider execution, tracker automation, controlled remote delivery,
+independent validation/review/acceptance engines, and the full APO-15 dashboard.
 The durable control-plane contracts, bounded execution safeguards, and bounded Jira tracker slice in
-APO-38 through APO-47 and APO-68 are implemented; the remaining capability boundaries are planned in
-Jira APO-48 through APO-63. APO-37
+APO-38 through APO-47 and APO-68 are implemented; APO-62 provider-independent, read-only remote
+SCM/CI evidence (GitHub and Azure Repos) is also delivered. Remaining capability boundaries not yet
+delivered: APO-48 independent validation evidence and QA gates (in progress, not accepted), APO-49
+human approval policy, APO-50 Mission Control, APO-63 controlled remote delivery, and APO-33
+repository-owned GitHub Actions CI. APO-37
 verifies a selected registered local path only when the owner clicks Verify repository; it does not
 inspect file contents, use credentials, contact a remote service, or perform Git writes. APO does
 not fabricate provider numbers or claim CI status before the relevant Story is delivered.
