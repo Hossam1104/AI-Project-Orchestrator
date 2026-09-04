@@ -44,10 +44,16 @@
 
 ### Current reconciliation head (Phase A-R1)
 
-- Phase A-R1 authority-truth correction commit ("docs: correct Phase A authority truth"), direct
-  child of `705cfcc4cbc89e16bb1603f04c06ec4a9a71ca99`: SHA/tree recorded in the metadata-only
-  follow-up commit below (a commit cannot record its own SHA in its own content, so a second,
-  metadata-only, `.ai/CURRENT_STATE.md`-only child commit records it once known).
+- Phase A-R1 authority-truth correction commit ("docs: correct Phase A authority truth"):
+  SHA `0ae2d2e03bb177da8f6544ebd711f45f540da694` / tree `d4051fa7df85bd8c6d1d009802a01cf2240dedc7`,
+  direct child of `705cfcc4cbc89e16bb1603f04c06ec4a9a71ca99`. This commit's own content carries the
+  substantive Phase A-R1 correction (this document plus `README.md`).
+- Metadata-only child commit ("docs: record Phase A-R1 exact head"): touches only this file, to
+  record the substantive commit's SHA/tree above (a commit cannot embed its own hash in its own
+  content, so recording it required exactly one metadata-only child commit on top). This
+  metadata-only child commit is the exact current branch tip; its own SHA is whatever `git
+  rev-parse reconcile/AI_Orchestrator-phase-a` reports after it lands, and it carries no
+  substantive correction beyond recording the line above.
 - Branch: `reconcile/AI_Orchestrator-phase-a`
 - PR #26: `OPEN / DRAFT / UNMERGED`
 - Test truth (this branch, post-Phase-A, `dotnet test AIUsageMonitor.sln`): **1,118 passed / 2
