@@ -1,4 +1,4 @@
-# AI Project Orchestrator completion checks
+# AI_Orchestrator completion checks
 
 - For source changes: `dotnet restore AIUsageMonitor.sln`; `dotnet build AIUsageMonitor.sln --no-restore`; `dotnet test AIUsageMonitor.sln --no-restore`; inspect warnings and test skips.
 - Always run `git diff --check`, review changed-line secrets/generated artifacts, search removed symbols/references, and confirm `git status` is clean at handoff.

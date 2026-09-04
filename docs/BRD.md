@@ -1,14 +1,14 @@
-# AI Project Orchestrator (APO)
+# AI_Orchestrator (APO)
 
 ## Business Requirements Document
 
-**Product:** AI Project Orchestrator (APO)
+**Product:** AI_Orchestrator (APO)
 **Document Version:** 1.2
 **Status:** APPROVED PRODUCT BASELINE — STRATEGIC REBASELINE
 **Date:** 25 August 2026
-**Previous Product Identity:** AI Usage Monitor
-**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
-**Local Project Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
+**Previous Product Identity:** AI Usage Monitor, AI Project Orchestrator
+**Repository:** `https://github.com/Hossam1104/AI_Orchestrator`
+**Local Project Root:** `D:\AI Tools\Active Projects\AI_Orchestrator`
 **Jira Project:** `APO`
 **Product Owner:** Hossam
 **Planner / Architect / Acceptance Authority:** GPT-5.6 Sol
@@ -799,9 +799,10 @@ architecture claims, and a self-contained consumer release.
 
 The following are baseline decisions unless explicitly changed by the owner/planner:
 
-1. Product identity is AI Project Orchestrator (APO); APO-20 renamed the active repository and
+1. Product identity is AI_Orchestrator (APO); APO-20 renamed the active repository and
    established the local-root target while preserving technical identifiers for a later
-   controlled migration.
+   controlled migration. A later reconciliation phase normalized the interim display identity
+   AI Project Orchestrator to the current canonical identity AI_Orchestrator.
 2. Jira project `APO` is authoritative for work tracking and traceability.
 3. Existing code and history are preserved and classified before refactoring.
 4. AI usage/capacity monitoring remains a first-class capability.
@@ -822,7 +823,7 @@ contract.
 
 # 19. Glossary
 
-**APO** - AI Project Orchestrator.
+**APO** - AI_Orchestrator.
 **Capacity** - Available quota, credits, limit headroom, subscription allowance, or provider
 availability data.
 **Execution Contract** - Planner-approved task specification constraining scope, validation,

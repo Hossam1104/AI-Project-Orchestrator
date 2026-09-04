@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/Logo.png" alt="AI Project Orchestrator logo" width="360" />
+  <img src="assets/Logo.png" alt="AI_Orchestrator logo" width="360" />
 </p>
 
-<h1 align="center">AI Project Orchestrator</h1>
+<h1 align="center">AI_Orchestrator</h1>
 
 <p align="center">
   Intelligent orchestration for projects, AI agents, execution, and quality.
@@ -21,9 +21,9 @@
 
 > APO is a local-first Windows control center for supervising AI-assisted software delivery. It is being built to coordinate the planner, executor, reviewer, Git/GitHub/Azure Repos, Jira/Azure Boards, validation/CI, and owner approval in one place—without replacing the IDE or those platforms.
 
-## What is AI Project Orchestrator?
+## What is AI_Orchestrator?
 
-AI Project Orchestrator (APO) coordinates the work around software delivery: projects and
+AI_Orchestrator (APO) coordinates the work around software delivery: projects and
 repositories, AI capacity, model and agent access, planner-authored execution contracts, bounded
 execution, validation, independent review, acceptance, and audit history. The intended experience
 lets the owner supervise the handoff between the planner, the bounded executor, the independent
@@ -90,11 +90,17 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | APO-44..46 bounded execution foundation: explainable quality-first routing, isolated workspaces, and bounded cancellable execution with project/authority/recovery safeguards |
 | :white_check_mark: Implemented / validated | APO-68 workspace-preparation hardening: fail-closed approval-index recovery, mutation timeout safety, repository lock identity, and inherited Git-environment hardening |
 | :white_check_mark: Implemented / validated | APO-47 tracker-agnostic Jira work-item and dependency synchronization with bounded reads, explicit mutation authority, post-verification, and audit evidence |
-| :white_check_mark: Implemented / validated | Full xUnit solution suite: 949 passed, 0 failed, 0 skipped; current merge checkout builds with 0 warnings and 0 errors |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
-| :construction: Planned / bounded future | Local Git evidence is partially implemented through APO-37; provider-independent GitHub/Azure Repos remote evidence (APO-62) and controlled delivery (APO-63) remain unimplemented |
-| :construction: Planned | Independent validation evidence (APO-48), human approval policy (APO-49), remote SCM/CI evidence (APO-62), controlled delivery (APO-63), and Mission Control (APO-50) |
+| :white_check_mark: Implemented / validated | APO-62 provider-independent, read-only remote SCM and CI evidence (GitHub and Azure Repos) |
+| :construction: In progress / not accepted | APO-48 independent validation evidence and evidence-based QA gates; two known `BoundedProcessHostTests` failures remain outstanding |
+| :construction: Planned | Local Git evidence is partially implemented through APO-37; controlled remote delivery (APO-63) remains unimplemented |
+| :construction: Planned | Human approval policy (APO-49) and Mission Control (APO-50) |
 | :compass: Strategic roadmap | Mission Control, Smart Continue, recovery, dependency-aware work, isolated workspaces, decision ledger, project health, skills, bounded automation, and optional remote approval design |
+
+Local `dotnet test` at audited HEAD `046a877` (branch `feat/APO-48-independent-validation-evidence-gates`)
+reports **1,112 passed / 2 failed / 0 skipped**; the two known failures are in
+`BoundedProcessHostTests` and are not accepted as green. GitHub Actions CI is **not configured**
+for this repository (APO-33 remains To Do); no CI status should be read as claimed or passing.
 
 Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries,
 end-to-end autonomous provider execution, tracker automation, remote SCM evidence, controlled
@@ -119,7 +125,7 @@ The roadmap keeps source-control responsibilities distinct:
 
 - **Local Git — APO-37:** implemented read-only verification of a configured local repository and
   its bounded worktree evidence. It performs no remote request and no Git write.
-- **Remote SCM evidence — APO-62:** planned provider-independent, read-only evidence from official
+- **Remote SCM evidence — APO-62:** delivered provider-independent, read-only evidence from official
   GitHub and Azure Repos integration paths for repository identity, branches/commits, pull requests,
   reviews, checks, and CI/workflow state where exposed.
 - **Controlled delivery — APO-63:** planned, separately gated remote write operations bound to exact
@@ -136,7 +142,7 @@ local-first state, and truthful future boundaries without inventing provider dat
 metrics.
 
 <p align="center">
-  <img src="assets/readme/apo-shell.png" alt="AI Project Orchestrator branded WPF foundation shell" width="1000" />
+  <img src="assets/readme/apo-shell.png" alt="AI_Orchestrator branded WPF foundation shell" width="1000" />
 </p>
 
 ## Architecture
@@ -210,7 +216,7 @@ CLI. Claims are limited to the environments and commands actually run.
 ## Repository structure
 
 ```text
-AI-Project-Orchestrator/
+AI_Orchestrator/
 |-- assets/
 |   |-- Logo.png
 |   |-- Colors.png
@@ -281,8 +287,8 @@ slices are identified explicitly; the remaining entries are planned capability b
 shipped runtime claims:
 
 1. **Delivered P0 control plane — APO-38..46 and APO-68:** agent/model truth, progressive onboarding, contracts, dependency graphs, handoffs, durable recovery, quality-first routing, bounded execution, isolated workspaces, and workspace-preparation hardening.
-2. **P0 tracker/evidence inputs — APO-47 delivered; APO-62 remaining:** Jira/Azure Boards awareness is delivered through APO-47; read-only remote SCM/CI evidence remains.
-3. **P0 evidence, approval, and delivery — APO-48, APO-49, APO-63:** independent QA evidence, human approval policy, and controlled remote delivery.
+2. **P0 tracker/evidence inputs — APO-47 and APO-62 delivered:** Jira/Azure Boards awareness (APO-47) and read-only remote SCM/CI evidence (APO-62) are both delivered.
+3. **P0 evidence, approval, and delivery — APO-48 in progress; APO-49, APO-63 remaining:** independent QA evidence remediation is underway; human approval policy and controlled remote delivery remain to do.
 4. **P0 Mission Control — APO-50:** one evidence-backed command-center read model and surface.
 5. **P1 acceleration — APO-51..56:** Review Inbox, composable workflows, project health, decision ledger, runtime evidence, and context budgets.
 6. **P2 controlled expansion — APO-57..58:** bounded background housekeeping and optional remote approval security design.
@@ -313,7 +319,7 @@ current planner boundary/execution contract when Sol has populated it; it is not
 
 | Surface | APO identity | Compatibility decision |
 | --- | --- | --- |
-| User-facing product, shell, README, and metadata | **AI Project Orchestrator (APO)** | Updated in the branding Story |
+| User-facing product, shell, README, and metadata | **AI_Orchestrator (APO)** | Updated in the branding Story |
 | Approved visual assets | `assets/Logo.png`, `assets/Colors.png` | Original bytes preserved |
 | Runtime icon | `assets/runtime/apo-icon.ico` | Derived compact symbol for Windows surfaces |
 | Solution, project, namespace, and test identifiers | `AIUsageMonitor.*` | Preserved for controlled future migration |
@@ -325,7 +331,7 @@ No license file is currently committed. Until the owner adds a license, reuse an
 rights should not be inferred from this README.
 
 <p align="center">
-  <img src="assets/Logo.png" alt="AI Project Orchestrator" width="120" />
+  <img src="assets/Logo.png" alt="AI_Orchestrator" width="120" />
 </p>
 
-<p align="center"><sub>AI Project Orchestrator - APO</sub></p>
+<p align="center"><sub>AI_Orchestrator - APO</sub></p>

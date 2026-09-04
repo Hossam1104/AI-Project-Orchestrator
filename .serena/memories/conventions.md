@@ -1,4 +1,4 @@
-# AI Project Orchestrator conventions
+# AI_Orchestrator conventions
 
 - Preserve dependency direction: Domain stays free of WPF, JSON/file, HTTP, provider, filesystem, and Windows UI concerns; Application owns provider-independent contracts/use cases; Infrastructure owns persistence, paths, credentials, logging, OS integration; Providers own detection/collection/parsing/normalization; Desktop consumes application services/view models.
 - Prefer existing abstractions and direct boring code; do not add speculative providers, database layers, mediator/factory/event-bus abstractions, or product scope.
