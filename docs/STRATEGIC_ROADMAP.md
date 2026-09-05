@@ -8,14 +8,51 @@ direction and sequencing after the accepted APO foundation; it is not a runtime 
 does not authorize a new Story. Each implementation boundary still requires a Sol-authored
 `TASK.md` contract.
 
-## Current status (4 September 2026)
+## Current status (6 September 2026)
 
 APO-38 through APO-47 and APO-68 are implemented and marked Done in Jira. APO-69 is also Done.
-APO-62 (remote SCM and CI evidence) is also Done. APO-48 is In Progress and not yet accepted; two
-known `BoundedProcessHostTests` failures remain outstanding. APO-49, APO-50, and APO-63 are To Do
-and not started. `origin/main` is at `98cb8e86bad0729aa07d33ec6f93b86a49a668bf`; the live branch,
-commit, tree, validation, and planner boundary are maintained in `.ai/CURRENT_STATE.md` and
-`TASK.md`.
+APO-62 (remote SCM and CI evidence) is also Done. APO-48 is **FINAL ACCEPTED / MERGED / DONE**
+with product merge SHA `7fe179844ceb056c542067485843bc892ebdefcc`, accepted product head
+`caed10d0486994e9235a66ef44ec6137649dd347`, accepted tree
+`f152699b89b4c1f498c3dbb4357ee07ac00fda77`, canonical suite 1,136 passed / 0 failed / 0 skipped,
+and build 0 warnings / 0 errors. APO-51, APO-49, APO-63, APO-50, and APO-33 are To Do and not
+started. `GITHUB ACTIONS CI = NONE / NOT CLAIMED`. The live authority snapshot is maintained in
+`.ai/CURRENT_STATE.md` and `TASK.md`.
+
+## FAST V1 closeout baseline
+
+### MUST SHIP
+
+1. APO-51 - minimal Review Inbox / bounded remediation loop (current next gate)
+2. APO-49 - minimal Human Approval + Delivery Gates
+3. APO-63 - controlled remote source-control delivery
+4. APO-50 - Mission Control read model + UI
+5. APO-33 - GitHub Actions CI + build/test/package
+
+The exact FAST V1 order is `APO-51 -> APO-49 -> APO-63 -> APO-50 -> APO-33 -> Final V1 Release
+Audit -> v1.0.0`. All five Stories remain To Do; this roadmap does not authorize implementation.
+
+### ACTIVE V1 AI RESOURCE BOUNDARY
+
+- OpenAI: two GPT accounts; Sol for planning/architecture/acceptance, Luna xHigh as the main
+  executor, and Terra HIGH for recovery/finalization when needed.
+- Claude: Sonnet 5 for bounded implementation/fixes and Opus 5 for critical independent review
+  only.
+- Antigravity Plus: auxiliary bounded/mechanical execution, including Gemini-family usage when
+  appropriate and available.
+
+`COPILOT = POST-V1`.
+
+### POST-V1
+
+- APO-52 through APO-61
+- Copilot-specific functionality
+- Inactive-provider-specific enhancements
+- Additional provider integrations
+- Provider polish not necessary for the core V1 loop or release safety
+
+> No new provider, feature, or integration may enter V1 unless it is required to make the Planner
+> -> Executor -> Reviewer -> Approval -> Controlled Delivery loop usable or release-safe.
 
 ## 2. Product experience we are building
 
@@ -60,10 +97,10 @@ Final independent evidence verification
 Decision/audit history + next safe checkpoint
 ```
 
-The end-to-end orchestration runtime, provider execution, remote SCM evidence, controlled delivery,
-and consolidated Mission Control experience remain planned capabilities. APO-43 has delivered the
-durable Smart Continue/recovery contract and state boundary; its complete owner-facing experience
-remains planned.
+The end-to-end orchestration runtime, provider execution, controlled delivery, and consolidated
+Mission Control experience remain planned capabilities. APO-62 has delivered the provider-
+independent read-only remote SCM/CI evidence boundary. APO-43 has delivered the durable Smart
+Continue/recovery contract and state boundary; its complete owner-facing experience remains planned.
 
 ## 3. Architectural principles
 
@@ -110,9 +147,9 @@ for a selected configured path; it does not call a remote SCM service, read repo
 or perform Git writes.
 
 APO-33 remains the existing repository-owned GitHub Actions CI/release Story. Local validation in
-this roadmap session is not a GitHub CI result. Provider execution, tracker automation, remote SCM
-evidence, controlled delivery, independent review/acceptance engines, and Mission Control are not
-shipped by this documentation checkpoint.
+this roadmap session is not a GitHub CI result. APO-48 independent validation evidence and
+evidence-based QA gates are accepted. Provider execution, tracker automation, controlled delivery,
+and Mission Control are not shipped by this documentation checkpoint.
 
 ## 6. Strategic Jira roadmap
 
@@ -138,7 +175,7 @@ Epics. APO-33 remains a complementary existing CI/release Story.
 ### P0 source-control/tracker/evidence — APO-62, APO-48, APO-49, APO-63
 
 - APO-62 — Provider-independent, read-only GitHub/Azure Repos remote SCM and CI evidence (delivered; Jira Done).
-- APO-48 — Independent QA and evidence gates (In Progress; not yet accepted).
+- APO-48 — Independent QA and evidence gates (delivered; Jira Done; final accepted).
 - APO-49 — Human approval policy.
 - APO-63 — Controlled remote source-control delivery operations.
 
@@ -149,8 +186,8 @@ and owner attention into an evidence-backed command-center read model and surfac
 
 ### P1 acceleration — APO-51..56
 
-Review Inbox, skills/workflow library, explainable project health, Decision Ledger/activity
-history, runtime evidence, and context budgets/compression.
+APO-51 is the next FAST V1 gate for the Review Inbox and bounded remediation loop. APO-52 through
+APO-56 remain POST-V1 / deferred until a later approved phase.
 
 ### P2 controlled expansion — APO-57..58
 
@@ -252,8 +289,9 @@ explicit human gates. No remote write may silently bypass the evidence or approv
 
 ## 11. Jira hygiene / roadmap identity
 
-The approved APO-1 through APO-17 Epic structure is reused. The remaining strategic product backlog
-is APO-48 through APO-63; APO-38 through APO-47 are delivered. APO-64 through APO-67 are Done, VOID,
+The approved APO-1 through APO-17 Epic structure is reused. APO-48 is delivered and the remaining
+FAST V1 must-ship backlog is APO-51, APO-49, APO-63, APO-50, and APO-33. APO-52 through APO-61 are
+post-V1 deferred scope. APO-38 through APO-47 are delivered. APO-64 through APO-67 are Done, VOID,
 `no-project-work`, and `connector-correction` artifacts retained only as transparent Jira connector
 history; they have zero product scope and are excluded from roadmap totals, dependencies, sequencing,
 BRD claims, and Mission Control scope. APO-68 is delivered workspace-preparation hardening. APO-69
@@ -313,10 +351,8 @@ planner sequencing, not a claim that every adjacent pair is a Jira hard dependen
 
 ## 13. Current planner boundary
 
-APO-69 is complete and APO-47 is merged, Sol-accepted, post-merge verified, and Jira Done. APO-62
-(remote SCM and CI evidence) is delivered and Jira Done. APO-48 (independent QA/evidence gates) is
-In Progress and not yet accepted; two known `BoundedProcessHostTests` failures remain outstanding.
-The current planner boundary is the state reconciliation in `.ai/CURRENT_STATE.md` and `TASK.md`;
-no APO-49, APO-50, APO-63, or other new Story is authorized until Sol accepts the current
-reconciliation/remediation work and provides exactly one fresh self-contained implementation
-contract.
+APO-69 is complete, APO-47 is merged and Jira Done, and APO-62 (remote SCM and CI evidence) is
+delivered and Jira Done. APO-48 is final accepted, merged, and Jira Done. The current FAST V1 gate
+is APO-51, which remains To Do and not started; APO-49, APO-63, APO-50, and APO-33 also remain To
+Do. No implementation is authorized by this roadmap. GPT-5.6 Sol must provide a fresh,
+self-contained contract for each Story, and no automatic roadmap execution is permitted.
