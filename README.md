@@ -92,7 +92,7 @@ APO is an active foundation, not a finished orchestration product.
 | :white_check_mark: Implemented / validated | APO-47 tracker-agnostic Jira work-item and dependency synchronization with bounded reads, explicit mutation authority, post-verification, and audit evidence |
 | :white_check_mark: Implemented / validated | Official provider capacity adapter surfaces for Codex, Claude, Kimi, GitHub Copilot, and Antigravity, with documented manual/unsupported boundaries |
 | :white_check_mark: Implemented / validated | APO-62 provider-independent, read-only remote SCM and CI evidence (GitHub and Azure Repos) |
-| :construction: In progress / not accepted | APO-48 independent validation evidence and evidence-based QA gates; Phase B remediation is executor-complete pending independent review / Sol acceptance |
+| :construction: In progress / not accepted | APO-48 independent validation evidence and evidence-based QA gates; Phase B-R1 remediation is executor-complete pending independent review / Sol acceptance |
 | :construction: Planned | Local Git evidence is partially implemented through APO-37; controlled remote delivery (APO-63) remains unimplemented |
 | :construction: Planned | Human approval policy (APO-49) and Mission Control (APO-50) |
 | :compass: Strategic roadmap | Mission Control, Smart Continue, recovery, dependency-aware work, isolated workspaces, decision ledger, project health, skills, bounded automation, and optional remote approval design |
@@ -102,10 +102,11 @@ reports **1,112 passed / 2 failed / 0 skipped**; the two known failures are in
 `BoundedProcessHostTests` and are not accepted as green. GitHub Actions CI is **not configured**
 for this repository (APO-33 remains To Do); no CI status should be read as claimed or passing.
 
-The current Phase B candidate branch `fix/APO-48-post-reconciliation-remediation` reports **1,130
-passed / 0 failed / 0 skipped** locally (Domain 28, Infrastructure 626, Provider 145, Connection
+The current Phase B-R1 candidate branch `fix/APO-48-post-reconciliation-remediation` reports **1,136
+passed / 0 failed / 0 skipped** locally (Domain 28, Infrastructure 632, Provider 145, Connection
 248, Desktop 83) with a clean solution build. This is local deterministic validation only and is
-pending independent review and Sol acceptance.
+pending independent review and Sol acceptance; REC-CODE-01R is executor-remediated pending Sol
+review.
 
 Not yet implemented: full consumer capacity surfaces beyond the documented adapter boundaries,
 end-to-end autonomous provider execution, tracker automation, controlled remote delivery,

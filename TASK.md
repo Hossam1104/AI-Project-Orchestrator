@@ -12,13 +12,14 @@ This file is a short authority boundary, not an executable prompt. The previous 
 - All old executor prompts, including the historical Luna APO-48 Prompt 5/5R3 handoff, are
   `FROZEN / SUPERSEDED / DO NOT EXECUTE`.
 - `APO-48` remains `In Progress` and is **not accepted**.
-- Phase B APO-48 execution is completed on branch `fix/APO-48-post-reconciliation-remediation`;
-  the seven functional/test findings are executor-remediated and pending independent review.
+- Phase B APO-48 execution and the Phase B-R1 residual remediation are completed on branch
+  `fix/APO-48-post-reconciliation-remediation`; the seven functional/test findings and
+  `REC-CODE-01R` are executor-remediated and pending independent review / Sol review.
 - No roadmap resume is authorized: `APO-49`, `APO-50`, `APO-63`, and `APO-33` remain not started.
 
 ## Authority boundary
 
-After Phase B executor completion, the next authority is **GPT-5.6 Sol exact-head review and
+After Phase B-R1 executor completion, the next authority is **GPT-5.6 Sol exact-head review and
 acceptance**. `APO-48` remains `In Progress` and is not accepted. This document does not authorize
 the next executor prompt, resume the roadmap, or authorize any new Jira Story.
 

@@ -1,6 +1,6 @@
 # AI_Orchestrator — Current State
 
-**Last Updated:** 5 September 2026 (Phase B APO-48 functional remediation)
+**Last Updated:** 5 September 2026 (Phase B-R1 REC-CODE-01R executor remediation)
 
 ## Canonical live snapshot
 
@@ -77,10 +77,13 @@
   drift was observed before branch creation.
 - Functional commit: `b622e6f6bbbb51a0732afa23e78717c981180b5c` / tree
   `3674aeac0960cdd4c380ca23a1ac97791449c15f`, direct child of the exact Phase A-R1 head.
+- Phase B-R1 functional commit: `e49b3c10432e8aa742b70344722adda67b91636f` / tree
+  `53b1b04804498537212d7beaa8affa186bdf8c75`, direct child of the Phase B handoff head
+  `b32b79d139125ed05ce872bc9f14963d2f6d8800`.
 - Draft PR #27: `OPEN / DRAFT / UNMERGED`, base `main`, head
   `fix/APO-48-post-reconciliation-remediation`; it is the consolidated post-reconciliation
   APO-48 candidate and remains pending independent review.
-- Validation truth: **1,130 passed / 0 failed / 0 skipped** (Domain 28, Infrastructure 626,
+- Validation truth: **1,136 passed / 0 failed / 0 skipped** (Domain 28, Infrastructure 632,
   Provider 145, Connection 248, Desktop 83). Build completed with 0 warnings and 0 errors;
   restore was up to date; `git diff --check` passed.
 - Runtime: `APO PROCESS COUNT = 0`; `APPLICATION LEFT RUNNING = NO`.
@@ -110,6 +113,10 @@ defects (`REC-TEST-*`) remain distinct IDs.
 - `REC-CODE-01` — CRITICAL — **REMEDIATED BY EXECUTOR — PENDING INDEPENDENT REVIEW / SOL ACCEPTANCE**.
   Dotnet validation now fail-closes unsupported, option-like, response-file-like, nonexistent,
   outside-workspace, and reparse-path targets before process invocation.
+- `REC-CODE-01R = EXECUTOR REMEDIATED — PENDING SOL REVIEW`. The exact normalized
+  `relativeTarget` argument is now fail-closed against rooted, parent-traversal, option-like, and
+  response-file-like syntax immediately before it is inserted into the structured dotnet argument
+  list; direct and normalized supported-file regressions prove zero process invocations.
 - `REC-CODE-02` — HIGH — **REMEDIATED BY EXECUTOR — PENDING INDEPENDENT REVIEW / SOL ACCEPTANCE**.
   GitHub partial/truncated aggregates are not Passing, known failures remain dominant, and the
   APO-48 collector requires fully Available CI state before producing Passed evidence. Azure
@@ -121,7 +128,7 @@ defects (`REC-TEST-*`) remain distinct IDs.
 ### Test/coverage defects
 
 - `REC-TEST-01` — CRITICAL — **REMEDIATED BY EXECUTOR — PENDING INDEPENDENT REVIEW / SOL ACCEPTANCE**.
-  The canonical local solution suite is green at 1,130 passed / 0 failed / 0 skipped.
+  The canonical local solution suite is green at 1,136 passed / 0 failed / 0 skipped.
 - `REC-TEST-02` — HIGH — **REMEDIATED BY EXECUTOR — PENDING INDEPENDENT REVIEW / SOL ACCEPTANCE**.
   The test-only resolver now locates a real dotnet CLI without machine-specific hardcoding;
   all 9 BoundedProcessHost tests pass. Production BoundedProcessHost code was not changed.
@@ -134,8 +141,8 @@ defects (`REC-TEST-*`) remain distinct IDs.
 
 ## Authority boundary
 
-`NEXT = GPT-5.6 Sol exact-head Phase B review.`
+`NEXT = GPT-5.6 Sol exact-head Phase B-R1 review.`
 
-Phase B is executor-complete on the branch and functional commit recorded above, but it is not
+Phase B-R1 is executor-complete on the branch and functional commit recorded above, but it is not
 independently reviewed or Sol-accepted. No next product Story is authorized. Sol must perform the
-exact-head Phase B review before any roadmap resume, PR supersession/closure, or APO-48 acceptance.
+exact-head Phase B-R1 review before any roadmap resume, PR supersession/closure, or APO-48 acceptance.
