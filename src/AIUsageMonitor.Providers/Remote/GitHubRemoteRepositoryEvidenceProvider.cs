@@ -503,7 +503,7 @@ public sealed class GitHubRemoteRepositoryEvidenceProvider : IRemoteRepositoryEv
             }
         }
 
-        draft.CiResult = pages.Incomplete
+        draft.CiResult = truncated || totalCount > draft.CiRuns.Count || pages.Incomplete
             ? PartialCiResult(draft.CiRuns)
             : RemoteEvidenceCi.Aggregate(draft.CiRuns);
         if (truncated || totalCount > draft.CiRuns.Count || pages.Incomplete)

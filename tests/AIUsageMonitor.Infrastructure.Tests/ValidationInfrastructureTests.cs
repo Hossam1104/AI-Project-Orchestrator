@@ -22,6 +22,7 @@ public sealed class ValidationInfrastructureTests
     {
         var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, "passed", string.Empty, false, false, false, true, TimeSpan.FromSeconds(1)));
         var context = CreateContext(@"src\App.csproj");
+        CreateTarget(context, @"src\App.csproj");
         var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
 
         var evidence = await collector.CaptureAsync(context);
@@ -48,10 +49,58 @@ public sealed class ValidationInfrastructureTests
     }
 
     [Fact]
+    public async Task DotNetCollector_AllowsExistingSupportedTargetInsideWorkspace()
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, string.Empty, string.Empty, false, false, false, true, TimeSpan.Zero));
+        var context = CreateContext("project.sln");
+        CreateTarget(context, "project.sln");
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.Equal(ValidationEvidenceState.Available, evidence.State);
+        Assert.Equal(ValidationOutcome.Passed, evidence.Outcome);
+        Assert.Equal(1, host.InvocationCount);
+    }
+
+    [Theory]
+    [InlineData("missing.csproj")]
+    [InlineData("-h")]
+    [InlineData("@response.rsp")]
+    [InlineData("readme.txt")]
+    public async Task DotNetCollector_RejectsInvalidTargetsWithoutProcessInvocation(string target)
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, string.Empty, string.Empty, false, false, false, true, TimeSpan.Zero));
+        var context = CreateContext(target);
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.Equal(ValidationEvidenceState.Invalid, evidence.State);
+        Assert.NotEqual(ValidationOutcome.Passed, evidence.Outcome);
+        Assert.Equal(0, host.InvocationCount);
+    }
+
+    [Fact]
+    public async Task DotNetCollector_RejectsOutsideWorkspaceTargetWithoutProcessInvocation()
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, string.Empty, string.Empty, false, false, false, true, TimeSpan.Zero));
+        var outside = Path.Combine(Path.GetTempPath(), "apo-outside-" + Guid.NewGuid().ToString("N") + ".csproj");
+        var context = CreateContext(outside);
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.Equal(ValidationEvidenceState.Invalid, evidence.State);
+        Assert.Equal(0, host.InvocationCount);
+    }
+
+    [Fact]
     public async Task DotNetCollector_DiscardsSecretShapedOutputAndReportsRedactionRejected()
     {
         var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, "password=secret-value", string.Empty, false, false, false, true, TimeSpan.Zero));
         var context = CreateContext("App.csproj");
+        CreateTarget(context, "App.csproj");
         var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
 
         var evidence = await collector.CaptureAsync(context);
@@ -130,7 +179,7 @@ public sealed class ValidationInfrastructureTests
         var handoff = new HandoffPackageReference(Guid.NewGuid(), 1, Hash('c'));
         var routing = new RoutingDecisionReference(Guid.NewGuid(), 1, Hash('d'));
         var workspacePlan = new WorkspacePreparationPlanReference(Guid.NewGuid(), 1, Hash('e'), projectId);
-        var workspace = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "apo-validation-workspace"));
+        var workspace = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "apo-validation-workspace-" + Guid.NewGuid().ToString("N")));
         var inputCheckpoint = new RecoveryCheckpoint(projectId, Guid.NewGuid(), 1, now.AddMinutes(-2), RecoveryCheckpointLifecycleState.Ready,
             new RecoveryContextReference(Guid.NewGuid(), 1, now), contract, graph, Guid.NewGuid(), handoff,
             nextSafeAction: RecoveryNextSafeAction.ContinueFromCheckpoint);
@@ -150,6 +199,13 @@ public sealed class ValidationInfrastructureTests
         var plan = new ValidationPlan(projectId, Guid.NewGuid(), 1, now, authority.Reference, contract, graph, checkpoint.WorkGraphNodeId!.Value, workspaceId, workspace, receipt.ContentHash, checkpoint.Reference, [requirement], handoff);
         var project = new Project(projectId, "Validation", workspace, null, ProjectStatus.Active, now, now);
         return new(plan, requirement, project, authority, receipt, checkpoint, []);
+    }
+
+    private static void CreateTarget(ValidationCollectionContext context, string target)
+    {
+        var path = Path.GetFullPath(Path.Combine(context.Plan.WorkspacePath, target));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "<Project />");
     }
 
     private static ValidationPlan CreatePlan()
@@ -179,10 +235,12 @@ public sealed class ValidationInfrastructureTests
     {
         public BoundedProcessRequest? Request { get; private set; }
         public bool Called { get; private set; }
+        public int InvocationCount { get; private set; }
 
         public Task<BoundedProcessResult> RunAsync(BoundedProcessRequest request, CancellationToken cancellationToken = default)
         {
             Called = true;
+            InvocationCount++;
             Request = request;
             return Task.FromResult(result);
         }

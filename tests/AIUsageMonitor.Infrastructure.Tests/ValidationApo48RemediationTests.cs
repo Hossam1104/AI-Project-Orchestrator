@@ -84,6 +84,19 @@ public sealed class ValidationApo48RemediationTests
         Assert.Equal(ValidationOutcome.Failed, evidence.Outcome);
     }
 
+    [Fact]
+    public async Task RemoteCiPartialEvidenceCannotBecomePassedFromAggregateResult()
+    {
+        var fixture = CreateFixture(RemoteRequirement(expectedCommit: "B"));
+        var collector = new RemoteValidationEvidenceCollector(new FakeRemoteService(
+            Remote("B", null, RemoteCiState.Passing, ["B"], RemoteEvidenceState.Partial)));
+
+        var evidence = await collector.CaptureAsync(fixture.Context);
+
+        Assert.Equal(ValidationEvidenceState.Partial, evidence.State);
+        Assert.Equal(ValidationOutcome.Unknown, evidence.Outcome);
+    }
+
     [Theory]
     [InlineData(RemoteEvidenceState.Partial, ValidationEvidenceState.Partial)]
     [InlineData(RemoteEvidenceState.AuthenticationRequired, ValidationEvidenceState.AuthenticationRequired)]
@@ -554,6 +567,43 @@ public sealed class ValidationApo48RemediationTests
     }
 
     [Fact]
+    public async Task SatisfiedGateAtRecoveryEvidenceCapacityPersistsDecisionAndCheckpoint()
+    {
+        var fixture = CreateFixture(inheritedExecutionEvidenceCount: RecoveryCheckpointLimits.MaxEvidenceReferences - 2);
+        var decisions = new FakeDecisionRepository();
+        var recovery = new FakeRecoveryService(fixture.Checkpoint);
+        var service = CreateGateService(fixture, decisions, recovery);
+
+        var result = await service.EvaluateAsync(new ValidationGateRequest(
+            fixture.Plan.ProjectId, fixture.Plan.Reference, fixture.Plan.CurrentRecoveryCheckpointReference));
+
+        Assert.True(result.Succeeded, result.ErrorMessage);
+        Assert.Equal(ValidationGateDecisionState.Satisfied, result.Decision!.State);
+        Assert.Equal(1, decisions.CreateCalls);
+        Assert.Equal(1, recovery.CreateCalls);
+        Assert.Equal(RecoveryCheckpointLimits.MaxEvidenceReferences, recovery.LastRequest!.EvidenceReferences.Count);
+    }
+
+    [Fact]
+    public async Task SatisfiedGateOverRecoveryEvidenceCapacityDoesNotPersistDecisionOrCheckpoint()
+    {
+        var fixture = CreateFixture(inheritedExecutionEvidenceCount: RecoveryCheckpointLimits.MaxEvidenceReferences - 1);
+        var decisions = new FakeDecisionRepository();
+        var recovery = new FakeRecoveryService(fixture.Checkpoint);
+        var service = CreateGateService(fixture, decisions, recovery);
+
+        var result = await service.EvaluateAsync(new ValidationGateRequest(
+            fixture.Plan.ProjectId, fixture.Plan.Reference, fixture.Plan.CurrentRecoveryCheckpointReference));
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Decision);
+        Assert.Contains("capacity", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, decisions.CreateCalls);
+        Assert.Equal(0, recovery.CreateCalls);
+        Assert.Null(recovery.LastRequest);
+    }
+
+    [Fact]
     public async Task SecurityCaptureIsRejectedUntilAllRequiredNonSecurityEvidenceExists()
     {
         var fixture = WithRequirements(CreateFixture(),
@@ -705,6 +755,7 @@ public sealed class ValidationApo48RemediationTests
     public async Task DotNetCollectorPreservesBoundedProcessOutcome(BoundedProcessOutcome processOutcome, ValidationEvidenceState expectedState, ValidationOutcome expectedOutcome)
     {
         var fixture = CreateFixture(new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "fake", targetPath: "project.csproj"));
+        CreateTarget(fixture, "project.csproj");
         var result = new BoundedProcessResult(processOutcome, processOutcome == BoundedProcessOutcome.NonZeroExit ? 1 : null, "", "", false, false, false, true, TimeSpan.Zero);
         var collector = new DotNetValidationEvidenceCollector(new FakeProcessHost(result), new FixedClock(fixture.Now), new HandoffRedactionService());
 
@@ -718,6 +769,7 @@ public sealed class ValidationApo48RemediationTests
     public async Task DotNetCollectorReportsOutputTruncationWithoutPersistingOutput()
     {
         var fixture = CreateFixture(new ValidationRequirement("tests", ValidationEvidenceKind.Test, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "fake", targetPath: "project.csproj"));
+        CreateTarget(fixture, "project.csproj");
         var result = new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, "safe", "", true, false, false, true, TimeSpan.Zero);
         var evidence = await new DotNetValidationEvidenceCollector(new FakeProcessHost(result), new FixedClock(fixture.Now), new HandoffRedactionService()).CaptureAsync(fixture.Context);
 
@@ -740,6 +792,12 @@ public sealed class ValidationApo48RemediationTests
             recovery, new FixedClock(fixture.Now));
         return await service.EvaluateAsync(new ValidationGateRequest(fixture.Plan.ProjectId, fixture.Plan.Reference, fixture.Plan.CurrentRecoveryCheckpointReference));
     }
+
+    private static ValidationGateService CreateGateService(Fixture fixture, FakeDecisionRepository decisions, FakeRecoveryService recovery) =>
+        new(new FakePlanRepository(fixture.Plan), new FakeEvidenceRepository([CreateEvidence(fixture)]), decisions,
+            new FakeAuthorityRepository(fixture.Authority), new FakeReceiptRepository(fixture.Receipt),
+            new FakeCheckpointRepository(fixture.InputCheckpoint, fixture.PreRunCheckpoint, fixture.Checkpoint),
+            new FakeContinuationHeadRepository(fixture.Checkpoint), recovery, new FixedClock(fixture.Now));
 
     private static ValidationRequirement RemoteRequirement(int? pullRequestNumber = null, string? expectedCommit = null) =>
         new("remote-ci", ValidationEvidenceKind.RemoteCi, true, ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone,
@@ -816,7 +874,7 @@ public sealed class ValidationApo48RemediationTests
             .Select(index =>
             {
                 var runId = Guid.NewGuid();
-                var contentHash = Hash((char)('a' + index));
+                var contentHash = Hash("0123456789abcdef"[index % 16]);
                 return new RecoveryEvidenceReference(runId, RecoveryEvidenceKind.Other,
                     $"execution-run:{id:D}/{runId:D}/{contentHash}", capturedAt.AddMinutes(-3),
                     RecoveryEvidenceFreshness.PointInTime, contentHash: contentHash);
@@ -886,6 +944,13 @@ public sealed class ValidationApo48RemediationTests
 
     private static string Hash(char value) => new(value, 64);
     private static string Sha40(char value) => new(value, 40);
+
+    private static void CreateTarget(Fixture fixture, string target)
+    {
+        var path = Path.GetFullPath(Path.Combine(fixture.Workspace, target));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "<Project />");
+    }
 
     private sealed record Fixture(DateTimeOffset Now, ValidationPlan Plan, ValidationRequirement Requirement, Project Project,
         ExecutionRunAuthority Authority, WorkspacePreparationReceipt Receipt, RecoveryCheckpoint InputCheckpoint, RecoveryCheckpoint PreRunCheckpoint, RecoveryCheckpoint Checkpoint,
@@ -991,14 +1056,25 @@ public sealed class ValidationApo48RemediationTests
 
     private sealed class FakeDecisionRepository : IValidationGateDecisionRepository
     {
-        public Task<ValidationDecisionRepositoryWriteResult> CreateAsync(ValidationGateDecision decision, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationDecisionRepositoryWriteResult(ValidationDecisionRepositoryWriteStatus.Created));
+        public int CreateCalls { get; private set; }
+        public Task<ValidationDecisionRepositoryWriteResult> CreateAsync(ValidationGateDecision decision, CancellationToken cancellationToken = default)
+        {
+            CreateCalls++;
+            return Task.FromResult(new ValidationDecisionRepositoryWriteResult(ValidationDecisionRepositoryWriteStatus.Created));
+        }
+
         public Task<ValidationDecisionReadResult> GetAsync(Guid projectId, Guid decisionId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationDecisionReadResult(ValidationDecisionReadState.Missing));
     }
 
     private sealed class FakeRecoveryService(RecoveryCheckpoint predecessor) : IRecoveryCheckpointService
     {
+        public int CreateCalls { get; private set; }
+        public RecoveryCheckpointCreationRequest? LastRequest { get; private set; }
+
         public Task<RecoveryCheckpointCreationResult> CreateAsync(RecoveryCheckpointCreationRequest request, CancellationToken cancellationToken = default)
         {
+            CreateCalls++;
+            LastRequest = request;
             var checkpoint = new RecoveryCheckpoint(request.ProjectId, request.CheckpointId, 1, request.CreatedAt ?? predecessor.CreatedAt, request.LifecycleState,
                 predecessor.Context, request.PlanningContractReference, request.WorkGraphReference, request.WorkGraphNodeId, request.HandoffPackageReference,
                 request.PreviousCheckpointReference, request.SelectedAgentRoleReferences, request.EvidenceReferences, request.GateSnapshots, request.Blockers,

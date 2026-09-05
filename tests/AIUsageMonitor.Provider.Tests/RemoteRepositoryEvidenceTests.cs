@@ -262,7 +262,33 @@ public sealed class RemoteRepositoryEvidenceTests
 
         Assert.Equal(RemoteEvidenceState.Partial, evidence.State);
         Assert.Equal(100, evidence.CiRuns.Count);
+        Assert.Equal(RemoteCiState.Unknown, evidence.CiResult);
         Assert.NotEmpty(evidence.Limitations);
+    }
+
+    [Fact]
+    public async Task GitHub_PartialWorkflowEvidencePreservesKnownFailure()
+    {
+        var runs = string.Join(',', Enumerable.Range(1, 101).Select(index =>
+            $"{{\"id\":{index},\"name\":\"CI {index}\",\"status\":\"completed\",\"conclusion\":\"{(index == 1 ? "failure" : "success")}\",\"head_branch\":\"main\",\"head_sha\":\"abc123\"}}"));
+        var provider = CreateGitHubProvider(new TestCredentialStore(), out _, request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/repos/octo/repo" => Json(GitHubRepository),
+                "/repos/octo/repo/branches/main" => Json(GitHubBranch),
+                _ when path.EndsWith("/statuses", StringComparison.Ordinal) => Json(GitHubEmptyStatuses),
+                _ when path.EndsWith("/check-runs", StringComparison.Ordinal) => Json(GitHubEmptyChecks),
+                _ when path.EndsWith("/actions/runs", StringComparison.Ordinal) => Json($"{{\"total_count\":101,\"workflow_runs\":[{runs}]}}"),
+                _ => Status(HttpStatusCode.NotFound)
+            };
+        });
+
+        var evidence = await provider.InspectAsync(Request("GitHub", "https://github.com/octo/repo"));
+
+        Assert.Equal(RemoteEvidenceState.Partial, evidence.CiState);
+        Assert.Equal(RemoteCiState.Failing, evidence.CiResult);
     }
 
     [Fact]

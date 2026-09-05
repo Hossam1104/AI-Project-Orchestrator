@@ -118,7 +118,7 @@ public sealed class BoundedProcessHostTests
         TimeSpan timeout,
         int maxStdoutBytes = 32 * 1024,
         int maxStderrBytes = 32 * 1024) => new(
-        Environment.ProcessPath ?? "dotnet",
+        DotnetExecutableResolver.Resolve(),
         [argument],
         Environment.CurrentDirectory,
         timeout,

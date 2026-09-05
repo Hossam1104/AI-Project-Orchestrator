@@ -1641,9 +1641,6 @@ public sealed class ValidationGateService : IValidationGateService
             baselines.Add(baseline.Evidence!);
         }
         var decision = ValidationGateEvaluator.Evaluate(plan, evidence, now, baselineEvidence: baselines);
-        var write = await _decisions.CreateAsync(decision, cancellationToken).ConfigureAwait(false);
-        if (!write.Succeeded) return new(decision, ErrorMessage: write.ErrorMessage ?? "Validation-decision persistence failed.");
-
         var refs = checkpoint.Checkpoint.EvidenceReferences.ToList();
         foreach (var value in evidence.Where(value => decision.SupportingEvidence.Any(reference => reference.EvidenceId == value.EvidenceId)))
         {
@@ -1664,6 +1661,16 @@ public sealed class ValidationGateService : IValidationGateService
         var lifecycle = decision.State switch { ValidationGateDecisionState.Satisfied => RecoveryCheckpointLifecycleState.Ready, ValidationGateDecisionState.Failed => RecoveryCheckpointLifecycleState.Blocked, _ => RecoveryCheckpointLifecycleState.Waiting };
         var action = decision.State == ValidationGateDecisionState.Satisfied ? RecoveryNextSafeAction.ContinueFromCheckpoint : decision.State == ValidationGateDecisionState.Failed ? RecoveryNextSafeAction.ResolveBlocker : RecoveryNextSafeAction.RunValidation;
         if (decision.State != ValidationGateDecisionState.Satisfied) blockers.Add(new RecoveryBlocker($"validation-gate-{decision.DecisionId:N}", RecoveryBlockerKind.ValidationGate, decision.Explanation ?? "Validation gate is unsatisfied.", decision.Reference.ToString()));
+
+        if (decision.State == ValidationGateDecisionState.Satisfied &&
+            !RecoveryCheckpointLimits.TryValidateEvidenceReferences(refs, out var capacityError))
+        {
+            return new(null, ErrorMessage: capacityError ?? "The validation recovery checkpoint cannot represent its evidence references.");
+        }
+
+        var write = await _decisions.CreateAsync(decision, cancellationToken).ConfigureAwait(false);
+        if (!write.Succeeded) return new(decision, ErrorMessage: write.ErrorMessage ?? "Validation-decision persistence failed.");
+
         var recovery = await _recovery.CreateAsync(new RecoveryCheckpointCreationRequest(plan.ProjectId, Guid.NewGuid(), lifecycle, plan.PlanningContractReference, refs, gates, blockers, action, decision.Explanation, _clock.UtcNow, plan.WorkGraphReference, plan.WorkGraphNodeId, plan.HandoffPackageReference, checkpoint.Checkpoint.Reference, checkpoint.Checkpoint.SelectedAgentRoleReferences), cancellationToken).ConfigureAwait(false);
         return new(decision, recovery, recovery.Succeeded ? null : recovery.ErrorMessage);
     }

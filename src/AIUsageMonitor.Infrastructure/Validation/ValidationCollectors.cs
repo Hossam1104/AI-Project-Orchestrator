@@ -155,13 +155,34 @@ public sealed class DotNetValidationEvidenceCollector : IValidationEvidenceColle
         target = string.Empty;
         relativeTarget = string.Empty;
         var candidate = context.Requirement.TargetPath;
-        if (string.IsNullOrWhiteSpace(candidate) || !IsSafeArgument(candidate) || Path.IsPathFullyQualified(candidate)) return false;
+        if (string.IsNullOrWhiteSpace(candidate) ||
+            !IsSafeArgument(candidate) ||
+            candidate.StartsWith("-", StringComparison.Ordinal) ||
+            candidate.StartsWith("@", StringComparison.Ordinal) ||
+            Path.IsPathRooted(candidate) ||
+            !IsSupportedTarget(candidate) ||
+            !Path.IsPathFullyQualified(context.Plan.WorkspacePath))
+        {
+            return false;
+        }
+
         try
         {
-            var workspace = Path.GetFullPath(context.Plan.WorkspacePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var workspace = Path.GetFullPath(context.Plan.WorkspacePath);
+            if (!Directory.Exists(workspace)) return false;
+
             var fullPath = Path.GetFullPath(Path.Combine(workspace, candidate));
             var relative = Path.GetRelativePath(workspace, fullPath);
-            if (relative == "." || relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathFullyQualified(relative)) return false;
+            if (relative == "." ||
+                relative.StartsWith("..", StringComparison.Ordinal) ||
+                Path.IsPathFullyQualified(relative) ||
+                !File.Exists(fullPath) ||
+                Directory.Exists(fullPath) ||
+                !HasSafePathComponents(workspace, fullPath))
+            {
+                return false;
+            }
+
             target = fullPath;
             relativeTarget = relative;
             return true;
@@ -170,6 +191,41 @@ public sealed class DotNetValidationEvidenceCollector : IValidationEvidenceColle
         {
             return false;
         }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsSupportedTarget(string candidate) =>
+        Path.GetExtension(candidate) is { } extension &&
+        (extension.Equals(".csproj", StringComparison.OrdinalIgnoreCase) ||
+         extension.Equals(".sln", StringComparison.OrdinalIgnoreCase));
+
+    private static bool HasSafePathComponents(string workspace, string target)
+    {
+        var root = Path.GetPathRoot(workspace);
+        if (string.IsNullOrWhiteSpace(root)) return false;
+
+        var current = root;
+        var relative = Path.GetRelativePath(root, target);
+        foreach (var component in relative.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, component);
+            var attributes = File.GetAttributes(current);
+            if (attributes.HasFlag(FileAttributes.ReparsePoint)) return false;
+            if (!string.Equals(current, target, StringComparison.OrdinalIgnoreCase) &&
+                !attributes.HasFlag(FileAttributes.Directory))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool IsSafeArgument(string value) =>
@@ -255,10 +311,11 @@ public sealed class RemoteValidationEvidenceCollector : IValidationEvidenceColle
                 reasonCode: missingCiIdentity ? ValidationReasonCodes.RemoteCiCommitIdentityMissing : ValidationReasonCodes.RemoteCiCommitConflict);
         }
 
-        var ciState = remote.CiResult switch
+        var ciState = remote.CiState is RemoteEvidenceState.Available &&
+            remote.CiResult is RemoteCiState.Passing or RemoteCiState.Failing
+                ? ValidationEvidenceState.Available
+                : remote.CiResult switch
         {
-            RemoteCiState.Passing => ValidationEvidenceState.Available,
-            RemoteCiState.Failing => ValidationEvidenceState.Available,
             RemoteCiState.NoEvidence => ValidationEvidenceState.Missing,
             RemoteCiState.Pending => ValidationEvidenceState.Partial,
             RemoteCiState.Cancelled => ValidationEvidenceState.Cancelled,
@@ -266,7 +323,7 @@ public sealed class RemoteValidationEvidenceCollector : IValidationEvidenceColle
         };
         var outcome = remote.CiResult switch
         {
-            RemoteCiState.Passing => ValidationOutcome.Passed,
+            RemoteCiState.Passing when ciState == ValidationEvidenceState.Available => ValidationOutcome.Passed,
             RemoteCiState.Failing => ValidationOutcome.Failed,
             _ => ValidationOutcome.Unknown
         };
