@@ -12,16 +12,15 @@ This file is a short authority boundary, not an executable prompt. The previous 
 - All old executor prompts, including the historical Luna APO-48 Prompt 5/5R3 handoff, are
   `FROZEN / SUPERSEDED / DO NOT EXECUTE`.
 - `APO-48` remains `In Progress` and is **not accepted**.
-- The current reconciliation unit is Phase A — identity and authority/state-document
-  normalization — delivered on branch `reconcile/AI_Orchestrator-phase-a`.
+- Phase B APO-48 execution is completed on branch `fix/APO-48-post-reconciliation-remediation`;
+  the seven functional/test findings are executor-remediated and pending independent review.
 - No roadmap resume is authorized: `APO-49`, `APO-50`, `APO-63`, and `APO-33` remain not started.
-- APO-48 functional remediation (`REC-CODE-01`, `REC-CODE-02`, `REC-CODE-03`, associated test
-  coverage) is a separate, later, planner-authorized phase and is not covered by this document.
 
 ## Authority boundary
 
-After Phase A executor completion, the next authority is **GPT-5.6 Sol review and acceptance**.
-This document does not authorize the next executor prompt, does not resume APO-48 functional
-remediation, and does not authorize any new Jira Story.
+After Phase B executor completion, the next authority is **GPT-5.6 Sol exact-head review and
+acceptance**. `APO-48` remains `In Progress` and is not accepted. This document does not authorize
+the next executor prompt, resume the roadmap, or authorize any new Jira Story.
 
-See [`.ai/CURRENT_STATE.md`](.ai/CURRENT_STATE.md) for the live snapshot and open findings.
+The old Luna APO-48 R4 prompt remains permanently superseded and must not be executed. See
+[`.ai/CURRENT_STATE.md`](.ai/CURRENT_STATE.md) for the live snapshot and finding statuses.

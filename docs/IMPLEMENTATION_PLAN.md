@@ -303,8 +303,9 @@ APO-20 completed the repository identity rename under APO-1, including the physi
 move. APO-27, APO-35, APO-36, and APO-37 are historical accepted deliveries. APO-38 through
 APO-47 and APO-68 are implemented and marked Done in Jira. APO-69 is also Done. APO-62 (remote
 SCM and CI evidence) is Done. The current `origin/main` baseline is
-`98cb8e86bad0729aa07d33ec6f93b86a49a668bf`. APO-48 is In Progress and not yet accepted; two known
-`BoundedProcessHostTests` failures remain outstanding pending functional remediation. APO-49,
+`98cb8e86bad0729aa07d33ec6f93b86a49a668bf`. APO-48 is In Progress and not yet accepted; its Phase B
+remediation is executor-complete with local validation at 1,130 passed / 0 failed / 0 skipped,
+pending independent review and Sol acceptance. APO-49,
 APO-63, and APO-50 remain To Do and are not started. No executor may start another Story from
 this document or `TASK.md` until Sol authorizes it with a fresh contract.
 
