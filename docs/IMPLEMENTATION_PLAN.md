@@ -1,11 +1,11 @@
-# AI Project Orchestrator - Implementation Plan
+# AI_Orchestrator - Implementation Plan
 
 **Version:** 1.4
 **Date:** 30 August 2026
-**Product:** AI Project Orchestrator (APO)
+**Product:** AI_Orchestrator (APO)
 **Primary Requirements:** `docs/BRD.md`
 **Jira Project:** `APO`
-**Repository:** `https://github.com/Hossam1104/AI-Project-Orchestrator`
+**Repository:** `https://github.com/Hossam1104/AI_Orchestrator`
 **Default Branch:** `main`
 **Planner / Architect / Acceptance / Prompt Authority:** GPT-5.6 Sol (chat mode only)
 **Primary Executor:** GPT-5.6 Luna xHigh for bounded work unless Sol explicitly routes elsewhere
@@ -301,9 +301,11 @@ Story. A Draft PR is not Sol acceptance or a merge.
 
 APO-20 completed the repository identity rename under APO-1, including the physical local-root
 move. APO-27, APO-35, APO-36, and APO-37 are historical accepted deliveries. APO-38 through
-APO-47 and APO-68 are implemented and marked Done in Jira. APO-47 was merged by PR #22; the
-current `main` baseline is `d3a88e3a6fafac3b6818f5766cedf194429b905b` with tree
-`8d86e45ebb1eefa2bd621c69f0c1722aceea7e22`. APO-69 is also Done. APO-62, APO-48, APO-49,
+APO-47 and APO-68 are implemented and marked Done in Jira. APO-69 is also Done. APO-62 (remote
+SCM and CI evidence) is Done. The current `origin/main` baseline is
+`98cb8e86bad0729aa07d33ec6f93b86a49a668bf`. APO-48 is In Progress and not yet accepted; its Phase B
+remediation is executor-complete with local validation at 1,130 passed / 0 failed / 0 skipped,
+pending independent review and Sol acceptance. APO-49,
 APO-63, and APO-50 remain To Do and are not started. No executor may start another Story from
 this document or `TASK.md` until Sol authorizes it with a fresh contract.
 

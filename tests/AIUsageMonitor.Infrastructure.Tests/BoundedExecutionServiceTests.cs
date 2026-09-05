@@ -5,7 +5,9 @@ using AIUsageMonitor.Application.Planning;
 using AIUsageMonitor.Application.Projects;
 using AIUsageMonitor.Application.Routing;
 using AIUsageMonitor.Application.Time;
+using AIUsageMonitor.Application.Validation;
 using AIUsageMonitor.Application.Workspaces;
+using AIUsageMonitor.Infrastructure.Validation;
 
 namespace AIUsageMonitor.Infrastructure.Tests;
 
@@ -42,6 +44,125 @@ public sealed class BoundedExecutionServiceTests
         Assert.Equal(RecoveryCheckpointLifecycleState.Ready, result.TerminalCheckpoint!.LifecycleState);
         Assert.Equal(RecoveryNextSafeAction.RunValidation, result.TerminalCheckpoint.NextSafeAction);
         Assert.NotEqual(ExecutionRunStatus.Accepted, harness.History.Runs[^1].Status);
+    }
+
+    [Fact]
+    public async Task ActualBoundedExecutionTerminalFeedsApo48PlanCaptureAndGate()
+    {
+        using var harness = ExecutionHarness.Create();
+        var execution = await harness.Service.ExecuteAsync(harness.Request);
+        var authority = execution.Authority!;
+        var terminal = execution.TerminalCheckpoint!;
+        var requirement = new ValidationRequirement("tests", ValidationEvidenceKind.Test, true,
+            ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "integration");
+        var plan = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminal.CreatedAt,
+            authority.Reference, authority.PlanningContractReference, authority.WorkGraphReference!, authority.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminal.Reference,
+            [requirement], authority.HandoffPackageReference);
+        var plans = new IntegrationValidationPlanRepository(plan);
+        var evidence = new IntegrationValidationEvidenceRepository();
+        var validation = new ValidationEvidenceService(plans, evidence, new IntegrationProjectRepository(harness.Project), harness.Authorities,
+            new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints, harness.Heads,
+            new IntegrationCollectorResolver(), new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+
+        var planWrite = await validation.CreatePlanAsync(plan);
+        var capture = await validation.CaptureAsync(new ValidationCaptureRequest(plan.ProjectId, plan.Reference, requirement.RequirementId, terminal.Reference));
+        var gate = new ValidationGateService(plans, evidence, new IntegrationDecisionRepository(), harness.Authorities,
+            new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints, harness.Heads, harness.CheckpointService,
+            new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        var decision = await gate.EvaluateAsync(new ValidationGateRequest(plan.ProjectId, plan.Reference, terminal.Reference));
+
+        Assert.True(execution.Succeeded);
+        Assert.NotEqual(authority.InputRecoveryCheckpointReference, terminal.Reference);
+        Assert.Equal(RecoveryCheckpointLifecycleState.Ready, terminal.LifecycleState);
+        Assert.Equal(RecoveryNextSafeAction.RunValidation, terminal.NextSafeAction);
+        Assert.True(planWrite.Succeeded, planWrite.ErrorMessage);
+        Assert.True(capture.Succeeded);
+        Assert.Equal(terminal.Reference.ToString(), capture.Evidence!.CurrentRecoveryCheckpointReference.ToString());
+        Assert.True(decision.Succeeded, decision.ErrorMessage);
+        Assert.Equal(ValidationGateDecisionState.Satisfied, decision.Decision!.State);
+    }
+
+    [Fact]
+    public async Task ActualSecondRunTerminalCannotValidateOlderAuthorityDespiteInheritedEvidence()
+    {
+        using var harness = ExecutionHarness.Create();
+        var runA = await harness.Service.ExecuteAsync(harness.Request);
+        var authorityA = runA.Authority!;
+        var preRunA = harness.CheckpointService.Created[0];
+        var terminalA = runA.TerminalCheckpoint!;
+        var requirement = new ValidationRequirement("tests", ValidationEvidenceKind.Test, true,
+            ValidationCoverageScope.Targeted, ValidationBaselineRelation.Standalone, "integration");
+        var planA = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminalA.CreatedAt,
+            authorityA.Reference, authorityA.PlanningContractReference, authorityA.WorkGraphReference, authorityA.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminalA.Reference,
+            [requirement], authorityA.HandoffPackageReference);
+        var evidenceA = new IntegrationValidationEvidenceRepository();
+        var validationA = new ValidationEvidenceService(new IntegrationValidationPlanRepository(planA), evidenceA,
+            new IntegrationProjectRepository(harness.Project), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt),
+            harness.Checkpoints, harness.Heads, new IntegrationCollectorResolver(), new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        Assert.True((await validationA.CreatePlanAsync(planA)).Succeeded);
+        Assert.True((await validationA.CaptureAsync(new ValidationCaptureRequest(planA.ProjectId, planA.Reference, requirement.RequirementId, terminalA.Reference))).Succeeded);
+        var gateA = new ValidationGateService(new IntegrationValidationPlanRepository(planA), evidenceA,
+            new IntegrationDecisionRepository(), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints,
+            harness.Heads, harness.CheckpointService, new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        var decisionA = await gateA.EvaluateAsync(new ValidationGateRequest(planA.ProjectId, planA.Reference, terminalA.Reference));
+        var continuationA = decisionA.Recovery!.Checkpoint!;
+
+        var requestB = new BoundedExecutionRequest(harness.Request.ProjectId, Guid.NewGuid(), harness.Request.PlanningContractReference,
+            harness.Request.WorkGraphReference, harness.Request.WorkGraphNodeId, harness.Request.HandoffPackageReference,
+            harness.Request.RoutingDecisionReference, harness.Request.WorkspacePreparationPlanReference, continuationA.Reference);
+        var runB = await harness.Service.ExecuteAsync(requestB);
+        var authorityB = runB.Authority!;
+        var preRunB = harness.CheckpointService.Created[3];
+        var terminalB = runB.TerminalCheckpoint!;
+
+        Assert.True(runA.Succeeded);
+        Assert.Equal(RecoveryCheckpointLifecycleState.Ready, terminalA.LifecycleState);
+        Assert.Equal(RecoveryNextSafeAction.RunValidation, terminalA.NextSafeAction);
+        Assert.Equal(preRunA.Reference, terminalA.PreviousCheckpointReference);
+        Assert.Equal(harness.CurrentCheckpoint.Reference, preRunA.PreviousCheckpointReference);
+        Assert.Contains(terminalB.EvidenceReferences, value => value.EvidenceId == authorityA.RunId);
+        Assert.Contains(terminalB.EvidenceReferences, value => value.EvidenceId == authorityB.RunId);
+
+        var attackPlan = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminalB.CreatedAt,
+            authorityA.Reference, authorityA.PlanningContractReference, authorityA.WorkGraphReference, authorityA.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminalB.Reference,
+            [requirement], authorityA.HandoffPackageReference);
+        var attackCollector = new IntegrationCollectorResolver();
+        var attackValidation = new ValidationEvidenceService(new IntegrationValidationPlanRepository(attackPlan),
+            new IntegrationValidationEvidenceRepository(), new IntegrationProjectRepository(harness.Project), harness.Authorities,
+            new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints, harness.Heads, attackCollector,
+            new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        Assert.False((await attackValidation.CreatePlanAsync(attackPlan)).Succeeded);
+        var attackCapture = await attackValidation.CaptureAsync(new ValidationCaptureRequest(attackPlan.ProjectId, attackPlan.Reference,
+            requirement.RequirementId, terminalB.Reference));
+
+        Assert.False(attackCapture.Succeeded);
+        Assert.Equal(0, attackCollector.InvocationCount);
+
+        var planB = new ValidationPlan(harness.Project.Id, Guid.NewGuid(), 1, terminalB.CreatedAt,
+            authorityB.Reference, authorityB.PlanningContractReference, authorityB.WorkGraphReference, authorityB.WorkGraphNodeId,
+            harness.Receipt.WorkspaceId, harness.Receipt.WorkspacePath, harness.Receipt.ContentHash, terminalB.Reference,
+            [requirement], authorityB.HandoffPackageReference);
+        var evidenceB = new IntegrationValidationEvidenceRepository();
+        var legitimateCollector = new IntegrationCollectorResolver();
+        var validationB = new ValidationEvidenceService(new IntegrationValidationPlanRepository(planB), evidenceB,
+            new IntegrationProjectRepository(harness.Project), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt),
+            harness.Checkpoints, harness.Heads, legitimateCollector, new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        Assert.True((await validationB.CreatePlanAsync(planB)).Succeeded);
+        Assert.True((await validationB.CaptureAsync(new ValidationCaptureRequest(planB.ProjectId, planB.Reference,
+            requirement.RequirementId, terminalB.Reference))).Succeeded);
+        var gateB = new ValidationGateService(new IntegrationValidationPlanRepository(planB), evidenceB,
+            new IntegrationDecisionRepository(), harness.Authorities, new IntegrationReceiptRepository(harness.Receipt), harness.Checkpoints,
+            harness.Heads, harness.CheckpointService, new FixedClock(DateTimeOffset.Parse("2026-08-28T10:00:00+00:00")));
+        var decisionB = await gateB.EvaluateAsync(new ValidationGateRequest(planB.ProjectId, planB.Reference, terminalB.Reference));
+
+        Assert.Equal(1, legitimateCollector.InvocationCount);
+        Assert.True(decisionB.Succeeded, decisionB.ErrorMessage);
+        Assert.Equal(ValidationGateDecisionState.Satisfied, decisionB.Decision!.State);
+        Assert.Equal(preRunB.Reference, terminalB.PreviousCheckpointReference);
+        Assert.Equal(continuationA.Reference, preRunB.PreviousCheckpointReference);
     }
 
     [Fact]
@@ -887,6 +1008,8 @@ public sealed class BoundedExecutionServiceTests
             Agent = agents.Agent;
             Adapter = adapter;
             WorkspaceInspection = workspaceInspection;
+            Checkpoints = checkpoints;
+            Heads = heads;
             CheckpointService = checkpointService;
             Authorities = authorities;
             History = history;
@@ -925,6 +1048,8 @@ public sealed class BoundedExecutionServiceTests
         public BoundedExecutionRequest Request { get; }
         public EffectiveAgentDefinition Agent { get; }
         public FakeExecutionAdapter Adapter { get; }
+        public FakeCheckpointRepository Checkpoints { get; }
+        public FakeContinuationHeadRepository Heads { get; }
         public FakeCheckpointService CheckpointService { get; }
         public FakeRunAuthorityRepository Authorities { get; }
         public FakeHistory History { get; }
@@ -1309,6 +1434,68 @@ public sealed class BoundedExecutionServiceTests
                 "Execute one bounded step",
                 new HandoffRedactionMetadata(false, 0, []),
                 new HandoffPackageSizeMetadata(HandoffPackageLimits.MaxCanonicalPayloadBytes, 0, 0, 0, 0, 0, scopeCount));
+        }
+    }
+
+    private sealed class IntegrationProjectRepository(Project project) : IProjectRepository
+    {
+        public Task<IReadOnlyList<Project>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Project>>([project]);
+        public Task<Project?> GetByIdAsync(Guid projectId, CancellationToken cancellationToken = default) => Task.FromResult<Project?>(projectId == project.Id ? project : null);
+        public Task UpsertAsync(Project value, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class IntegrationReceiptRepository(WorkspacePreparationReceipt receipt) : IWorkspacePreparationReceiptRepository
+    {
+        public Task<WorkspacePreparationReceiptWriteResult> CreateAsync(WorkspacePreparationReceipt value, CancellationToken cancellationToken = default) => Task.FromResult(new WorkspacePreparationReceiptWriteResult(WorkspacePreparationReceiptWriteStatus.Created));
+        public Task<WorkspacePreparationReceiptReadResult> GetAsync(Guid projectId, Guid workspaceId, CancellationToken cancellationToken = default) => Task.FromResult(projectId == receipt.ProjectId && workspaceId == receipt.WorkspaceId ? new WorkspacePreparationReceiptReadResult(WorkspacePreparationReceiptReadState.Valid, receipt) : new WorkspacePreparationReceiptReadResult(WorkspacePreparationReceiptReadState.Missing));
+    }
+
+    private sealed class IntegrationValidationPlanRepository(ValidationPlan plan) : IValidationPlanRepository
+    {
+        public Task<ValidationPlanRepositoryWriteResult> CreateAsync(ValidationPlan value, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationPlanRepositoryWriteResult(ValidationPlanRepositoryWriteStatus.Created));
+        public Task<ValidationPlanReadResult> GetAsync(Guid projectId, ValidationPlanReference reference, CancellationToken cancellationToken = default) => Task.FromResult(projectId == plan.ProjectId && Same(reference, plan.Reference) ? new ValidationPlanReadResult(ValidationPlanReadState.Valid, plan) : new ValidationPlanReadResult(ValidationPlanReadState.Missing));
+        private static bool Same(ValidationPlanReference left, ValidationPlanReference right) => left.ProjectId == right.ProjectId && left.PlanId == right.PlanId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion && left.ContentHash == right.ContentHash;
+    }
+
+    private sealed class IntegrationValidationEvidenceRepository : IValidationEvidenceRepository
+    {
+        private readonly List<ValidationEvidence> _values = [];
+        public Task<ValidationEvidenceRepositoryWriteResult> CreateAsync(ValidationEvidence evidence, CancellationToken cancellationToken = default) { _values.Add(evidence); return Task.FromResult(new ValidationEvidenceRepositoryWriteResult(ValidationEvidenceRepositoryWriteStatus.Created)); }
+        public Task<ValidationEvidenceReadResult> GetAsync(Guid projectId, ValidationPlanReference planReference, ValidationEvidenceReference evidenceReference, CancellationToken cancellationToken = default) => Task.FromResult(_values.FirstOrDefault(value => value.ProjectId == projectId && Same(value.PlanReference, planReference) && Same(value.Reference, evidenceReference)) is { } value ? new ValidationEvidenceReadResult(ValidationEvidenceReadState.Valid, value) : new ValidationEvidenceReadResult(ValidationEvidenceReadState.Missing));
+        public Task<ValidationEvidenceSetReadResult> GetForPlanAsync(Guid projectId, ValidationPlanReference planReference, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationEvidenceSetReadResult(ValidationEvidenceSetReadState.Valid, _values.Where(value => value.ProjectId == projectId && Same(value.PlanReference, planReference)).ToArray()));
+        private static bool Same(ValidationPlanReference left, ValidationPlanReference right) => left.ProjectId == right.ProjectId && left.PlanId == right.PlanId && left.Revision == right.Revision && left.SchemaVersion == right.SchemaVersion && left.ContentHash == right.ContentHash;
+        private static bool Same(ValidationEvidenceReference left, ValidationEvidenceReference right) => left.EvidenceId == right.EvidenceId && left.SchemaVersion == right.SchemaVersion && left.ContentHash == right.ContentHash;
+    }
+
+    private sealed class IntegrationDecisionRepository : IValidationGateDecisionRepository
+    {
+        public Task<ValidationDecisionRepositoryWriteResult> CreateAsync(ValidationGateDecision decision, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationDecisionRepositoryWriteResult(ValidationDecisionRepositoryWriteStatus.Created));
+        public Task<ValidationDecisionReadResult> GetAsync(Guid projectId, Guid decisionId, CancellationToken cancellationToken = default) => Task.FromResult(new ValidationDecisionReadResult(ValidationDecisionReadState.Missing));
+    }
+
+    private sealed class IntegrationCollectorResolver : IValidationEvidenceCollectorResolver
+    {
+        private readonly IntegrationCollector _collector = new();
+        public int InvocationCount => _collector.InvocationCount;
+        public ValidationCollectorResolution Resolve(string collectorIdentifier, ValidationEvidenceKind kind) =>
+            collectorIdentifier == _collector.Descriptor.Identifier && kind == ValidationEvidenceKind.Test
+                ? new(ValidationCollectorResolutionStatus.Resolved, _collector)
+                : new(ValidationCollectorResolutionStatus.Unsupported);
+    }
+
+    private sealed class IntegrationCollector : IValidationEvidenceCollector
+    {
+        public ValidationEvidenceCollectorDescriptor Descriptor { get; } = new("integration", [ValidationEvidenceKind.Test], false, true);
+        public int InvocationCount { get; private set; }
+        public Task<ValidationEvidence> CaptureAsync(ValidationCollectionContext context, CancellationToken cancellationToken = default)
+        {
+            InvocationCount++;
+            return Task.FromResult(new ValidationEvidence(context.Plan.ProjectId, Guid.NewGuid(), context.Plan.Reference, context.Requirement.RequirementId,
+                context.Authority.RunId, context.Authority.Reference, context.Plan.PlanningContractReference, context.Plan.WorkGraphReference, context.Plan.WorkGraphNodeId,
+                context.CurrentCheckpoint.Reference, context.Plan.WorkspaceId, context.Plan.WorkspacePath, context.Plan.WorkspaceReceiptContentHash,
+                context.Requirement.CollectorIdentifier, context.Requirement.EvidenceKind, ValidationEvidenceState.Available, ValidationOutcome.Passed,
+                context.Requirement.Coverage, context.Requirement.BaselineRelation, context.Plan.EvidenceNotBefore,
+                validationDefinitionId: context.Requirement.ValidationDefinitionId));
         }
     }
 

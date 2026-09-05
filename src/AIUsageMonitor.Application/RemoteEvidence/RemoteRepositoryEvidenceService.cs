@@ -1,12 +1,14 @@
 using AIUsageMonitor.Application.Projects;
+using AIUsageMonitor.Application.Time;
 
 namespace AIUsageMonitor.Application.RemoteEvidence;
 
 public sealed class RemoteRepositoryEvidenceService : IRemoteRepositoryEvidenceService
 {
     private readonly IReadOnlyDictionary<RemoteRepositoryProvider, IRemoteRepositoryEvidenceProvider> _providers;
+    private readonly IClock _clock;
 
-    public RemoteRepositoryEvidenceService(IEnumerable<IRemoteRepositoryEvidenceProvider> providers)
+    public RemoteRepositoryEvidenceService(IEnumerable<IRemoteRepositoryEvidenceProvider> providers, IClock? clock = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
         var materialized = providers.ToArray();
@@ -16,6 +18,7 @@ public sealed class RemoteRepositoryEvidenceService : IRemoteRepositoryEvidenceS
         }
 
         _providers = materialized.ToDictionary(provider => provider.Provider);
+        _clock = clock ?? new SystemClock();
     }
 
     public async Task<RemoteRepositoryEvidence> InspectAsync(
@@ -25,7 +28,7 @@ public sealed class RemoteRepositoryEvidenceService : IRemoteRepositoryEvidenceS
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(project);
-        var capturedAt = DateTimeOffset.UtcNow;
+        var capturedAt = _clock.UtcNow;
         if (string.IsNullOrWhiteSpace(project.RepositoryProvider) ||
             string.IsNullOrWhiteSpace(project.RepositoryUrl))
         {

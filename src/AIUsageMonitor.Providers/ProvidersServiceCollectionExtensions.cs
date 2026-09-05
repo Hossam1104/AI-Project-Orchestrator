@@ -36,7 +36,7 @@ public static class ProvidersServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://api.github.com/", UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI_Orchestrator/1.0");
             client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2026-03-10");
         });
 
@@ -44,7 +44,7 @@ public static class ProvidersServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://api.anthropic.com/", UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI_Orchestrator/1.0");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             AllowAutoRedirect = false
@@ -53,13 +53,13 @@ public static class ProvidersServiceCollectionExtensions
         services.AddHttpClient(KimiProvider.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI_Orchestrator/1.0");
         });
 
         services.AddHttpClient(JiraWorkItemTrackerAdapter.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI_Orchestrator/1.0");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             AllowAutoRedirect = false
@@ -69,7 +69,7 @@ public static class ProvidersServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://api.github.com/", UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI_Orchestrator/1.0");
             client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2026-03-10");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
@@ -80,7 +80,7 @@ public static class ProvidersServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://dev.azure.com/", UriKind.Absolute);
             client.Timeout = TimeSpan.FromSeconds(30);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI-Project-Orchestrator/1.0");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AI_Orchestrator/1.0");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             AllowAutoRedirect = false

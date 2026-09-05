@@ -251,6 +251,55 @@ public sealed class ApplicationDataPaths
 
     public string GetProjectEvidenceDirectory(Guid projectId) => GetProjectPaths(projectId).EvidenceDirectory;
 
+    public string GetProjectValidationDirectory(Guid projectId) =>
+        Path.Combine(GetProjectEvidenceDirectory(projectId), "validation");
+
+    public string GetProjectValidationPlansDirectory(Guid projectId) =>
+        Path.Combine(GetProjectValidationDirectory(projectId), "plans");
+
+    public string GetValidationPlanDirectory(Guid projectId, Guid planId, int revision)
+    {
+        ValidateGuid(planId, nameof(planId));
+        if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
+        return Path.Combine(GetProjectValidationPlansDirectory(projectId), planId.ToString("D"), "revisions", revision.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    public string GetValidationPlanFile(Guid projectId, Guid planId, int revision) =>
+        Path.Combine(GetValidationPlanDirectory(projectId, planId, revision), "plan.json");
+
+    public string GetProjectValidationEvidenceDirectory(Guid projectId) =>
+        Path.Combine(GetProjectValidationDirectory(projectId), "evidence");
+
+    public string GetValidationEvidenceRevisionDirectory(Guid projectId, Guid planId, int revision)
+    {
+        ValidateGuid(planId, nameof(planId));
+        if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
+        return Path.Combine(GetProjectValidationEvidenceDirectory(projectId), planId.ToString("D"), "revisions", revision.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    public string GetValidationEvidenceDirectory(Guid projectId, Guid planId, int revision, Guid evidenceId)
+    {
+        ValidateGuid(planId, nameof(planId));
+        if (revision <= 0) throw new ArgumentOutOfRangeException(nameof(revision));
+        ValidateGuid(evidenceId, nameof(evidenceId));
+        return Path.Combine(GetValidationEvidenceRevisionDirectory(projectId, planId, revision), evidenceId.ToString("D"));
+    }
+
+    public string GetValidationEvidenceFile(Guid projectId, Guid planId, int revision, Guid evidenceId) =>
+        Path.Combine(GetValidationEvidenceDirectory(projectId, planId, revision, evidenceId), "evidence.json");
+
+    public string GetProjectValidationDecisionsDirectory(Guid projectId) =>
+        Path.Combine(GetProjectValidationDirectory(projectId), "decisions");
+
+    public string GetValidationDecisionDirectory(Guid projectId, Guid decisionId)
+    {
+        ValidateGuid(decisionId, nameof(decisionId));
+        return Path.Combine(GetProjectValidationDecisionsDirectory(projectId), decisionId.ToString("D"));
+    }
+
+    public string GetValidationDecisionFile(Guid projectId, Guid decisionId) =>
+        Path.Combine(GetValidationDecisionDirectory(projectId, decisionId), "decision.json");
+
     public string GetProjectReviewsDirectory(Guid projectId) => GetProjectPaths(projectId).ReviewsDirectory;
 
     public string GetProjectActivityDirectory(Guid projectId) => GetProjectPaths(projectId).ActivityDirectory;
@@ -325,6 +374,9 @@ public sealed class ApplicationDataPaths
         Directory.CreateDirectory(projectPaths.RunsDirectory);
         Directory.CreateDirectory(GetProjectExecutionRunAuthoritiesDirectory(projectId));
         Directory.CreateDirectory(projectPaths.EvidenceDirectory);
+        Directory.CreateDirectory(GetProjectValidationPlansDirectory(projectId));
+        Directory.CreateDirectory(GetProjectValidationEvidenceDirectory(projectId));
+        Directory.CreateDirectory(GetProjectValidationDecisionsDirectory(projectId));
         Directory.CreateDirectory(projectPaths.ReviewsDirectory);
         Directory.CreateDirectory(projectPaths.ActivityDirectory);
         Directory.CreateDirectory(projectPaths.TrackerAuditDirectory);

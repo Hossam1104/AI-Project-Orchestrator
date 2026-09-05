@@ -62,7 +62,7 @@ public partial class App : System.Windows.Application
                 .Build();
 
             await _host.StartAsync();
-            Log.Information("AI Project Orchestrator started using LocalAppData at {RootDirectory}", _paths.RootDirectory);
+            Log.Information("AI_Orchestrator started using LocalAppData at {RootDirectory}", _paths.RootDirectory);
             ShowShell(persistenceAvailable: true);
         }
         catch (Exception exception)
@@ -131,7 +131,7 @@ public partial class App : System.Windows.Application
             _host.Dispose();
         }
 
-        Log.Information("AI Project Orchestrator stopped");
+        Log.Information("AI_Orchestrator stopped");
         Log.CloseAndFlush();
         base.OnExit(e);
     }

@@ -1,11 +1,11 @@
-# AGENTS.md - AI Project Orchestrator (APO) Execution Contract
+# AGENTS.md - AI_Orchestrator (APO) Execution Contract
 
 This is the universal execution contract for every AI model working in this repository.
 
-**Repository:** https://github.com/Hossam1104/AI-Project-Orchestrator
-**Local Root:** `D:\AI Tools\Active Projects\AI-Project-Orchestrator`
-**Product:** AI Project Orchestrator (APO)
-**Previous Product Identity:** AI Usage Monitor
+**Repository:** https://github.com/Hossam1104/AI_Orchestrator
+**Local Root:** `D:\AI Tools\Active Projects\AI_Orchestrator`
+**Product:** AI_Orchestrator (APO)
+**Previous Product Identity:** AI Usage Monitor, AI Project Orchestrator
 **Primary Requirements:** `docs/BRD.md`
 **Implementation Plan:** `docs/IMPLEMENTATION_PLAN.md`
 **Prompt Library:** `docs/SESSION_PROMPTS.md`

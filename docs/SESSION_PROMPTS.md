@@ -1,6 +1,6 @@
-# AI Project Orchestrator - Execution Contract Library
+# AI_Orchestrator - Execution Contract Library
 
-**Product:** AI Project Orchestrator (APO)
+**Product:** AI_Orchestrator (APO)
 **BRD:** `docs/BRD.md`
 **Plan:** `docs/IMPLEMENTATION_PLAN.md`
 **Planner / Router / Acceptance / Prompt Authority:** GPT-5.6 Sol (chat mode only)

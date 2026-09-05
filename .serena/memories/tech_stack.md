@@ -1,4 +1,4 @@
-# AI Project Orchestrator technology
+# AI_Orchestrator technology
 
 - C# with TargetFramework net10.0 for Domain, Application, Infrastructure, Providers; Desktop targets net10.0-windows10.0.17763.0 with WPF and minimum Windows 10 build 17763.
 - Desktop RIDs: win-x86, win-x64, win-arm64; x64 is primary validation target.

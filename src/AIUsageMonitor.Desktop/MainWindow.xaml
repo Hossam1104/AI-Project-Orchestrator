@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="clr-namespace:AIUsageMonitor.Desktop.ViewModels"
     xmlns:converters="clr-namespace:AIUsageMonitor.Desktop.Converters"
-    Title="AI Project Orchestrator"
+    Title="AI_Orchestrator"
     Icon="/Assets/apo-icon.ico"
     Width="1180"
     Height="760"

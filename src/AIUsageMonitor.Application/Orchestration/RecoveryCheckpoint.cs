@@ -25,6 +25,38 @@ public static class RecoveryCheckpointLimits
     public const int MaxDescriptionLength = 4_000;
     public const int MaxReferenceLength = 1_000;
     public const int MaxBlockerReferenceLength = 1_000;
+
+    public static bool TryValidateEvidenceReferences(
+        IReadOnlyList<RecoveryEvidenceReference>? values,
+        out string? errorMessage)
+    {
+        errorMessage = null;
+        if (values is null)
+        {
+            errorMessage = "Recovery evidence references are required.";
+            return false;
+        }
+
+        if (values.Count > MaxEvidenceReferences)
+        {
+            errorMessage = $"Recovery evidence references exceed the supported capacity of {MaxEvidenceReferences}.";
+            return false;
+        }
+
+        if (values.Any(static value => value is null))
+        {
+            errorMessage = "Recovery evidence references cannot contain null entries.";
+            return false;
+        }
+
+        if (values.Select(static value => value.EvidenceId).Distinct().Count() != values.Count)
+        {
+            errorMessage = "Recovery evidence identifiers must be unique.";
+            return false;
+        }
+
+        return true;
+    }
 }
 
 public enum RecoveryCheckpointLifecycleState
@@ -533,10 +565,10 @@ public sealed class RecoveryCheckpoint
     private static IReadOnlyList<RecoveryEvidenceReference> NormalizeEvidence(
         IReadOnlyList<RecoveryEvidenceReference>? values)
     {
-        var result = Normalize(values, RecoveryCheckpointLimits.MaxEvidenceReferences, nameof(values));
-        if (result.GroupBy(static value => value.EvidenceId).Any(static group => group.Count() > 1))
+        var result = (values ?? Array.Empty<RecoveryEvidenceReference>()).ToArray();
+        if (!RecoveryCheckpointLimits.TryValidateEvidenceReferences(result, out var errorMessage))
         {
-            throw new ArgumentException("Evidence identifiers must be unique.", nameof(values));
+            throw new ArgumentException(errorMessage, nameof(values));
         }
 
         return result.OrderBy(static value => value.EvidenceId).ToArray();

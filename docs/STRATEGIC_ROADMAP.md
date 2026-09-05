@@ -1,4 +1,4 @@
-# AI Project Orchestrator — Strategic Orchestration Roadmap
+# AI_Orchestrator — Strategic Orchestration Roadmap
 
 ## 1. Purpose
 
@@ -8,11 +8,12 @@ direction and sequencing after the accepted APO foundation; it is not a runtime 
 does not authorize a new Story. Each implementation boundary still requires a Sol-authored
 `TASK.md` contract.
 
-## Current status (30 August 2026)
+## Current status (4 September 2026)
 
 APO-38 through APO-47 and APO-68 are implemented and marked Done in Jira. APO-69 is also Done.
-APO-48 through APO-63 remain the bounded strategic backlog; APO-62, APO-48, APO-49, APO-50, and
-APO-63 are To Do and not started. PR #22 is merged into `main` at `d3a88e3`; the live branch,
+APO-62 (remote SCM and CI evidence) is also Done. APO-48 is In Progress and not yet accepted; two
+known `BoundedProcessHostTests` failures remain outstanding. APO-49, APO-50, and APO-63 are To Do
+and not started. `origin/main` is at `98cb8e86bad0729aa07d33ec6f93b86a49a668bf`; the live branch,
 commit, tree, validation, and planner boundary are maintained in `.ai/CURRENT_STATE.md` and
 `TASK.md`.
 
@@ -136,8 +137,8 @@ Epics. APO-33 remains a complementary existing CI/release Story.
 
 ### P0 source-control/tracker/evidence — APO-62, APO-48, APO-49, APO-63
 
-- APO-62 — Provider-independent, read-only GitHub/Azure Repos remote SCM and CI evidence.
-- APO-48 — Independent QA and evidence gates.
+- APO-62 — Provider-independent, read-only GitHub/Azure Repos remote SCM and CI evidence (delivered; Jira Done).
+- APO-48 — Independent QA and evidence gates (In Progress; not yet accepted).
 - APO-49 — Human approval policy.
 - APO-63 — Controlled remote source-control delivery operations.
 
@@ -204,8 +205,8 @@ of repository or CI state.
 
 ### Remote SCM / CI evidence — APO-62
 
-APO-62 is planned as a read-only provider-independent boundary for configured GitHub and Azure
-Repos projects, using official supported integration paths. It may capture repository identity,
+APO-62 is delivered as a read-only provider-independent boundary for configured GitHub and Azure
+Repos projects, using official supported integration paths. It captures repository identity,
 branch/commit relationships, pull-request identity/state, reviews, checks/status, CI/workflow
 evidence, source/provider, freshness, and immutable target identifiers where exposed. It must
 distinguish Not Configured, Authentication Required, Permission Denied, Unsupported, Unavailable,
@@ -312,7 +313,10 @@ planner sequencing, not a claim that every adjacent pair is a Jira hard dependen
 
 ## 13. Current planner boundary
 
-APO-69 is complete and APO-47 is merged, Sol-accepted, post-merge verified, and Jira Done. The
-current planner boundary is the post-merge state reconciliation in `.ai/CURRENT_STATE.md` and
-`TASK.md`; no APO-62, APO-48, or other new Story is authorized until Sol selects it and provides
-exactly one fresh self-contained implementation contract.
+APO-69 is complete and APO-47 is merged, Sol-accepted, post-merge verified, and Jira Done. APO-62
+(remote SCM and CI evidence) is delivered and Jira Done. APO-48 (independent QA/evidence gates) is
+In Progress and not yet accepted; two known `BoundedProcessHostTests` failures remain outstanding.
+The current planner boundary is the state reconciliation in `.ai/CURRENT_STATE.md` and `TASK.md`;
+no APO-49, APO-50, APO-63, or other new Story is authorized until Sol accepts the current
+reconciliation/remediation work and provides exactly one fresh self-contained implementation
+contract.
