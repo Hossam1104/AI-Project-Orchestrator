@@ -31,6 +31,7 @@ public sealed class ValidationInfrastructureTests
         Assert.Equal(ValidationOutcome.Passed, evidence.Outcome);
         Assert.Equal("dotnet", host.Request!.ExecutablePath);
         Assert.Equal(["build", Path.Combine("src", "App.csproj"), "--no-restore", "--nologo"], host.Request.Arguments);
+        Assert.Equal(1, host.InvocationCount);
         Assert.Equal(6, evidence.StdoutBytes);
         Assert.Null(evidence.DiagnosticSummary);
     }
@@ -61,6 +62,27 @@ public sealed class ValidationInfrastructureTests
         Assert.Equal(ValidationEvidenceState.Available, evidence.State);
         Assert.Equal(ValidationOutcome.Passed, evidence.Outcome);
         Assert.Equal(1, host.InvocationCount);
+    }
+
+    [Theory]
+    [InlineData("@response.sln", "@response.sln")]
+    [InlineData("-option.sln", "-option.sln")]
+    [InlineData(@".\@response.sln", "@response.sln")]
+    [InlineData(@".\-option.sln", "-option.sln")]
+    [InlineData(@"folder\..\@response.sln", "@response.sln")]
+    [InlineData(@"folder\..\-option.sln", "-option.sln")]
+    public async Task DotNetCollector_RejectsUnsafeNormalizedTargetArgumentsWithoutProcessInvocation(string candidate, string existingTarget)
+    {
+        var host = new FakeProcessHost(new BoundedProcessResult(BoundedProcessOutcome.ExitedSuccessfully, 0, string.Empty, string.Empty, false, false, false, true, TimeSpan.Zero));
+        var context = CreateContext(candidate);
+        CreateTarget(context, existingTarget);
+        var collector = new DotNetValidationEvidenceCollector(host, new FixedClock(context.Plan.CreatedAt.AddMinutes(1)), new HandoffRedactionService());
+
+        var evidence = await collector.CaptureAsync(context);
+
+        Assert.NotEqual(ValidationOutcome.Passed, evidence.Outcome);
+        Assert.Equal(ValidationEvidenceState.Invalid, evidence.State);
+        Assert.Equal(0, host.InvocationCount);
     }
 
     [Theory]

@@ -173,9 +173,7 @@ public sealed class DotNetValidationEvidenceCollector : IValidationEvidenceColle
 
             var fullPath = Path.GetFullPath(Path.Combine(workspace, candidate));
             var relative = Path.GetRelativePath(workspace, fullPath);
-            if (relative == "." ||
-                relative.StartsWith("..", StringComparison.Ordinal) ||
-                Path.IsPathFullyQualified(relative) ||
+            if (!IsSafeDotNetTargetArgument(relative) ||
                 !File.Exists(fullPath) ||
                 Directory.Exists(fullPath) ||
                 !HasSafePathComponents(workspace, fullPath))
@@ -231,6 +229,16 @@ public sealed class DotNetValidationEvidenceCollector : IValidationEvidenceColle
     private static bool IsSafeArgument(string value) =>
         value.Length <= ValidationLimits.MaxIdentityLength &&
         value.All(static character => !char.IsControl(character));
+
+    private static bool IsSafeDotNetTargetArgument(string value) =>
+        IsSafeArgument(value) &&
+        !string.IsNullOrWhiteSpace(value) &&
+        !Path.IsPathRooted(value) &&
+        !Path.IsPathFullyQualified(value) &&
+        value != "." &&
+        !value.StartsWith("..", StringComparison.Ordinal) &&
+        !value.StartsWith("-", StringComparison.Ordinal) &&
+        !value.StartsWith("@", StringComparison.Ordinal);
 }
 
 public sealed class LocalRepositoryValidationEvidenceCollector : IValidationEvidenceCollector
